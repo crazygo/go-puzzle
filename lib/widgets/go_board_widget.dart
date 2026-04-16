@@ -246,7 +246,7 @@ class GoBoardPainter extends CustomPainter {
 
     // Highlight
     final highlightPaint = Paint()
-      ..color = (isBlack ? Colors.white : Colors.white).withOpacity(0.25)
+      ..color = Colors.white.withOpacity(0.25)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(
       center + Offset(-radius * 0.25, -radius * 0.25),

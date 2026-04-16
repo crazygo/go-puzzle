@@ -57,16 +57,15 @@ class DailyPuzzles {
       boardSize: 9,
       initialStones: [
         Stone(position: BoardPosition(0, 0), color: StoneColor.white),
-        Stone(position: BoardPosition(0, 1), color: StoneColor.black),
         Stone(position: BoardPosition(1, 0), color: StoneColor.black),
       ],
       targetCaptures: [BoardPosition(0, 0)],
       solutions: [
-        [BoardPosition(0, 0)], // this is a capture by surrounding
+        [BoardPosition(0, 1)],
       ],
       category: PuzzleCategory.beginner,
       difficulty: PuzzleDifficulty.easy,
-      hint: '白棋已经在角上，气很少',
+      hint: '白棋在角上只有两口气，封住右边就能吃掉',
     ),
 
     // Day 4: Double atari

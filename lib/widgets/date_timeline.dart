@@ -90,6 +90,10 @@ class _DateItem extends StatelessWidget {
   final bool isToday;
   final VoidCallback onTap;
 
+  // _weekDays index: 0=Sun, 1=Mon ... 6=Sat
+  // DateTime.weekday: 1=Mon...7=Sun; we map 7→0, 1→1...6→6 using % 7
+  static String _weekDayLabel(DateTime date) => _weekDays[date.weekday % 7];
+
   static const _weekDays = ['日', '一', '二', '三', '四', '五', '六'];
   static const _months = ['1月', '2月', '3月', '4月', '5月', '6月',
                            '7月', '8月', '9月', '10月', '11月', '12月'];
@@ -133,7 +137,7 @@ class _DateItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              _weekDays[date.weekday % 7],
+              _weekDayLabel(date),
               style: TextStyle(
                 fontSize: 11,
                 color: isSelected
