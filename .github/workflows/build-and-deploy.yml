@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main, master]
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   # ──────────────────────────────────────────────────────────────────────────
   # 1. Flutter Web build + Vercel deployment
@@ -38,7 +43,20 @@ jobs:
           flutter build web \
             --release \
             --web-renderer html \
-            --dart-define=FLUTTER_WEB_AUTO_DETECT=true
+            --dart-define=FLUTTER_WEB_AUTO_DETECT=true \
+            --base-href /go-puzzle/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
       - name: Deploy to Vercel (Production)
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
