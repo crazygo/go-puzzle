@@ -6,12 +6,23 @@ on:
   pull_request:
     branches: [main, master]
 
+# Allow the workflow to deploy to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one concurrent deployment at a time; cancel in-progress runs
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
   # ──────────────────────────────────────────────────────────────────────────
-  # 1. Flutter Web build + Vercel deployment
+  # 1. Flutter Web build + upload GitHub Pages artifact
   # ──────────────────────────────────────────────────────────────────────────
   build-web:
-    name: Build Web & Deploy to Vercel
+    name: Build Web
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,29 +49,37 @@ jobs:
           flutter build web \
             --release \
             --web-renderer html \
+            --base-href /go-puzzle/ \
             --dart-define=FLUTTER_WEB_AUTO_DETECT=true
 
-      - name: Deploy to Vercel (Production)
+      - name: Configure GitHub Pages
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: build/web
-          vercel-args: "--prod"
+        uses: actions/configure-pages@v5
 
-      - name: Deploy to Vercel (Preview — PRs)
-        if: github.event_name == 'pull_request'
-        uses: amondnet/vercel-action@v25
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: actions/upload-pages-artifact@v3
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: build/web
+          path: build/web
 
   # ──────────────────────────────────────────────────────────────────────────
-  # 2. iOS build (requires macOS + Xcode)
+  # 2. Deploy to GitHub Pages
+  # ──────────────────────────────────────────────────────────────────────────
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: build-web
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 3. iOS build (requires macOS + Xcode)
   # ──────────────────────────────────────────────────────────────────────────
   build-ios:
     name: Build iOS
