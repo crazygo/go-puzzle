@@ -82,10 +82,55 @@ flutter run
 flutter test
 ```
 
+### 构建目标平台
+
+```bash
+# Web（输出到 build/web/）
+flutter config --enable-web
+flutter build web --release --web-renderer html
+
+# iOS（需要 macOS + Xcode 14+）
+cd ios && pod install
+flutter build ios --release --no-codesign
+```
+
 ### 环境要求
-- Flutter SDK ≥ 3.0.0
+- Flutter SDK ≥ 3.22.0
 - Dart ≥ 3.0.0
-- iOS 15+ / Android 6.0+
+- iOS 12+ / Android 6.0+
+- Xcode 14+（iOS 构建）
+
+---
+
+## Vercel 部署
+
+### 方式一：自动 CI/CD（推荐）
+
+推送到 `main` 分支时，GitHub Actions 会自动构建 web 并部署到 Vercel。
+
+1. 在 [Vercel 控制台](https://vercel.com) 导入此仓库
+2. 在 GitHub 仓库 Settings → Secrets 中添加：
+   - `VERCEL_TOKEN` — Vercel 账户 API token
+   - `VERCEL_ORG_ID` — Vercel 团队/用户 ID
+   - `VERCEL_PROJECT_ID` — Vercel 项目 ID
+3. 推送代码即可触发自动构建部署
+
+### 方式二：手动 Vercel 部署
+
+```bash
+# 安装 Vercel CLI
+npm i -g vercel
+
+# 构建 web
+flutter build web --release --web-renderer html
+
+# 部署
+vercel build/web --prod
+```
+
+### 方式三：通过 Vercel 控制台直接构建
+
+在 Vercel 控制台导入仓库后，框架设置选择 "Other"，构建命令和输出目录会通过 `vercel.json` 自动配置（运行 `vercel-build.sh` 安装 Flutter 并构建）。
 
 ---
 
