@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Colors;
 import 'package:provider/provider.dart';
 
+import '../models/board_position.dart';
 import '../models/game_state.dart';
 import '../models/puzzle.dart';
 import '../providers/game_provider.dart';
