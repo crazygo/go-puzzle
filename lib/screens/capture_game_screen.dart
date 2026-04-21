@@ -483,10 +483,10 @@ class _StatusBar extends StatelessWidget {
     if (provider.isAiThinking) {
       child = Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          CupertinoActivityIndicator(),
-          SizedBox(width: 8),
-          Text('AI思考中…'),
+        children: [
+          const CupertinoActivityIndicator(),
+          const SizedBox(width: 8),
+          const Text('AI思考中…'),
         ],
       );
     } else if (provider.result == CaptureGameResult.none) {
@@ -555,10 +555,10 @@ class _ControlBar extends StatelessWidget {
               onPressed: provider.canUndo ? provider.undoMove : null,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(CupertinoIcons.arrow_uturn_left, size: 16),
-                  SizedBox(width: 6),
-                  Text('悔棋'),
+                children: [
+                  const Icon(CupertinoIcons.arrow_uturn_left, size: 16),
+                  const SizedBox(width: 6),
+                  const Text('悔棋'),
                 ],
               ),
             ),
@@ -572,10 +572,10 @@ class _ControlBar extends StatelessWidget {
               onPressed: provider.newGame,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(CupertinoIcons.refresh, size: 16),
-                  SizedBox(width: 6),
-                  Text('新局'),
+                children: [
+                  const Icon(CupertinoIcons.refresh, size: 16),
+                  const SizedBox(width: 6),
+                  const Text('新局'),
                 ],
               ),
             ),
