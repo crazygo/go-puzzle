@@ -1,0 +1,374 @@
+import 'dart:math' as math;
+
+import '../models/board_position.dart';
+import '../models/game_state.dart';
+
+/// Lightweight flat-array board for MCTS simulations.
+/// Uses integers instead of enums for speed.
+class SimBoard {
+  static const int empty = 0;
+  static const int black = 1;
+  static const int white = 2;
+
+  final int size;
+  final List<int> cells;
+  int capturedByBlack;
+  int capturedByWhite;
+  int currentPlayer;
+  int _koIndex; // flat index of the forbidden ko point, -1 if none
+
+  SimBoard(this.size)
+      : cells = List.filled(size * size, 0),
+        capturedByBlack = 0,
+        capturedByWhite = 0,
+        currentPlayer = black,
+        _koIndex = -1;
+
+  SimBoard._internal({
+    required this.size,
+    required List<int> cells,
+    required this.capturedByBlack,
+    required this.capturedByWhite,
+    required this.currentPlayer,
+    required int koIndex,
+  })  : cells = List<int>.from(cells),
+        _koIndex = koIndex;
+
+  factory SimBoard.copy(SimBoard other) => SimBoard._internal(
+        size: other.size,
+        cells: other.cells,
+        capturedByBlack: other.capturedByBlack,
+        capturedByWhite: other.capturedByWhite,
+        currentPlayer: other.currentPlayer,
+        koIndex: other._koIndex,
+      );
+
+  /// Creates a SimBoard from a GameState, setting [aiPlayer] as [white].
+  factory SimBoard.fromGameState(GameState state) {
+    final sb = SimBoard(state.boardSize);
+    for (int r = 0; r < state.boardSize; r++) {
+      for (int c = 0; c < state.boardSize; c++) {
+        final color = state.board[r][c];
+        if (color == StoneColor.black) {
+          sb.cells[r * state.boardSize + c] = black;
+        } else if (color == StoneColor.white) {
+          sb.cells[r * state.boardSize + c] = white;
+        }
+      }
+    }
+    sb.capturedByBlack = state.capturedByBlack.length;
+    sb.capturedByWhite = state.capturedByWhite.length;
+    sb.currentPlayer =
+        state.currentPlayer == StoneColor.black ? black : white;
+    return sb;
+  }
+
+  int idx(int r, int c) => r * size + c;
+
+  List<int> _adjacent(int i) {
+    final r = i ~/ size;
+    final c = i % size;
+    final result = <int>[];
+    if (r > 0) result.add(i - size);
+    if (r < size - 1) result.add(i + size);
+    if (c > 0) result.add(i - 1);
+    if (c < size - 1) result.add(i + 1);
+    return result;
+  }
+
+  Set<int> _findGroup(int i) {
+    final color = cells[i];
+    if (color == empty) return {};
+    final group = <int>{i};
+    final queue = [i];
+    while (queue.isNotEmpty) {
+      final cur = queue.removeLast();
+      for (final adj in _adjacent(cur)) {
+        if (!group.contains(adj) && cells[adj] == color) {
+          group.add(adj);
+          queue.add(adj);
+        }
+      }
+    }
+    return group;
+  }
+
+  int _countLiberties(Set<int> group) {
+    final libs = <int>{};
+    for (final pos in group) {
+      for (final adj in _adjacent(pos)) {
+        if (cells[adj] == empty) libs.add(adj);
+      }
+    }
+    return libs.length;
+  }
+
+  /// Applies a move at (r, c). Returns true when valid and applied.
+  bool applyMove(int r, int c) {
+    final i = idx(r, c);
+    if (cells[i] != empty) return false;
+    if (i == _koIndex) return false;
+
+    final color = currentPlayer;
+    final opponent = color == black ? white : black;
+
+    cells[i] = color;
+
+    // Determine all opponent groups to capture simultaneously.
+    final captured = <int>[];
+    final checked = <int>{};
+    for (final adj in _adjacent(i)) {
+      if (cells[adj] == opponent && !checked.contains(adj)) {
+        final group = _findGroup(adj);
+        checked.addAll(group);
+        // Liberty count with the new stone already placed.
+        final libs = <int>{};
+        for (final p in group) {
+          for (final a in _adjacent(p)) {
+            if (cells[a] == empty) libs.add(a);
+          }
+        }
+        if (libs.isEmpty) captured.addAll(group);
+      }
+    }
+
+    // Remove captured stones.
+    for (final p in captured) {
+      cells[p] = empty;
+    }
+
+    // Check suicide (only relevant when no captures).
+    if (captured.isEmpty) {
+      final ownGroup = _findGroup(i);
+      if (_countLiberties(ownGroup) == 0) {
+        cells[i] = empty;
+        return false;
+      }
+    }
+
+    if (color == black) {
+      capturedByBlack += captured.length;
+    } else {
+      capturedByWhite += captured.length;
+    }
+
+    _koIndex = captured.length == 1 ? captured[0] : -1;
+    currentPlayer = opponent;
+    return true;
+  }
+
+  bool get isTerminal => capturedByBlack >= 5 || capturedByWhite >= 5;
+
+  /// Returns [black], [white], or 0 (no winner yet).
+  int get winner {
+    if (capturedByBlack >= 5) return black;
+    if (capturedByWhite >= 5) return white;
+    return 0;
+  }
+
+  /// Returns candidate legal moves focused within 2 intersections of existing
+  /// stones.  Falls back to a central region on an empty board.
+  List<int> getLegalMoves() {
+    final candidates = <int>{};
+    bool hasStones = false;
+
+    for (int i = 0; i < size * size; i++) {
+      if (cells[i] != empty) {
+        hasStones = true;
+        final r = i ~/ size;
+        final c = i % size;
+        for (int dr = -2; dr <= 2; dr++) {
+          for (int dc = -2; dc <= 2; dc++) {
+            final nr = r + dr;
+            final nc = c + dc;
+            if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+              final ni = idx(nr, nc);
+              if (cells[ni] == empty && ni != _koIndex) {
+                candidates.add(ni);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (!hasStones) {
+      // Empty board – suggest the central region.
+      final center = size ~/ 2;
+      for (int r = center - 4; r <= center + 4; r++) {
+        for (int c = center - 4; c <= center + 4; c++) {
+          if (r >= 0 && r < size && c >= 0 && c < size) {
+            candidates.add(idx(r, c));
+          }
+        }
+      }
+    }
+
+    return candidates.toList();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// MCTS node
+// ---------------------------------------------------------------------------
+
+class _MctsNode {
+  final _MctsNode? parent;
+  final int moveIdx; // flat board index; -1 for root
+  final int playerWhoMoved; // color that made the move reaching this node
+  final List<_MctsNode> children = [];
+  int wins = 0;
+  int visits = 0;
+  List<int>? _untriedMoves;
+
+  _MctsNode({
+    this.parent,
+    this.moveIdx = -1,
+    this.playerWhoMoved = 0,
+  });
+
+  void initUntriedMoves(List<int> moves) {
+    _untriedMoves = List<int>.from(moves)..shuffle();
+  }
+
+  bool get hasUntriedMoves =>
+      _untriedMoves != null && _untriedMoves!.isNotEmpty;
+
+  int? popUntriedMove() {
+    if (_untriedMoves == null || _untriedMoves!.isEmpty) return null;
+    return _untriedMoves!.removeLast();
+  }
+
+  /// UCB1 score from the perspective of [playerWhoMoved].
+  double ucb1(int parentVisits, {double c = 1.414}) {
+    if (visits == 0) return double.infinity;
+    return wins / visits + c * math.sqrt(math.log(parentVisits) / visits);
+  }
+
+  /// Child with the highest visit count (most-visited policy for final answer).
+  _MctsNode? get mostVisitedChild {
+    if (children.isEmpty) return null;
+    return children.reduce((a, b) => a.visits > b.visits ? a : b);
+  }
+
+  _MctsNode _selectUcbChild() {
+    return children.reduce(
+      (a, b) => a.ucb1(visits) > b.ucb1(visits) ? a : b,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// MCTS engine
+// ---------------------------------------------------------------------------
+
+/// Pure-Dart MCTS engine for the "capture 5 stones" (吃5子) variant.
+///
+/// Reward function: a simulation ends when either side accumulates ≥ 5
+/// captures.  The winner receives reward = 1, the loser reward = 0.
+///
+/// Difficulty is controlled via [maxPlayouts]:
+///   • 入门  (beginner) : 200  playouts
+///   • 进阶  (advanced) : 2000 playouts
+class MctsEngine {
+  final int maxPlayouts;
+  static const int _rolloutDepth = 50;
+
+  final math.Random _rng;
+
+  MctsEngine({this.maxPlayouts = 200}) : _rng = math.Random();
+
+  /// Returns the best [BoardPosition] for the current player in [board],
+  /// or null if the game is already over or no moves exist.
+  BoardPosition? getBestMove(SimBoard board) {
+    if (board.isTerminal) return null;
+
+    final moves = board.getLegalMoves();
+    if (moves.isEmpty) return null;
+    if (moves.length == 1) {
+      return BoardPosition(moves[0] ~/ board.size, moves[0] % board.size);
+    }
+
+    final root = _MctsNode();
+    root.initUntriedMoves(moves);
+
+    for (int i = 0; i < maxPlayouts; i++) {
+      final simBoard = SimBoard.copy(board);
+      final leaf = _selectAndExpand(root, simBoard);
+      final winner = _rollout(simBoard);
+      _backpropagate(leaf, winner);
+    }
+
+    final best = root.mostVisitedChild;
+    if (best == null) return null;
+    return BoardPosition(
+      best.moveIdx ~/ board.size,
+      best.moveIdx % board.size,
+    );
+  }
+
+  /// Walks down fully-expanded nodes using UCB1, then expands one untried move.
+  _MctsNode _selectAndExpand(_MctsNode root, SimBoard board) {
+    var node = root;
+
+    // Selection
+    while (!board.isTerminal &&
+        !node.hasUntriedMoves &&
+        node.children.isNotEmpty) {
+      node = node._selectUcbChild();
+      board.applyMove(node.moveIdx ~/ board.size, node.moveIdx % board.size);
+    }
+
+    // Expansion
+    if (!board.isTerminal && node.hasUntriedMoves) {
+      final moveIdx = node.popUntriedMove()!;
+      final r = moveIdx ~/ board.size;
+      final c = moveIdx % board.size;
+      final playerWhoMoved = board.currentPlayer;
+      if (board.applyMove(r, c)) {
+        final child = _MctsNode(
+          parent: node,
+          moveIdx: moveIdx,
+          playerWhoMoved: playerWhoMoved,
+        );
+        child.initUntriedMoves(board.getLegalMoves());
+        node.children.add(child);
+        node = child;
+      }
+    }
+
+    return node;
+  }
+
+  /// Random playout until terminal or depth limit; returns the winner color.
+  int _rollout(SimBoard board) {
+    int depth = 0;
+    while (!board.isTerminal && depth < _rolloutDepth) {
+      final moves = board.getLegalMoves();
+      if (moves.isEmpty) break;
+      final moveIdx = moves[_rng.nextInt(moves.length)];
+      board.applyMove(moveIdx ~/ board.size, moveIdx % board.size);
+      depth++;
+    }
+    // Non-terminal: use capture advantage as tie-break heuristic.
+    if (!board.isTerminal) {
+      return board.capturedByWhite > board.capturedByBlack
+          ? SimBoard.white
+          : SimBoard.black;
+    }
+    return board.winner;
+  }
+
+  /// Backpropagates: increments visits for every ancestor; increments wins for
+  /// nodes where [playerWhoMoved] equals the [winner].
+  void _backpropagate(_MctsNode node, int winner) {
+    _MctsNode? cur = node;
+    while (cur != null) {
+      cur.visits++;
+      if (winner != 0 && cur.playerWhoMoved == winner) {
+        cur.wins++;
+      }
+      cur = cur.parent;
+    }
+  }
+}
