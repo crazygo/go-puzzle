@@ -8,87 +8,48 @@
     it to work correctly.
     For more details:
     * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-    * https://medium.com/flutter-community/deploying-a-flutter-app-to-firebase-hosting-with-custom-url-paths-8a5e21e58c29
   -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="围棋解谜游戏 - 每日谜题与技巧训练">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="围棋谜题">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
-  <link rel="apple-touch-icon" sizes="192x192" href="icons/Icon-192.png">
-  <link rel="apple-touch-icon" sizes="512x512" href="icons/Icon-512.png">
 
-  <!-- Theme color & icons -->
-  <meta name="msapplication-TileImage" content="icons/Icon-192.png">
-  <meta name="msapplication-TileColor" content="#1C1C1E">
   <meta name="theme-color" content="#1C1C1E">
-
   <link rel="icon" type="image/png" href="favicon.png"/>
   <link rel="manifest" href="manifest.json">
 
   <title>围棋谜题</title>
 
   <style>
+    html,
     body {
       margin: 0;
       padding: 0;
-      background-color: #1C1C1E;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      background: #1C1C1E;
     }
-    #loading {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      color: #EBEBF5;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(235, 235, 245, 0.3);
-      border-top-color: #007AFF;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-bottom: 16px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div id="loading">
-    <div class="spinner"></div>
-    <span>加载中…</span>
-  </div>
-
   <script>
-    // The value below is injected by flutter build, do not touch.
     const serviceWorkerVersion = null;
   </script>
-  <!-- This script adds the flutter initialization JS code -->
   <script src="flutter.js" defer></script>
   <script>
-    window.addEventListener('load', function(ev) {
-      // Download main.dart.js
-      _flutter.loader.loadEntrypoint({
-        serviceWorker: {
+    window.addEventListener('load', function() {
+      _flutter.loader.load({
+        serviceWorkerSettings: {
           serviceWorkerVersion: serviceWorkerVersion,
         },
-        onEntrypointLoaded: async function(engineInitializer) {
-          let appRunner = await engineInitializer.initializeEngine();
-          document.getElementById('loading').style.display = 'none';
-          await appRunner.runApp();
-        }
       });
     });
   </script>
