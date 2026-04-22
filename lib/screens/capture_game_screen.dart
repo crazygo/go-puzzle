@@ -282,12 +282,12 @@ class _SegmentControl<T> extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: selectedValue == option.value
                         ? CupertinoColors.white
-                        : CupertinoColors.transparent,
+                        : const Color(0x00000000),
                     borderRadius: BorderRadius.circular(13),
                     border: Border.all(
                       color: selectedValue == option.value
                           ? const Color(0xFFBBD2FF)
-                          : CupertinoColors.transparent,
+                          : const Color(0x00000000),
                       width: 1.5,
                     ),
                     boxShadow: selectedValue == option.value
