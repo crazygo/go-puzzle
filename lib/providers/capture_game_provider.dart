@@ -9,6 +9,10 @@ import '../models/game_state.dart';
 // Top-level function required by compute() – runs in a background isolate.
 // ---------------------------------------------------------------------------
 
+/// Light playout count used for the opponent's reply move when generating
+/// hints – intentionally lower than the main search to add variety.
+const int _hintReplyPlayouts = 120;
+
 List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
   final cells = List<int>.from(params['cells'] as List);
   final boardSize = params['boardSize'] as int;
@@ -34,7 +38,8 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
     if (move == null) break;
     suggestions.add([move.row, move.col]);
     if (!sim.applyMove(move.row, move.col)) break;
-    final whiteReply = MctsEngine(maxPlayouts: 120).getBestMove(sim);
+    final whiteReply =
+        MctsEngine(maxPlayouts: _hintReplyPlayouts).getBestMove(sim);
     if (whiteReply == null || !sim.applyMove(whiteReply.row, whiteReply.col)) {
       break;
     }
@@ -136,7 +141,8 @@ class CaptureGameProvider extends ChangeNotifier {
 
       // apply as black suggestion then let white respond lightly for diversity
       if (!sim.applyMove(move.row, move.col)) break;
-      final whiteReply = MctsEngine(maxPlayouts: 120).getBestMove(sim);
+      final whiteReply =
+          MctsEngine(maxPlayouts: _hintReplyPlayouts).getBestMove(sim);
       if (whiteReply == null || !sim.applyMove(whiteReply.row, whiteReply.col)) {
         break;
       }

@@ -227,6 +227,12 @@ class _HintDialogState extends State<_HintDialog> {
       content: FutureBuilder<List<BoardPosition>>(
         future: _future,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('计算提示时出错，请重试。'),
+            );
+          }
           if (snapshot.connectionState != ConnectionState.done) {
             return const Padding(
               padding: EdgeInsets.only(top: 12),
