@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../game/go_engine.dart';
 import '../game/mcts_engine.dart';
+import '../models/board_position.dart';
 import '../models/game_state.dart';
 
 enum CaptureGameResult { none, blackWins, whiteWins }
