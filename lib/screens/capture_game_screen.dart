@@ -14,79 +14,90 @@ class CaptureGameScreen extends StatefulWidget {
 }
 
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
-  DifficultyLevel _difficulty = DifficultyLevel.beginner;
+  DifficultyLevel _difficulty = DifficultyLevel.intermediate;
   int _boardSize = 9;
   int _captureTarget = 5;
 
   @override
   Widget build(BuildContext context) {
+    final sidePadding = 16.0;
+
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('吃5子'),
-      ),
       child: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          padding: EdgeInsets.fromLTRB(sidePadding, 18, sidePadding, 24),
           children: [
-            _SectionCard(
-              title: '难度选择',
-              child: CupertinoSlidingSegmentedControl<DifficultyLevel>(
-                groupValue: _difficulty,
-                children: {
-                  for (final d in DifficultyLevel.values)
-                    d: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: Text(d.displayName),
-                    ),
-                },
-                onValueChanged: (v) => setState(() => _difficulty = v ?? _difficulty),
+            Text(
+              _CaptureCopy.pageTitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0E1833),
               ),
             ),
-            _SectionCard(
-              title: '路数',
-              child: CupertinoSlidingSegmentedControl<int>(
-                groupValue: _boardSize,
-                children: const {
-                  9: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Text('9路'),
-                  ),
-                  13: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Text('13路'),
-                  ),
-                  19: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Text('19路'),
-                  ),
-                },
-                onValueChanged: (v) => setState(() => _boardSize = v ?? _boardSize),
+            const SizedBox(height: 8),
+            Text(
+              _CaptureCopy.pageSubtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 15,
+                color: Color(0xFF7A8192),
               ),
             ),
-            _SectionCard(
-              title: '胜利条件',
-              child: CupertinoSlidingSegmentedControl<int>(
-                groupValue: _captureTarget,
-                children: const {
-                  5: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Text('吃5子'),
+            const SizedBox(height: 20),
+            _GroupCard(
+              icon: CupertinoIcons.scope,
+              title: _CaptureCopy.setupTitle,
+              subtitle: _CaptureCopy.setupSubtitle,
+              child: Column(
+                children: [
+                  _SegmentSettingRow<int>(
+                    label: _CaptureCopy.targetLabel,
+                    selectedValue: _captureTarget,
+                    options: const [
+                      _SegmentOption(value: 5, label: '吃5子'),
+                      _SegmentOption(value: 10, label: '吃10子'),
+                      _SegmentOption(value: 20, label: '吃20子'),
+                    ],
+                    onChanged: (v) => setState(() => _captureTarget = v),
                   ),
-                  10: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Text('吃10子'),
+                  const SizedBox(height: 12),
+                  _SegmentSettingRow<int>(
+                    label: _CaptureCopy.boardLabel,
+                    selectedValue: _boardSize,
+                    options: const [
+                      _SegmentOption(value: 9, label: '9路'),
+                      _SegmentOption(value: 13, label: '13路'),
+                      _SegmentOption(value: 19, label: '19路'),
+                    ],
+                    onChanged: (v) => setState(() => _boardSize = v),
                   ),
-                  20: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Text('吃20子'),
-                  ),
-                },
-                onValueChanged: (v) => setState(() => _captureTarget = v ?? _captureTarget),
+                ],
               ),
             ),
-            const SizedBox(height: 18),
-            CupertinoButton.filled(
-              child: const Text('开始'),
+            const SizedBox(height: 14),
+            _GroupCard(
+              icon: CupertinoIcons.chart_bar_alt_fill,
+              title: _CaptureCopy.difficultyTitle,
+              subtitle: _CaptureCopy.difficultySubtitle,
+              child: _SegmentControl<DifficultyLevel>(
+                selectedValue: _difficulty,
+                options: const [
+                  _SegmentOption(value: DifficultyLevel.beginner, label: '初级'),
+                  _SegmentOption(value: DifficultyLevel.intermediate, label: '中级'),
+                  _SegmentOption(value: DifficultyLevel.advanced, label: '高级'),
+                ],
+                onChanged: (v) => setState(() => _difficulty = v),
+              ),
+            ),
+            const SizedBox(height: 14),
+            _SelectionSummaryBar(
+              text: '${_difficulty.displayName} · ${_boardSize}路 · 吃${_captureTarget}子',
+            ),
+            const SizedBox(height: 16),
+            _PrimaryActionButton(
+              title: _CaptureCopy.startButton,
               onPressed: _startGame,
             ),
           ],
@@ -107,6 +118,291 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
           child: CaptureGamePlayScreen(
             difficulty: _difficulty,
             captureTarget: _captureTarget,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CaptureCopy {
+  static const pageTitle = '吃子练习';
+  static const pageSubtitle = '选择本局设置与难度，快速开始练习';
+  static const setupTitle = '本局设置';
+  static const setupSubtitle = '设置本局目标与棋盘尺寸';
+  static const targetLabel = '目标';
+  static const boardLabel = '棋盘';
+  static const difficultyTitle = '难度';
+  static const difficultySubtitle = '选择题目难度等级';
+  static const startButton = '开始练习';
+}
+
+class _GroupCard extends StatelessWidget {
+  const _GroupCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: CupertinoColors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 30, color: CupertinoColors.activeBlue),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0E1833),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Color(0xFF7A8192),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _SegmentSettingRow<T> extends StatelessWidget {
+  const _SegmentSettingRow({
+    required this.label,
+    required this.selectedValue,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T selectedValue;
+  final List<_SegmentOption<T>> options;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 60,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0E1833),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _SegmentControl<T>(
+            selectedValue: selectedValue,
+            options: options,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SegmentControl<T> extends StatelessWidget {
+  const _SegmentControl({
+    required this.selectedValue,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final T selectedValue;
+  final List<_SegmentOption<T>> options;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE4E6EC)),
+      ),
+      child: Row(
+        children: [
+          for (final option in options)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onChanged(option.value),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selectedValue == option.value
+                        ? CupertinoColors.white
+                        : CupertinoColors.transparent,
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(
+                      color: selectedValue == option.value
+                          ? const Color(0xFFBBD2FF)
+                          : CupertinoColors.transparent,
+                      width: 1.5,
+                    ),
+                    boxShadow: selectedValue == option.value
+                        ? const [
+                            BoxShadow(
+                              color: Color(0x120D4BD9),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Text(
+                    option.label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: selectedValue == option.value
+                          ? CupertinoColors.activeBlue
+                          : const Color(0xFF5D6473),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SegmentOption<T> {
+  const _SegmentOption({required this.value, required this.label});
+
+  final T value;
+  final String label;
+}
+
+class _SelectionSummaryBar extends StatelessWidget {
+  const _SelectionSummaryBar({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF3FF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFCBDAFD)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: const BoxDecoration(
+              color: CupertinoColors.activeBlue,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              CupertinoIcons.check_mark,
+              color: CupertinoColors.white,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF232738),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrimaryActionButton extends StatelessWidget {
+  const _PrimaryActionButton({required this.title, required this.onPressed});
+
+  final String title;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2F8EFF), Color(0xFF1E6FEA)],
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33286DE0),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: CupertinoButton(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        borderRadius: BorderRadius.circular(20),
+        onPressed: onPressed,
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: CupertinoColors.white,
           ),
         ),
       ),
@@ -298,33 +594,6 @@ class _TapBoard extends StatelessWidget {
     if (row >= 0 && row < n && col >= 0 && col < n) {
       onTap(row, col);
     }
-  }
-}
-
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemGrey6.resolveFrom(context),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
-    );
   }
 }
 
