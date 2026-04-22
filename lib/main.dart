@@ -19,10 +19,16 @@ class _NoHintCupertinoLocalizations extends DefaultCupertinoLocalizations {
 
   @override
   String tabSemanticsLabel({required int tabIndex, required int tabCount}) {
+    final label = super.tabSemanticsLabel(
+      tabIndex: tabIndex,
+      tabCount: tabCount,
+    );
     if (kIsWeb) {
-      return '';
+      debugPrint(
+        '[tabSemanticsLabel] web tabIndex=$tabIndex tabCount=$tabCount => "$label"',
+      );
     }
-    return super.tabSemanticsLabel(tabIndex: tabIndex, tabCount: tabCount);
+    return label;
   }
 }
 
