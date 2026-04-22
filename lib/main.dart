@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'screens/main_screen.dart';
@@ -14,40 +13,24 @@ void main() {
   runApp(const GoPuzzleApp());
 }
 
-class _NoHintCupertinoLocalizations extends DefaultCupertinoLocalizations {
-  const _NoHintCupertinoLocalizations();
-
-  @override
-  String tabSemanticsLabel({required int tabIndex, required int tabCount}) {
-    final label = super.tabSemanticsLabel(
-      tabIndex: tabIndex,
-      tabCount: tabCount,
-    );
-    if (kIsWeb) {
-      debugPrint(
-        '[tabSemanticsLabel] web tabIndex=$tabIndex tabCount=$tabCount => "$label"',
-      );
-    }
-    return label;
-  }
+class _PassthroughCupertinoLocalizations extends DefaultCupertinoLocalizations {
+  const _PassthroughCupertinoLocalizations();
 }
 
-class _NoHintCupertinoLocalizationsDelegate
+class _PassthroughCupertinoLocalizationsDelegate
     extends LocalizationsDelegate<CupertinoLocalizations> {
-  const _NoHintCupertinoLocalizationsDelegate();
+  const _PassthroughCupertinoLocalizationsDelegate();
 
   @override
   bool isSupported(Locale locale) => true;
 
   @override
-  Future<CupertinoLocalizations> load(Locale locale) {
-    return SynchronousFuture<CupertinoLocalizations>(
-      const _NoHintCupertinoLocalizations(),
-    );
+  Future<CupertinoLocalizations> load(Locale locale) async {
+    return const _PassthroughCupertinoLocalizations();
   }
 
   @override
-  bool shouldReload(_NoHintCupertinoLocalizationsDelegate old) => false;
+  bool shouldReload(_PassthroughCupertinoLocalizationsDelegate old) => false;
 }
 
 class GoPuzzleApp extends StatelessWidget {
@@ -59,10 +42,6 @@ class GoPuzzleApp extends StatelessWidget {
       title: '围棋谜题',
       theme: const CupertinoThemeData(
         primaryColor: CupertinoColors.systemBlue,
-        // Force opaque navigation/tab bar backgrounds to avoid generating
-        // backdrop-filter on web (especially iOS WebKit/Chrome), which can
-        // cause a white overlay and hidden bottom tab bar.
-        barBackgroundColor: CupertinoColors.systemBackground,
         brightness: Brightness.light,
         textTheme: CupertinoTextThemeData(
           navLargeTitleTextStyle: TextStyle(
@@ -75,7 +54,7 @@ class GoPuzzleApp extends StatelessWidget {
       home: const MainScreen(),
       debugShowCheckedModeBanner: false,
       localizationsDelegates: const [
-        _NoHintCupertinoLocalizationsDelegate(),
+        _PassthroughCupertinoLocalizationsDelegate(),
         DefaultWidgetsLocalizations.delegate,
       ],
       supportedLocales: const [
