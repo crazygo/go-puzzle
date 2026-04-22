@@ -64,23 +64,24 @@
     // the entire Flutter canvas to render as a solid white overlay, hiding all
     // content including the bottom tab bar.
     (function () {
-      function injectIntoShadowRoot(shadowRoot) {
-        if (shadowRoot.querySelector('#flt-backdrop-patch')) return;
-        var s = document.createElement('style');
-        s.id = 'flt-backdrop-patch';
-        s.textContent =
-          '* { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }';
-        shadowRoot.prepend(s);
-      }
       function tryPatch() {
         var pane = document.querySelector('flt-glass-pane');
         if (pane && pane.shadowRoot) {
-          injectIntoShadowRoot(pane.shadowRoot);
-          observer.disconnect();
+          var s = document.createElement('style');
+          s.textContent =
+            '* { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }';
+          pane.shadowRoot.prepend(s);
+          cleanup();
         }
+      }
+      function cleanup() {
+        observer.disconnect();
+        clearTimeout(timeoutId);
       }
       var observer = new MutationObserver(tryPatch);
       observer.observe(document.documentElement, {childList: true, subtree: true});
+      // Stop observing after 10 s if flt-glass-pane never appears.
+      var timeoutId = setTimeout(cleanup, 10000);
       tryPatch(); // also run immediately in case pane already exists
     })();
   </script>
