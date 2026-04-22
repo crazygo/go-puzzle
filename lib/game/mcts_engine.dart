@@ -11,13 +11,14 @@ class SimBoard {
   static const int white = 2;
 
   final int size;
+  final int captureTarget;
   final List<int> cells;
   int capturedByBlack;
   int capturedByWhite;
   int currentPlayer;
   int _koIndex; // flat index of the forbidden ko point, -1 if none
 
-  SimBoard(this.size)
+  SimBoard(this.size, {this.captureTarget = 5})
       : cells = List.filled(size * size, 0),
         capturedByBlack = 0,
         capturedByWhite = 0,
@@ -26,6 +27,7 @@ class SimBoard {
 
   SimBoard._internal({
     required this.size,
+    required this.captureTarget,
     required List<int> cells,
     required this.capturedByBlack,
     required this.capturedByWhite,
@@ -36,6 +38,7 @@ class SimBoard {
 
   factory SimBoard.copy(SimBoard other) => SimBoard._internal(
         size: other.size,
+        captureTarget: other.captureTarget,
         cells: other.cells,
         capturedByBlack: other.capturedByBlack,
         capturedByWhite: other.capturedByWhite,
@@ -44,8 +47,8 @@ class SimBoard {
       );
 
   /// Creates a SimBoard from a GameState, setting [aiPlayer] as [white].
-  factory SimBoard.fromGameState(GameState state) {
-    final sb = SimBoard(state.boardSize);
+  factory SimBoard.fromGameState(GameState state, {int captureTarget = 5}) {
+    final sb = SimBoard(state.boardSize, captureTarget: captureTarget);
     for (int r = 0; r < state.boardSize; r++) {
       for (int c = 0; c < state.boardSize; c++) {
         final color = state.board[r][c];
@@ -157,12 +160,13 @@ class SimBoard {
     return true;
   }
 
-  bool get isTerminal => capturedByBlack >= 5 || capturedByWhite >= 5;
+  bool get isTerminal =>
+      capturedByBlack >= captureTarget || capturedByWhite >= captureTarget;
 
   /// Returns [black], [white], or 0 (no winner yet).
   int get winner {
-    if (capturedByBlack >= 5) return black;
-    if (capturedByWhite >= 5) return white;
+    if (capturedByBlack >= captureTarget) return black;
+    if (capturedByWhite >= captureTarget) return white;
     return 0;
   }
 
@@ -262,10 +266,11 @@ class _MctsNode {
 // MCTS engine
 // ---------------------------------------------------------------------------
 
-/// Pure-Dart MCTS engine for the "capture 5 stones" (吃5子) variant.
+/// Pure-Dart MCTS engine for the capture-stones (吃子) variant.
 ///
-/// Reward function: a simulation ends when either side accumulates ≥ 5
-/// captures.  The winner receives reward = 1, the loser reward = 0.
+/// Reward function: a simulation ends when either side accumulates ≥ N
+/// captures (where N is determined by [SimBoard.captureTarget]).
+/// The winner receives reward = 1, the loser reward = 0.
 ///
 /// Difficulty is controlled via [maxPlayouts]:
 ///   • 入门  (beginner) : 200  playouts

@@ -89,7 +89,7 @@ class CaptureGameProvider extends ChangeNotifier {
 
   List<BoardPosition> suggestMoves({int count = 3}) {
     final suggestions = <BoardPosition>[];
-    var sim = SimBoard.fromGameState(_gameState);
+    var sim = SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
 
     for (int i = 0; i < count; i++) {
       final engine = MctsEngine(maxPlayouts: difficulty.maxPlayouts ~/ 3);
@@ -140,7 +140,7 @@ class CaptureGameProvider extends ChangeNotifier {
 
     await Future.delayed(const Duration(milliseconds: 80));
 
-    final simBoard = SimBoard.fromGameState(_gameState);
+    final simBoard = SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
     final engine = MctsEngine(maxPlayouts: difficulty.maxPlayouts);
     final bestMove = engine.getBestMove(simBoard);
 
