@@ -34,13 +34,16 @@ class GoPuzzleApp extends StatelessWidget {
       ),
       home: const MainScreen(),
       debugShowCheckedModeBanner: false,
-      localizationsDelegates: const [
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ],
+      // Register the global Cupertino delegates explicitly. On WebKit, the
+      // default CupertinoApp localization path reproduces a white overlay over
+      // CupertinoTabBar for zh_CN, while the explicit global delegates do not.
       supportedLocales: const [
         Locale('zh', 'CN'),
         Locale('en', 'US'),
+      ],
+      localizationsDelegates: const [
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
       ],
     );
   }
