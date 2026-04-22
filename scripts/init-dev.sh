@@ -17,13 +17,14 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOOLS_DIR="${HOME}/.local/tools"
 BIN_DIR="${HOME}/.local/bin"
+CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/init-dev"
 FLUTTER_VERSION="${FLUTTER_VERSION:-3.24.3}"
 FLUTTER_ARCHIVE="flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
 DEFAULT_DIST_URL="https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/${FLUTTER_ARCHIVE}"
 FLUTTER_DIST_URL="${FLUTTER_DIST_URL:-${DEFAULT_DIST_URL}}"
-FLUTTER_ARCHIVE_LOCAL="${FLUTTER_ARCHIVE_LOCAL:-${ROOT_DIR}/.cache/${FLUTTER_ARCHIVE}}"
+FLUTTER_ARCHIVE_LOCAL="${FLUTTER_ARCHIVE_LOCAL:-${CACHE_DIR}/${FLUTTER_ARCHIVE}}"
 
-mkdir -p "${TOOLS_DIR}" "${BIN_DIR}" "${ROOT_DIR}/.cache"
+mkdir -p "${TOOLS_DIR}" "${BIN_DIR}" "${CACHE_DIR}"
 
 log() {
   echo "[init-dev] $*"
