@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'screens/main_screen.dart';
 
@@ -18,14 +19,10 @@ class GoPuzzleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const CupertinoApp(
+    return CupertinoApp(
       title: '围棋谜题',
-      theme: CupertinoThemeData(
+      theme: const CupertinoThemeData(
         primaryColor: CupertinoColors.systemBlue,
-        // Force opaque navigation/tab bar backgrounds to avoid generating
-        // backdrop-filter on web (especially iOS WebKit/Chrome), which can
-        // cause a white overlay and hidden bottom tab bar.
-        barBackgroundColor: CupertinoColors.systemBackground,
         brightness: Brightness.light,
         textTheme: CupertinoTextThemeData(
           navLargeTitleTextStyle: TextStyle(
@@ -35,14 +32,18 @@ class GoPuzzleApp extends StatelessWidget {
           ),
         ),
       ),
-      home: MainScreen(),
+      home: const MainScreen(),
       debugShowCheckedModeBanner: false,
-      localizationsDelegates: [
-        DefaultWidgetsLocalizations.delegate,
-      ],
-      supportedLocales: [
+      // Register the global Cupertino delegates explicitly. On WebKit, the
+      // default CupertinoApp localization path reproduces a white overlay over
+      // CupertinoTabBar for zh_CN, while the explicit global delegates do not.
+      supportedLocales: const [
         Locale('zh', 'CN'),
         Locale('en', 'US'),
+      ],
+      localizationsDelegates: const [
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
       ],
     );
   }

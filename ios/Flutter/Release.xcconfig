@@ -1,2 +1,6 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
 #include "Generated.xcconfig"
+APP_BUNDLE_IDENTIFIER = com.example.goPuzzle
+// Put the real signing team in ios/Flutter/Local.xcconfig and never commit it.
+APP_DEVELOPMENT_TEAM =
+#include? "Local.xcconfig"

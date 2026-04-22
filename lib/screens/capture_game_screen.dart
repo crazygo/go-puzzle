@@ -85,7 +85,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                 selectedValue: _difficulty,
                 options: const [
                   _SegmentOption(value: DifficultyLevel.beginner, label: '初级'),
-                  _SegmentOption(value: DifficultyLevel.intermediate, label: '中级'),
+                  _SegmentOption(
+                      value: DifficultyLevel.intermediate, label: '中级'),
                   _SegmentOption(value: DifficultyLevel.advanced, label: '高级'),
                 ],
                 onChanged: (v) => setState(() => _difficulty = v),
@@ -93,7 +94,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
             ),
             const SizedBox(height: 14),
             _SelectionSummaryBar(
-              text: '${_difficulty.displayName} · ${_boardSize}路 · 吃${_captureTarget}子',
+              text:
+                  '${_difficulty.displayName} · ${_boardSize}路 · 吃${_captureTarget}子',
             ),
             const SizedBox(height: 16),
             _PrimaryActionButton(
@@ -438,9 +440,6 @@ class CaptureGamePlayScreen extends StatelessWidget {
               child: const Icon(CupertinoIcons.back),
             ),
             middle: Text('吃$captureTarget子、${difficulty.displayName}'),
-            backgroundColor: CupertinoColors.white,
-            automaticBackgroundVisibility: false,
-            enableBackgroundFilterBlur: false,
           ),
           child: SafeArea(
             child: Column(
@@ -451,7 +450,8 @@ class CaptureGamePlayScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(12),
                       child: _TapBoard(
                         gameState: provider.gameState,
-                        enabled: !provider.isAiThinking && provider.result == CaptureGameResult.none,
+                        enabled: !provider.isAiThinking &&
+                            provider.result == CaptureGameResult.none,
                         onTap: provider.placeStone,
                       ),
                     ),
@@ -460,7 +460,8 @@ class CaptureGamePlayScreen extends StatelessWidget {
                 _InfoRow(provider: provider),
                 _MetricRow(
                   title: '吃子信息',
-                  value: '黑 ${provider.gameState.capturedByBlack.length}，白 ${provider.gameState.capturedByWhite.length}',
+                  value:
+                      '黑 ${provider.gameState.capturedByBlack.length}，白 ${provider.gameState.capturedByWhite.length}',
                 ),
                 _MetricRow(
                   title: '胜率对比',
@@ -473,7 +474,8 @@ class CaptureGamePlayScreen extends StatelessWidget {
                       Expanded(
                         child: CupertinoButton(
                           color: CupertinoColors.systemGrey4,
-                          onPressed: provider.canUndo ? provider.undoMove : null,
+                          onPressed:
+                              provider.canUndo ? provider.undoMove : null,
                           child: const Text('后退一手'),
                         ),
                       ),
@@ -547,7 +549,8 @@ class _HintDialogState extends State<_HintDialog> {
                 : hints
                     .asMap()
                     .entries
-                    .map((e) => '${e.key + 1}. (${e.value.row + 1}, ${e.value.col + 1})')
+                    .map((e) =>
+                        '${e.key + 1}. (${e.value.row + 1}, ${e.value.col + 1})')
                     .join('\n'),
           );
         },
@@ -579,7 +582,8 @@ class _TapBoard extends StatelessWidget {
       builder: (context, constraints) {
         final boardSizePx = constraints.biggest.shortestSide;
         return GestureDetector(
-          onTapUp: enabled ? (d) => _handleTap(d.localPosition, boardSizePx) : null,
+          onTapUp:
+              enabled ? (d) => _handleTap(d.localPosition, boardSizePx) : null,
           child: CustomPaint(
             size: Size.square(boardSizePx),
             painter: GoBoardPainter(gameState: gameState),
@@ -617,7 +621,9 @@ class _InfoRow extends StatelessWidget {
     } else if (provider.isAiThinking) {
       text = 'AI 白正在思考';
     } else {
-      text = provider.gameState.currentPlayer == StoneColor.black ? '请你黑落子' : '请你白落子';
+      text = provider.gameState.currentPlayer == StoneColor.black
+          ? '请你黑落子'
+          : '请你白落子';
     }
 
     return _MetricRow(title: '信息提示', value: text);

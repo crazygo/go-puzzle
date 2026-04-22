@@ -5,8 +5,9 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-FLUTTER_VERSION="3.22.3"   # pin to a stable release
+FLUTTER_VERSION="3.41.7"   # pin to the repo's current Flutter version
 FLUTTER_DIR="$HOME/flutter"
+FLUTTER_VERSION_STAMP="$FLUTTER_DIR/.installed-version"
 
 echo "──────────────────────────────────────────────"
 echo " Flutter web build for Vercel"
@@ -14,12 +15,16 @@ echo " Flutter version : $FLUTTER_VERSION"
 echo "──────────────────────────────────────────────"
 
 # ── 1. Install Flutter (cached between builds via ~/.cache/flutter) ─────────
-if [ ! -d "$FLUTTER_DIR" ]; then
+if [ ! -x "$FLUTTER_DIR/bin/flutter" ] || \
+   [ ! -f "$FLUTTER_VERSION_STAMP" ] || \
+   [ "$(cat "$FLUTTER_VERSION_STAMP")" != "$FLUTTER_VERSION" ]; then
+  rm -rf "$FLUTTER_DIR"
   echo "▸ Cloning Flutter $FLUTTER_VERSION …"
   git clone https://github.com/flutter/flutter.git \
       --depth 1 \
       --branch "$FLUTTER_VERSION" \
       "$FLUTTER_DIR"
+  echo "$FLUTTER_VERSION" > "$FLUTTER_VERSION_STAMP"
 fi
 
 export PATH="$FLUTTER_DIR/bin:$PATH"
@@ -39,8 +44,7 @@ flutter pub get
 echo "▸ Building Flutter web (release)…"
 flutter build web \
     --release \
-    --web-renderer html \
-    --dart-define=FLUTTER_WEB_AUTO_DETECT=true
+    --no-wasm-dry-run
 
 echo "✓ Build complete → build/web/"
 ls -lh build/web/

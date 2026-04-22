@@ -63,9 +63,6 @@ class _PuzzleScreenState extends State<PuzzleScreen>
           navigationBar: CupertinoNavigationBar(
             middle: Text(widget.puzzle.title),
             trailing: _buildNavActions(context, gameProvider),
-            backgroundColor: CupertinoColors.white,
-            automaticBackgroundVisibility: false,
-            enableBackgroundFilterBlur: false,
           ),
           child: SafeArea(
             child: Column(
@@ -201,7 +198,8 @@ class _PuzzleScreenState extends State<PuzzleScreen>
       padding: const EdgeInsets.all(16),
       child: GoBoardWidget(
         gameState: gameState,
-        hintPosition: gameProvider.showingHint ? gameProvider.hintPosition : null,
+        hintPosition:
+            gameProvider.showingHint ? gameProvider.hintPosition : null,
         showMoveNumbers: settings.showMoveNumbers,
         onTap: gameProvider.result == PuzzleResult.none
             ? (row, col) => _handleTap(context, gameProvider, row, col)

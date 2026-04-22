@@ -14,9 +14,6 @@ class SettingsScreen extends StatelessWidget {
         slivers: [
           CupertinoSliverNavigationBar(
             largeTitle: const Text('设置'),
-            backgroundColor: CupertinoColors.systemBackground,
-            automaticBackgroundVisibility: false,
-            enableBackgroundFilterBlur: false,
           ),
           SliverList(
             delegate: SliverChildListDelegate([
@@ -264,7 +261,8 @@ class _SwitchRow extends StatelessWidget {
                     subtitle!,
                     style: TextStyle(
                       fontSize: 13,
-                      color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                      color:
+                          CupertinoColors.secondaryLabel.resolveFrom(context),
                     ),
                   ),
               ],
@@ -300,7 +298,8 @@ class _SettingRow extends StatelessWidget {
                     subtitle!,
                     style: TextStyle(
                       fontSize: 13,
-                      color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                      color:
+                          CupertinoColors.secondaryLabel.resolveFrom(context),
                     ),
                   ),
               ],

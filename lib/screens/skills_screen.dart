@@ -39,9 +39,6 @@ class _SkillsScreenState extends State<SkillsScreen> {
         slivers: [
           CupertinoSliverNavigationBar(
             largeTitle: const Text('技巧训练'),
-            backgroundColor: CupertinoColors.systemBackground,
-            automaticBackgroundVisibility: false,
-            enableBackgroundFilterBlur: false,
           ),
           SliverToBoxAdapter(
             child: Padding(
@@ -179,7 +176,8 @@ class _SkillsScreenState extends State<SkillsScreen> {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
-          child: Text('暂无题目', style: TextStyle(color: CupertinoColors.systemGrey)),
+          child:
+              Text('暂无题目', style: TextStyle(color: CupertinoColors.systemGrey)),
         ),
       );
     }
@@ -197,14 +195,16 @@ class _SkillsScreenState extends State<SkillsScreen> {
   }
 
   void _openPuzzle(BuildContext context, Puzzle puzzle) {
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       CupertinoPageRoute(
         builder: (context) => ChangeNotifierProvider(
           create: (_) => GameProvider(),
           child: PuzzleScreen(puzzle: puzzle),
         ),
       ),
-    ).then((_) {
+    )
+        .then((_) {
       // Check if the puzzle was solved (via game provider result)
       // For simplicity, mark any visited puzzle as "in progress"
       // In a real app this would be persisted
