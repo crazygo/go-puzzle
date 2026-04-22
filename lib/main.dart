@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'screens/main_screen.dart';
@@ -13,14 +14,44 @@ void main() {
   runApp(const GoPuzzleApp());
 }
 
+class _NoHintCupertinoLocalizations extends DefaultCupertinoLocalizations {
+  const _NoHintCupertinoLocalizations();
+
+  @override
+  String tabSemanticsLabel({required int tabIndex, required int tabCount}) {
+    if (kIsWeb) {
+      return '';
+    }
+    return super.tabSemanticsLabel(tabIndex: tabIndex, tabCount: tabCount);
+  }
+}
+
+class _NoHintCupertinoLocalizationsDelegate
+    extends LocalizationsDelegate<CupertinoLocalizations> {
+  const _NoHintCupertinoLocalizationsDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<CupertinoLocalizations> load(Locale locale) {
+    return SynchronousFuture<CupertinoLocalizations>(
+      const _NoHintCupertinoLocalizations(),
+    );
+  }
+
+  @override
+  bool shouldReload(_NoHintCupertinoLocalizationsDelegate old) => false;
+}
+
 class GoPuzzleApp extends StatelessWidget {
   const GoPuzzleApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const CupertinoApp(
+    return CupertinoApp(
       title: '围棋谜题',
-      theme: CupertinoThemeData(
+      theme: const CupertinoThemeData(
         primaryColor: CupertinoColors.systemBlue,
         // Force opaque navigation/tab bar backgrounds to avoid generating
         // backdrop-filter on web (especially iOS WebKit/Chrome), which can
@@ -35,12 +66,13 @@ class GoPuzzleApp extends StatelessWidget {
           ),
         ),
       ),
-      home: MainScreen(),
+      home: const MainScreen(),
       debugShowCheckedModeBanner: false,
-      localizationsDelegates: [
+      localizationsDelegates: const [
+        _NoHintCupertinoLocalizationsDelegate(),
         DefaultWidgetsLocalizations.delegate,
       ],
-      supportedLocales: [
+      supportedLocales: const [
         Locale('zh', 'CN'),
         Locale('en', 'US'),
       ],
