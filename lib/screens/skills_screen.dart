@@ -37,7 +37,10 @@ class _SkillsScreenState extends State<SkillsScreen> {
     return CupertinoPageScaffold(
       child: CustomScrollView(
         slivers: [
-          CupertinoSliverNavigationBar(largeTitle: const Text('技巧训练')),
+          CupertinoSliverNavigationBar(
+            largeTitle: const Text('技巧训练'),
+            backgroundColor: CupertinoColors.systemBackground,
+          ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
