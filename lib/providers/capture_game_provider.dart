@@ -5,6 +5,43 @@ import '../game/mcts_engine.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 
+// ---------------------------------------------------------------------------
+// Top-level function required by compute() – runs in a background isolate.
+// ---------------------------------------------------------------------------
+
+List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
+  final cells = List<int>.from(params['cells'] as List);
+  final boardSize = params['boardSize'] as int;
+  final captureTarget = params['captureTarget'] as int;
+  final capturedByBlack = params['capturedByBlack'] as int;
+  final capturedByWhite = params['capturedByWhite'] as int;
+  final currentPlayer = params['currentPlayer'] as int;
+  final maxPlayouts = params['maxPlayouts'] as int;
+  final count = params['count'] as int;
+
+  final sim = SimBoard(boardSize, captureTarget: captureTarget);
+  for (int i = 0; i < cells.length; i++) {
+    sim.cells[i] = cells[i];
+  }
+  sim.capturedByBlack = capturedByBlack;
+  sim.capturedByWhite = capturedByWhite;
+  sim.currentPlayer = currentPlayer;
+
+  final suggestions = <List<int>>[];
+  for (int i = 0; i < count; i++) {
+    final engine = MctsEngine(maxPlayouts: maxPlayouts);
+    final move = engine.getBestMove(sim);
+    if (move == null) break;
+    suggestions.add([move.row, move.col]);
+    if (!sim.applyMove(move.row, move.col)) break;
+    final whiteReply = MctsEngine(maxPlayouts: 120).getBestMove(sim);
+    if (whiteReply == null || !sim.applyMove(whiteReply.row, whiteReply.col)) {
+      break;
+    }
+  }
+  return suggestions;
+}
+
 enum CaptureGameResult { none, blackWins, whiteWins }
 
 enum DifficultyLevel {
@@ -105,6 +142,24 @@ class CaptureGameProvider extends ChangeNotifier {
       }
     }
     return suggestions;
+  }
+
+  /// Computes move suggestions in a background isolate so the UI stays
+  /// responsive.
+  Future<List<BoardPosition>> suggestMovesAsync({int count = 3}) async {
+    final sim = SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
+    final params = <String, dynamic>{
+      'cells': sim.cells.toList(),
+      'boardSize': sim.size,
+      'captureTarget': sim.captureTarget,
+      'capturedByBlack': sim.capturedByBlack,
+      'capturedByWhite': sim.capturedByWhite,
+      'currentPlayer': sim.currentPlayer,
+      'maxPlayouts': difficulty.maxPlayouts ~/ 3,
+      'count': count,
+    };
+    final raw = await compute(_runSuggestMoves, params);
+    return raw.map((r) => BoardPosition(r[0], r[1])).toList();
   }
 
   Map<StoneColor, double> get winRateEstimate {

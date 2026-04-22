@@ -195,27 +195,62 @@ class CaptureGamePlayScreen extends StatelessWidget {
   }
 
   void _showHint(BuildContext context, CaptureGameProvider provider) {
-    final hints = provider.suggestMoves(count: 3);
     showCupertinoDialog<void>(
       context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text('提示 3 手'),
-        content: Text(
-          hints.isEmpty
-              ? '暂无可用提示'
-              : hints
-                  .asMap()
-                  .entries
-                  .map((e) => '${e.key + 1}. (${e.value.row + 1}, ${e.value.col + 1})')
-                  .join('\n'),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('知道了'),
-          ),
-        ],
+      builder: (_) => _HintDialog(provider: provider),
+    );
+  }
+}
+
+class _HintDialog extends StatefulWidget {
+  const _HintDialog({required this.provider});
+
+  final CaptureGameProvider provider;
+
+  @override
+  State<_HintDialog> createState() => _HintDialogState();
+}
+
+class _HintDialogState extends State<_HintDialog> {
+  late final Future<List<BoardPosition>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.provider.suggestMovesAsync();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoAlertDialog(
+      title: const Text('提示 3 手'),
+      content: FutureBuilder<List<BoardPosition>>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: CupertinoActivityIndicator(),
+            );
+          }
+          final hints = snapshot.data ?? [];
+          return Text(
+            hints.isEmpty
+                ? '暂无可用提示'
+                : hints
+                    .asMap()
+                    .entries
+                    .map((e) => '${e.key + 1}. (${e.value.row + 1}, ${e.value.col + 1})')
+                    .join('\n'),
+          );
+        },
       ),
+      actions: [
+        CupertinoDialogAction(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('知道了'),
+        ),
+      ],
     );
   }
 }
