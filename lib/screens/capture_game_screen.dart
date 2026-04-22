@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/board_position.dart';
 import '../models/game_state.dart';
@@ -14,101 +15,161 @@ class CaptureGameScreen extends StatefulWidget {
 }
 
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
+  static const _difficultyKey = 'capture_setup.difficulty';
+  static const _boardSizeKey = 'capture_setup.board_size';
+  static const _captureTargetKey = 'capture_setup.capture_target';
+
   DifficultyLevel _difficulty = DifficultyLevel.intermediate;
   int _boardSize = 9;
   int _captureTarget = 5;
 
   @override
-  Widget build(BuildContext context) {
-    final sidePadding = 16.0;
+  void initState() {
+    super.initState();
+    _restoreSelection();
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      child: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(sidePadding, 18, sidePadding, 24),
-          children: [
-            Text(
-              _CaptureCopy.pageTitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF0E1833),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _CaptureCopy.pageSubtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 15,
-                color: Color(0xFF7A8192),
-              ),
-            ),
-            const SizedBox(height: 20),
-            _GroupCard(
-              icon: CupertinoIcons.scope,
-              title: _CaptureCopy.setupTitle,
-              subtitle: _CaptureCopy.setupSubtitle,
+      child: CustomScrollView(
+        slivers: [
+          const CupertinoSliverNavigationBar(
+            largeTitle: Text(_CaptureCopy.pageTitle),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _SegmentSettingRow<int>(
-                    label: _CaptureCopy.targetLabel,
-                    selectedValue: _captureTarget,
-                    options: const [
-                      _SegmentOption(value: 5, label: '吃5子'),
-                      _SegmentOption(value: 10, label: '吃10子'),
-                      _SegmentOption(value: 20, label: '吃20子'),
-                    ],
-                    onChanged: (v) => setState(() => _captureTarget = v),
+                  Text(
+                    _CaptureCopy.pageSubtitle,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: CupertinoColors.secondaryLabel.resolveFrom(
+                        context,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  _SegmentSettingRow<int>(
-                    label: _CaptureCopy.boardLabel,
-                    selectedValue: _boardSize,
-                    options: const [
-                      _SegmentOption(value: 9, label: '9路'),
-                      _SegmentOption(value: 13, label: '13路'),
-                      _SegmentOption(value: 19, label: '19路'),
-                    ],
-                    onChanged: (v) => setState(() => _boardSize = v),
+                  const SizedBox(height: 16),
+                  _GroupCard(
+                    icon: CupertinoIcons.scope,
+                    title: _CaptureCopy.setupTitle,
+                    subtitle: _CaptureCopy.setupSubtitle,
+                    child: Column(
+                      children: [
+                        _SegmentSettingRow<int>(
+                          label: _CaptureCopy.targetLabel,
+                          selectedValue: _captureTarget,
+                          options: const [
+                            _SegmentOption(value: 5, label: '吃5子'),
+                            _SegmentOption(value: 10, label: '吃10子'),
+                            _SegmentOption(value: 20, label: '吃20子'),
+                          ],
+                          onChanged: (v) => _updateSelection(
+                            captureTarget: v,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _SegmentSettingRow<int>(
+                          label: _CaptureCopy.boardLabel,
+                          selectedValue: _boardSize,
+                          options: const [
+                            _SegmentOption(value: 9, label: '9路'),
+                            _SegmentOption(value: 13, label: '13路'),
+                            _SegmentOption(value: 19, label: '19路'),
+                          ],
+                          onChanged: (v) => _updateSelection(boardSize: v),
+                        ),
+                        const SizedBox(height: 12),
+                        _SegmentSettingRow<DifficultyLevel>(
+                          label: _CaptureCopy.difficultyTitle,
+                          selectedValue: _difficulty,
+                          options: const [
+                            _SegmentOption(
+                              value: DifficultyLevel.beginner,
+                              label: '初级',
+                            ),
+                            _SegmentOption(
+                              value: DifficultyLevel.intermediate,
+                              label: '中级',
+                            ),
+                            _SegmentOption(
+                              value: DifficultyLevel.advanced,
+                              label: '高级',
+                            ),
+                          ],
+                          onChanged: (v) => _updateSelection(difficulty: v),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _SelectionSummaryBar(
+                    text:
+                        '${_difficulty.displayName} · $_boardSize路 · 吃$_captureTarget子',
+                  ),
+                  const SizedBox(height: 16),
+                  _PrimaryActionButton(
+                    title: _CaptureCopy.startButton,
+                    onPressed: _startGame,
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 14),
-            _GroupCard(
-              icon: CupertinoIcons.chart_bar_alt_fill,
-              title: _CaptureCopy.difficultyTitle,
-              subtitle: _CaptureCopy.difficultySubtitle,
-              child: _SegmentControl<DifficultyLevel>(
-                selectedValue: _difficulty,
-                options: const [
-                  _SegmentOption(value: DifficultyLevel.beginner, label: '初级'),
-                  _SegmentOption(
-                      value: DifficultyLevel.intermediate, label: '中级'),
-                  _SegmentOption(value: DifficultyLevel.advanced, label: '高级'),
-                ],
-                onChanged: (v) => setState(() => _difficulty = v),
-              ),
-            ),
-            const SizedBox(height: 14),
-            _SelectionSummaryBar(
-              text:
-                  '${_difficulty.displayName} · ${_boardSize}路 · 吃${_captureTarget}子',
-            ),
-            const SizedBox(height: 16),
-            _PrimaryActionButton(
-              title: _CaptureCopy.startButton,
-              onPressed: _startGame,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
+  Future<void> _restoreSelection() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
+    final savedDifficulty = prefs.getString(_difficultyKey);
+    final savedBoardSize = prefs.getInt(_boardSizeKey);
+    final savedCaptureTarget = prefs.getInt(_captureTargetKey);
+
+    setState(() {
+      _difficulty = DifficultyLevel.values.firstWhere(
+        (v) => v.name == savedDifficulty,
+        orElse: () => _difficulty,
+      );
+      if (savedBoardSize == 9 || savedBoardSize == 13 || savedBoardSize == 19) {
+        _boardSize = savedBoardSize!;
+      }
+      if (savedCaptureTarget == 5 ||
+          savedCaptureTarget == 10 ||
+          savedCaptureTarget == 20) {
+        _captureTarget = savedCaptureTarget!;
+      }
+    });
+  }
+
+  void _updateSelection({
+    DifficultyLevel? difficulty,
+    int? boardSize,
+    int? captureTarget,
+  }) {
+    setState(() {
+      _difficulty = difficulty ?? _difficulty;
+      _boardSize = boardSize ?? _boardSize;
+      _captureTarget = captureTarget ?? _captureTarget;
+    });
+    _saveSelection();
+  }
+
+  Future<void> _saveSelection() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_difficultyKey, _difficulty.name);
+    await prefs.setInt(_boardSizeKey, _boardSize);
+    await prefs.setInt(_captureTargetKey, _captureTarget);
+  }
+
   void _startGame() {
+    _saveSelection();
     Navigator.of(context, rootNavigator: true).push(
       CupertinoPageRoute(
         builder: (_) => ChangeNotifierProvider(
@@ -130,12 +191,11 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 class _CaptureCopy {
   static const pageTitle = '吃子练习';
   static const pageSubtitle = '选择本局设置与难度，快速开始练习';
-  static const setupTitle = '本局设置';
-  static const setupSubtitle = '设置本局目标与棋盘尺寸';
+  static const setupTitle = '练习设置';
+  static const setupSubtitle = '设置目标、棋盘尺寸与题目难度';
   static const targetLabel = '目标';
   static const boardLabel = '棋盘';
   static const difficultyTitle = '难度';
-  static const difficultySubtitle = '选择题目难度等级';
   static const startButton = '开始练习';
 }
 
@@ -276,7 +336,7 @@ class _SegmentControl<T> extends StatelessWidget {
             Expanded(
               child: CupertinoButton(
                 padding: EdgeInsets.zero,
-                minSize: 0,
+                minimumSize: Size.zero,
                 onPressed: () => onChanged(option.value),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
@@ -434,11 +494,7 @@ class CaptureGamePlayScreen extends StatelessWidget {
 
         return CupertinoPageScaffold(
           navigationBar: CupertinoNavigationBar(
-            leading: CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Icon(CupertinoIcons.back),
-            ),
+            previousPageTitle: _CaptureCopy.pageTitle,
             middle: Text('吃$captureTarget子、${difficulty.displayName}'),
           ),
           child: SafeArea(
