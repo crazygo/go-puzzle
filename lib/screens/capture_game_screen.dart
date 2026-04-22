@@ -272,8 +272,10 @@ class _SegmentControl<T> extends StatelessWidget {
         children: [
           for (final option in options)
             Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(option.value),
+              child: CupertinoButton(
+                padding: EdgeInsets.zero,
+                minSize: 0,
+                onPressed: () => onChanged(option.value),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
                   padding: const EdgeInsets.symmetric(vertical: 10),
