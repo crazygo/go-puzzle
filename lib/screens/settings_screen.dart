@@ -15,6 +15,8 @@ class SettingsScreen extends StatelessWidget {
           CupertinoSliverNavigationBar(
             largeTitle: const Text('设置'),
             backgroundColor: CupertinoColors.systemBackground,
+            automaticBackgroundVisibility: false,
+            enableBackgroundFilterBlur: false,
           ),
           SliverList(
             delegate: SliverChildListDelegate([

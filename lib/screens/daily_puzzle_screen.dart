@@ -49,6 +49,8 @@ class _DailyPuzzleScreenState extends State<DailyPuzzleScreen> {
             largeTitle: const Text('今日谜题'),
             trailing: _buildTodayButton(context),
             backgroundColor: CupertinoColors.systemBackground,
+            automaticBackgroundVisibility: false,
+            enableBackgroundFilterBlur: false,
           ),
           SliverToBoxAdapter(
             child: Column(

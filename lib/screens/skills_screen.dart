@@ -40,6 +40,8 @@ class _SkillsScreenState extends State<SkillsScreen> {
           CupertinoSliverNavigationBar(
             largeTitle: const Text('技巧训练'),
             backgroundColor: CupertinoColors.systemBackground,
+            automaticBackgroundVisibility: false,
+            enableBackgroundFilterBlur: false,
           ),
           SliverToBoxAdapter(
             child: Padding(

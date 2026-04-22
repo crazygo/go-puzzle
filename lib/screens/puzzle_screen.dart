@@ -63,6 +63,9 @@ class _PuzzleScreenState extends State<PuzzleScreen>
           navigationBar: CupertinoNavigationBar(
             middle: Text(widget.puzzle.title),
             trailing: _buildNavActions(context, gameProvider),
+            backgroundColor: CupertinoColors.white,
+            automaticBackgroundVisibility: false,
+            enableBackgroundFilterBlur: false,
           ),
           child: SafeArea(
             child: Column(

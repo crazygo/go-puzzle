@@ -438,6 +438,9 @@ class CaptureGamePlayScreen extends StatelessWidget {
               child: const Icon(CupertinoIcons.back),
             ),
             middle: Text('吃$captureTarget子、${difficulty.displayName}'),
+            backgroundColor: CupertinoColors.white,
+            automaticBackgroundVisibility: false,
+            enableBackgroundFilterBlur: false,
           ),
           child: SafeArea(
             child: Column(

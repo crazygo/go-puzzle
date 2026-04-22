@@ -36,25 +36,35 @@
       width: 100%;
       height: 100%;
       background: #1C1C1E;
+      color-scheme: light;
       overflow: hidden;
       overscroll-behavior: none;
     }
 
     /*
-     * Disable backdrop-filter inside the Flutter rendering surface.
+     * Disable Safari/WebKit backdrop-filter and white host backgrounds inside
+     * the Flutter rendering surface.
      *
-     * CupertinoSliverNavigationBar and CupertinoTabBar emit CSS
-     * backdrop-filter:blur() in their large-title / frosted-glass states.
-     * On iOS Safari and Android Chrome the filter causes the entire
-     * flt-glass-pane stacking context to paint white, producing the
-     * full-screen white overlay and hiding the bottom tab bar.
-     * Desktop browsers (macOS Chrome/Safari) handle the property correctly
-     * so the bug is mobile-only.  Disabling it here gives a solid opaque
-     * background instead of frosted glass, which is visually identical when
-     * the bar background colour is already opaque.
+     * Newer Flutter web builds render through a shadow-root-backed
+     * flutter-view/flt-glass-pane host. On Safari, any translucent Cupertino
+     * bar can cause that host layer to paint as solid white, which covers the
+     * page and makes the bottom tab bar appear missing.
+     *
+     * The app also disables those blur paths in Dart, but keep this as a
+     * defensive fallback for generated DOM that still exposes these hosts.
      */
+    flutter-view,
     flt-glass-pane,
-    flt-glass-pane * {
+    flt-scene-host {
+      background: transparent !important;
+    }
+
+    flutter-view,
+    flutter-view *,
+    flt-glass-pane,
+    flt-glass-pane *,
+    flt-scene-host,
+    flt-scene-host * {
       -webkit-backdrop-filter: none !important;
       backdrop-filter: none !important;
     }
