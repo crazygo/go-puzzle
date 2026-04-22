@@ -46,7 +46,7 @@ class _DailyPuzzleScreenState extends State<DailyPuzzleScreen> {
       child: CustomScrollView(
         slivers: [
           CupertinoSliverNavigationBar(
-            largeTitle: const Text('今日谜题'),
+            largeTitle: const Text('谜题'),
             trailing: _buildTodayButton(context),
           ),
           SliverToBoxAdapter(

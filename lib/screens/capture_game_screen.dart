@@ -105,11 +105,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  _SelectionSummaryBar(
-                    text:
-                        '${_difficulty.displayName} · $_boardSize路 · 吃$_captureTarget子',
-                  ),
                   const SizedBox(height: 16),
                   _PrimaryActionButton(
                     title: _CaptureCopy.startButton,
@@ -189,9 +184,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 }
 
 class _CaptureCopy {
-  static const pageTitle = '吃子练习';
+  static const pageTitle = '益智围棋';
   static const pageSubtitle = '选择本局设置与难度，快速开始练习';
-  static const setupTitle = '练习设置';
+  static const setupTitle = '对弈';
   static const setupSubtitle = '设置目标、棋盘尺寸与题目难度';
   static const targetLabel = '目标';
   static const boardLabel = '棋盘';
@@ -387,52 +382,6 @@ class _SegmentOption<T> {
 
   final T value;
   final String label;
-}
-
-class _SelectionSummaryBar extends StatelessWidget {
-  const _SelectionSummaryBar({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEEF3FF),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFCBDAFD)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: const BoxDecoration(
-              color: CupertinoColors.activeBlue,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              CupertinoIcons.check_mark,
-              color: CupertinoColors.white,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF232738),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _PrimaryActionButton extends StatelessWidget {
