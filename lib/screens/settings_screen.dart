@@ -12,7 +12,10 @@ class SettingsScreen extends StatelessWidget {
     return CupertinoPageScaffold(
       child: CustomScrollView(
         slivers: [
-          const CupertinoSliverNavigationBar(largeTitle: Text('设置')),
+          CupertinoSliverNavigationBar(
+            largeTitle: const Text('设置'),
+            backgroundColor: CupertinoColors.systemBackground,
+          ),
           SliverList(
             delegate: SliverChildListDelegate([
               const SizedBox(height: 8),
