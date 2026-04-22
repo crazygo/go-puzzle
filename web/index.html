@@ -39,6 +39,21 @@
       overflow: hidden;
       overscroll-behavior: none;
     }
+    /*
+     * Defeat an iOS WebKit bug (Safari / in-app WebViews / iOS Chrome) that
+     * renders `backdrop-filter` as an opaque white rectangle, producing a
+     * full-screen white overlay that hides widgets such as the bottom
+     * CupertinoTabBar and blocks touch interaction.  Flutter's HTML
+     * renderer emits this CSS on any translucent Cupertino widget
+     * (navigation bars, sliver bars while collapsing, action sheets,
+     * pickers…), so we disable it at the DOM level scoped to the Flutter
+     * render pane only.
+     */
+    flt-glass-pane *,
+    flt-scene-host * {
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
   </style>
 </head>
 <body>

@@ -27,6 +27,18 @@ class _MainTabScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return CupertinoTabScaffold(
       tabBar: CupertinoTabBar(
+        // Force an opaque background and a visible top border so the tab
+        // bar is (a) always rendered as an opaque DOM node on Flutter web
+        // (avoiding the iOS WebKit `backdrop-filter` white-overlay bug)
+        // and (b) visually distinguishable from tab screens that also use
+        // a white `CupertinoColors.systemBackground` page background.
+        backgroundColor: CupertinoColors.systemBackground,
+        border: const Border(
+          top: BorderSide(
+            color: CupertinoColors.separator,
+            width: 0.5,
+          ),
+        ),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.gamecontroller),
