@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'screens/main_screen.dart';
 
@@ -11,26 +12,6 @@ void main() {
     DeviceOrientation.portraitDown,
   ]);
   runApp(const GoPuzzleApp());
-}
-
-class _PassthroughCupertinoLocalizations extends DefaultCupertinoLocalizations {
-  const _PassthroughCupertinoLocalizations();
-}
-
-class _PassthroughCupertinoLocalizationsDelegate
-    extends LocalizationsDelegate<CupertinoLocalizations> {
-  const _PassthroughCupertinoLocalizationsDelegate();
-
-  @override
-  bool isSupported(Locale locale) => true;
-
-  @override
-  Future<CupertinoLocalizations> load(Locale locale) async {
-    return const _PassthroughCupertinoLocalizations();
-  }
-
-  @override
-  bool shouldReload(_PassthroughCupertinoLocalizationsDelegate old) => false;
 }
 
 class GoPuzzleApp extends StatelessWidget {
@@ -54,8 +35,8 @@ class GoPuzzleApp extends StatelessWidget {
       home: const MainScreen(),
       debugShowCheckedModeBanner: false,
       localizationsDelegates: const [
-        _PassthroughCupertinoLocalizationsDelegate(),
-        DefaultWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
       ],
       supportedLocales: const [
         Locale('zh', 'CN'),
