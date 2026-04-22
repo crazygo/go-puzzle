@@ -111,7 +111,7 @@ class CaptureGameProvider extends ChangeNotifier {
     final blackCaps = _gameState.capturedByBlack.length;
     final whiteCaps = _gameState.capturedByWhite.length;
     final progress = (blackCaps - whiteCaps) / captureTarget;
-    final blackRate = (0.5 + progress * 0.35).clamp(0.05, 0.95);
+    final blackRate = (0.5 + progress * 0.35).clamp(0.05, 0.95).toDouble();
     return {
       StoneColor.black: blackRate,
       StoneColor.white: 1 - blackRate,
