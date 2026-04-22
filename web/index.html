@@ -39,8 +39,14 @@
       overflow: hidden;
       overscroll-behavior: none;
     }
-    /* Disable backdrop-filter on iOS WebKit (Chrome/Safari) to prevent
-       white overlay caused by CSS blur effects in Flutter web widgets. */
+    /*
+     * Safety-net for non-shadow-DOM Flutter builds: disable backdrop-filter
+     * on flt-glass-pane itself and any light-DOM descendants.
+     * For shadow-DOM builds the JS below injects an equivalent <style>
+     * directly into the shadow root, which is the only way to reach elements
+     * like <flt-backdrop-filter> hidden behind the shadow boundary.
+     */
+    flt-glass-pane,
     flt-glass-pane * {
       -webkit-backdrop-filter: none !important;
       backdrop-filter: none !important;
@@ -48,6 +54,36 @@
   </style>
 </head>
 <body>
+  <script>
+    // Flutter Web attaches a shadow root to flt-glass-pane (open mode).
+    // Document-level CSS cannot cross that shadow boundary, so backdrop-filter
+    // rules in <head> never reach <flt-backdrop-filter> elements inside it.
+    // We use a MutationObserver to detect when flt-glass-pane is created and
+    // immediately inject a <style> into its shadow root.  This eliminates the
+    // iOS WebKit bug where any backdrop-filter inside overflow:hidden causes
+    // the entire Flutter canvas to render as a solid white overlay, hiding all
+    // content including the bottom tab bar.
+    (function () {
+      function injectIntoShadowRoot(shadowRoot) {
+        if (shadowRoot.querySelector('#flt-backdrop-patch')) return;
+        var s = document.createElement('style');
+        s.id = 'flt-backdrop-patch';
+        s.textContent =
+          '* { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }';
+        shadowRoot.prepend(s);
+      }
+      function tryPatch() {
+        var pane = document.querySelector('flt-glass-pane');
+        if (pane && pane.shadowRoot) {
+          injectIntoShadowRoot(pane.shadowRoot);
+          observer.disconnect();
+        }
+      }
+      var observer = new MutationObserver(tryPatch);
+      observer.observe(document.documentElement, {childList: true, subtree: true});
+      tryPatch(); // also run immediately in case pane already exists
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

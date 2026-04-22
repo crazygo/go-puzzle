@@ -28,12 +28,6 @@ class _MainTabScaffold extends StatelessWidget {
     return CupertinoTabScaffold(
       tabBar: CupertinoTabBar(
         backgroundColor: CupertinoColors.systemBackground,
-        border: const Border(
-          top: BorderSide(
-            color: Color(0x1F000000),
-            width: 0.5,
-          ),
-        ),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.gamecontroller),

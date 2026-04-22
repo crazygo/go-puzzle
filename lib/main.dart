@@ -22,6 +22,9 @@ class GoPuzzleApp extends StatelessWidget {
       title: '围棋谜题',
       theme: CupertinoThemeData(
         primaryColor: CupertinoColors.systemBlue,
+        // Force opaque navigation/tab bar backgrounds so Flutter never generates
+        // a BackdropFilter widget, preventing the iOS WebKit white-overlay bug.
+        barBackgroundColor: CupertinoColors.systemBackground,
         brightness: Brightness.light,
         textTheme: CupertinoTextThemeData(
           navLargeTitleTextStyle: TextStyle(
