@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/settings_provider.dart';
+import 'capture_game_screen.dart';
 import 'daily_puzzle_screen.dart';
 import 'settings_screen.dart';
 import 'skills_screen.dart';
@@ -38,6 +39,11 @@ class _MainTabScaffold extends StatelessWidget {
             label: '技巧',
           ),
           BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.gamecontroller),
+            activeIcon: Icon(CupertinoIcons.gamecontroller_fill),
+            label: '吃5子',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.settings),
             activeIcon: Icon(CupertinoIcons.settings_solid),
             label: '设置',
@@ -55,6 +61,10 @@ class _MainTabScaffold extends StatelessWidget {
               builder: (_) => const SkillsScreen(),
             );
           case 2:
+            return CupertinoTabView(
+              builder: (_) => const CaptureGameScreen(),
+            );
+          case 3:
             return CupertinoTabView(
               builder: (_) => const SettingsScreen(),
             );
