@@ -27,10 +27,7 @@ class _MainTabScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return CupertinoTabScaffold(
       tabBar: CupertinoTabBar(
-        backgroundColor: CupertinoDynamicColor.resolve(
-          CupertinoColors.systemBackground,
-          context,
-        ),
+        backgroundColor: CupertinoColors.systemBackground,
         border: const Border(
           top: BorderSide(
             color: Color(0x1F000000),

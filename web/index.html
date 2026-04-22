@@ -39,6 +39,12 @@
       overflow: hidden;
       overscroll-behavior: none;
     }
+    /* Disable backdrop-filter on iOS WebKit (Chrome/Safari) to prevent
+       white overlay caused by CSS blur effects in Flutter web widgets. */
+    * {
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
   </style>
 </head>
 <body>
