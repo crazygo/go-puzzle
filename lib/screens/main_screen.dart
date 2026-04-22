@@ -29,6 +29,11 @@ class _MainTabScaffold extends StatelessWidget {
       tabBar: CupertinoTabBar(
         items: const [
           BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.gamecontroller),
+            activeIcon: Icon(CupertinoIcons.gamecontroller_fill),
+            label: '吃5子',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.calendar),
             activeIcon: Icon(CupertinoIcons.calendar_today),
             label: '今日谜题',
@@ -37,11 +42,6 @@ class _MainTabScaffold extends StatelessWidget {
             icon: Icon(CupertinoIcons.book),
             activeIcon: Icon(CupertinoIcons.book_fill),
             label: '技巧',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.gamecontroller),
-            activeIcon: Icon(CupertinoIcons.gamecontroller_fill),
-            label: '吃5子',
           ),
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.settings),
@@ -54,15 +54,15 @@ class _MainTabScaffold extends StatelessWidget {
         switch (index) {
           case 0:
             return CupertinoTabView(
-              builder: (_) => const DailyPuzzleScreen(),
+              builder: (_) => const CaptureGameScreen(),
             );
           case 1:
             return CupertinoTabView(
-              builder: (_) => const SkillsScreen(),
+              builder: (_) => const DailyPuzzleScreen(),
             );
           case 2:
             return CupertinoTabView(
-              builder: (_) => const CaptureGameScreen(),
+              builder: (_) => const SkillsScreen(),
             );
           case 3:
             return CupertinoTabView(
@@ -70,7 +70,7 @@ class _MainTabScaffold extends StatelessWidget {
             );
           default:
             return CupertinoTabView(
-              builder: (_) => const DailyPuzzleScreen(),
+              builder: (_) => const CaptureGameScreen(),
             );
         }
       },
