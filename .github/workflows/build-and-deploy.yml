@@ -38,6 +38,18 @@ jobs:
       - name: Run tests
         run: flutter test
 
+      - name: Capture first screen screenshot
+        run: |
+          SCREENSHOT_DIR="${RUNNER_TEMP}/go-puzzle-screenshots" \
+            bash scripts/capture-first-screen.sh
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: ${{ runner.temp }}/go-puzzle-screenshots
+          if-no-files-found: error
+
       - name: Build web (release)
         run: |
           flutter build web \
