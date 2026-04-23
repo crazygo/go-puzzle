@@ -11,13 +11,15 @@ else
 fi
 
 SCREENSHOT_DIR="${SCREENSHOT_DIR:-${HOME}/.cache/go-puzzle/screenshots}"
-GENERATED_SCREENSHOT="test/screenshots/first_screen.png"
+GENERATED_SCREENSHOT="${SCREENSHOT_DIR}/first_screen.png"
 mkdir -p "${SCREENSHOT_DIR}"
 
-"${FLUTTER_BIN}" test test/screenshots/first_screen_screenshot_test.dart \
+rm -f "${GENERATED_SCREENSHOT}"
+
+"${FLUTTER_BIN}" test --no-pub test/screenshots/first_screen_screenshot_test.dart \
   --dart-define=CAPTURE_SCREENSHOTS=true \
-  --update-goldens
+  --dart-define=CAPTURE_SCREENSHOT_PATH="${GENERATED_SCREENSHOT}"
 
-cp "${GENERATED_SCREENSHOT}" "${SCREENSHOT_DIR}/first_screen.png"
+test -f "${GENERATED_SCREENSHOT}"
 
-echo "[capture-first-screen] Screenshot generated: ${SCREENSHOT_DIR}/first_screen.png"
+echo "[capture-first-screen] Screenshot generated: ${GENERATED_SCREENSHOT}"

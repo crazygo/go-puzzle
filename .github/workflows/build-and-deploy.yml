@@ -46,7 +46,7 @@ jobs:
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots
+          name: first-screen-screenshots
           path: ${{ runner.temp }}/go-puzzle-screenshots
           if-no-files-found: error
 
