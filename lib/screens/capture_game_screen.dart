@@ -286,7 +286,7 @@ class _SegmentSettingRow<T> extends StatelessWidget {
           child: Text(
             label,
             style: const TextStyle(
-              fontSize: 22,
+              fontSize: 17,
               fontWeight: FontWeight.w700,
               color: Color(0xFF0E1833),
             ),
@@ -318,55 +318,82 @@ class _SegmentControl<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (int i = 0; i < options.length; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
-          Expanded(
-            child: CupertinoButton(
-              padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
-              onPressed: () => onChanged(options[i].value),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: selectedValue == options[i].value
-                      ? CupertinoColors.white
-                      : const Color(0x00000000),
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(
-                    color: selectedValue == options[i].value
-                        ? const Color(0xFFBBD2FF)
-                        : const Color(0xFFD8DAE5),
-                    width: 1.5,
-                  ),
-                  boxShadow: selectedValue == options[i].value
-                      ? const [
-                          BoxShadow(
-                            color: Color(0x120D4BD9),
-                            blurRadius: 6,
-                            offset: Offset(0, 2),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Text(
-                  options[i].label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: selectedValue == options[i].value
-                        ? CupertinoColors.activeBlue
-                        : const Color(0xFF5D6473),
+    final selectedIndex =
+        options.indexWhere((o) => o.value == selectedValue);
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEEFF4),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final pillWidth = constraints.maxWidth / options.length;
+          return Stack(
+            children: [
+              // Sliding highlight pill
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeInOut,
+                left: selectedIndex * pillWidth,
+                top: 0,
+                bottom: 0,
+                width: pillWidth,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFBBD2FF),
+                      width: 1.5,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x120D4BD9),
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
-      ],
+              // Tappable option labels
+              Row(
+                children: [
+                  for (int i = 0; i < options.length; i++)
+                    Expanded(
+                      child: CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        onPressed: () => onChanged(options[i].value),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 12),
+                          child: AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeInOut,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: selectedValue == options[i].value
+                                  ? CupertinoColors.activeBlue
+                                  : const Color(0xFF5D6473),
+                            ),
+                            child: Text(
+                              options[i].label,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
