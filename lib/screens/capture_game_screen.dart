@@ -318,61 +318,55 @@ class _SegmentControl<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F8),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE4E6EC)),
-      ),
-      child: Row(
-        children: [
-          for (final option in options)
-            Expanded(
-              child: CupertinoButton(
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                onPressed: () => onChanged(option.value),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: selectedValue == option.value
-                        ? CupertinoColors.white
-                        : const Color(0x00000000),
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(
-                      color: selectedValue == option.value
-                          ? const Color(0xFFBBD2FF)
-                          : const Color(0x00000000),
-                      width: 1.5,
-                    ),
-                    boxShadow: selectedValue == option.value
-                        ? const [
-                            BoxShadow(
-                              color: Color(0x120D4BD9),
-                              blurRadius: 6,
-                              offset: Offset(0, 2),
-                            ),
-                          ]
-                        : null,
+    return Row(
+      children: [
+        for (int i = 0; i < options.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              onPressed: () => onChanged(options[i].value),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: selectedValue == options[i].value
+                      ? CupertinoColors.white
+                      : const Color(0x00000000),
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                    color: selectedValue == options[i].value
+                        ? const Color(0xFFBBD2FF)
+                        : const Color(0xFFD8DAE5),
+                    width: 1.5,
                   ),
-                  child: Text(
-                    option.label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: selectedValue == option.value
-                          ? CupertinoColors.activeBlue
-                          : const Color(0xFF5D6473),
-                    ),
+                  boxShadow: selectedValue == options[i].value
+                      ? const [
+                          BoxShadow(
+                            color: Color(0x120D4BD9),
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  options[i].label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: selectedValue == options[i].value
+                        ? CupertinoColors.activeBlue
+                        : const Color(0xFF5D6473),
                   ),
                 ),
               ),
             ),
+          ),
         ],
-      ),
+      ],
     );
   }
 }
