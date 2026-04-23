@@ -318,8 +318,9 @@ class _SegmentControl<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selectedIndex =
-        options.indexWhere((o) => o.value == selectedValue);
+    assert(options.isNotEmpty, '_SegmentControl requires at least one option');
+    final rawIndex = options.indexWhere((o) => o.value == selectedValue);
+    final selectedIndex = rawIndex < 0 ? 0 : rawIndex;
 
     return Container(
       padding: const EdgeInsets.all(3),
@@ -331,6 +332,7 @@ class _SegmentControl<T> extends StatelessWidget {
         builder: (context, constraints) {
           final pillWidth = constraints.maxWidth / options.length;
           return Stack(
+            clipBehavior: Clip.none,
             children: [
               // Sliding highlight pill
               AnimatedPositioned(
