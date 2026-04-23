@@ -38,6 +38,9 @@ jobs:
       - name: Run tests
         run: flutter test
 
+      - name: Ensure test fonts
+        run: bash scripts/ensure-test-fonts.sh
+
       - name: Capture first screen screenshot
         run: |
           SCREENSHOT_DIR="${RUNNER_TEMP}/go-puzzle-screenshots" \
