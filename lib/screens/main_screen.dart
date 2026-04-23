@@ -31,12 +31,12 @@ class _MainTabScaffold extends StatelessWidget {
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.gamecontroller),
             activeIcon: Icon(CupertinoIcons.gamecontroller_fill),
-            label: '吃子',
+            label: '开始',
           ),
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.calendar),
             activeIcon: Icon(CupertinoIcons.calendar_today),
-            label: '今日谜题',
+            label: '谜题',
           ),
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.book),

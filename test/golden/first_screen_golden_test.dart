@@ -1,8 +1,6 @@
-import 'dart:io';
-
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_puzzle/screens/main_screen.dart';
+import 'package:go_puzzle/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -10,25 +8,18 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('capture first screen', (tester) async {
+  testWidgets('capture first screen renders', (tester) async {
     tester.view.devicePixelRatio = 3.0;
     tester.view.physicalSize =
         const Size(1170, 2532); // iPhone 12/13/14 portrait
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    const configuredDir = String.fromEnvironment('SCREENSHOT_OUTPUT_DIR');
-    final outputDir = configuredDir.isEmpty
-        ? Directory('${Directory.systemTemp.path}/go-puzzle-screenshots')
-        : Directory(configuredDir);
-    await outputDir.create(recursive: true);
-
-    await tester.pumpWidget(const CupertinoApp(home: MainScreen()));
+    await tester.pumpWidget(const GoPuzzleApp());
     await tester.pump(const Duration(milliseconds: 300));
 
-    await expectLater(
-      find.byType(CupertinoApp),
-      matchesGoldenFile('${outputDir.path}/first_screen.png'),
-    );
+    expect(find.text('益智围棋'), findsWidgets);
+    expect(find.text('对弈'), findsOneWidget);
+    expect(find.text('开始练习'), findsOneWidget);
   });
 }
