@@ -10,14 +10,15 @@ void main() {
 
   testWidgets('capture setup shows updated copy', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('益智围棋'), findsOneWidget);
-    expect(find.text('对弈'), findsOneWidget);
-    expect(find.text('难度'), findsOneWidget);
-    expect(find.text('中级 · 9路 · 吃5子'), findsNothing);
+    expect(find.text('小闲围棋'), findsOneWidget);
+    expect(find.text('AI 陪你下好每一步'), findsOneWidget);
+    expect(find.text('AI 风格'), findsOneWidget);
+    expect(find.text('中级 · 9 路 · 吃5子'), findsNothing);
 
-    final startButton = find.widgetWithText(CupertinoButton, '开始练习');
+    final startButton = find.widgetWithText(CupertinoButton, '开始对弈');
     expect(startButton, findsOneWidget);
   });
 
@@ -25,24 +26,26 @@ void main() {
     SharedPreferences.setMockInitialValues({
       'capture_setup.difficulty': 'advanced',
       'capture_setup.board_size': 13,
-      'capture_setup.capture_target': 10,
     });
 
     await tester.pumpWidget(const GoPuzzleApp());
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('高级'), findsOneWidget);
-    expect(find.text('13路'), findsOneWidget);
-    expect(find.text('吃10子'), findsOneWidget);
+    expect(find.text('13 路'), findsWidgets);
+    expect(find.textContaining('吃5子'), findsWidgets);
   });
 
   testWidgets('segment control updates selected option on tap', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     // Difficulty defaults to '中级'; tap '高级' to change it.
     await tester.tap(find.text('高级'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     TextStyle styleOf(String label) {
       return tester
@@ -63,15 +66,24 @@ void main() {
 
   testWidgets('capture game uses Cupertino back affordance', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(find.widgetWithText(CupertinoButton, '开始练习'));
-    await tester.pumpAndSettle();
+    final startButton = find.widgetWithText(CupertinoButton, '开始对弈');
+    await tester.dragUntilVisible(
+      startButton,
+      find.byType(Scrollable),
+      const Offset(0, -200),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(startButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     final navigationBar = tester.widget<CupertinoNavigationBar>(
       find.byType(CupertinoNavigationBar),
     );
     expect(navigationBar.leading, isNull);
-    expect(navigationBar.previousPageTitle, '益智围棋');
+    expect(navigationBar.previousPageTitle, '小闲围棋');
   });
 }

@@ -1,3 +1,7 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,11 +21,10 @@ class CaptureGameScreen extends StatefulWidget {
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
-  static const _captureTargetKey = 'capture_setup.capture_target';
+  static const _captureTarget = 5;
 
   DifficultyLevel _difficulty = DifficultyLevel.intermediate;
   int _boardSize = 9;
-  int _captureTarget = 5;
 
   @override
   void initState() {
@@ -31,90 +34,134 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final particlePreviewOnly =
+        kIsWeb && Uri.base.queryParameters['particlePreview'] == '1';
+
+    if (particlePreviewOnly) {
+      return const CupertinoPageScaffold(
+        backgroundColor: Color(0xFFF6F1E9),
+        child: _ParticlePreviewCanvas(),
+      );
+    }
+
     return CupertinoPageScaffold(
-      child: CustomScrollView(
-        slivers: [
-          const CupertinoSliverNavigationBar(
-            largeTitle: Text(_CaptureCopy.pageTitle),
+      backgroundColor: const Color(0xFFF6F1E9),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFFCF7), Color(0xFFF7F0E5)],
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    _CaptureCopy.pageSubtitle,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: CupertinoColors.secondaryLabel.resolveFrom(
-                        context,
+        ),
+        child: Stack(
+          children: [
+            // Hero as full-bleed background layer
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _HeroBanner(),
+            ),
+            // Scrollable content floats over hero
+            SafeArea(
+              bottom: false,
+              child: CustomScrollView(
+                slivers: [
+                  // Transparent spacer that reveals the hero behind
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: _kHeroContentOffset),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _SectionCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _SectionLabel(title: '棋盘'),
+                                const SizedBox(height: 4),
+                                _PillSegmentControl<int>(
+                                  selectedValue: _boardSize,
+                                  options: const [
+                                    _SegmentOption(value: 9, label: '9 路'),
+                                    _SegmentOption(value: 13, label: '13 路'),
+                                    _SegmentOption(value: 19, label: '19 路'),
+                                  ],
+                                  onChanged: (value) =>
+                                      _updateSelection(boardSize: value),
+                                ),
+                                const SizedBox(height: 20),
+                                const _SectionLabel(title: '难度'),
+                                const SizedBox(height: 8),
+                                _PillSegmentControl<DifficultyLevel>(
+                                  selectedValue: _difficulty,
+                                  options: const [
+                                    _SegmentOption(
+                                      value: DifficultyLevel.beginner,
+                                      label: '初级',
+                                    ),
+                                    _SegmentOption(
+                                      value: DifficultyLevel.intermediate,
+                                      label: '中级',
+                                    ),
+                                    _SegmentOption(
+                                      value: DifficultyLevel.advanced,
+                                      label: '高级',
+                                    ),
+                                  ],
+                                  onChanged: (value) =>
+                                      _updateSelection(difficulty: value),
+                                ),
+                                const SizedBox(height: 20),
+                                const _SectionLabel(title: 'AI 风格'),
+                                const SizedBox(height: 8),
+                                const _AiStyleTile(),
+                                const SizedBox(height: 24),
+                                _PrimaryActionButton(
+                                  title: _CaptureCopy.startButton,
+                                  onPressed: _startGame,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const _HomeSectionTitle(
+                            title: '今日练习',
+                            trailing: null,
+                          ),
+                          const SizedBox(height: 8),
+                          _PracticeCard(
+                            title: '围地上攻防练习',
+                            subtitle:
+                                '基础练习 · 吃$_captureTarget子 · ${_difficulty.displayName}',
+                            onTap: _startGame,
+                          ),
+                          const SizedBox(height: 10),
+                          const _HomeSectionTitle(
+                            title: '最近对局',
+                            trailing: '查看全部',
+                          ),
+                          const SizedBox(height: 10),
+                          _RecentMatchCard(
+                            boardSize: _boardSize,
+                            difficulty: _difficulty,
+                            captureTarget: _captureTarget,
+                            onTap: _startGame,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  _GroupCard(
-                    icon: CupertinoIcons.scope,
-                    title: _CaptureCopy.setupTitle,
-                    subtitle: _CaptureCopy.setupSubtitle,
-                    child: Column(
-                      children: [
-                        _SegmentSettingRow<int>(
-                          label: _CaptureCopy.targetLabel,
-                          selectedValue: _captureTarget,
-                          options: const [
-                            _SegmentOption(value: 5, label: '吃5子'),
-                            _SegmentOption(value: 10, label: '吃10子'),
-                            _SegmentOption(value: 20, label: '吃20子'),
-                          ],
-                          onChanged: (v) => _updateSelection(
-                            captureTarget: v,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _SegmentSettingRow<int>(
-                          label: _CaptureCopy.boardLabel,
-                          selectedValue: _boardSize,
-                          options: const [
-                            _SegmentOption(value: 9, label: '9路'),
-                            _SegmentOption(value: 13, label: '13路'),
-                            _SegmentOption(value: 19, label: '19路'),
-                          ],
-                          onChanged: (v) => _updateSelection(boardSize: v),
-                        ),
-                        const SizedBox(height: 12),
-                        _SegmentSettingRow<DifficultyLevel>(
-                          label: _CaptureCopy.difficultyTitle,
-                          selectedValue: _difficulty,
-                          options: const [
-                            _SegmentOption(
-                              value: DifficultyLevel.beginner,
-                              label: '初级',
-                            ),
-                            _SegmentOption(
-                              value: DifficultyLevel.intermediate,
-                              label: '中级',
-                            ),
-                            _SegmentOption(
-                              value: DifficultyLevel.advanced,
-                              label: '高级',
-                            ),
-                          ],
-                          onChanged: (v) => _updateSelection(difficulty: v),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _PrimaryActionButton(
-                    title: _CaptureCopy.startButton,
-                    onPressed: _startGame,
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -125,7 +172,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
     final savedDifficulty = prefs.getString(_difficultyKey);
     final savedBoardSize = prefs.getInt(_boardSizeKey);
-    final savedCaptureTarget = prefs.getInt(_captureTargetKey);
 
     setState(() {
       _difficulty = DifficultyLevel.values.firstWhere(
@@ -135,23 +181,16 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       if (savedBoardSize == 9 || savedBoardSize == 13 || savedBoardSize == 19) {
         _boardSize = savedBoardSize!;
       }
-      if (savedCaptureTarget == 5 ||
-          savedCaptureTarget == 10 ||
-          savedCaptureTarget == 20) {
-        _captureTarget = savedCaptureTarget!;
-      }
     });
   }
 
   void _updateSelection({
     DifficultyLevel? difficulty,
     int? boardSize,
-    int? captureTarget,
   }) {
     setState(() {
       _difficulty = difficulty ?? _difficulty;
       _boardSize = boardSize ?? _boardSize;
-      _captureTarget = captureTarget ?? _captureTarget;
     });
     _saveSelection();
   }
@@ -160,7 +199,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_difficultyKey, _difficulty.name);
     await prefs.setInt(_boardSizeKey, _boardSize);
-    await prefs.setInt(_captureTargetKey, _captureTarget);
   }
 
   void _startGame() {
@@ -183,221 +221,24 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }
 }
 
+class _ParticlePreviewCanvas extends StatelessWidget {
+  const _ParticlePreviewCanvas();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+        child: const _HeroBanner(),
+      ),
+    );
+  }
+}
+
 class _CaptureCopy {
-  static const pageTitle = '益智围棋';
-  static const pageSubtitle = '选择本局设置与难度，快速开始练习';
-  static const setupTitle = '对弈';
-  static const setupSubtitle = '设置目标、棋盘尺寸与题目难度';
-  static const targetLabel = '目标';
-  static const boardLabel = '棋盘';
-  static const difficultyTitle = '难度';
-  static const startButton = '开始练习';
-}
-
-class _GroupCard extends StatelessWidget {
-  const _GroupCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.child,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: CupertinoColors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 30, color: CupertinoColors.activeBlue),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0E1833),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: Color(0xFF7A8192),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _SegmentSettingRow<T> extends StatelessWidget {
-  const _SegmentSettingRow({
-    required this.label,
-    required this.selectedValue,
-    required this.options,
-    required this.onChanged,
-  });
-
-  final String label;
-  final T selectedValue;
-  final List<_SegmentOption<T>> options;
-  final ValueChanged<T> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 60,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF0E1833),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _SegmentControl<T>(
-            selectedValue: selectedValue,
-            options: options,
-            onChanged: onChanged,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SegmentControl<T> extends StatelessWidget {
-  const _SegmentControl({
-    required this.selectedValue,
-    required this.options,
-    required this.onChanged,
-  });
-
-  final T selectedValue;
-  final List<_SegmentOption<T>> options;
-  final ValueChanged<T> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    assert(options.isNotEmpty, '_SegmentControl requires at least one option');
-    final rawIndex = options.indexWhere((o) => o.value == selectedValue);
-    final selectedIndex = rawIndex < 0 ? 0 : rawIndex;
-
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEEEFF4),
-        borderRadius: BorderRadius.circular(11),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final pillWidth = constraints.maxWidth / options.length;
-          return Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // Sliding highlight pill
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeInOut,
-                left: selectedIndex * pillWidth,
-                top: 0,
-                bottom: 0,
-                width: pillWidth,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: CupertinoColors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: const Color(0xFFBBD2FF),
-                      width: 1.5,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x120D4BD9),
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Tappable option labels
-              Row(
-                children: [
-                  for (int i = 0; i < options.length; i++)
-                    Expanded(
-                      child: CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        onPressed: () => onChanged(options[i].value),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 8, horizontal: 12),
-                          child: AnimatedDefaultTextStyle(
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeInOut,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: selectedValue == options[i].value
-                                  ? CupertinoColors.activeBlue
-                                  : const Color(0xFF5D6473),
-                            ),
-                            child: Text(
-                              options[i].label,
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
+  static const pageTitle = '小闲围棋';
+  static const pageSubtitle = 'AI 陪你下好每一步';
+  static const startButton = '开始对弈';
 }
 
 class _SegmentOption<T> {
@@ -415,31 +256,1100 @@ class _PrimaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2F8EFF), Color(0xFF1E6FEA)],
+    return SizedBox(
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFC89257), Color(0xFFA86930)],
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x33A56730),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x33286DE0),
-            blurRadius: 10,
-            offset: Offset(0, 4),
+        child: CupertinoButton(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          borderRadius: BorderRadius.circular(16),
+          onPressed: onPressed,
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: CupertinoColors.white,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Hero layout constants
+const _kHeroVisibleHeight = 248.0; // height below status bar
+const _kHeroCardOverlap = 24.0; // how much settings card overlaps hero
+const _kHeroContentOffset =
+    _kHeroVisibleHeight - _kHeroCardOverlap; // scroll spacer height
+
+class _HeroBanner extends StatelessWidget {
+  const _HeroBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    return Container(
+      height: topPad + _kHeroVisibleHeight,
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          Positioned.fill(
+            child: CustomPaint(painter: _LandscapePainter()),
+          ),
+          Positioned(
+            top: topPad + 20,
+            left: 24,
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _CaptureCopy.pageTitle,
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF201712),
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  _CaptureCopy.pageSubtitle,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF8E7C6C),
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            right: 0,
+            top: topPad,
+            bottom: 0,
+            width: 160,
+            child: const _HeroOrbitalArt(),
           ),
         ],
       ),
-      child: CupertinoButton(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        borderRadius: BorderRadius.circular(20),
-        onPressed: onPressed,
-        child: Text(
+    );
+  }
+}
+
+class _HeroOrbitalArt extends StatefulWidget {
+  const _HeroOrbitalArt();
+
+  @override
+  State<_HeroOrbitalArt> createState() => _HeroOrbitalArtState();
+}
+
+class _HeroOrbitalArtState extends State<_HeroOrbitalArt>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  double? _fixedProgress;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) {
+      final raw = Uri.base.queryParameters['particleProgress'];
+      final parsed = raw == null ? null : double.tryParse(raw);
+      if (parsed != null) {
+        _fixedProgress = parsed.clamp(0.0, 0.9999);
+      }
+    }
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    );
+    if (_fixedProgress == null) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = _fixedProgress;
+    if (progress != null) {
+      return _HeroOrbitalStack(progress: progress);
+    }
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return _HeroOrbitalStack(progress: _controller.value);
+      },
+    );
+  }
+}
+
+class _HeroOrbitalStack extends StatelessWidget {
+  const _HeroOrbitalStack({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Positioned.fill(
+          child: CustomPaint(
+            painter: _OrbitPainter(progress: progress),
+          ),
+        ),
+        // Top black
+        const Positioned(top: 68, child: _StoneDot(isBlack: true, size: 22)),
+        // Center black (slightly right)
+        const Positioned(top: 110, child: _StoneDot(isBlack: true, size: 24)),
+        // Bottom black
+        const Positioned(top: 152, child: _StoneDot(isBlack: true, size: 22)),
+        // White flanking stones
+        const Positioned(left: 30, top: 113, child: _StoneDot(isBlack: false, size: 19)),
+        const Positioned(right: 30, top: 113, child: _StoneDot(isBlack: false, size: 19)),
+      ],
+    );
+  }
+}
+
+class _StoneDot extends StatelessWidget {
+  const _StoneDot({
+    required this.isBlack,
+    this.size = 28,
+  });
+
+  final bool isBlack;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: isBlack
+            ? const RadialGradient(
+                center: Alignment(-0.3, -0.3),
+                radius: 0.8,
+                colors: [Color(0xFF4A4A4A), Color(0xFF121212)],
+              )
+            : const RadialGradient(
+                center: Alignment(-0.3, -0.3),
+                radius: 0.8,
+                colors: [Color(0xFFFFFFFF), Color(0xFFE8E8E8)],
+              ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0x14000000),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LandscapePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // ── Birds (upper-right, behind stones area) ───────────────────────────
+    _drawBirds(canvas, size);
+
+    // ── Distant mountains (3 faint layers) ────────────────────────────────
+    _drawDistantMountains(canvas, size);
+
+    // ── Mid mountain with pavilion silhouette ─────────────────────────────
+    _drawMidMountain(canvas, size);
+
+    // ── Foreground hills ──────────────────────────────────────────────────
+    _drawForegroundHills(canvas, size);
+
+    // ── Horizontal mist bands ─────────────────────────────────────────────
+    _drawMist(canvas, size);
+  }
+
+  void _drawBirds(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x40756250)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+
+    // Bird 1 — upper right
+    final b1x = size.width * 0.62;
+    final b1y = size.height * 0.10;
+    final wing = size.width * 0.025;
+    final path1 = Path()
+      ..moveTo(b1x - wing, b1y)
+      ..quadraticBezierTo(b1x, b1y - wing * 0.6, b1x + wing, b1y);
+    canvas.drawPath(path1, paint);
+
+    // Bird 2 — slightly lower and further right
+    final b2x = size.width * 0.72;
+    final b2y = size.height * 0.07;
+    final wing2 = size.width * 0.018;
+    final path2 = Path()
+      ..moveTo(b2x - wing2, b2y)
+      ..quadraticBezierTo(b2x, b2y - wing2 * 0.6, b2x + wing2, b2y);
+    canvas.drawPath(path2, paint);
+  }
+
+  void _drawDistantMountains(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    // Layer 1 — farthest, lightest
+    paint.color = const Color(0x0C8B7A65);
+    final far1 = Path()
+      ..moveTo(size.width * 0.35, size.height)
+      ..lineTo(size.width * 0.48, size.height * 0.38)
+      ..quadraticBezierTo(
+          size.width * 0.54, size.height * 0.30, size.width * 0.62, size.height * 0.42)
+      ..lineTo(size.width * 0.78, size.height * 0.56)
+      ..quadraticBezierTo(
+          size.width * 0.88, size.height * 0.48, size.width, size.height * 0.58)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(far1, paint);
+
+    // Layer 2 — middle distance
+    paint.color = const Color(0x129B8A72);
+    final far2 = Path()
+      ..moveTo(size.width * 0.4, size.height)
+      ..lineTo(size.width * 0.52, size.height * 0.44)
+      ..quadraticBezierTo(
+          size.width * 0.57, size.height * 0.36, size.width * 0.65, size.height * 0.50)
+      ..quadraticBezierTo(
+          size.width * 0.75, size.height * 0.58, size.width * 0.85, size.height * 0.52)
+      ..lineTo(size.width, size.height * 0.62)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(far2, paint);
+  }
+
+  void _drawMidMountain(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = const Color(0x1A9B8A72);
+
+    // Main mid mountain — biased to right half
+    final mid = Path()
+      ..moveTo(size.width * 0.3, size.height)
+      ..lineTo(size.width * 0.44, size.height * 0.52)
+      ..quadraticBezierTo(
+          size.width * 0.50, size.height * 0.40, size.width * 0.57, size.height * 0.46)
+      ..quadraticBezierTo(
+          size.width * 0.68, size.height * 0.58, size.width * 0.82, size.height * 0.62)
+      ..lineTo(size.width, size.height * 0.68)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(mid, paint);
+
+    // Pavilion silhouette — at peak of mid mountain (~50%, 43%)
+    _drawPavilion(canvas, Offset(size.width * 0.50, size.height * 0.42), size.width * 0.028);
+  }
+
+  void _drawPavilion(Canvas canvas, Offset base, double scale) {
+    final paint = Paint()
+      ..color = const Color(0x28756250)
+      ..style = PaintingStyle.fill;
+
+    // Roof (curved eave)
+    final roof = Path()
+      ..moveTo(base.dx - scale * 1.8, base.dy)
+      ..quadraticBezierTo(base.dx, base.dy - scale * 1.5, base.dx + scale * 1.8, base.dy)
+      ..close();
+    canvas.drawPath(roof, paint);
+
+    // Roof ridge line
+    final ridgePaint = Paint()
+      ..color = const Color(0x28756250)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+    canvas.drawLine(
+      Offset(base.dx - scale * 1.8, base.dy),
+      Offset(base.dx + scale * 1.8, base.dy),
+      ridgePaint,
+    );
+
+    // Body
+    final body = Rect.fromCenter(
+      center: Offset(base.dx, base.dy + scale * 0.8),
+      width: scale * 2.2,
+      height: scale * 1.4,
+    );
+    canvas.drawRect(body, paint);
+  }
+
+  void _drawForegroundHills(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    // Foreground hill left — very subtle
+    paint.color = const Color(0x0FAD9880);
+    final hill1 = Path()
+      ..moveTo(0, size.height)
+      ..quadraticBezierTo(
+          size.width * 0.22, size.height * 0.72, size.width * 0.5, size.height * 0.80)
+      ..quadraticBezierTo(
+          size.width * 0.7, size.height * 0.86, size.width, size.height * 0.82)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(hill1, paint);
+
+    // Foreground hill — lower band
+    paint.color = const Color(0x10AD9880);
+    final hill2 = Path()
+      ..moveTo(0, size.height)
+      ..quadraticBezierTo(
+          size.width * 0.35, size.height * 0.86, size.width * 0.65, size.height * 0.90)
+      ..quadraticBezierTo(
+          size.width * 0.82, size.height * 0.87, size.width, size.height * 0.92)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(hill2, paint);
+  }
+
+  void _drawMist(Canvas canvas, Size size) {
+    // Horizontal mist band — between mountain layers
+    final mist = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(size.width * 0.25, size.height * 0.58),
+        Offset(size.width, size.height * 0.58),
+        [
+          const Color(0x00FFF8F0),
+          const Color(0x18FFF8F0),
+          const Color(0x10FFF8F0),
+          const Color(0x00FFF8F0),
+        ],
+        [0.0, 0.3, 0.7, 1.0],
+      );
+    final mistRect = Rect.fromLTWH(
+      size.width * 0.25,
+      size.height * 0.52,
+      size.width * 0.75,
+      size.height * 0.14,
+    );
+    canvas.drawRect(mistRect, mist);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _OrbitPainter extends CustomPainter {
+  final double progress;
+  const _OrbitPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width * 0.56, size.height * 0.46);
+    final normalized = progress * 4;
+    final frameIndex = normalized.floor() % 4;
+    final frameT = normalized - frameIndex;
+    final from = _OrbitFrame.frames[frameIndex];
+    final to = _OrbitFrame.frames[(frameIndex + 1) % _OrbitFrame.frames.length];
+    final frame = _OrbitFrame.lerp(from, to, frameT);
+    final breath = 0.72 + 0.28 * math.sin(progress * math.pi * 2);
+
+    _paintArcDust(
+      canvas,
+      center,
+      frame: frame,
+      radiusScale: 1.06,
+      opacityScale: 0.38 * breath,
+      dotScale: 0.84,
+      seedOffset: 0,
+    );
+    _paintArcDust(
+      canvas,
+      center,
+      frame: frame.copyWith(
+        startAngle: frame.startAngle - 0.16,
+        sweepAngle: frame.sweepAngle * 0.92,
+        eccentricityX: frame.eccentricityX * 0.92,
+        eccentricityY: frame.eccentricityY * 0.92,
+        rotation: frame.rotation + 0.08,
+      ),
+      radiusScale: 0.9,
+      opacityScale: 0.18 * breath,
+      dotScale: 0.58,
+      seedOffset: 97,
+    );
+    _paintGuidingRing(canvas, center, frame, size);
+    _paintMist(canvas, center, frame);
+  }
+
+  void _paintArcDust(
+    Canvas canvas,
+    Offset center, {
+    required _OrbitFrame frame,
+    required double radiusScale,
+    required double opacityScale,
+    required double dotScale,
+    required int seedOffset,
+  }) {
+    final particlePaint = Paint()..style = PaintingStyle.fill;
+    final count = (170 * frame.density).round();
+    final radiusX = 62.0 * frame.eccentricityX * radiusScale;
+    final radiusY = 48.0 * frame.eccentricityY * radiusScale;
+
+    for (int i = 0; i < count; i++) {
+      final unit = i / math.max(1, count - 1);
+      final shaped = Curves.easeInOut.transform(unit);
+      final flutter = _noise(seedOffset + i * 17);
+      final angle = frame.startAngle +
+          frame.sweepAngle * shaped +
+          flutter * 0.055 +
+          math.sin((progress + unit) * math.pi * 2) * 0.01;
+      final localRadiusX =
+          radiusX * (0.92 + 0.12 * _noise(seedOffset + i * 31));
+      final localRadiusY =
+          radiusY * (0.92 + 0.12 * _noise(seedOffset + i * 29));
+      final orbit = Offset(
+        math.cos(angle) * localRadiusX,
+        math.sin(angle) * localRadiusY,
+      );
+      final rotated = Offset(
+        orbit.dx * math.cos(frame.rotation) - orbit.dy * math.sin(frame.rotation),
+        orbit.dx * math.sin(frame.rotation) + orbit.dy * math.cos(frame.rotation),
+      );
+      final drift = Offset(
+        (1 - shaped) * -12 + flutter * 4,
+        (0.5 - shaped) * 7 + _noise(seedOffset + i * 7) * 3.5,
+      );
+      final offset = center + rotated + drift;
+      final tailFade = math.pow(math.sin(unit * math.pi), 1.18).toDouble();
+      final opacity =
+          (0.028 + 0.28 * tailFade * opacityScale).clamp(0.015, 0.16);
+      final radius = (0.32 + 1.1 * tailFade + flutter * 0.18) * dotScale;
+      particlePaint.color = const Color(0xFFC99557).withValues(alpha: opacity);
+      canvas.drawCircle(offset, radius, particlePaint);
+    }
+
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.75
+      ..color = const Color(0xFFC99557).withValues(alpha: 0.038 * opacityScale);
+    final arcRect = Rect.fromCenter(
+      center: center,
+      width: radiusX * 2,
+      height: radiusY * 2,
+    );
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(frame.rotation);
+    canvas.translate(-center.dx, -center.dy);
+    canvas.drawArc(arcRect, frame.startAngle, frame.sweepAngle, false, stroke);
+    canvas.restore();
+    if (frame.sweepAngle > math.pi * 1.55) {
+      final closurePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.5
+        ..color = const Color(0xFFC99557).withValues(alpha: 0.028);
+      canvas.save();
+      canvas.translate(center.dx, center.dy);
+      canvas.rotate(frame.rotation + 0.03);
+      canvas.translate(-center.dx, -center.dy);
+      canvas.drawOval(arcRect.inflate(6), closurePaint);
+      canvas.restore();
+    }
+  }
+
+  void _paintGuidingRing(
+    Canvas canvas,
+    Offset center,
+    _OrbitFrame frame,
+    Size size,
+  ) {
+    final ringPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.55
+      ..color = const Color(0xFFC99557).withValues(alpha: 0.024);
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(frame.rotation - 0.05);
+    canvas.translate(-center.dx, -center.dy);
+    canvas.drawArc(
+      Rect.fromCenter(center: center, width: 146, height: 114),
+      frame.startAngle - 0.3,
+      frame.sweepAngle * 0.72,
+      false,
+      ringPaint,
+    );
+    canvas.drawArc(
+      Rect.fromCenter(center: center, width: 122, height: 94),
+      frame.startAngle + 0.24,
+      frame.sweepAngle * 0.46,
+      false,
+      ringPaint,
+    );
+    canvas.restore();
+  }
+
+  void _paintMist(Canvas canvas, Offset center, _OrbitFrame frame) {
+    final mist = Paint()
+      ..shader = ui.Gradient.radial(
+        center + Offset(frame.trailingGlowX, frame.trailingGlowY),
+        44,
+        [
+          const Color(0x1AF0C996),
+          const Color(0x08F0C996),
+          const Color(0x00F0C996),
+        ],
+        const [0.0, 0.42, 1.0],
+      );
+    canvas.drawCircle(
+      center + Offset(frame.trailingGlowX, frame.trailingGlowY),
+      44,
+      mist,
+    );
+  }
+
+  double _noise(int seed) {
+    final value = math.sin(seed * 12.9898 + progress * 18.37) * 43758.5453;
+    return value - value.floor();
+  }
+
+  @override
+  bool shouldRepaint(covariant _OrbitPainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
+
+class _OrbitFrame {
+  const _OrbitFrame({
+    required this.startAngle,
+    required this.sweepAngle,
+    required this.rotation,
+    required this.density,
+    required this.eccentricityX,
+    required this.eccentricityY,
+    required this.trailingGlowX,
+    required this.trailingGlowY,
+  });
+
+  final double startAngle;
+  final double sweepAngle;
+  final double rotation;
+  final double density;
+  final double eccentricityX;
+  final double eccentricityY;
+  final double trailingGlowX;
+  final double trailingGlowY;
+
+  static const frames = [
+    _OrbitFrame(
+      startAngle: math.pi * 0.92,
+      sweepAngle: math.pi * 1.14,
+      rotation: -0.34,
+      density: 0.86,
+      eccentricityX: 1.08,
+      eccentricityY: 1.02,
+      trailingGlowX: -18,
+      trailingGlowY: -10,
+    ),
+    _OrbitFrame(
+      startAngle: math.pi * 0.6,
+      sweepAngle: math.pi * 1.62,
+      rotation: -0.16,
+      density: 1.04,
+      eccentricityX: 1.12,
+      eccentricityY: 1.06,
+      trailingGlowX: -10,
+      trailingGlowY: 14,
+    ),
+    _OrbitFrame(
+      startAngle: math.pi * 0.15,
+      sweepAngle: math.pi * 2.08,
+      rotation: 0.06,
+      density: 1.12,
+      eccentricityX: 1.0,
+      eccentricityY: 0.98,
+      trailingGlowX: 10,
+      trailingGlowY: 18,
+    ),
+    _OrbitFrame(
+      startAngle: -math.pi * 0.1,
+      sweepAngle: math.pi * 1.48,
+      rotation: 0.26,
+      density: 0.92,
+      eccentricityX: 1.14,
+      eccentricityY: 1.04,
+      trailingGlowX: 18,
+      trailingGlowY: -14,
+    ),
+  ];
+
+  _OrbitFrame copyWith({
+    double? startAngle,
+    double? sweepAngle,
+    double? rotation,
+    double? density,
+    double? eccentricityX,
+    double? eccentricityY,
+    double? trailingGlowX,
+    double? trailingGlowY,
+  }) {
+    return _OrbitFrame(
+      startAngle: startAngle ?? this.startAngle,
+      sweepAngle: sweepAngle ?? this.sweepAngle,
+      rotation: rotation ?? this.rotation,
+      density: density ?? this.density,
+      eccentricityX: eccentricityX ?? this.eccentricityX,
+      eccentricityY: eccentricityY ?? this.eccentricityY,
+      trailingGlowX: trailingGlowX ?? this.trailingGlowX,
+      trailingGlowY: trailingGlowY ?? this.trailingGlowY,
+    );
+  }
+
+  static _OrbitFrame lerp(_OrbitFrame a, _OrbitFrame b, double t) {
+    return _OrbitFrame(
+      startAngle: ui.lerpDouble(a.startAngle, b.startAngle, t)!,
+      sweepAngle: ui.lerpDouble(a.sweepAngle, b.sweepAngle, t)!,
+      rotation: ui.lerpDouble(a.rotation, b.rotation, t)!,
+      density: ui.lerpDouble(a.density, b.density, t)!,
+      eccentricityX: ui.lerpDouble(a.eccentricityX, b.eccentricityX, t)!,
+      eccentricityY: ui.lerpDouble(a.eccentricityY, b.eccentricityY, t)!,
+      trailingGlowX: ui.lerpDouble(a.trailingGlowX, b.trailingGlowX, t)!,
+      trailingGlowY: ui.lerpDouble(a.trailingGlowY, b.trailingGlowY, t)!,
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+      decoration: BoxDecoration(
+        color: const Color(0xF7FFFDF9),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0x26D8C1A4)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF3A2A1F),
+      ),
+    );
+  }
+}
+
+class _PillSegmentControl<T> extends StatelessWidget {
+  const _PillSegmentControl({
+    required this.selectedValue,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final T selectedValue;
+  final List<_SegmentOption<T>> options;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedIndex =
+        options.indexWhere((option) => option.value == selectedValue);
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F2E8),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth / options.length;
+          return Stack(
+            children: [
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                left: selectedIndex * width,
+                top: 0,
+                bottom: 0,
+                width: width,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3E2C9),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  for (final option in options)
+                    Expanded(
+                      child: CupertinoButton(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        minimumSize: Size.zero,
+                        onPressed: () => onChanged(option.value),
+                        child: Text(
+                          option.label,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: selectedValue == option.value
+                                ? const Color(0xFF8A5A2B)
+                                : const Color(0xFF5A4B3F),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AiStyleTile extends StatelessWidget {
+  const _AiStyleTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x33D2B28E)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7EFE3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const CustomPaint(painter: _LotusPainter()),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '均衡雅致',
+                  style: TextStyle(
+                    fontSize: 16.5,
+                    height: 1.05,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF36271E),
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  '攻守兼备，着法稳健均衡',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF8A7A6B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Text(
+            '›',
+            style: TextStyle(
+              fontSize: 18,
+              height: 1,
+              color: Color(0xFFB68454),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LotusPainter extends CustomPainter {
+  const _LotusPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = Paint()
+      ..color = const Color(0xFFBC8448)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final fill = Paint()
+      ..color = const Color(0x22BC8448)
+      ..style = PaintingStyle.fill;
+    final center = Offset(size.width / 2, size.height / 2 + 2);
+    final petal = Path()
+      ..moveTo(center.dx, center.dy - 12)
+      ..quadraticBezierTo(
+          center.dx - 6, center.dy - 4, center.dx, center.dy + 4)
+      ..quadraticBezierTo(
+          center.dx + 6, center.dy - 4, center.dx, center.dy - 12);
+    final left = Path()
+      ..moveTo(center.dx - 10, center.dy - 6)
+      ..quadraticBezierTo(
+          center.dx - 16, center.dy - 1, center.dx - 10, center.dy + 4)
+      ..quadraticBezierTo(
+          center.dx - 4, center.dy - 1, center.dx - 10, center.dy - 6);
+    final right = Path()
+      ..moveTo(center.dx + 10, center.dy - 6)
+      ..quadraticBezierTo(
+          center.dx + 16, center.dy - 1, center.dx + 10, center.dy + 4)
+      ..quadraticBezierTo(
+          center.dx + 4, center.dy - 1, center.dx + 10, center.dy - 6);
+    final lowerLeft = Path()
+      ..moveTo(center.dx - 4, center.dy - 2)
+      ..quadraticBezierTo(
+          center.dx - 11, center.dy + 4, center.dx - 6, center.dy + 10)
+      ..quadraticBezierTo(
+          center.dx, center.dy + 5, center.dx - 4, center.dy - 2);
+    final lowerRight = Path()
+      ..moveTo(center.dx + 4, center.dy - 2)
+      ..quadraticBezierTo(
+          center.dx + 11, center.dy + 4, center.dx + 6, center.dy + 10)
+      ..quadraticBezierTo(
+          center.dx, center.dy + 5, center.dx + 4, center.dy - 2);
+    for (final path in [petal, left, right, lowerLeft, lowerRight]) {
+      canvas.drawPath(path, fill);
+      canvas.drawPath(path, stroke);
+    }
+    canvas.drawLine(
+      Offset(center.dx - 11, center.dy + 11),
+      Offset(center.dx + 11, center.dy + 11),
+      stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _HomeSectionTitle extends StatelessWidget {
+  const _HomeSectionTitle({
+    required this.title,
+    required this.trailing,
+  });
+
+  final String title;
+  final String? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
           title,
           style: const TextStyle(
-            fontSize: 28,
+            fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: CupertinoColors.white,
+            color: Color(0xFF36271E),
           ),
+        ),
+        const Spacer(),
+        if (trailing != null)
+          Text(
+            trailing!,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFFB08965),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _PracticeCard extends StatelessWidget {
+  const _PracticeCard({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: onTap,
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4E7D6),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                CupertinoIcons.game_controller_solid,
+                color: Color(0xFFB57B44),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF36271E),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF897564),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              CupertinoIcons.chevron_right,
+              color: Color(0xFFC09468),
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentMatchCard extends StatelessWidget {
+  const _RecentMatchCard({
+    required this.boardSize,
+    required this.difficulty,
+    required this.captureTarget,
+    required this.onTap,
+  });
+
+  final int boardSize;
+  final DifficultyLevel difficulty;
+  final int captureTarget;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: onTap,
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFE8DED0), Color(0xFFC1B19C)],
+                ),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                CupertinoIcons.person_alt_circle_fill,
+                color: CupertinoColors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '山泉水长',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF36271E),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$boardSize 路 · ${difficulty.displayName} · 吃$captureTarget子',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF897564),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Text(
+              '胜 62%',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF9F7240),
+              ),
+            ),
+          ],
         ),
       ),
     );

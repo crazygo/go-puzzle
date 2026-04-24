@@ -1,0 +1,8 @@
+{
+  "name": "go-puzzle-tools",
+  "private": true,
+  "devDependencies": {
+    "playwright-core": "^1.52.0",
+    "pngjs": "^7.0.0"
+  }
+}

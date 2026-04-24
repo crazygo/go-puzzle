@@ -116,6 +116,22 @@ run_checks() {
 
   flutter pub get
 
+  if [[ -f "${ROOT_DIR}/package.json" ]]; then
+    if command -v npm >/dev/null 2>&1; then
+      log "Installing repo-local Node tooling ..."
+      if [[ -f "${ROOT_DIR}/package-lock.json" ]]; then
+        npm ci --no-fund --no-audit
+      else
+        npm install --no-fund --no-audit
+      fi
+    else
+      log "Skipping repo-local Node tooling install because npm is not available."
+    fi
+  fi
+
+  # Ensure CJK subset font is available for screenshot tests.
+  bash "${ROOT_DIR}/scripts/ensure-test-fonts.sh"
+
   # 编译/静态检查（对新同学友好：保留输出，但不因 info/warning 中断）
   flutter analyze --no-fatal-infos --no-fatal-warnings
   dart analyze --no-fatal-warnings
