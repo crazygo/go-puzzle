@@ -292,10 +292,6 @@ class _PrimaryActionButton extends StatelessWidget {
   }
 }
 
-
-
-
-
 class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.child});
 
@@ -738,19 +734,29 @@ class CaptureGamePlayScreen extends StatelessWidget {
 
         return CupertinoPageScaffold(
           backgroundColor: const Color(0xFFF3F0ED),
+          navigationBar: CupertinoNavigationBar(
+            backgroundColor: const Color(0xFFF3F0ED),
+            border: null,
+            previousPageTitle: _CaptureCopy.pageTitle,
+            middle: Text('吃$captureTarget子 · ${difficulty.displayName}'),
+            trailing: CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => _showStylePicker(context, provider),
+              child: Text(
+                provider.aiStyle.label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFC3996E),
+                ),
+              ),
+            ),
+          ),
           child: SafeArea(
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
-                  child: _PlayTopBar(
-                    title: '吃$captureTarget子 · ${difficulty.displayName}',
-                    aiStyleLabel: provider.aiStyle.label,
-                    onAiStyleTap: () => _showStylePicker(context, provider),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   child: _PlayerSummaryRow(
                     captureTarget: captureTarget,
                     blackCaptured: blackCaptured,
@@ -878,81 +884,6 @@ class _HintDialog extends StatefulWidget {
   State<_HintDialog> createState() => _HintDialogState();
 }
 
-class _PlayTopBar extends StatelessWidget {
-  const _PlayTopBar({
-    required this.title,
-    required this.aiStyleLabel,
-    required this.onAiStyleTap,
-  });
-
-  final String title;
-  final String aiStyleLabel;
-  final VoidCallback onAiStyleTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        CupertinoButton(
-          padding: EdgeInsets.zero,
-          minSize: 28,
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Row(
-            children: [
-              Icon(
-                CupertinoIcons.back,
-                size: 20,
-                color: Color(0xFFB78758),
-              ),
-              SizedBox(width: 4),
-              Text(
-                _CaptureCopy.pageTitle,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFB78758),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Column(
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E2620),
-                ),
-              ),
-              CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-                minSize: 22,
-                onPressed: onAiStyleTap,
-                child: Text(
-                  'AI风格：$aiStyleLabel',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFFC3996E),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Icon(
-          CupertinoIcons.cloud_sun,
-          size: 18,
-          color: Color(0x22A67045),
-        ),
-      ],
-    );
-  }
-}
-
 class _PlayerSummaryRow extends StatelessWidget {
   const _PlayerSummaryRow({
     required this.captureTarget,
@@ -1077,7 +1008,9 @@ class _PlayerSideCard extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isActive
-                    ? (isBlack ? const Color(0xFF1F1F1F) : const Color(0xFFEFF1F3))
+                    ? (isBlack
+                        ? const Color(0xFF1F1F1F)
+                        : const Color(0xFFEFF1F3))
                     : const Color(0xFFE8D6C5),
                 border: Border.all(color: const Color(0xFFD5BEA6), width: 0.6),
                 boxShadow: isActive
@@ -1145,15 +1078,12 @@ class _DecoratedActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disabled = onPressed == null;
-    final background = filled
-        ? const Color(0xFFC28A56)
-        : const Color(0xFFF2EBE3);
+    final background =
+        filled ? const Color(0xFFC28A56) : const Color(0xFFF2EBE3);
 
     return CupertinoButton(
       padding: const EdgeInsets.symmetric(vertical: 15),
-      color: disabled
-          ? const Color(0xFFDCD4CC)
-          : background,
+      color: disabled ? const Color(0xFFDCD4CC) : background,
       borderRadius: BorderRadius.circular(18),
       onPressed: onPressed,
       child: Text(
