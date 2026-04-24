@@ -40,9 +40,14 @@ flutter config --enable-web
 echo "▸ flutter pub get…"
 flutter pub get
 
-# ── 4. Download fonts required by pubspec.yaml ───────────────────────────────
-echo "▸ Ensuring bundled fonts…"
-bash scripts/ensure-test-fonts.sh
+# ── 4. Optionally download screenshot-test fonts ─────────────────────────────
+if [ "${ENABLE_SCREENSHOT_TEST_FONTS:-}" = "1" ] || \
+   [ "${ENABLE_SCREENSHOT_TEST_FONTS:-}" = "true" ]; then
+  echo "▸ Ensuring screenshot-test fonts…"
+  bash scripts/ensure-test-fonts.sh
+else
+  echo "▸ Skipping screenshot-test fonts (set ENABLE_SCREENSHOT_TEST_FONTS=1 to enable)…"
+fi
 
 # ── 5. Build ─────────────────────────────────────────────────────────────────
 echo "▸ Building Flutter web (release)…"
