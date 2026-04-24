@@ -29,3 +29,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: NotoSansSC
+      fonts:
+        - asset: .cache/fonts/NotoSansSC.ttf

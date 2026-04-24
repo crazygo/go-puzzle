@@ -18,8 +18,8 @@ void main() {
     await tester.pumpWidget(const GoPuzzleApp());
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('益智围棋'), findsWidgets);
-    expect(find.text('对弈'), findsOneWidget);
-    expect(find.text('开始练习'), findsOneWidget);
+    expect(find.text('小闲围棋'), findsWidgets);
+    expect(find.text('AI 风格'), findsOneWidget);
+    expect(find.text('开始对弈'), findsOneWidget);
   });
 }

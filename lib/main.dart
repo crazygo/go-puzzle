@@ -20,15 +20,42 @@ class GoPuzzleApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoApp(
-      title: '围棋谜题',
+      title: '小闲围棋',
       theme: const CupertinoThemeData(
-        primaryColor: CupertinoColors.systemBlue,
+        primaryColor: Color(0xFFB87A3C),
         brightness: Brightness.light,
         textTheme: CupertinoTextThemeData(
+          textStyle: TextStyle(
+            fontFamily: 'NotoSansSC',
+            fontSize: 17,
+          ),
+          actionTextStyle: TextStyle(
+            fontFamily: 'NotoSansSC',
+            fontSize: 17,
+            color: Color(0xFF007AFF),
+          ),
+          tabLabelTextStyle: TextStyle(
+            fontFamily: 'NotoSansSC',
+            fontSize: 10,
+            letterSpacing: -0.1,
+            color: Color(0xFFAF9C86),
+          ),
+          navTitleTextStyle: TextStyle(
+            fontFamily: 'NotoSansSC',
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: CupertinoColors.label,
+          ),
           navLargeTitleTextStyle: TextStyle(
+            fontFamily: 'NotoSansSC',
             fontSize: 34,
             fontWeight: FontWeight.w700,
             color: CupertinoColors.label,
+          ),
+          navActionTextStyle: TextStyle(
+            fontFamily: 'NotoSansSC',
+            fontSize: 17,
+            color: Color(0xFF007AFF),
           ),
         ),
       ),
