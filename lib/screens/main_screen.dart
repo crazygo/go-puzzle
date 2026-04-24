@@ -52,9 +52,9 @@ class _MainTabScaffold extends StatelessWidget {
             label: '谜题',
           ),
           BottomNavigationBarItem(
-            icon: _TabGlyph(kind: _TabGlyphKind.review),
-            activeIcon: _TabGlyph(kind: _TabGlyphKind.review, active: true),
-            label: '复盘',
+            icon: _TabGlyph(kind: _TabGlyphKind.settings),
+            activeIcon: _TabGlyph(kind: _TabGlyphKind.settings, active: true),
+            label: '设置',
           ),
         ],
       ),
@@ -82,7 +82,7 @@ class _MainTabScaffold extends StatelessWidget {
   }
 }
 
-enum _TabGlyphKind { home, match, review }
+enum _TabGlyphKind { home, match, settings }
 
 class _TabGlyph extends StatelessWidget {
   const _TabGlyph({
@@ -166,22 +166,23 @@ class _TabGlyphPainter extends CustomPainter {
           Offset(size.width * 0.57, size.height * 0.57),
           stroke,
         );
-      case _TabGlyphKind.review:
-        final circleRect = Rect.fromCircle(
-            center: Offset(size.width * 0.5, size.height * 0.5),
-            radius: size.width * 0.3);
-        canvas.drawArc(
-            circleRect, -math.pi * 0.2, math.pi * 1.45, false, stroke);
-        canvas.drawLine(
-          Offset(size.width * 0.58, size.height * 0.34),
-          Offset(size.width * 0.42, size.height * 0.5),
-          stroke,
-        );
-        canvas.drawLine(
-          Offset(size.width * 0.42, size.height * 0.5),
-          Offset(size.width * 0.66, size.height * 0.62),
-          stroke,
-        );
+      case _TabGlyphKind.settings:
+        final cx = size.width * 0.5;
+        final cy = size.height * 0.5;
+        final r = size.width * 0.16;
+        canvas.drawCircle(Offset(cx, cy), r, active ? fill : stroke);
+        canvas.drawCircle(Offset(cx, cy), r, stroke);
+        // 6 tick marks around the gear
+        for (int i = 0; i < 6; i++) {
+          final angle = math.pi / 3 * i;
+          final inner = size.width * 0.28;
+          final outer = size.width * 0.39;
+          canvas.drawLine(
+            Offset(cx + inner * math.cos(angle), cy + inner * math.sin(angle)),
+            Offset(cx + outer * math.cos(angle), cy + outer * math.sin(angle)),
+            stroke,
+          );
+        }
     }
   }
 

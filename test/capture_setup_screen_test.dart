@@ -26,7 +26,6 @@ void main() {
     SharedPreferences.setMockInitialValues({
       'capture_setup.difficulty': 'advanced',
       'capture_setup.board_size': 13,
-      'capture_setup.capture_target': 10,
     });
 
     await tester.pumpWidget(const GoPuzzleApp());
@@ -35,16 +34,18 @@ void main() {
 
     expect(find.text('高级'), findsOneWidget);
     expect(find.text('13 路'), findsWidgets);
-    expect(find.textContaining('吃10子'), findsWidgets);
+    expect(find.textContaining('吃5子'), findsWidgets);
   });
 
   testWidgets('segment control updates selected option on tap', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     // Difficulty defaults to '中级'; tap '高级' to change it.
     await tester.tap(find.text('高级'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     TextStyle styleOf(String label) {
       return tester

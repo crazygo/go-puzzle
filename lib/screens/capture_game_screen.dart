@@ -21,11 +21,10 @@ class CaptureGameScreen extends StatefulWidget {
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
-  static const _captureTargetKey = 'capture_setup.capture_target';
+  static const _captureTarget = 5;
 
   DifficultyLevel _difficulty = DifficultyLevel.intermediate;
   int _boardSize = 9;
-  int _captureTarget = 5;
 
   @override
   void initState() {
@@ -173,7 +172,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
     final savedDifficulty = prefs.getString(_difficultyKey);
     final savedBoardSize = prefs.getInt(_boardSizeKey);
-    final savedCaptureTarget = prefs.getInt(_captureTargetKey);
 
     setState(() {
       _difficulty = DifficultyLevel.values.firstWhere(
@@ -183,23 +181,16 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       if (savedBoardSize == 9 || savedBoardSize == 13 || savedBoardSize == 19) {
         _boardSize = savedBoardSize!;
       }
-      if (savedCaptureTarget == 5 ||
-          savedCaptureTarget == 10 ||
-          savedCaptureTarget == 20) {
-        _captureTarget = savedCaptureTarget!;
-      }
     });
   }
 
   void _updateSelection({
     DifficultyLevel? difficulty,
     int? boardSize,
-    int? captureTarget,
   }) {
     setState(() {
       _difficulty = difficulty ?? _difficulty;
       _boardSize = boardSize ?? _boardSize;
-      _captureTarget = captureTarget ?? _captureTarget;
     });
     _saveSelection();
   }
@@ -208,7 +199,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_difficultyKey, _difficulty.name);
     await prefs.setInt(_boardSizeKey, _boardSize);
-    await prefs.setInt(_captureTargetKey, _captureTarget);
   }
 
   void _startGame() {

@@ -85,6 +85,12 @@ archive_existing "${output_path}"
 
 if browser_bin="$(resolve_browser 2>/dev/null)"; then
   export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="${browser_bin}"
+else
+  echo "error: no Chrome/Chromium browser found." >&2
+  echo "  Set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH or CHROME_BIN to a browser executable," >&2
+  echo "  or install Chrome/Chromium and ensure it is on PATH." >&2
+  echo "  Alternatively, run 'npx playwright install chromium' to install a bundled browser." >&2
+  exit 1
 fi
 
 node "${script_dir}/playwright_screenshot.mjs" \

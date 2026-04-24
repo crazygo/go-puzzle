@@ -106,13 +106,17 @@ function analyzeScreenshot(buffer) {
 const [url, outputPath, widthArg, heightArg, dprArg, waitArg] = process.argv.slice(2);
 
 if (!url || !outputPath) {
-  throw new Error('Expected url and output path arguments.');
+  process.stderr.write(
+    'usage: playwright_screenshot.mjs <url> <outputPath> [width] [height] [deviceScaleFactor] [waitMs]\n' +
+    '  Defaults: width=402 height=874 deviceScaleFactor=3 waitMs=12000\n'
+  );
+  process.exit(1);
 }
 
-const width = parseNumber('width', widthArg);
-const height = parseNumber('height', heightArg);
-const deviceScaleFactor = parseNumber('device scale factor', dprArg);
-const waitMs = parseNumber('wait time', waitArg);
+const width = widthArg ? parseNumber('width', widthArg) : 402;
+const height = heightArg ? parseNumber('height', heightArg) : 874;
+const deviceScaleFactor = dprArg ? parseNumber('device scale factor', dprArg) : 3;
+const waitMs = waitArg ? parseNumber('wait time', waitArg) : 12000;
 
 const playwright = resolvePlaywright();
 
