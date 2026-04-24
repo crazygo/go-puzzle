@@ -17,6 +17,9 @@ const double kPageHeroContentOffset =
     kPageHeroVisibleHeight - kPageHeroCardOverlap; // 112.0
 
 // ── Shared background decoration ─────────────────────────────────────────────
+/// Fallback scaffold background colour (shown before gradient is painted).
+const Color kPageBackgroundColor = Color(0xFFF6F1E9);
+
 const BoxDecoration kPageBackgroundDecoration = BoxDecoration(
   gradient: LinearGradient(
     begin: Alignment.topCenter,

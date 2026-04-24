@@ -38,13 +38,13 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
     if (particlePreviewOnly) {
       return const CupertinoPageScaffold(
-        backgroundColor: Color(0xFFF6F1E9),
+        backgroundColor: kPageBackgroundColor,
         child: _ParticlePreviewCanvas(),
       );
     }
 
     return CupertinoPageScaffold(
-      backgroundColor: const Color(0xFFF6F1E9),
+      backgroundColor: kPageBackgroundColor,
       child: DecoratedBox(
         decoration: kPageBackgroundDecoration,
         child: Stack(

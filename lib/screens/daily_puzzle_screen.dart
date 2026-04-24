@@ -44,7 +44,7 @@ class _DailyPuzzleScreenState extends State<DailyPuzzleScreen> {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      backgroundColor: const Color(0xFFF6F1E9),
+      backgroundColor: kPageBackgroundColor,
       child: DecoratedBox(
         decoration: kPageBackgroundDecoration,
         child: Stack(
