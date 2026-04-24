@@ -317,16 +317,6 @@ class _HeroBanner extends StatelessWidget {
     final topPad = MediaQuery.of(context).padding.top;
     return Container(
       height: topPad + _kHeroVisibleHeight,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFFFFFDF9),
-            Color(0xFFF3E9D8),
-          ],
-        ),
-      ),
       child: Stack(
         clipBehavior: Clip.hardEdge,
         children: [
