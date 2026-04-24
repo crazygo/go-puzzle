@@ -44,7 +44,7 @@ class _MainTabScaffold extends StatelessWidget {
           BottomNavigationBarItem(
             icon: _TabGlyph(kind: _TabGlyphKind.home),
             activeIcon: _TabGlyph(kind: _TabGlyphKind.home, active: true),
-            label: '首页',
+            label: '下棋',
           ),
           BottomNavigationBarItem(
             icon: _TabGlyph(kind: _TabGlyphKind.match),

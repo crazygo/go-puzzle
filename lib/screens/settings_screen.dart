@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/settings_provider.dart';
+import '../widgets/page_hero_banner.dart';
 
 /// Settings tab screen.
 class SettingsScreen extends StatelessWidget {
@@ -10,25 +11,45 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      child: CustomScrollView(
-        slivers: [
-          CupertinoSliverNavigationBar(
-            largeTitle: const Text('设置'),
-          ),
-          SliverList(
-            delegate: SliverChildListDelegate([
-              const SizedBox(height: 8),
-              _buildBoardSizeSection(context),
-              const SizedBox(height: 24),
-              _buildGameSection(context),
-              const SizedBox(height: 24),
-              _buildFeedbackSection(context),
-              const SizedBox(height: 24),
-              _buildAboutSection(context),
-              const SizedBox(height: 32),
-            ]),
-          ),
-        ],
+      backgroundColor: const Color(0xFFF6F1E9),
+      child: DecoratedBox(
+        decoration: kPageBackgroundDecoration,
+        child: Stack(
+          children: [
+            // Hero as full-bleed background layer
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: PageHeroBanner(title: '设置'),
+            ),
+            // Scrollable content floats over hero
+            SafeArea(
+              bottom: false,
+              child: CustomScrollView(
+                slivers: [
+                  // Transparent spacer that reveals the hero behind
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: kPageHeroContentOffset),
+                  ),
+                  SliverList(
+                    delegate: SliverChildListDelegate([
+                      const SizedBox(height: 8),
+                      _buildBoardSizeSection(context),
+                      const SizedBox(height: 24),
+                      _buildGameSection(context),
+                      const SizedBox(height: 24),
+                      _buildFeedbackSection(context),
+                      const SizedBox(height: 24),
+                      _buildAboutSection(context),
+                      const SizedBox(height: 32),
+                    ]),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
