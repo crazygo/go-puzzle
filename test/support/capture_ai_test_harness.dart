@@ -34,11 +34,17 @@ class CaptureAiTestHarness {
     expect(result.totalMoves, greaterThan(0));
     expect(result.blackCaptures, greaterThanOrEqualTo(0));
     expect(result.whiteCaptures, greaterThanOrEqualTo(0));
-    expect(
-      result.blackCaptures <= captureTarget ||
-          result.whiteCaptures <= captureTarget,
-      isTrue,
-    );
+
+    if (!result.reachedCaptureTarget) {
+      expect(
+        result.blackCaptures < captureTarget &&
+            result.whiteCaptures < captureTarget,
+        isTrue,
+        reason: 'Both sides should be below capture target when game did not'
+            ' reach it: black=${result.blackCaptures},'
+            ' white=${result.whiteCaptures}, target=$captureTarget',
+      );
+    }
 
     if (result.reachedCaptureTarget) {
       expect(

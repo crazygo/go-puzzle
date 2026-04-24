@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import '../models/board_position.dart';
-import '../providers/capture_game_provider.dart';
+import 'difficulty_level.dart';
 import 'mcts_engine.dart';
 
 enum CaptureAiStyle {
@@ -347,13 +347,13 @@ class CaptureAiEvaluationReport {
       var whiteWins = 0;
       var draws = 0;
       for (final entry in entries) {
-        switch (entry.result.winner) {
-          case StoneColor.black:
-            blackWins++;
-          case StoneColor.white:
-            whiteWins++;
-          case StoneColor.empty:
-            draws++;
+        final winner = entry.result.winner;
+        if (winner == StoneColor.black) {
+          blackWins++;
+        } else if (winner == StoneColor.white) {
+          whiteWins++;
+        } else {
+          draws++;
         }
       }
       pairings.add(
@@ -593,45 +593,28 @@ class _WeightedCaptureAiAgent implements CaptureAiAgent {
     final legalMoves = board.getLegalMoves();
     if (legalMoves.isEmpty) return null;
 
-    CaptureAiMove? bestMove;
+    final scoredMoves = <CaptureAiMove>[];
     for (final moveIndex in legalMoves) {
       final row = moveIndex ~/ board.size;
       final col = moveIndex % board.size;
       final analysis = board.analyzeMove(row, col);
       if (!analysis.isLegal) continue;
-
-      final score = _score(board, analysis);
-      final move = CaptureAiMove(
+      scoredMoves.add(CaptureAiMove(
         position: BoardPosition(row, col),
-        score: score,
-      );
-      if (bestMove == null || move.score > bestMove.score) {
-        bestMove = move;
-      }
+        score: _score(board, analysis),
+      ));
     }
 
-    if (bestMove == null) return null;
+    if (scoredMoves.isEmpty) return null;
+
+    scoredMoves.sort((a, b) => b.score.compareTo(a.score));
+    final bestMove = scoredMoves.first;
 
     if (_profile.playouts <= 0) {
       return bestMove;
     }
 
-    final topCandidates = legalMoves
-        .map((moveIndex) {
-          final row = moveIndex ~/ board.size;
-          final col = moveIndex % board.size;
-          final analysis = board.analyzeMove(row, col);
-          if (!analysis.isLegal) return null;
-          return CaptureAiMove(
-            position: BoardPosition(row, col),
-            score: _score(board, analysis),
-          );
-        })
-        .whereType<CaptureAiMove>()
-        .toList()
-      ..sort((a, b) => b.score.compareTo(a.score));
-
-    final shortlisted = topCandidates.take(6).toList();
+    final shortlisted = scoredMoves.take(6).toList();
     CaptureAiMove? refinedBest;
     for (final candidate in shortlisted) {
       final simulated = SimBoard.copy(board);

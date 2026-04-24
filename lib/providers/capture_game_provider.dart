@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
 
 import '../game/capture_ai.dart';
+import '../game/difficulty_level.dart';
 import '../game/go_engine.dart';
 import '../game/mcts_engine.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
+
+export '../game/difficulty_level.dart';
 
 // ---------------------------------------------------------------------------
 // Top-level function required by compute() – runs in a background isolate.
@@ -52,36 +55,6 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
 
 enum CaptureGameResult { none, blackWins, whiteWins }
 
-enum DifficultyLevel {
-  beginner,
-  intermediate,
-  advanced,
-}
-
-extension DifficultyLevelExt on DifficultyLevel {
-  String get displayName {
-    switch (this) {
-      case DifficultyLevel.beginner:
-        return '初级';
-      case DifficultyLevel.intermediate:
-        return '中级';
-      case DifficultyLevel.advanced:
-        return '高级';
-    }
-  }
-
-  int get maxPlayouts {
-    switch (this) {
-      case DifficultyLevel.beginner:
-        return 250;
-      case DifficultyLevel.intermediate:
-        return 900;
-      case DifficultyLevel.advanced:
-        return 2200;
-    }
-  }
-}
-
 class CaptureGameProvider extends ChangeNotifier {
   CaptureGameProvider({
     required this.boardSize,
@@ -99,6 +72,7 @@ class CaptureGameProvider extends ChangeNotifier {
   final int captureTarget;
   final DifficultyLevel difficulty;
   CaptureAiStyle _aiStyle = CaptureAiStyle.hunter;
+  CaptureAiAgent? _cachedAgent;
 
   late GameState _gameState;
   CaptureGameResult _result = CaptureGameResult.none;
@@ -111,14 +85,17 @@ class CaptureGameProvider extends ChangeNotifier {
   bool get canUndo => _undoStack.isNotEmpty && !_isAiThinking;
   CaptureAiStyle get aiStyle => _aiStyle;
 
-  CaptureAiAgent get _activeAgent =>
-      CaptureAiRegistry.create(style: _aiStyle, difficulty: difficulty);
+  CaptureAiAgent get _activeAgent {
+    return _cachedAgent ??=
+        CaptureAiRegistry.create(style: _aiStyle, difficulty: difficulty);
+  }
 
   void newGame() => _startNewGame();
 
   void setAiStyle(CaptureAiStyle style) {
     if (_aiStyle == style) return;
     _aiStyle = style;
+    _cachedAgent = null;
     notifyListeners();
   }
 
