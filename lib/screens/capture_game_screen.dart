@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
+import '../game/capture_ai.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 import '../providers/capture_game_provider.dart';
@@ -440,6 +441,17 @@ class CaptureGamePlayScreen extends StatelessWidget {
               child: const Icon(CupertinoIcons.back),
             ),
             middle: Text('吃$captureTarget子、${difficulty.displayName}'),
+            trailing: CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => _showStylePicker(context, provider),
+              child: Text(
+                provider.aiStyle.label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
           child: SafeArea(
             child: Column(
@@ -501,6 +513,34 @@ class CaptureGamePlayScreen extends StatelessWidget {
     showCupertinoDialog<void>(
       context: context,
       builder: (_) => _HintDialog(provider: provider),
+    );
+  }
+
+  void _showStylePicker(BuildContext context, CaptureGameProvider provider) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('切换 AI 风格'),
+        message: Text('${provider.aiStyle.label}：${provider.aiStyle.summary}'),
+        actions: [
+          for (final style in CaptureAiStyle.values)
+            CupertinoActionSheetAction(
+              onPressed: () {
+                provider.setAiStyle(style);
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                style == provider.aiStyle
+                    ? '${style.label} · 当前'
+                    : '${style.label} · ${style.summary}',
+              ),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+      ),
     );
   }
 }
@@ -619,11 +659,11 @@ class _InfoRow extends StatelessWidget {
     } else if (provider.result == CaptureGameResult.whiteWins) {
       text = '对局结束：白方胜';
     } else if (provider.isAiThinking) {
-      text = 'AI 白正在思考';
+      text = 'AI 白正在思考（${provider.aiStyle.label}）';
     } else {
       text = provider.gameState.currentPlayer == StoneColor.black
           ? '请你黑落子'
-          : '请你白落子';
+          : 'AI 白准备落子（${provider.aiStyle.label}）';
     }
 
     return _MetricRow(title: '信息提示', value: text);

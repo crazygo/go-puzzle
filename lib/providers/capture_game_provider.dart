@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../game/capture_ai.dart';
 import '../game/go_engine.dart';
 import '../game/mcts_engine.dart';
 import '../models/board_position.dart';
@@ -9,10 +10,6 @@ import '../models/game_state.dart';
 // Top-level function required by compute() – runs in a background isolate.
 // ---------------------------------------------------------------------------
 
-/// Light playout count used for the opponent's reply move when generating
-/// hints – intentionally lower than the main search to add variety.
-const int _hintReplyPlayouts = 120;
-
 List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
   final cells = List<int>.from(params['cells'] as List);
   final boardSize = params['boardSize'] as int;
@@ -20,7 +17,9 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
   final capturedByBlack = params['capturedByBlack'] as int;
   final capturedByWhite = params['capturedByWhite'] as int;
   final currentPlayer = params['currentPlayer'] as int;
-  final maxPlayouts = params['maxPlayouts'] as int;
+  final aiStyle = CaptureAiStyle.values.byName(params['aiStyle'] as String);
+  final difficulty =
+      DifficultyLevel.values.byName(params['difficulty'] as String);
   final count = params['count'] as int;
 
   final sim = SimBoard(boardSize, captureTarget: captureTarget);
@@ -32,14 +31,18 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
   sim.currentPlayer = currentPlayer;
 
   final suggestions = <List<int>>[];
+  final primaryAgent =
+      CaptureAiRegistry.create(style: aiStyle, difficulty: difficulty);
+  final replyAgent = CaptureAiRegistry.create(
+    style: CaptureAiStyle.counter,
+    difficulty: DifficultyLevel.beginner,
+  );
   for (int i = 0; i < count; i++) {
-    final engine = MctsEngine(maxPlayouts: maxPlayouts);
-    final move = engine.getBestMove(sim);
+    final move = primaryAgent.chooseMove(sim)?.position;
     if (move == null) break;
     suggestions.add([move.row, move.col]);
     if (!sim.applyMove(move.row, move.col)) break;
-    final whiteReply =
-        MctsEngine(maxPlayouts: _hintReplyPlayouts).getBestMove(sim);
+    final whiteReply = replyAgent.chooseMove(sim)?.position;
     if (whiteReply == null || !sim.applyMove(whiteReply.row, whiteReply.col)) {
       break;
     }
@@ -84,13 +87,18 @@ class CaptureGameProvider extends ChangeNotifier {
     required this.boardSize,
     required this.captureTarget,
     required this.difficulty,
-  }) {
+  })  : assert(
+          boardSize == 9 || boardSize == 13 || boardSize == 19,
+          'boardSize must be 9, 13, or 19.',
+        ),
+        assert(captureTarget > 0, 'captureTarget must be greater than 0.') {
     _startNewGame();
   }
 
   final int boardSize;
   final int captureTarget;
   final DifficultyLevel difficulty;
+  CaptureAiStyle _aiStyle = CaptureAiStyle.hunter;
 
   late GameState _gameState;
   CaptureGameResult _result = CaptureGameResult.none;
@@ -101,8 +109,18 @@ class CaptureGameProvider extends ChangeNotifier {
   CaptureGameResult get result => _result;
   bool get isAiThinking => _isAiThinking;
   bool get canUndo => _undoStack.isNotEmpty && !_isAiThinking;
+  CaptureAiStyle get aiStyle => _aiStyle;
+
+  CaptureAiAgent get _activeAgent =>
+      CaptureAiRegistry.create(style: _aiStyle, difficulty: difficulty);
 
   void newGame() => _startNewGame();
+
+  void setAiStyle(CaptureAiStyle style) {
+    if (_aiStyle == style) return;
+    _aiStyle = style;
+    notifyListeners();
+  }
 
   Future<bool> placeStone(int row, int col) async {
     if (_isAiThinking || _result != CaptureGameResult.none) return false;
@@ -130,20 +148,26 @@ class CaptureGameProvider extends ChangeNotifier {
   }
 
   List<BoardPosition> suggestMoves({int count = 3}) {
+    if (count <= 0) return const [];
+
     final suggestions = <BoardPosition>[];
-    var sim = SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
+    final sim =
+        SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
+    final replyAgent = CaptureAiRegistry.create(
+      style: CaptureAiStyle.counter,
+      difficulty: DifficultyLevel.beginner,
+    );
 
     for (int i = 0; i < count; i++) {
-      final engine = MctsEngine(maxPlayouts: difficulty.maxPlayouts ~/ 3);
-      final move = engine.getBestMove(sim);
+      final move = _activeAgent.chooseMove(sim)?.position;
       if (move == null) break;
       suggestions.add(BoardPosition(move.row, move.col));
 
       // apply as black suggestion then let white respond lightly for diversity
       if (!sim.applyMove(move.row, move.col)) break;
-      final whiteReply =
-          MctsEngine(maxPlayouts: _hintReplyPlayouts).getBestMove(sim);
-      if (whiteReply == null || !sim.applyMove(whiteReply.row, whiteReply.col)) {
+      final whiteReply = replyAgent.chooseMove(sim)?.position;
+      if (whiteReply == null ||
+          !sim.applyMove(whiteReply.row, whiteReply.col)) {
         break;
       }
     }
@@ -153,7 +177,10 @@ class CaptureGameProvider extends ChangeNotifier {
   /// Computes move suggestions in a background isolate so the UI stays
   /// responsive.
   Future<List<BoardPosition>> suggestMovesAsync({int count = 3}) async {
-    final sim = SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
+    if (count <= 0) return const [];
+
+    final sim =
+        SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
     final params = <String, dynamic>{
       'cells': sim.cells.toList(),
       'boardSize': sim.size,
@@ -161,7 +188,8 @@ class CaptureGameProvider extends ChangeNotifier {
       'capturedByBlack': sim.capturedByBlack,
       'capturedByWhite': sim.capturedByWhite,
       'currentPlayer': sim.currentPlayer,
-      'maxPlayouts': difficulty.maxPlayouts ~/ 3,
+      'aiStyle': _aiStyle.name,
+      'difficulty': difficulty.name,
       'count': count,
     };
     final raw = await compute(_runSuggestMoves, params);
@@ -201,13 +229,14 @@ class CaptureGameProvider extends ChangeNotifier {
 
     await Future.delayed(const Duration(milliseconds: 80));
 
-    final simBoard = SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
-    final engine = MctsEngine(maxPlayouts: difficulty.maxPlayouts);
-    final bestMove = engine.getBestMove(simBoard);
+    final simBoard =
+        SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
+    final bestMove = _activeAgent.chooseMove(simBoard)?.position;
 
     if (bestMove != null) {
       _undoStack.add(_gameState);
-      final newState = GoEngine.placeStone(_gameState, bestMove.row, bestMove.col);
+      final newState =
+          GoEngine.placeStone(_gameState, bestMove.row, bestMove.col);
       if (newState != null) {
         _gameState = newState;
         _checkWinCondition();
