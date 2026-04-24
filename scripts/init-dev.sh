@@ -117,8 +117,16 @@ run_checks() {
   flutter pub get
 
   if [[ -f "${ROOT_DIR}/package.json" ]]; then
-    log "Installing repo-local Node tooling ..."
-    npm install --no-fund --no-audit
+    if command -v npm >/dev/null 2>&1; then
+      log "Installing repo-local Node tooling ..."
+      if [[ -f "${ROOT_DIR}/package-lock.json" ]]; then
+        npm ci --no-fund --no-audit
+      else
+        npm install --no-fund --no-audit
+      fi
+    else
+      log "Skipping repo-local Node tooling install because npm is not available."
+    fi
   fi
 
   # Ensure CJK subset font is available for screenshot tests.
