@@ -243,6 +243,8 @@ class _StoneDot extends StatelessWidget {
 // ── Landscape background painter ──────────────────────────────────────────────
 
 class _LandscapePainter extends CustomPainter {
+  const _LandscapePainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     _drawBirds(canvas, size);
