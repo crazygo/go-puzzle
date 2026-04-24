@@ -38,6 +38,31 @@ void main() {
     expect(find.textContaining('吃10子'), findsWidgets);
   });
 
+  testWidgets('segment control updates selected option on tap', (tester) async {
+    await tester.pumpWidget(const GoPuzzleApp());
+    await tester.pumpAndSettle();
+
+    // Difficulty defaults to '中级'; tap '高级' to change it.
+    await tester.tap(find.text('高级'));
+    await tester.pumpAndSettle();
+
+    TextStyle styleOf(String label) {
+      return tester
+          .widget<AnimatedDefaultTextStyle>(
+            find
+                .ancestor(
+                  of: find.text(label),
+                  matching: find.byType(AnimatedDefaultTextStyle),
+                )
+                .first,
+          )
+          .style;
+    }
+
+    expect(styleOf('高级').color, CupertinoColors.activeBlue);
+    expect(styleOf('中级').color, const Color(0xFF5D6473));
+  });
+
   testWidgets('capture game uses Cupertino back affordance', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());
     await tester.pump();
