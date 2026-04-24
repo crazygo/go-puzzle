@@ -47,21 +47,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    TextStyle styleOf(String label) {
-      return tester
-          .widget<AnimatedDefaultTextStyle>(
-            find
-                .ancestor(
-                  of: find.text(label),
-                  matching: find.byType(AnimatedDefaultTextStyle),
-                )
-                .first,
-          )
-          .style;
+    Text textWidget(String label) {
+      return tester.widget<Text>(find.text(label));
     }
 
-    expect(styleOf('高级').color, CupertinoColors.activeBlue);
-    expect(styleOf('中级').color, const Color(0xFF5D6473));
+    expect(textWidget('高级').style?.color, const Color(0xFF8A5A2B));
+    expect(textWidget('中级').style?.color, const Color(0xFF5A4B3F));
   });
 
   testWidgets('capture game uses Cupertino back affordance', (tester) async {

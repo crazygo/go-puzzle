@@ -43,6 +43,7 @@ class _DailyPuzzleScreenState extends State<DailyPuzzleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
     return CupertinoPageScaffold(
       backgroundColor: kPageBackgroundColor,
       child: DecoratedBox(
@@ -50,14 +51,11 @@ class _DailyPuzzleScreenState extends State<DailyPuzzleScreen> {
         child: Stack(
           children: [
             // Hero as full-bleed background layer
-            Positioned(
+            const Positioned(
               top: 0,
               left: 0,
               right: 0,
-              child: PageHeroBanner(
-                title: '谜题',
-                action: _buildTodayButton(context),
-              ),
+              child: PageHeroBanner(title: '谜题'),
             ),
             // Scrollable content floats over hero
             SafeArea(
@@ -90,6 +88,12 @@ class _DailyPuzzleScreenState extends State<DailyPuzzleScreen> {
                   ),
                 ],
               ),
+            ),
+            // Action button rendered above the scroll view so it is tappable
+            Positioned(
+              top: topPad + 12,
+              right: 16,
+              child: _buildTodayButton(context),
             ),
           ],
         ),
