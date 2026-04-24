@@ -3,6 +3,30 @@ import 'dart:math' as math;
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 
+class SimMoveAnalysis {
+  const SimMoveAnalysis({
+    required this.isLegal,
+    this.blackCaptureDelta = 0,
+    this.whiteCaptureDelta = 0,
+    this.opponentAtariStones = 0,
+    this.ownAtariStones = 0,
+    this.ownRescuedStones = 0,
+    this.adjacentOpponentStones = 0,
+    this.libertiesAfterMove = 0,
+    this.centerProximityScore = 0,
+  });
+
+  final bool isLegal;
+  final int blackCaptureDelta;
+  final int whiteCaptureDelta;
+  final int opponentAtariStones;
+  final int ownAtariStones;
+  final int ownRescuedStones;
+  final int adjacentOpponentStones;
+  final int libertiesAfterMove;
+  final int centerProximityScore;
+}
+
 /// Lightweight flat-array board for MCTS simulations.
 /// Uses integers instead of enums for speed.
 class SimBoard {
@@ -61,12 +85,13 @@ class SimBoard {
     }
     sb.capturedByBlack = state.capturedByBlack.length;
     sb.capturedByWhite = state.capturedByWhite.length;
-    sb.currentPlayer =
-        state.currentPlayer == StoneColor.black ? black : white;
+    sb.currentPlayer = state.currentPlayer == StoneColor.black ? black : white;
     return sb;
   }
 
   int idx(int r, int c) => r * size + c;
+
+  int colorAt(int r, int c) => cells[idx(r, c)];
 
   List<int> _adjacent(int i) {
     final r = i ~/ size;
@@ -108,6 +133,8 @@ class SimBoard {
 
   /// Applies a move at (r, c). Returns true when valid and applied.
   bool applyMove(int r, int c) {
+    if (r < 0 || r >= size || c < 0 || c >= size) return false;
+
     final i = idx(r, c);
     if (cells[i] != empty) return false;
     if (i == _koIndex) return false;
@@ -160,6 +187,54 @@ class SimBoard {
     return true;
   }
 
+  SimMoveAnalysis analyzeMove(int r, int c) {
+    if (r < 0 || r >= size || c < 0 || c >= size) {
+      return const SimMoveAnalysis(isLegal: false);
+    }
+
+    final beforeCurrentPlayer = currentPlayer;
+    final beforeBlackCaptures = capturedByBlack;
+    final beforeWhiteCaptures = capturedByWhite;
+    final moveIndex = idx(r, c);
+
+    var adjacentOpponentStones = 0;
+    for (final adj in _adjacent(moveIndex)) {
+      if (cells[adj] != empty && cells[adj] != beforeCurrentPlayer) {
+        adjacentOpponentStones++;
+      }
+    }
+
+    final ownAtariBefore = _countPlayerAtariStones(beforeCurrentPlayer);
+
+    final simulated = SimBoard.copy(this);
+    if (!simulated.applyMove(r, c)) {
+      return const SimMoveAnalysis(isLegal: false);
+    }
+
+    final ownGroup = simulated._findGroup(moveIndex);
+    final ownLiberties = simulated._countLiberties(ownGroup);
+    final ownAtariAfter =
+        simulated._countPlayerAtariStones(beforeCurrentPlayer);
+    final opponentAtariAfter = simulated
+        ._countPlayerAtariStones(beforeCurrentPlayer == black ? white : black);
+
+    final center = size ~/ 2;
+    final centerDistance = (r - center).abs() + (c - center).abs();
+    final centerProximityScore = math.max(0, size - centerDistance);
+
+    return SimMoveAnalysis(
+      isLegal: true,
+      blackCaptureDelta: simulated.capturedByBlack - beforeBlackCaptures,
+      whiteCaptureDelta: simulated.capturedByWhite - beforeWhiteCaptures,
+      opponentAtariStones: opponentAtariAfter,
+      ownAtariStones: ownAtariAfter,
+      ownRescuedStones: math.max(0, ownAtariBefore - ownAtariAfter),
+      adjacentOpponentStones: adjacentOpponentStones,
+      libertiesAfterMove: ownLiberties,
+      centerProximityScore: centerProximityScore,
+    );
+  }
+
   bool get isTerminal =>
       capturedByBlack >= captureTarget || capturedByWhite >= captureTarget;
 
@@ -209,6 +284,23 @@ class SimBoard {
     }
 
     return candidates.toList();
+  }
+
+  int _countPlayerAtariStones(int playerColor) {
+    final visited = <int>{};
+    var total = 0;
+
+    for (int i = 0; i < cells.length; i++) {
+      if (cells[i] != playerColor || visited.contains(i)) continue;
+
+      final group = _findGroup(i);
+      visited.addAll(group);
+      if (_countLiberties(group) == 1) {
+        total += group.length;
+      }
+    }
+
+    return total;
   }
 }
 

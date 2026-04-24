@@ -4,6 +4,10 @@ import '../models/game_state.dart';
 /// Core Go game engine implementing the rules of Go.
 /// Handles stone placement, group detection, liberty counting, and captures.
 class GoEngine {
+  static bool _isWithinBoard(int row, int col, int boardSize) {
+    return row >= 0 && row < boardSize && col >= 0 && col < boardSize;
+  }
+
   /// Returns all adjacent positions (up, down, left, right) within board bounds.
   static List<BoardPosition> adjacentPositions(
     int row,
@@ -102,6 +106,9 @@ class GoEngine {
     final board = state.board;
     final boardSize = state.boardSize;
 
+    if (state.status != GameStatus.playing) return null;
+    if (!_isWithinBoard(row, col, boardSize)) return null;
+
     // Check if position is occupied
     if (board[row][col] != StoneColor.empty) return null;
 
@@ -133,7 +140,8 @@ class GoEngine {
     }
 
     // Check Ko rule: new board state must not equal ko state
-    if (state.koState != null && _boardsEqual(newBoard, state.koState!, boardSize)) {
+    if (state.koState != null &&
+        _boardsEqual(newBoard, state.koState!, boardSize)) {
       return null;
     }
 
