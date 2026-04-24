@@ -26,34 +26,28 @@ class GoPuzzleApp extends StatelessWidget {
         brightness: Brightness.light,
         textTheme: CupertinoTextThemeData(
           textStyle: TextStyle(
-            fontFamily: 'NotoSansSC',
             fontSize: 17,
           ),
           actionTextStyle: TextStyle(
-            fontFamily: 'NotoSansSC',
             fontSize: 17,
             color: Color(0xFF007AFF),
           ),
           tabLabelTextStyle: TextStyle(
-            fontFamily: 'NotoSansSC',
             fontSize: 10,
             letterSpacing: -0.1,
             color: Color(0xFFAF9C86),
           ),
           navTitleTextStyle: TextStyle(
-            fontFamily: 'NotoSansSC',
             fontSize: 17,
             fontWeight: FontWeight.w600,
             color: CupertinoColors.label,
           ),
           navLargeTitleTextStyle: TextStyle(
-            fontFamily: 'NotoSansSC',
             fontSize: 34,
             fontWeight: FontWeight.w700,
             color: CupertinoColors.label,
           ),
           navActionTextStyle: TextStyle(
-            fontFamily: 'NotoSansSC',
             fontSize: 17,
             color: Color(0xFF007AFF),
           ),
