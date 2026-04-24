@@ -40,7 +40,11 @@ flutter config --enable-web
 echo "▸ flutter pub get…"
 flutter pub get
 
-# ── 4. Build ─────────────────────────────────────────────────────────────────
+# ── 4. Download fonts required by pubspec.yaml ───────────────────────────────
+echo "▸ Ensuring bundled fonts…"
+bash scripts/ensure-test-fonts.sh
+
+# ── 5. Build ─────────────────────────────────────────────────────────────────
 echo "▸ Building Flutter web (release)…"
 flutter build web \
     --release \
