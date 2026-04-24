@@ -6,6 +6,7 @@ import '../models/puzzle.dart';
 import '../providers/game_provider.dart';
 import '../widgets/date_timeline.dart';
 import '../widgets/go_board_widget.dart';
+import '../widgets/page_hero_banner.dart';
 import 'puzzle_screen.dart';
 
 /// Today's puzzle tab – shows date timeline + interactive preview board.
@@ -42,34 +43,60 @@ class _DailyPuzzleScreenState extends State<DailyPuzzleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
     return CupertinoPageScaffold(
-      child: CustomScrollView(
-        slivers: [
-          CupertinoSliverNavigationBar(
-            largeTitle: const Text('谜题'),
-            trailing: _buildTodayButton(context),
-          ),
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-                DateTimeline(
-                  dates: _dates,
-                  selectedDate: _selectedDate,
-                  onDateSelected: _onDateSelected,
-                ),
-                const SizedBox(height: 16),
-                _buildDayHeader(context),
-                const SizedBox(height: 16),
-                _buildPuzzlePreview(context),
-                const SizedBox(height: 16),
-                _buildPuzzleInfo(context),
-                const SizedBox(height: 32),
-              ],
+      backgroundColor: kPageBackgroundColor,
+      child: DecoratedBox(
+        decoration: kPageBackgroundDecoration,
+        child: Stack(
+          children: [
+            // Hero as full-bleed background layer
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: PageHeroBanner(title: '谜题'),
             ),
-          ),
-        ],
+            // Scrollable content floats over hero
+            SafeArea(
+              bottom: false,
+              child: CustomScrollView(
+                slivers: [
+                  // Transparent spacer that reveals the hero behind
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: kPageHeroContentOffset),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 8),
+                        DateTimeline(
+                          dates: _dates,
+                          selectedDate: _selectedDate,
+                          onDateSelected: _onDateSelected,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildDayHeader(context),
+                        const SizedBox(height: 16),
+                        _buildPuzzlePreview(context),
+                        const SizedBox(height: 16),
+                        _buildPuzzleInfo(context),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Action button rendered above the scroll view so it is tappable
+            Positioned(
+              top: topPad + 12,
+              right: 16,
+              child: _buildTodayButton(context),
+            ),
+          ],
+        ),
       ),
     );
   }
