@@ -59,42 +59,50 @@ class PageHeroBanner extends StatelessWidget {
             child: CustomPaint(painter: _LandscapePainter()),
           ),
           Positioned(
-            top: topPad + 16,
+            top: topPad + 12,
             left: 24,
-            right: action != null ? 60 : 24,
-            child: Column(
+            right: 16,
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF201712),
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    subtitle!,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF8E7C6C),
-                      letterSpacing: 0.4,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF201712),
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            subtitle!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF8E7C6C),
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                ),
+                if (action != null) ...[
+                  const SizedBox(width: 12),
+                  action!,
                 ],
               ],
             ),
           ),
-          if (action != null)
-            Positioned(
-              top: topPad + 12,
-              right: 16,
-              child: action!,
-            ),
           Positioned(
             right: 0,
             top: topPad,
