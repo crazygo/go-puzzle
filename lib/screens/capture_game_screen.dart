@@ -292,81 +292,70 @@ class _HeroBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 205,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: const Color(0x1AD8C1A4)),
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFFFFFDF9),
-            Color(0xFFF6ECDD),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(32),
+      child: Container(
+        height: 268,
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFFDF9),
+              Color(0xFFF3E9D8),
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x08000000),
+              blurRadius: 24,
+              offset: Offset(0, 6),
+            ),
           ],
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 20,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(32),
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned.fill(
               child: CustomPaint(painter: _LandscapePainter()),
             ),
-          ),
-          const Positioned(
-            left: 80,
-            top: 24,
-            child: SizedBox(
-              width: 50,
-              height: 10,
-              child: CustomPaint(painter: _WavyLinePainter()),
-            ),
-          ),
-          Positioned(
-            top: 32,
-            left: 16,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  _CaptureCopy.pageTitle,
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF201712),
-                    letterSpacing: 0.8,
+            Positioned(
+              top: 36,
+              left: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    _CaptureCopy.pageTitle,
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF201712),
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  _CaptureCopy.pageSubtitle,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF8E7C6C),
-                    letterSpacing: 0.4,
+                  const SizedBox(height: 8),
+                  const Text(
+                    _CaptureCopy.pageSubtitle,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF8E7C6C),
+                      letterSpacing: 0.4,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: 160,
-            child: _HeroOrbitalArt(),
-          ),
-        ],
+            const Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 160,
+              child: _HeroOrbitalArt(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -439,19 +428,15 @@ class _HeroOrbitalStack extends StatelessWidget {
             painter: _OrbitPainter(progress: progress),
           ),
         ),
-        const Positioned(top: 50, child: _StoneDot(isBlack: true, size: 24)),
-        const Positioned(top: 94, child: _StoneDot(isBlack: true, size: 26)),
-        const Positioned(top: 138, child: _StoneDot(isBlack: true, size: 24)),
-        const Positioned(
-          left: 32,
-          top: 97,
-          child: _StoneDot(isBlack: false, size: 20),
-        ),
-        const Positioned(
-          right: 32,
-          top: 97,
-          child: _StoneDot(isBlack: false, size: 20),
-        ),
+        // Top black
+        const Positioned(top: 68, child: _StoneDot(isBlack: true, size: 22)),
+        // Center black (slightly right)
+        const Positioned(top: 110, child: _StoneDot(isBlack: true, size: 24)),
+        // Bottom black
+        const Positioned(top: 152, child: _StoneDot(isBlack: true, size: 22)),
+        // White flanking stones
+        const Positioned(left: 30, top: 113, child: _StoneDot(isBlack: false, size: 19)),
+        const Positioned(right: 30, top: 113, child: _StoneDot(isBlack: false, size: 19)),
       ],
     );
   }
@@ -499,48 +484,183 @@ class _StoneDot extends StatelessWidget {
 class _LandscapePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final mountainFill = Paint()..style = PaintingStyle.fill;
+    // ── Birds (upper-right, behind stones area) ───────────────────────────
+    _drawBirds(canvas, size);
 
-    // Further simplified mountains for a cleaner look as in design
+    // ── Distant mountains (3 faint layers) ────────────────────────────────
+    _drawDistantMountains(canvas, size);
+
+    // ── Mid mountain with pavilion silhouette ─────────────────────────────
+    _drawMidMountain(canvas, size);
+
+    // ── Foreground hills ──────────────────────────────────────────────────
+    _drawForegroundHills(canvas, size);
+
+    // ── Horizontal mist bands ─────────────────────────────────────────────
+    _drawMist(canvas, size);
+  }
+
+  void _drawBirds(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x40756250)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+
+    // Bird 1 — upper right
+    final b1x = size.width * 0.62;
+    final b1y = size.height * 0.10;
+    final wing = size.width * 0.025;
     final path1 = Path()
-      ..moveTo(0, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.2,
-        size.height * 0.72,
-        size.width * 0.45,
-        size.height * 0.82,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.7,
-        size.height * 0.9,
-        size.width,
-        size.height * 0.86,
-      )
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    mountainFill.color = const Color(0x089F8B73);
-    canvas.drawPath(path1, mountainFill);
+      ..moveTo(b1x - wing, b1y)
+      ..quadraticBezierTo(b1x, b1y - wing * 0.6, b1x + wing, b1y);
+    canvas.drawPath(path1, paint);
 
+    // Bird 2 — slightly lower and further right
+    final b2x = size.width * 0.72;
+    final b2y = size.height * 0.07;
+    final wing2 = size.width * 0.018;
     final path2 = Path()
-      ..moveTo(0, size.height * 0.88)
+      ..moveTo(b2x - wing2, b2y)
+      ..quadraticBezierTo(b2x, b2y - wing2 * 0.6, b2x + wing2, b2y);
+    canvas.drawPath(path2, paint);
+  }
+
+  void _drawDistantMountains(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    // Layer 1 — farthest, lightest
+    paint.color = const Color(0x0C8B7A65);
+    final far1 = Path()
+      ..moveTo(size.width * 0.35, size.height)
+      ..lineTo(size.width * 0.48, size.height * 0.38)
       ..quadraticBezierTo(
-        size.width * 0.3,
-        size.height * 0.84,
-        size.width * 0.6,
-        size.height * 0.92,
-      )
+          size.width * 0.54, size.height * 0.30, size.width * 0.62, size.height * 0.42)
+      ..lineTo(size.width * 0.78, size.height * 0.56)
       ..quadraticBezierTo(
-        size.width * 0.8,
-        size.height * 0.88,
-        size.width,
-        size.height * 0.94,
-      )
+          size.width * 0.88, size.height * 0.48, size.width, size.height * 0.58)
       ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
       ..close();
-    mountainFill.color = const Color(0x0D9F8B73);
-    canvas.drawPath(path2, mountainFill);
+    canvas.drawPath(far1, paint);
+
+    // Layer 2 — middle distance
+    paint.color = const Color(0x129B8A72);
+    final far2 = Path()
+      ..moveTo(size.width * 0.4, size.height)
+      ..lineTo(size.width * 0.52, size.height * 0.44)
+      ..quadraticBezierTo(
+          size.width * 0.57, size.height * 0.36, size.width * 0.65, size.height * 0.50)
+      ..quadraticBezierTo(
+          size.width * 0.75, size.height * 0.58, size.width * 0.85, size.height * 0.52)
+      ..lineTo(size.width, size.height * 0.62)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(far2, paint);
+  }
+
+  void _drawMidMountain(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = const Color(0x1A9B8A72);
+
+    // Main mid mountain — biased to right half
+    final mid = Path()
+      ..moveTo(size.width * 0.3, size.height)
+      ..lineTo(size.width * 0.44, size.height * 0.52)
+      ..quadraticBezierTo(
+          size.width * 0.50, size.height * 0.40, size.width * 0.57, size.height * 0.46)
+      ..quadraticBezierTo(
+          size.width * 0.68, size.height * 0.58, size.width * 0.82, size.height * 0.62)
+      ..lineTo(size.width, size.height * 0.68)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(mid, paint);
+
+    // Pavilion silhouette — at peak of mid mountain (~50%, 43%)
+    _drawPavilion(canvas, Offset(size.width * 0.50, size.height * 0.42), size.width * 0.028);
+  }
+
+  void _drawPavilion(Canvas canvas, Offset base, double scale) {
+    final paint = Paint()
+      ..color = const Color(0x28756250)
+      ..style = PaintingStyle.fill;
+
+    // Roof (curved eave)
+    final roof = Path()
+      ..moveTo(base.dx - scale * 1.8, base.dy)
+      ..quadraticBezierTo(base.dx, base.dy - scale * 1.5, base.dx + scale * 1.8, base.dy)
+      ..close();
+    canvas.drawPath(roof, paint);
+
+    // Roof ridge line
+    final ridgePaint = Paint()
+      ..color = const Color(0x28756250)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+    canvas.drawLine(
+      Offset(base.dx - scale * 1.8, base.dy),
+      Offset(base.dx + scale * 1.8, base.dy),
+      ridgePaint,
+    );
+
+    // Body
+    final body = Rect.fromCenter(
+      center: Offset(base.dx, base.dy + scale * 0.8),
+      width: scale * 2.2,
+      height: scale * 1.4,
+    );
+    canvas.drawRect(body, paint);
+  }
+
+  void _drawForegroundHills(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    // Foreground hill left — very subtle
+    paint.color = const Color(0x0FAD9880);
+    final hill1 = Path()
+      ..moveTo(0, size.height)
+      ..quadraticBezierTo(
+          size.width * 0.22, size.height * 0.72, size.width * 0.5, size.height * 0.80)
+      ..quadraticBezierTo(
+          size.width * 0.7, size.height * 0.86, size.width, size.height * 0.82)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(hill1, paint);
+
+    // Foreground hill — lower band
+    paint.color = const Color(0x10AD9880);
+    final hill2 = Path()
+      ..moveTo(0, size.height)
+      ..quadraticBezierTo(
+          size.width * 0.35, size.height * 0.86, size.width * 0.65, size.height * 0.90)
+      ..quadraticBezierTo(
+          size.width * 0.82, size.height * 0.87, size.width, size.height * 0.92)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(hill2, paint);
+  }
+
+  void _drawMist(Canvas canvas, Size size) {
+    // Horizontal mist band — between mountain layers
+    final mist = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(size.width * 0.25, size.height * 0.58),
+        Offset(size.width, size.height * 0.58),
+        [
+          const Color(0x00FFF8F0),
+          const Color(0x18FFF8F0),
+          const Color(0x10FFF8F0),
+          const Color(0x00FFF8F0),
+        ],
+        [0.0, 0.3, 0.7, 1.0],
+      );
+    final mistRect = Rect.fromLTWH(
+      size.width * 0.25,
+      size.height * 0.52,
+      size.width * 0.75,
+      size.height * 0.14,
+    );
+    canvas.drawRect(mistRect, mist);
   }
 
   @override
@@ -914,7 +1034,6 @@ class _PillSegmentControl<T> extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF8F2E8),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x33D2B28E)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -932,7 +1051,6 @@ class _PillSegmentControl<T> extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFFF3E2C9),
                     borderRadius: BorderRadius.circular(11),
-                    border: Border.all(color: const Color(0x4DC08C4C)),
                   ),
                 ),
               ),
