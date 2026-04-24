@@ -56,7 +56,7 @@ class PageHeroBanner extends StatelessWidget {
         clipBehavior: Clip.hardEdge,
         children: [
           Positioned.fill(
-            child: CustomPaint(painter: _LandscapePainter()),
+            child: const CustomPaint(painter: _LandscapePainter()),
           ),
           Positioned(
             top: topPad + 12,
