@@ -1185,44 +1185,6 @@ class _LotusPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _CloudPainter extends CustomPainter {
-  const _CloudPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0x46C4A57C)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.95
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final path = Path()
-      ..moveTo(size.width * 0.02, size.height * 0.62)
-      ..quadraticBezierTo(
-        size.width * 0.18,
-        size.height * 0.18,
-        size.width * 0.4,
-        size.height * 0.54,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.52,
-        size.height * 0.72,
-        size.width * 0.66,
-        size.height * 0.48,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.78,
-        size.height * 0.26,
-        size.width * 0.96,
-        size.height * 0.56,
-      );
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 class _HomeSectionTitle extends StatelessWidget {
   const _HomeSectionTitle({
     required this.title,
