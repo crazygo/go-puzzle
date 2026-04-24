@@ -38,6 +38,13 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     final particlePreviewOnly =
         kIsWeb && Uri.base.queryParameters['particlePreview'] == '1';
 
+    if (particlePreviewOnly) {
+      return const CupertinoPageScaffold(
+        backgroundColor: Color(0xFFF6F1E9),
+        child: _ParticlePreviewCanvas(),
+      );
+    }
+
     return CupertinoPageScaffold(
       backgroundColor: const Color(0xFFF6F1E9),
       child: DecoratedBox(
@@ -45,107 +52,116 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFFCF7),
-              Color(0xFFF7F0E5),
-            ],
+            colors: [Color(0xFFFFFCF7), Color(0xFFF7F0E5)],
           ),
         ),
-        child: SafeArea(
-          bottom: false,
-          child: particlePreviewOnly
-              ? const _ParticlePreviewCanvas()
-              : CustomScrollView(
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const _HeroBanner(),
-                            const SizedBox(height: 8),
-                            _SectionCard(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const _SectionLabel(title: '棋盘'),
-                                  const SizedBox(height: 4),
-                                  _PillSegmentControl<int>(
-                                    selectedValue: _boardSize,
-                                    options: const [
-                                      _SegmentOption(value: 9, label: '9 路'),
-                                      _SegmentOption(value: 13, label: '13 路'),
-                                      _SegmentOption(value: 19, label: '19 路'),
-                                    ],
-                                    onChanged: (value) =>
-                                        _updateSelection(boardSize: value),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  const _SectionLabel(title: '难度'),
-                                  const SizedBox(height: 8),
-                                  _PillSegmentControl<DifficultyLevel>(
-                                    selectedValue: _difficulty,
-                                    options: const [
-                                      _SegmentOption(
-                                        value: DifficultyLevel.beginner,
-                                        label: '初级',
-                                      ),
-                                      _SegmentOption(
-                                        value: DifficultyLevel.intermediate,
-                                        label: '中级',
-                                      ),
-                                      _SegmentOption(
-                                        value: DifficultyLevel.advanced,
-                                        label: '高级',
-                                      ),
-                                    ],
-                                    onChanged: (value) =>
-                                        _updateSelection(difficulty: value),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  const _SectionLabel(title: 'AI 风格'),
-                                  const SizedBox(height: 8),
-                                  const _AiStyleTile(),
-                                  const SizedBox(height: 24),
-                                  _PrimaryActionButton(
-                                    title: _CaptureCopy.startButton,
-                                    onPressed: _startGame,
-                                  ),
-                                ],
-                              ),
+        child: Stack(
+          children: [
+            // Hero as full-bleed background layer
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _HeroBanner(),
+            ),
+            // Scrollable content floats over hero
+            SafeArea(
+              bottom: false,
+              child: CustomScrollView(
+                slivers: [
+                  // Transparent spacer that reveals the hero behind
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: _kHeroContentOffset),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _SectionCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _SectionLabel(title: '棋盘'),
+                                const SizedBox(height: 4),
+                                _PillSegmentControl<int>(
+                                  selectedValue: _boardSize,
+                                  options: const [
+                                    _SegmentOption(value: 9, label: '9 路'),
+                                    _SegmentOption(value: 13, label: '13 路'),
+                                    _SegmentOption(value: 19, label: '19 路'),
+                                  ],
+                                  onChanged: (value) =>
+                                      _updateSelection(boardSize: value),
+                                ),
+                                const SizedBox(height: 20),
+                                const _SectionLabel(title: '难度'),
+                                const SizedBox(height: 8),
+                                _PillSegmentControl<DifficultyLevel>(
+                                  selectedValue: _difficulty,
+                                  options: const [
+                                    _SegmentOption(
+                                      value: DifficultyLevel.beginner,
+                                      label: '初级',
+                                    ),
+                                    _SegmentOption(
+                                      value: DifficultyLevel.intermediate,
+                                      label: '中级',
+                                    ),
+                                    _SegmentOption(
+                                      value: DifficultyLevel.advanced,
+                                      label: '高级',
+                                    ),
+                                  ],
+                                  onChanged: (value) =>
+                                      _updateSelection(difficulty: value),
+                                ),
+                                const SizedBox(height: 20),
+                                const _SectionLabel(title: 'AI 风格'),
+                                const SizedBox(height: 8),
+                                const _AiStyleTile(),
+                                const SizedBox(height: 24),
+                                _PrimaryActionButton(
+                                  title: _CaptureCopy.startButton,
+                                  onPressed: _startGame,
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            const _HomeSectionTitle(
-                              title: '今日练习',
-                              trailing: null,
-                            ),
-                            const SizedBox(height: 8),
-                            _PracticeCard(
-                              title: '围地上攻防练习',
-                              subtitle:
-                                  '基础练习 · 吃$_captureTarget子 · ${_difficulty.displayName}',
-                              onTap: _startGame,
-                            ),
-                            const SizedBox(height: 10),
-                            const _HomeSectionTitle(
-                              title: '最近对局',
-                              trailing: '查看全部',
-                            ),
-                            const SizedBox(height: 10),
-                            _RecentMatchCard(
-                              boardSize: _boardSize,
-                              difficulty: _difficulty,
-                              captureTarget: _captureTarget,
-                              onTap: _startGame,
-                            ),
-                            const SizedBox(height: 14),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 8),
+                          const _HomeSectionTitle(
+                            title: '今日练习',
+                            trailing: null,
+                          ),
+                          const SizedBox(height: 8),
+                          _PracticeCard(
+                            title: '围地上攻防练习',
+                            subtitle:
+                                '基础练习 · 吃$_captureTarget子 · ${_difficulty.displayName}',
+                            onTap: _startGame,
+                          ),
+                          const SizedBox(height: 10),
+                          const _HomeSectionTitle(
+                            title: '最近对局',
+                            trailing: '查看全部',
+                          ),
+                          const SizedBox(height: 10),
+                          _RecentMatchCard(
+                            boardSize: _boardSize,
+                            difficulty: _difficulty,
+                            captureTarget: _captureTarget,
+                            onTap: _startGame,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -287,75 +303,71 @@ class _PrimaryActionButton extends StatelessWidget {
   }
 }
 
+// Hero layout constants
+const _kHeroVisibleHeight = 248.0; // height below status bar
+const _kHeroCardOverlap = 24.0; // how much settings card overlaps hero
+const _kHeroContentOffset =
+    _kHeroVisibleHeight - _kHeroCardOverlap; // scroll spacer height
+
 class _HeroBanner extends StatelessWidget {
   const _HeroBanner();
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(32),
-      child: Container(
-        height: 268,
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFFDF9),
-              Color(0xFFF3E9D8),
-            ],
+    final topPad = MediaQuery.of(context).padding.top;
+    return Container(
+      height: topPad + _kHeroVisibleHeight,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFFFFDF9),
+            Color(0xFFF3E9D8),
+          ],
+        ),
+      ),
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          Positioned.fill(
+            child: CustomPaint(painter: _LandscapePainter()),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x08000000),
-              blurRadius: 24,
-              offset: Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            Positioned.fill(
-              child: CustomPaint(painter: _LandscapePainter()),
-            ),
-            Positioned(
-              top: 36,
-              left: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    _CaptureCopy.pageTitle,
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF201712),
-                      letterSpacing: 0.8,
-                    ),
+          Positioned(
+            top: topPad + 20,
+            left: 24,
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _CaptureCopy.pageTitle,
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF201712),
+                    letterSpacing: 0.8,
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    _CaptureCopy.pageSubtitle,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF8E7C6C),
-                      letterSpacing: 0.4,
-                    ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  _CaptureCopy.pageSubtitle,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF8E7C6C),
+                    letterSpacing: 0.4,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const Positioned(
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: 160,
-              child: _HeroOrbitalArt(),
-            ),
-          ],
-        ),
+          ),
+          Positioned(
+            right: 0,
+            top: topPad,
+            bottom: 0,
+            width: 160,
+            child: const _HeroOrbitalArt(),
+          ),
+        ],
       ),
     );
   }
@@ -665,29 +677,6 @@ class _LandscapePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _WavyLinePainter extends CustomPainter {
-  const _WavyLinePainter();
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0x26C4A57C)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
-      ..strokeCap = StrokeCap.round;
-
-    final path = Path()
-      ..moveTo(0, size.height / 2)
-      ..quadraticBezierTo(
-          size.width * 0.25, 0, size.width * 0.5, size.height / 2)
-      ..quadraticBezierTo(
-          size.width * 0.75, size.height, size.width, size.height / 2);
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
 class _OrbitPainter extends CustomPainter {
