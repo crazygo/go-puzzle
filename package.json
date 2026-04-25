@@ -2,7 +2,7 @@
   "name": "go-puzzle-tools",
   "private": true,
   "scripts": {
-    "postinstall": "INIT_DEV_SKIP_NPM=1 bash scripts/init-dev.sh"
+    "postinstall": "node -e \"if (process.platform === 'linux') { require('child_process').execSync('bash scripts/init-dev.sh', { stdio: 'inherit', env: { ...process.env, INIT_DEV_SKIP_NPM: '1' } }); }\""
   },
   "devDependencies": {
     "playwright-core": "^1.52.0",
