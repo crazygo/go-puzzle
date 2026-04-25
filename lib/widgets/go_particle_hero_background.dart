@@ -183,18 +183,11 @@ class GoParticleScenePainter extends CustomPainter {
   // ── Camera / projection constants ─────────────────────────────────────────
   // Single-point perspective with horizontal tilt to simulate a camera
   // positioned to the upper-left of the board.
-  //
-  //   depth(r) = 1 + r * (kDepthFar - 1)
-  //   baseY    = (kVpY + (kNearY - kVpY) / depth) * height
-  //   tiltY    = kTilt * (0.5 - c) * height / depth   ← left lower, right higher
-  //   halfW    = kNearHalfW * width / depth
-  //   rowX     = width/2 + (c - 0.5) * 2 * halfW
 
-  static const _kVpY      = 0.04;  // VP slightly above the frame (low camera elevation)
-  static const _kNearY    = 0.80;  // near edge lower — more board surface visible
-  static const _kNearHalfW = 0.74; // wide near edge → board fills screen width
-  static const _kDepthFar = 1.85;  // mild depth compression → board looks SQUARE, not runway
-  // Horizontal tilt: left side of the near edge is ~0.15 h lower than right.
+  static const _kVpY      = 0.04;
+  static const _kNearY    = 0.80;
+  static const _kNearHalfW = 0.74;
+  static const _kDepthFar = 1.85;
   static const _kTilt = 0.14;
 
   /// Perspective-project board fractions (c, r) to screen [Offset].
@@ -204,13 +197,37 @@ class GoParticleScenePainter extends CustomPainter {
   Offset _p(double c, double r, Size size) {
     final depth = 1.0 + r * (_kDepthFar - 1.0);
     final baseY = (_kVpY + (_kNearY - _kVpY) / depth) * size.height;
-    // Tilt: left side is lower (higher Y); right side is higher (lower Y).
     final tiltY = _kTilt * (0.5 - c) * size.height / depth;
     final rowY = baseY + tiltY;
     final halfW = _kNearHalfW * size.width / depth;
     final rowX = size.width * 0.5 + (c - 0.5) * 2.0 * halfW;
     return Offset(rowX, rowY);
   }
+
+  // ── 3-D lighting ───────────────────────────────────────────────────────────
+  // World axes: X=right, Y=into-scene, Z=up  (consistent with _p() camera).
+  // Camera is upper-left, so the light is placed in the same direction.
+  //
+  // Normalized light direction (from any surface point toward the light source):
+  //   Light = upper-left overhead → lx<0, ly<0, lz>0
+  //   (-0.38, -0.44, 0.82) ≈ unit vector
+  static const _kLx = -0.38, _kLy = -0.44, _kLz = 0.82;
+  static const _kAmbient = 0.28;
+
+  /// Lambertian shading for a face with outward world-space normal (nx,ny,nz).
+  /// Returns brightness multiplier ∈ [_kAmbient, 1.0].
+  static double _lit(double nx, double ny, double nz) {
+    final d = (nx * _kLx + ny * _kLy + nz * _kLz).clamp(0.0, 1.0);
+    return _kAmbient + (1.0 - _kAmbient) * d;
+  }
+
+  /// Multiply a [Color]'s RGB channels by brightness [b] ∈ [0, 1].
+  static Color _dim(Color c, double b) => Color.fromARGB(
+        c.alpha,
+        (c.red * b).round().clamp(0, 255),
+        (c.green * b).round().clamp(0, 255),
+        (c.blue * b).round().clamp(0, 255),
+      );
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -272,98 +289,96 @@ class GoParticleScenePainter extends CustomPainter {
       ..lineTo(nearLeft.dx, nearLeft.dy)
       ..close();
 
-    // Light natural maple — neutral warm cream with very low saturation.
-    final topColor = Color.lerp(
-        const Color(0xFFF0E0C0), const Color(0xFFEEDCBC), preset.warmth)!;
-    final botColor = Color.lerp(
-        const Color(0xFFDCC484), const Color(0xFFD8C080), preset.warmth)!;
+    // ── Wood base color ─────────────────────────────────────────────────────
+    // A single unlit base color drives all face colors through Lambertian
+    // shading. When multiplied by the top-face brightness it produces a warm
+    // natural maple appearance.
+    final base = Color.lerp(
+        const Color(0xFFEEC060), const Color(0xFFEABA58), preset.warmth)!;
 
-    final surfacePaint = Paint()
-      ..shader = ui.Gradient.linear(
-        farLeft,
-        nearLeft,
-        [
-          topColor.withValues(alpha: 0.98 * intensity),
-          botColor.withValues(alpha: 0.99 * intensity),
-        ],
-      );
-    canvas.drawPath(boardPath, surfacePaint);
+    // ── Top surface ──────────────────────────────────────────────────────────
+    // World normal: (0, 0, 1) — straight up.
+    final topBright = _lit(0, 0, 1); // ≈ 0.87
+    // Near edge catches slightly more reflected light; far edge slightly less.
+    final topNear = _dim(base, topBright * 1.05).withValues(alpha: intensity);
+    final topFar  = _dim(base, topBright * 0.88).withValues(alpha: intensity);
+    canvas.drawPath(
+      boardPath,
+      Paint()
+        ..shader = ui.Gradient.linear(farLeft, nearLeft, [topFar, topNear]),
+    );
 
-    // Overhead light hotspot: bright oval near the centre-left of the surface.
-    final lightCentre = _p(0.35, 0.65, size);
+    // Subtle overhead light hotspot — not distracting.
+    final lightCentre = _p(0.42, 0.55, size);
     canvas.drawOval(
       Rect.fromCenter(
           center: lightCentre,
-          width: size.width * 0.68,
-          height: size.height * 0.16),
+          width: size.width * 0.48,
+          height: size.height * 0.10),
       Paint()
         ..shader = ui.Gradient.radial(
           lightCentre,
-          size.width * 0.35,
+          size.width * 0.25,
           [
-            const Color(0xFFFFFFFF).withValues(alpha: 0.32 * intensity),
+            const Color(0xFFFFFFFF).withValues(alpha: 0.15 * intensity),
             const Color(0x00FFFFFF),
           ],
         ),
     );
 
-    // ── Board thickness: THICK left face and bottom face ──────────────────
-    // Real Go boards are 1–2 cm thick; scale to look substantial on screen.
-    final edgeH = size.height * 0.11;  // ~11% of screen height — thick like real Go board
+    // ── Board thickness ──────────────────────────────────────────────────────
+    final edgeH = size.height * 0.11;
 
-    // Left face — natural maple side, moderate indirect light.
-    // Camera is upper-left so this face receives diffuse light, matches board tone.
-    final leftFacePath = Path()
-      ..moveTo(farLeft.dx, farLeft.dy)
-      ..lineTo(nearLeft.dx, nearLeft.dy)
-      ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
-      ..lineTo(farLeft.dx, farLeft.dy + edgeH)
-      ..close();
+    // Left face — world normal: (-1, 0, 0).
+    // Camera & light are to the upper-left → this face is partially lit.
+    final leftBright = _lit(-1, 0, 0); // ≈ 0.55
+    final leftTop = _dim(base, leftBright).withValues(alpha: intensity);
+    final leftBot = _dim(base, leftBright * 0.74).withValues(alpha: intensity);
     canvas.drawPath(
-      leftFacePath,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          farLeft,
-          nearLeft,
-          [
-            const Color(0xFFC4AE6C).withValues(alpha: 0.85 * intensity),
-            const Color(0xFFB49858).withValues(alpha: 0.92 * intensity),
-          ],
-        ),
-    );
-
-    // Bottom near-edge face — top-lit, warm wood.
-    final edgePath = Path()
-      ..moveTo(nearLeft.dx, nearLeft.dy)
-      ..lineTo(nearRight.dx, nearRight.dy)
-      ..lineTo(nearRight.dx, nearRight.dy + edgeH)
-      ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
-      ..close();
-    canvas.drawPath(
-      edgePath,
+      Path()
+        ..moveTo(farLeft.dx, farLeft.dy)
+        ..lineTo(nearLeft.dx, nearLeft.dy)
+        ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
+        ..lineTo(farLeft.dx, farLeft.dy + edgeH)
+        ..close(),
       Paint()
         ..shader = ui.Gradient.linear(
           nearLeft,
           Offset(nearLeft.dx, nearLeft.dy + edgeH),
-          [
-            const Color(0xFFC8A850).withValues(alpha: 0.92 * intensity),
-            const Color(0xFFA07A30).withValues(alpha: 0.80 * intensity),
-          ],
+          [leftTop, leftBot],
         ),
     );
 
-    // Bottom-left corner join.
-    final cornerPath = Path()
-      ..moveTo(nearLeft.dx, nearLeft.dy)
-      ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
-      ..lineTo(farLeft.dx, farLeft.dy + edgeH)
-      ..lineTo(farLeft.dx, farLeft.dy)
-      ..close();
+    // Front face (near edge) — world normal: (0, -1, 0).
+    // Faces toward viewer and somewhat toward the light.
+    final frontBright = _lit(0, -1, 0); // ≈ 0.60
+    final frontTop = _dim(base, frontBright).withValues(alpha: intensity);
+    final frontBot = _dim(base, frontBright * 0.70).withValues(alpha: intensity);
     canvas.drawPath(
-      cornerPath,
+      Path()
+        ..moveTo(nearLeft.dx, nearLeft.dy)
+        ..lineTo(nearRight.dx, nearRight.dy)
+        ..lineTo(nearRight.dx, nearRight.dy + edgeH)
+        ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
+        ..close(),
       Paint()
-        ..color =
-            const Color(0xFFB89840).withValues(alpha: 0.78 * intensity),
+        ..shader = ui.Gradient.linear(
+          nearLeft,
+          Offset(nearLeft.dx, nearLeft.dy + edgeH),
+          [frontTop, frontBot],
+        ),
+    );
+
+    // Corner join — average of left and front normals → slightly in shadow.
+    final cornerBright = _lit(-0.707, -0.707, 0) * 0.90;
+    canvas.drawPath(
+      Path()
+        ..moveTo(nearLeft.dx, nearLeft.dy)
+        ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
+        ..lineTo(farLeft.dx, farLeft.dy + edgeH)
+        ..lineTo(farLeft.dx, farLeft.dy)
+        ..close(),
+      Paint()..color = _dim(base, cornerBright).withValues(alpha: intensity),
     );
   }
 
@@ -371,11 +386,14 @@ class GoParticleScenePainter extends CustomPainter {
 
   void _drawWoodParticles(Canvas canvas, Size size) {
     const particleCount = 340;
+    // Grain is slightly lighter and darker than the top surface.
+    final topBright = _lit(0, 0, 1);
+    final base = const Color(0xFFEEC060);
     final woodColors = [
-      const Color(0xFFDCC888),
-      const Color(0xFFD4BC78),
-      const Color(0xFFE4D098),
-      const Color(0xFFCCB068),
+      _dim(base, topBright * 1.08),
+      _dim(base, topBright * 0.95),
+      _dim(base, topBright * 1.12),
+      _dim(base, topBright * 0.88),
     ];
 
     // Clip particles to the board surface.
@@ -446,22 +464,22 @@ class GoParticleScenePainter extends CustomPainter {
     // Horizontal lines — row 0 is near (bold/dark), row n-1 is far (faint).
     for (int r = 0; r < n; r++) {
       final rowFrac = r / (n - 1).toDouble();
-      final alpha = _lerpd(0.52, 0.12, rowFrac) * intensity;
-      final sw = _lerpd(1.2, 0.40, rowFrac);
+      final alpha = _lerpd(0.72, 0.22, rowFrac) * intensity;
+      final sw = _lerpd(1.4, 0.50, rowFrac);
       linePaint
-        ..color = const Color(0xFF5C4020).withValues(alpha: alpha)
+        ..color = const Color(0xFF3C2808).withValues(alpha: alpha)
         ..strokeWidth = sw;
       canvas.drawLine(_p(0.0, rowFrac, size), _p(1.0, rowFrac, size), linePaint);
     }
 
-    // Vertical lines — subtle, slightly stronger at centre.
+    // Vertical lines — clearly visible on warm board.
     for (int c = 0; c < n; c++) {
       final colFrac = c / (n - 1).toDouble();
       final centerBias = 1.0 - (colFrac - 0.5).abs() * 1.6;
-      final alpha = (0.24 + 0.10 * centerBias.clamp(0.0, 1.0)) * intensity;
+      final alpha = (0.38 + 0.14 * centerBias.clamp(0.0, 1.0)) * intensity;
       linePaint
-        ..color = const Color(0xFF5C4020).withValues(alpha: alpha)
-        ..strokeWidth = 0.6;
+        ..color = const Color(0xFF3C2808).withValues(alpha: alpha)
+        ..strokeWidth = 0.7;
       canvas.drawLine(_p(colFrac, 0.0, size), _p(colFrac, 1.0, size), linePaint);
     }
   }
@@ -487,17 +505,17 @@ class GoParticleScenePainter extends CustomPainter {
       // rx: from projected horizontal cell width (perspective-correct).
       final pL = _p((colFrac - halfStep).clamp(0.0, 1.0), rowFrac, size);
       final pR = _p((colFrac + halfStep).clamp(0.0, 1.0), rowFrac, size);
-      final rx = (pR.dx - pL.dx).abs() * 0.52 *
-          (0.9 + 0.2 * _noise(col * 7 + row * 13));
+      final rx = (pR.dx - pL.dx).abs() * 0.56 *
+          (0.92 + 0.16 * _noise(col * 7 + row * 13));
 
       // ry: from projected VERTICAL cell height — ensures stone foreshortening
       // exactly matches the board grid, regardless of tilt or depth.
       final pN = _p(colFrac, (rowFrac - halfStep).clamp(0.0, 1.0), size);
       final pF = _p(colFrac, (rowFrac + halfStep).clamp(0.0, 1.0), size);
       final projCellH = (pF.dy - pN.dy).abs();
-      // A stone disc radius = half cell. Apply same 0.52 fill ratio as rx,
-      // then scale by 0.90 — slight foreshortening but retains dome roundness.
-      final ry = projCellH * 0.52 * 0.90;
+      // A stone disc radius = half cell. Apply same 0.56 fill ratio as rx,
+      // then scale by 0.88 for natural disc foreshortening.
+      final ry = projCellH * 0.56 * 0.88;
 
       // Depth-of-field blur only at far distances; keep near stones crisp.
       final blur = rowFrac * 2.0 * blurStrength * preset.depthOfField;
@@ -519,24 +537,24 @@ class GoParticleScenePainter extends CustomPainter {
     final bodyRect =
         Rect.fromCenter(center: center, width: rx * 2, height: ry * 2);
 
-    // 1. Contact shadow — clipped below equator, strong enough to read clearly.
-    final shadowBlur = rx * 0.22 + 0.8;
+    // 1. Contact shadow — small, tight oval directly below stone, no halo ring.
+    final shadowBlur = rx * 0.18 + 0.6;
     canvas.save();
     canvas.clipRect(Rect.fromLTRB(
-      center.dx - rx * 2.5,
-      center.dy + ry * 0.05,
-      center.dx + rx * 2.5,
-      center.dy + ry + shadowBlur * 3,
+      center.dx - rx * 1.8,
+      center.dy + ry * 0.15,
+      center.dx + rx * 1.8,
+      center.dy + ry + shadowBlur * 2.5,
     ));
     canvas.drawOval(
       Rect.fromCenter(
-          center: center + Offset(rx * 0.10, ry * 0.60),
-          width: rx * 2.30,
-          height: ry * 1.50),
+          center: center + Offset(rx * 0.08, ry * 0.52),
+          width: rx * 1.70,
+          height: ry * 1.10),
       Paint()
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, shadowBlur)
         ..color =
-            const Color(0xFF000000).withValues(alpha: 0.42 * clampedAlpha),
+            const Color(0xFF000000).withValues(alpha: 0.30 * clampedAlpha),
     );
     canvas.restore();
 
@@ -550,19 +568,19 @@ class GoParticleScenePainter extends CustomPainter {
     final bodyPaint = Paint()
       ..shader = ui.Gradient.radial(
         focalPt,
-        rx * 1.05,
+        rx * 1.08,
         isBlack
             ? [
-                Color.fromARGB(ai, 160, 150, 130),  // bright lit upper-left
-                Color.fromARGB(ai, 55,  50,  42),   // mid charcoal body
-                Color.fromARGB(ai, 8,   7,   5),    // very dark lower-right rim
+                Color.fromARGB(ai, 140, 132, 118),  // bright lit upper-left
+                Color.fromARGB(ai, 50,  46,  40),   // deep charcoal
+                Color.fromARGB(ai, 12,  10,  8),    // near-black rim
               ]
             : [
-                Color.fromARGB(ai, 255, 255, 255),  // pure white lit spot
-                Color.fromARGB(ai, 238, 235, 228),  // ivory body
-                Color.fromARGB(ai, 195, 191, 183),  // warm-gray rim
+                Color.fromARGB(ai, 255, 255, 255),  // pure white
+                Color.fromARGB(ai, 242, 240, 235),  // clean ivory body
+                Color.fromARGB(ai, 200, 196, 188),  // shadowed rim
               ],
-        [0.0, 0.42, 1.0],
+        [0.0, 0.40, 1.0],
       );
     if (blur > 0.4) {
       bodyPaint.maskFilter = MaskFilter.blur(BlurStyle.normal, blur);
