@@ -20,6 +20,6 @@ void main() {
 
     expect(find.text('小闲围棋'), findsWidgets);
     expect(find.text('AI 风格'), findsOneWidget);
-    expect(find.text('开始对弈'), findsOneWidget);
+    expect(find.text('执黑先行'), findsOneWidget);
   });
 }
