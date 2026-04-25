@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
@@ -40,8 +39,8 @@ void main() {
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(390, 844);
-    addTeardown(tester.view.resetPhysicalSize);
-    addTeardown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
       const _BackgroundTestApp(preset: GoScenePreset.defaultPreset),
@@ -56,8 +55,8 @@ void main() {
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(390, 844);
-    addTeardown(tester.view.resetPhysicalSize);
-    addTeardown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
     const preset = GoScenePreset(
       boardSize: 13,
@@ -79,8 +78,8 @@ void main() {
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(390, 844);
-    addTeardown(tester.view.resetPhysicalSize);
-    addTeardown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
     const preset = GoScenePreset(boardSize: 19, stones: []);
 
@@ -95,8 +94,8 @@ void main() {
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(390, 844);
-    addTeardown(tester.view.resetPhysicalSize);
-    addTeardown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
       CupertinoApp(
@@ -141,8 +140,8 @@ void main() {
 
       tester.view.devicePixelRatio = 1.0;
       tester.view.physicalSize = const Size(390, 844);
-      addTeardown(tester.view.resetPhysicalSize);
-      addTeardown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
       final captureKey = GlobalKey();
 

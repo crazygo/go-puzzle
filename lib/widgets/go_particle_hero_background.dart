@@ -46,9 +46,12 @@ class GoScenePreset {
   final int boardSize;
 
   /// Decorative stone hints drawn on the background board.
+  ///
+  /// The list is treated as immutable; replace the [GoScenePreset] instance
+  /// rather than mutating the list to trigger a repaint.
   final List<GoSceneStone> stones;
 
-  /// 0–1 colour warmth multiplier.
+  /// 0–1 colour warmth multiplier applied to wood-grain and board tones.
   final double warmth;
 
   /// 0–1 depth-of-field strength.
@@ -130,14 +133,15 @@ class GoParticleHeroBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: GoParticleScenePainter(
-        preset: preset,
-        intensity: intensity,
-        blurStrength: blurStrength,
-        contentFadeStart: contentFadeStart,
+    return SizedBox.expand(
+      child: CustomPaint(
+        painter: GoParticleScenePainter(
+          preset: preset,
+          intensity: intensity,
+          blurStrength: blurStrength,
+          contentFadeStart: contentFadeStart,
+        ),
       ),
-      size: Size.infinite,
     );
   }
 }
@@ -190,13 +194,33 @@ class GoParticleScenePainter extends CustomPainter {
 
   void _drawWarmBase(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
+    // warmth 1.0 → full amber tint; 0.0 → neutral grey-white
+    final warmAlpha = (0.06 * preset.warmth).clamp(0.0, 1.0);
     final paint = Paint()
       ..shader = ui.Gradient.linear(
         Offset.zero,
         Offset(0, size.height),
-        const [Color(0xFFFFFCF7), Color(0xFFF5EBD8)],
+        [
+          Color.lerp(const Color(0xFFF8F8F8), const Color(0xFFFFFCF7),
+              preset.warmth)!,
+          Color.lerp(const Color(0xFFECECEC), const Color(0xFFF5EBD8),
+              preset.warmth)!,
+        ],
       );
     canvas.drawRect(rect, paint);
+    // Extra amber glow at the top when warmth > 0
+    if (warmAlpha > 0.0) {
+      final glowPaint = Paint()
+        ..shader = ui.Gradient.linear(
+          Offset.zero,
+          Offset(0, size.height * 0.4),
+          [
+            const Color(0xFFF5C87A).withValues(alpha: warmAlpha),
+            const Color(0x00F5C87A),
+          ],
+        );
+      canvas.drawRect(rect, glowPaint);
+    }
   }
 
   // ── 2. Board plane ─────────────────────────────────────────────────────────
@@ -216,13 +240,19 @@ class GoParticleScenePainter extends CustomPainter {
       ..lineTo(bl.dx, bl.dy)
       ..close();
 
+    // warmth shifts board tone toward amber; lower warmth → lighter/cooler wood
+    final topColor = Color.lerp(const Color(0xFFD8C8A8), const Color(0xFFDFCBAA),
+        preset.warmth)!;
+    final botColor = Color.lerp(const Color(0xFFC4B08A), const Color(0xFFCCB282),
+        preset.warmth)!;
+
     final paint = Paint()
       ..shader = ui.Gradient.linear(
         Offset(size.width * 0.5, size.height * 0.06),
         Offset(size.width * 0.5, size.height * 0.70),
         [
-          const Color(0xFFDFCBAA).withValues(alpha: 0.55 * intensity),
-          const Color(0xFFCCB282).withValues(alpha: 0.40 * intensity),
+          topColor.withValues(alpha: 0.55 * intensity),
+          botColor.withValues(alpha: 0.40 * intensity),
         ],
       );
     canvas.drawPath(path, paint);
@@ -250,7 +280,7 @@ class GoParticleScenePainter extends CustomPainter {
       final px = size.width * (0.06 + 0.88 * nx);
       final py = size.height * (0.06 + 0.64 * ny);
 
-      // depth: 0 = near (bottom), 1 = far (top)
+      // depth: 0 = top of the board area (far), 1 = bottom of the board area (near)
       final depth = ny;
       final dof = depth * blurStrength * preset.depthOfField;
 
@@ -268,7 +298,7 @@ class GoParticleScenePainter extends CustomPainter {
 
       if (dof > 0.08) {
         paint.maskFilter =
-            MaskFilter.blur(BlurStyle.normal, dof * 2.0 * blurStrength);
+            MaskFilter.blur(BlurStyle.normal, dof * 2.0);
       } else {
         paint.maskFilter = null;
       }
@@ -405,18 +435,20 @@ class GoParticleScenePainter extends CustomPainter {
     final bodyRect = Rect.fromCenter(
         center: center, width: radius * 2, height: radius * 2);
     canvas.saveLayer(bodyRect.inflate(radius), Paint());
+    final clampedAlpha = alpha.clamp(0.0, 1.0);
+    final alphaInt = (clampedAlpha * 255).round();
     final gradPaint = Paint()
       ..shader = ui.Gradient.radial(
         center + Offset(-radius * 0.25, -radius * 0.28),
         radius * 1.2,
         isBlack
             ? [
-                Color.fromARGB((alpha * 255).round(), 80, 74, 70),
-                Color.fromARGB((alpha * 255).round(), 20, 20, 20),
+                Color.fromARGB(alphaInt, 80, 74, 70),
+                Color.fromARGB(alphaInt, 20, 20, 20),
               ]
             : [
-                Color.fromARGB((alpha * 255).round(), 252, 250, 246),
-                Color.fromARGB((alpha * 255).round(), 224, 219, 210),
+                Color.fromARGB(alphaInt, 252, 250, 246),
+                Color.fromARGB(alphaInt, 224, 219, 210),
               ],
       );
     if (blur > 0.3) {
