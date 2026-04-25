@@ -49,7 +49,7 @@ class GoPuzzleApp extends StatelessWidget {
           ),
           navActionTextStyle: TextStyle(
             fontSize: 17,
-            color: Color(0xFF007AFF),
+            color: Color(0xFFB87A3C),
           ),
         ),
       ),
