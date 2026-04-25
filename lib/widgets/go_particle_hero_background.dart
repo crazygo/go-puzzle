@@ -272,19 +272,19 @@ class GoParticleScenePainter extends CustomPainter {
       ..lineTo(nearLeft.dx, nearLeft.dy)
       ..close();
 
-    // Warm hinoki/kaya wood — rich honey-tan, fully opaque, matches reference.
+    // Light natural maple — neutral warm cream with very low saturation.
     final topColor = Color.lerp(
-        const Color(0xFFCFAB62), const Color(0xFFCCA85E), preset.warmth)!;
+        const Color(0xFFF0E0C0), const Color(0xFFEEDCBC), preset.warmth)!;
     final botColor = Color.lerp(
-        const Color(0xFFB88C3A), const Color(0xFFB48836), preset.warmth)!;
+        const Color(0xFFDCC484), const Color(0xFFD8C080), preset.warmth)!;
 
     final surfacePaint = Paint()
       ..shader = ui.Gradient.linear(
         farLeft,
         nearLeft,
         [
-          topColor.withValues(alpha: 0.96 * intensity),
-          botColor.withValues(alpha: 0.98 * intensity),
+          topColor.withValues(alpha: 0.98 * intensity),
+          botColor.withValues(alpha: 0.99 * intensity),
         ],
       );
     canvas.drawPath(boardPath, surfacePaint);
@@ -294,14 +294,14 @@ class GoParticleScenePainter extends CustomPainter {
     canvas.drawOval(
       Rect.fromCenter(
           center: lightCentre,
-          width: size.width * 0.62,
-          height: size.height * 0.14),
+          width: size.width * 0.68,
+          height: size.height * 0.16),
       Paint()
         ..shader = ui.Gradient.radial(
           lightCentre,
-          size.width * 0.32,
+          size.width * 0.35,
           [
-            const Color(0xFFFFFFFF).withValues(alpha: 0.22 * intensity),
+            const Color(0xFFFFFFFF).withValues(alpha: 0.32 * intensity),
             const Color(0x00FFFFFF),
           ],
         ),
@@ -311,8 +311,8 @@ class GoParticleScenePainter extends CustomPainter {
     // Real Go boards are 1–2 cm thick; scale to look substantial on screen.
     final edgeH = size.height * 0.11;  // ~11% of screen height — thick like real Go board
 
-    // Left face — natural wood side, moderately darker than the top surface.
-    // Camera is upper-left so this face receives indirect light, not full shadow.
+    // Left face — natural maple side, moderate indirect light.
+    // Camera is upper-left so this face receives diffuse light, matches board tone.
     final leftFacePath = Path()
       ..moveTo(farLeft.dx, farLeft.dy)
       ..lineTo(nearLeft.dx, nearLeft.dy)
@@ -326,8 +326,8 @@ class GoParticleScenePainter extends CustomPainter {
           farLeft,
           nearLeft,
           [
-            const Color(0xFFB08030).withValues(alpha: 0.80 * intensity),
-            const Color(0xFFA07028).withValues(alpha: 0.88 * intensity),
+            const Color(0xFFC4AE6C).withValues(alpha: 0.85 * intensity),
+            const Color(0xFFB49858).withValues(alpha: 0.92 * intensity),
           ],
         ),
     );
@@ -346,8 +346,8 @@ class GoParticleScenePainter extends CustomPainter {
           nearLeft,
           Offset(nearLeft.dx, nearLeft.dy + edgeH),
           [
-            const Color(0xFFBE9040).withValues(alpha: 0.90 * intensity),
-            const Color(0xFF8C6020).withValues(alpha: 0.70 * intensity),
+            const Color(0xFFC8A850).withValues(alpha: 0.92 * intensity),
+            const Color(0xFFA07A30).withValues(alpha: 0.80 * intensity),
           ],
         ),
     );
@@ -363,7 +363,7 @@ class GoParticleScenePainter extends CustomPainter {
       cornerPath,
       Paint()
         ..color =
-            const Color(0xFF9C7030).withValues(alpha: 0.70 * intensity),
+            const Color(0xFFB89840).withValues(alpha: 0.78 * intensity),
     );
   }
 
@@ -372,10 +372,10 @@ class GoParticleScenePainter extends CustomPainter {
   void _drawWoodParticles(Canvas canvas, Size size) {
     const particleCount = 340;
     final woodColors = [
-      const Color(0xFFD0B870),
+      const Color(0xFFDCC888),
+      const Color(0xFFD4BC78),
+      const Color(0xFFE4D098),
       const Color(0xFFCCB068),
-      const Color(0xFFD8C078),
-      const Color(0xFFC4A858),
     ];
 
     // Clip particles to the board surface.
@@ -487,7 +487,7 @@ class GoParticleScenePainter extends CustomPainter {
       // rx: from projected horizontal cell width (perspective-correct).
       final pL = _p((colFrac - halfStep).clamp(0.0, 1.0), rowFrac, size);
       final pR = _p((colFrac + halfStep).clamp(0.0, 1.0), rowFrac, size);
-      final rx = (pR.dx - pL.dx).abs() * 0.46 *
+      final rx = (pR.dx - pL.dx).abs() * 0.52 *
           (0.9 + 0.2 * _noise(col * 7 + row * 13));
 
       // ry: from projected VERTICAL cell height — ensures stone foreshortening
@@ -495,9 +495,9 @@ class GoParticleScenePainter extends CustomPainter {
       final pN = _p(colFrac, (rowFrac - halfStep).clamp(0.0, 1.0), size);
       final pF = _p(colFrac, (rowFrac + halfStep).clamp(0.0, 1.0), size);
       final projCellH = (pF.dy - pN.dy).abs();
-      // A stone disc radius = half cell. Apply same 0.46 fill ratio as rx,
-      // then scale by 0.80 so stone looks like a flat disc, not a tall oval.
-      final ry = projCellH * 0.46 * 0.80;
+      // A stone disc radius = half cell. Apply same 0.52 fill ratio as rx,
+      // then scale by 0.90 — slight foreshortening but retains dome roundness.
+      final ry = projCellH * 0.52 * 0.90;
 
       // Depth-of-field blur only at far distances; keep near stones crisp.
       final blur = rowFrac * 2.0 * blurStrength * preset.depthOfField;
@@ -541,28 +541,28 @@ class GoParticleScenePainter extends CustomPainter {
     canvas.restore();
 
     // 2. Stone body — high-contrast dome gradient for visible 3D roundness.
-    //    Gradient radius = rx*1.40: covers stone fully but keeps contrast tight
-    //    so lit upper-left vs dark lower-right creates clear convex dome shape.
+    //    Tighter radius rx*1.05 keeps gradient contrast within the stone boundary.
+    //    Focal point at upper-left creates clear lit dome vs dark rim.
     final layerRect = bodyRect.inflate(rx.clamp(4.0, 14.0));
     canvas.saveLayer(layerRect, Paint());
 
-    final focalPt = center + Offset(-rx * 0.25, -ry * 0.32);
+    final focalPt = center + Offset(-rx * 0.28, -ry * 0.38);
     final bodyPaint = Paint()
       ..shader = ui.Gradient.radial(
         focalPt,
-        rx * 1.40,
+        rx * 1.05,
         isBlack
             ? [
-                Color.fromARGB(ai, 115, 108, 96),  // bright lit upper-left
-                Color.fromARGB(ai, 52,  48,  42),  // mid charcoal body
-                Color.fromARGB(ai, 16,  14,  11),  // dark lower-right rim
+                Color.fromARGB(ai, 160, 150, 130),  // bright lit upper-left
+                Color.fromARGB(ai, 55,  50,  42),   // mid charcoal body
+                Color.fromARGB(ai, 8,   7,   5),    // very dark lower-right rim
               ]
             : [
-                Color.fromARGB(ai, 255, 254, 252),  // near-white lit spot
+                Color.fromARGB(ai, 255, 255, 255),  // pure white lit spot
                 Color.fromARGB(ai, 238, 235, 228),  // ivory body
-                Color.fromARGB(ai, 208, 204, 196),  // warm-gray rim
+                Color.fromARGB(ai, 195, 191, 183),  // warm-gray rim
               ],
-        [0.0, 0.45, 1.0],
+        [0.0, 0.42, 1.0],
       );
     if (blur > 0.4) {
       bodyPaint.maskFilter = MaskFilter.blur(BlurStyle.normal, blur);
@@ -594,8 +594,8 @@ class GoParticleScenePainter extends CustomPainter {
             hlW * 0.48,
             [
               isBlack
-                  ? const Color(0x30FFFFFF)
-                  : const Color(0xE0FFFFFF),
+                  ? const Color(0x55FFFFFF)
+                  : const Color(0xF0FFFFFF),
               const Color(0x00FFFFFF),
             ],
           )
