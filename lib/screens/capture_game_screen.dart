@@ -141,17 +141,26 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                 const SizedBox(height: 8),
                                 const _AiStyleTile(),
                                 const SizedBox(height: 24),
-                                _PrimaryActionButton(
-                                  title: _CaptureCopy.startAsBlackButton,
-                                  onPressed: () =>
-                                      _startGame(humanColor: StoneColor.black),
-                                ),
-                                const SizedBox(height: 10),
-                                _SecondaryActionButton(
-                                  title: _CaptureCopy.startAsWhiteButton,
-                                  onPressed: () =>
-                                      _startGame(humanColor: StoneColor.white),
-                                ),
+                                if (_initialMode ==
+                                    CaptureInitialMode.setup) ...[
+                                  _PrimaryActionButton(
+                                    title: _CaptureCopy.startSetupButton,
+                                    onPressed: () => _startGame(
+                                        humanColor: StoneColor.black),
+                                  ),
+                                ] else ...[
+                                  _PrimaryActionButton(
+                                    title: _CaptureCopy.startAsBlackButton,
+                                    onPressed: () => _startGame(
+                                        humanColor: StoneColor.black),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _SecondaryActionButton(
+                                    title: _CaptureCopy.startAsWhiteButton,
+                                    onPressed: () => _startGame(
+                                        humanColor: StoneColor.white),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -282,8 +291,9 @@ class _ParticlePreviewCanvas extends StatelessWidget {
 class _CaptureCopy {
   static const pageTitle = '小闲围棋';
   static const pageSubtitle = 'AI 陪你下好每一步';
-  static const startAsBlackButton = '执黑开始';
-  static const startAsWhiteButton = '执白开始';
+  static const startAsBlackButton = '执黑先行';
+  static const startAsWhiteButton = '执白后行';
+  static const startSetupButton = '开始';
 }
 
 class _SegmentOption<T> {
@@ -852,6 +862,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                     result: provider.result,
                     currentPlayer: provider.gameState.currentPlayer,
                     isSetupMode: provider.isPlacementMode,
+                    humanColor: widget.humanColor,
+                    isAiThinking: aiThinking,
                   ),
                 ),
                 Expanded(
@@ -901,22 +913,16 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                     children: [
                       Expanded(
                         child: _DecoratedActionButton(
-                          text: provider.isPlacementMode ? '清空棋盘' : '后退一手',
+                          text: '后退一手',
                           filled: false,
-                          onPressed: provider.isPlacementMode
-                              ? () {
-                                  provider.clearSetupBoard();
-                                  setState(() {
-                                    _hintMarks = const [];
-                                  });
-                                }
-                              : (provider.canUndo ? provider.undoMove : null),
+                          onPressed:
+                              provider.canUndo ? provider.undoMove : null,
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: _DecoratedActionButton(
-                          text: '提示 3 手',
+                          text: '提示一手',
                           filled: true,
                           onPressed: _isLoadingHints
                               ? null
@@ -974,23 +980,12 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
       _isLoadingHints = true;
     });
     try {
-      final hints = await provider.suggestMovesAsync(count: 3);
+      final hints = await provider.suggestMovesAsync(count: 1);
       if (!mounted) return;
       final firstColor = provider.gameState.currentPlayer;
       setState(() {
         _hintMarks = hints
-            .asMap()
-            .entries
-            .map(
-              (entry) => _HintMark(
-                position: entry.value,
-                color: entry.key.isEven
-                    ? firstColor
-                    : (firstColor == StoneColor.black
-                        ? StoneColor.white
-                        : StoneColor.black),
-              ),
-            )
+            .map((pos) => _HintMark(position: pos, color: firstColor))
             .toList();
       });
     } finally {
@@ -1039,6 +1034,8 @@ class _PlayerSummaryRow extends StatelessWidget {
     required this.result,
     required this.currentPlayer,
     required this.isSetupMode,
+    required this.humanColor,
+    required this.isAiThinking,
   });
 
   final int captureTarget;
@@ -1047,22 +1044,28 @@ class _PlayerSummaryRow extends StatelessWidget {
   final CaptureGameResult result;
   final StoneColor currentPlayer;
   final bool isSetupMode;
+  final StoneColor humanColor;
+  final bool isAiThinking;
 
   @override
   Widget build(BuildContext context) {
     String? blackTag;
     String? whiteTag;
 
-    if (result == CaptureGameResult.blackWins) {
-      blackTag = '胜利';
-      whiteTag = '已结束';
-    } else if (result == CaptureGameResult.whiteWins) {
-      blackTag = '已结束';
-      whiteTag = '胜利';
-    } else {
-      final label = isSetupMode ? '请落子' : '思考中';
-      blackTag = currentPlayer == StoneColor.black ? label : null;
-      whiteTag = currentPlayer == StoneColor.white ? label : null;
+    if (result == CaptureGameResult.none) {
+      if (currentPlayer == StoneColor.black) {
+        if (isSetupMode || humanColor == StoneColor.black) {
+          blackTag = '请落子';
+        } else if (isAiThinking) {
+          blackTag = 'AI 在思考';
+        }
+      } else if (currentPlayer == StoneColor.white) {
+        if (isSetupMode || humanColor == StoneColor.white) {
+          whiteTag = '请落子';
+        } else if (isAiThinking) {
+          whiteTag = 'AI 在思考';
+        }
+      }
     }
 
     return Row(

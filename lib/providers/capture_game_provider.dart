@@ -162,7 +162,7 @@ class CaptureGameProvider extends ChangeNotifier {
     }
   }
 
-  List<BoardPosition> suggestMoves({int count = 3}) {
+  List<BoardPosition> suggestMoves({int count = 1}) {
     if (count <= 0) return const [];
 
     final suggestions = <BoardPosition>[];
@@ -191,7 +191,7 @@ class CaptureGameProvider extends ChangeNotifier {
 
   /// Computes move suggestions in a background isolate so the UI stays
   /// responsive.
-  Future<List<BoardPosition>> suggestMovesAsync({int count = 3}) async {
+  Future<List<BoardPosition>> suggestMovesAsync({int count = 1}) async {
     if (count <= 0) return const [];
 
     final sim =
