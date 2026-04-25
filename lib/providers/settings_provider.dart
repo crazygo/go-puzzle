@@ -14,12 +14,14 @@ class SettingsProvider extends ChangeNotifier {
   BoardSizeOption _boardSize = BoardSizeOption.nine;
   bool _showHints = true;
   bool _showMoveNumbers = false;
+  bool _showCaptureWarning = true;
   bool _soundEnabled = true;
   bool _hapticEnabled = true;
 
   BoardSizeOption get boardSize => _boardSize;
   bool get showHints => _showHints;
   bool get showMoveNumbers => _showMoveNumbers;
+  bool get showCaptureWarning => _showCaptureWarning;
   bool get soundEnabled => _soundEnabled;
   bool get hapticEnabled => _hapticEnabled;
 
@@ -35,6 +37,11 @@ class SettingsProvider extends ChangeNotifier {
 
   void setShowMoveNumbers(bool value) {
     _showMoveNumbers = value;
+    notifyListeners();
+  }
+
+  void setShowCaptureWarning(bool value) {
+    _showCaptureWarning = value;
     notifyListeners();
   }
 

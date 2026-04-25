@@ -7,6 +7,7 @@ import '../game/capture_ai.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 import '../providers/capture_game_provider.dart';
+import '../providers/settings_provider.dart';
 import '../widgets/go_board_widget.dart';
 import '../widgets/page_hero_banner.dart';
 
@@ -827,6 +828,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
         final whiteCaptured = provider.gameState.capturedByWhite.length;
         final aiThinking = provider.isAiThinking;
         final isFinished = provider.result != CaptureGameResult.none;
+        final settings = context.watch<SettingsProvider?>();
+        final showCaptureWarning = settings?.showCaptureWarning ?? true;
 
         return CupertinoPageScaffold(
           backgroundColor: const Color(0xFFF3F0ED),
@@ -839,14 +842,15 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
             ),
             trailing: CupertinoButton(
               padding: EdgeInsets.zero,
-              onPressed: () => _showStylePicker(context, provider),
-              child: Text(
-                provider.aiStyle.label,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFC3996E),
-                ),
+              onPressed: () => _showGameConfigDialog(
+                context: context,
+                provider: provider,
+                settings: settings,
+              ),
+              child: const Icon(
+                CupertinoIcons.slider_horizontal_3,
+                color: Color(0xFFC3996E),
+                size: 20,
               ),
             ),
           ),
@@ -888,6 +892,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                             gameState: provider.gameState,
                             enabled: !aiThinking && !isFinished,
                             hintMarks: _hintMarks,
+                            showCaptureWarning: showCaptureWarning,
                             onTap: (row, col) => _handleBoardTap(
                               provider: provider,
                               row: row,
@@ -1022,6 +1027,126 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
           child: const Text('取消'),
         ),
       ),
+    );
+  }
+
+  void _showGameConfigDialog({
+    required BuildContext context,
+    required CaptureGameProvider provider,
+    required SettingsProvider? settings,
+  }) {
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return CupertinoAlertDialog(
+          title: const Text('对局配置'),
+          content: Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Column(
+              children: [
+                const Text(
+                  '本轮配置',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF8E7157)),
+                ),
+                const SizedBox(height: 8),
+                _ConfigInfoRow(
+                  title: 'AI 风格',
+                  value: provider.aiStyle.label,
+                  onTap: () {
+                    Navigator.of(dialogContext).pop();
+                    _showStylePicker(context, provider);
+                  },
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  '全局配置',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF8E7157)),
+                ),
+                const SizedBox(height: 8),
+                _ConfigSwitchRow(
+                  title: '吃子预警',
+                  value: settings?.showCaptureWarning ?? true,
+                  onChanged: settings?.setShowCaptureWarning,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('完成'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ConfigInfoRow extends StatelessWidget {
+  const _ConfigInfoRow({
+    required this.title,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String title;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: onTap,
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, color: Color(0xFF2E2620)),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFFC3996E),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 2),
+          const Icon(CupertinoIcons.chevron_right, size: 15),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConfigSwitchRow extends StatelessWidget {
+  const _ConfigSwitchRow({
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16, color: Color(0xFF2E2620)),
+        ),
+        const Spacer(),
+        CupertinoSwitch(
+          value: value,
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 }
@@ -1330,12 +1455,14 @@ class _TapBoard extends StatelessWidget {
     required this.gameState,
     required this.enabled,
     required this.hintMarks,
+    required this.showCaptureWarning,
     required this.onTap,
   });
 
   final GameState gameState;
   final bool enabled;
   final List<_HintMark> hintMarks;
+  final bool showCaptureWarning;
   final Future<bool> Function(int row, int col) onTap;
 
   @override
@@ -1353,7 +1480,10 @@ class _TapBoard extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 CustomPaint(
-                  painter: GoBoardPainter(gameState: gameState),
+                  painter: GoBoardPainter(
+                    gameState: gameState,
+                    showCaptureWarning: showCaptureWarning,
+                  ),
                 ),
                 IgnorePointer(
                   child: CustomPaint(

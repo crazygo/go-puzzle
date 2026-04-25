@@ -147,6 +147,12 @@ class SettingsScreen extends StatelessWidget {
               value: settings.showMoveNumbers,
               onChanged: settings.setShowMoveNumbers,
             ),
+            _SwitchRow(
+              title: '吃子预警',
+              subtitle: '在棋盘上标记被打吃的棋子',
+              value: settings.showCaptureWarning,
+              onChanged: settings.setShowCaptureWarning,
+            ),
           ],
         );
       },
