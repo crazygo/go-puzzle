@@ -116,7 +116,11 @@ run_checks() {
 
   flutter pub get
 
-  if [[ -f "${ROOT_DIR}/package.json" ]]; then
+  if [[ "${INIT_DEV_SKIP_NPM:-0}" == "1" ]]; then
+    log "Skipping repo-local Node tooling install (INIT_DEV_SKIP_NPM=1)."
+  elif [[ -n "${npm_lifecycle_event:-}" ]]; then
+    log "Skipping repo-local Node tooling install during npm lifecycle (${npm_lifecycle_event})."
+  elif [[ -f "${ROOT_DIR}/package.json" ]]; then
     if command -v npm >/dev/null 2>&1; then
       log "Installing repo-local Node tooling ..."
       if [[ -f "${ROOT_DIR}/package-lock.json" ]]; then

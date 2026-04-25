@@ -292,10 +292,6 @@ class _PrimaryActionButton extends StatelessWidget {
   }
 }
 
-
-
-
-
 class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.child});
 
@@ -731,11 +727,18 @@ class CaptureGamePlayScreen extends StatelessWidget {
         final rates = provider.winRateEstimate;
         final blackRate = (rates[StoneColor.black]! * 100).toStringAsFixed(0);
         final whiteRate = (rates[StoneColor.white]! * 100).toStringAsFixed(0);
+        final blackCaptured = provider.gameState.capturedByBlack.length;
+        final whiteCaptured = provider.gameState.capturedByWhite.length;
+        final aiThinking = provider.isAiThinking;
+        final isFinished = provider.result != CaptureGameResult.none;
 
         return CupertinoPageScaffold(
+          backgroundColor: const Color(0xFFF3F0ED),
           navigationBar: CupertinoNavigationBar(
+            backgroundColor: const Color(0xFFF3F0ED),
+            border: null,
             previousPageTitle: _CaptureCopy.pageTitle,
-            middle: Text('吃$captureTarget子、${difficulty.displayName}'),
+            middle: Text('吃$captureTarget子 · ${difficulty.displayName}'),
             trailing: CupertinoButton(
               padding: EdgeInsets.zero,
               onPressed: () => _showStylePicker(context, provider),
@@ -744,6 +747,7 @@ class CaptureGamePlayScreen extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
+                  color: Color(0xFFC3996E),
                 ),
               ),
             ),
@@ -751,46 +755,70 @@ class CaptureGamePlayScreen extends StatelessWidget {
           child: SafeArea(
             child: Column(
               children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: _PlayerSummaryRow(
+                    captureTarget: captureTarget,
+                    blackCaptured: blackCaptured,
+                    whiteCaptured: whiteCaptured,
+                    aiThinking: aiThinking,
+                    result: provider.result,
+                  ),
+                ),
                 Expanded(
                   child: Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: _TapBoard(
-                        gameState: provider.gameState,
-                        enabled: !provider.isAiThinking &&
-                            provider.result == CaptureGameResult.none,
-                        onTap: provider.placeStone,
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0DFC9),
+                          borderRadius: BorderRadius.circular(26),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x14000000),
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: _TapBoard(
+                            gameState: provider.gameState,
+                            enabled: !aiThinking && !isFinished,
+                            onTap: provider.placeStone,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-                _InfoRow(provider: provider),
-                _MetricRow(
-                  title: '吃子信息',
-                  value:
-                      '黑 ${provider.gameState.capturedByBlack.length}，白 ${provider.gameState.capturedByWhite.length}',
-                ),
-                _MetricRow(
-                  title: '胜率对比',
-                  value: '黑 $blackRate%，白 $whiteRate%',
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: _BottomInfoCard(
+                    infoText: _buildInfoText(provider),
+                    blackRate: blackRate,
+                    whiteRate: whiteRate,
+                  ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 22),
                   child: Row(
                     children: [
                       Expanded(
-                        child: CupertinoButton(
-                          color: CupertinoColors.systemGrey4,
+                        child: _DecoratedActionButton(
+                          text: '后退一手',
+                          filled: false,
                           onPressed:
                               provider.canUndo ? provider.undoMove : null,
-                          child: const Text('后退一手'),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: CupertinoButton.filled(
+                        child: _DecoratedActionButton(
+                          text: '提示 3 手',
+                          filled: true,
                           onPressed: () => _showHint(context, provider),
-                          child: const Text('提示3手'),
                         ),
                       ),
                     ],
@@ -802,6 +830,14 @@ class CaptureGamePlayScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  String _buildInfoText(CaptureGameProvider provider) {
+    if (provider.result == CaptureGameResult.blackWins) return '对局结束：人类胜';
+    if (provider.result == CaptureGameResult.whiteWins) return '对局结束：AI 胜';
+    if (provider.isAiThinking) return 'AI 正在思考（${provider.aiStyle.label}）';
+    if (provider.gameState.currentPlayer == StoneColor.white) return '轮到 AI 落子（白棋）';
+    return '轮到你落子（黑棋）';
   }
 
   void _showHint(BuildContext context, CaptureGameProvider provider) {
@@ -847,6 +883,220 @@ class _HintDialog extends StatefulWidget {
 
   @override
   State<_HintDialog> createState() => _HintDialogState();
+}
+
+class _PlayerSummaryRow extends StatelessWidget {
+  const _PlayerSummaryRow({
+    required this.captureTarget,
+    required this.blackCaptured,
+    required this.whiteCaptured,
+    required this.aiThinking,
+    required this.result,
+  });
+
+  final int captureTarget;
+  final int blackCaptured;
+  final int whiteCaptured;
+  final bool aiThinking;
+  final CaptureGameResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final leftTag = switch (result) {
+      CaptureGameResult.blackWins => '胜利',
+      CaptureGameResult.whiteWins => '已结束',
+      _ when aiThinking => '等待中',
+      _ => '思考中',
+    };
+    final rightTag = switch (result) {
+      CaptureGameResult.blackWins => '已结束',
+      CaptureGameResult.whiteWins => '胜利',
+      _ when aiThinking => '思考中',
+      _ => '等待中',
+    };
+
+    return Row(
+      children: [
+        Expanded(
+          child: _PlayerSideCard(
+            title: '人类',
+            isBlack: true,
+            tag: leftTag,
+            progress: blackCaptured,
+            captureTarget: captureTarget,
+            alignEnd: false,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: _PlayerSideCard(
+            title: '猎捕者',
+            isBlack: false,
+            tag: rightTag,
+            progress: whiteCaptured,
+            captureTarget: captureTarget,
+            alignEnd: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlayerSideCard extends StatelessWidget {
+  const _PlayerSideCard({
+    required this.title,
+    required this.isBlack,
+    required this.tag,
+    required this.progress,
+    required this.captureTarget,
+    required this.alignEnd,
+  });
+
+  final String title;
+  final bool isBlack;
+  final String tag;
+  final int progress;
+  final int captureTarget;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = progress.clamp(0, captureTarget);
+    final alignment =
+        alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    return Column(
+      crossAxisAlignment: alignment,
+      children: [
+        Row(
+          mainAxisAlignment:
+              alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                color: Color(0xFF2E2620),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFEADCCB),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              child: Text(
+                tag,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF8E7157),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: List.generate(captureTarget, (index) {
+            final isActive = index < active;
+            return Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isActive
+                    ? (isBlack
+                        ? const Color(0xFF1F1F1F)
+                        : const Color(0xFFEFF1F3))
+                    : const Color(0xFFE8D6C5),
+                border: Border.all(color: const Color(0xFFD5BEA6), width: 0.6),
+                boxShadow: isActive
+                    ? const [
+                        BoxShadow(
+                          color: Color(0x20000000),
+                          blurRadius: 4,
+                          offset: Offset(0, 1),
+                        ),
+                      ]
+                    : null,
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+}
+
+class _BottomInfoCard extends StatelessWidget {
+  const _BottomInfoCard({
+    required this.infoText,
+    required this.blackRate,
+    required this.whiteRate,
+  });
+
+  final String infoText;
+  final String blackRate;
+  final String whiteRate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F1E8),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFD8C3AE), width: 0.8),
+      ),
+      child: Text(
+        '$infoText  ·  胜率 人类$blackRate% / AI$whiteRate%',
+        style: const TextStyle(
+          fontSize: 13,
+          color: Color(0xFF6F5743),
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _DecoratedActionButton extends StatelessWidget {
+  const _DecoratedActionButton({
+    required this.text,
+    required this.filled,
+    required this.onPressed,
+  });
+
+  final String text;
+  final bool filled;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onPressed == null;
+    final background =
+        filled ? const Color(0xFFC28A56) : const Color(0xFFF2EBE3);
+
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(vertical: 15),
+      color: disabled ? const Color(0xFFDCD4CC) : background,
+      borderRadius: BorderRadius.circular(18),
+      onPressed: onPressed,
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          color: filled ? CupertinoColors.white : const Color(0xFF8F7359),
+        ),
+      ),
+    );
+  }
 }
 
 class _HintDialogState extends State<_HintDialog> {
@@ -938,52 +1188,5 @@ class _TapBoard extends StatelessWidget {
     if (row >= 0 && row < n && col >= 0 && col < n) {
       onTap(row, col);
     }
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.provider});
-
-  final CaptureGameProvider provider;
-
-  @override
-  Widget build(BuildContext context) {
-    String text;
-    if (provider.result == CaptureGameResult.blackWins) {
-      text = '对局结束：黑方胜';
-    } else if (provider.result == CaptureGameResult.whiteWins) {
-      text = '对局结束：白方胜';
-    } else if (provider.isAiThinking) {
-      text = 'AI 白正在思考（${provider.aiStyle.label}）';
-    } else {
-      text = provider.gameState.currentPlayer == StoneColor.black
-          ? '请你黑落子'
-          : 'AI 白准备落子（${provider.aiStyle.label}）';
-    }
-
-    return _MetricRow(title: '信息提示', value: text);
-  }
-}
-
-class _MetricRow extends StatelessWidget {
-  const _MetricRow({required this.title, required this.value});
-
-  final String title;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: CupertinoColors.systemGrey6.resolveFrom(context),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text('$title：$value'),
-      ),
-    );
   }
 }
