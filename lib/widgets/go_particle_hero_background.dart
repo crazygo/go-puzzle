@@ -282,12 +282,14 @@ class GoParticleScenePainter extends CustomPainter {
 
       // depth: 0 = top of the board area (far), 1 = bottom of the board area (near)
       final depth = ny;
-      final dof = depth * blurStrength * preset.depthOfField;
+      // Far (depth=0) particles are smaller, thinner, dimmer, and blurry.
+      // Near (depth=1) particles are longer, thicker, more opaque, and sharp.
+      final dof = (1.0 - depth) * blurStrength * preset.depthOfField;
 
       final length =
-          size.width * (0.04 - 0.026 * depth + 0.012 * _noise(i * 13));
-      final strokeWidth = (1.1 - 0.7 * depth).clamp(0.3, 1.1);
-      final alpha = (0.18 - 0.12 * depth) * intensity;
+          size.width * (0.014 + 0.026 * depth + 0.012 * _noise(i * 13));
+      final strokeWidth = (0.4 + 0.7 * depth).clamp(0.4, 1.1);
+      final alpha = (0.06 + 0.12 * depth) * intensity;
       final angle = -0.12 + 0.22 * _noise(i * 19) + math.pi * 0.04 * depth;
       final colorIdx = (_noise(i * 11) * woodColors.length).floor() %
           woodColors.length;
@@ -343,29 +345,30 @@ class GoParticleScenePainter extends CustomPainter {
           _lerpd(rowLeft(t).dy, rowRight(t).dy, s),
         );
 
-    final linePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.6;
+    final linePaint = Paint()..style = PaintingStyle.stroke;
 
     // Horizontal lines (constant row index).
+    // r=0 drawn at bottom (near/bright), r=n-1 drawn at top (far/dim).
     for (int r = 0; r < n; r++) {
       final t = r / (n - 1).toDouble();
-      final depth = t; // 0=near, 1=far — inverted: near is bottom
-      final alpha =
-          _lerpd(0.32, 0.06, depth) * intensity; // near more visible
-      linePaint.color = const Color(0xFF8B7355).withValues(alpha: alpha);
+      // depth: 0=near(bottom), 1=far(top)
+      final depth = t;
+      final alpha = _lerpd(0.32, 0.06, depth) * intensity;
+      linePaint
+        ..color = const Color(0xFF8B7355).withValues(alpha: alpha)
+        ..strokeWidth = _lerpd(0.8, 0.4, depth); // near lines are thicker
       canvas.drawLine(rowLeft(1.0 - t), rowRight(1.0 - t), linePaint);
     }
 
     // Vertical lines (constant column index).
     for (int c = 0; c < n; c++) {
       final s = c / (n - 1).toDouble();
-      // Draw a short-to-long vertical stripe from top to bottom.
       final topPt = colAt(s, 0.0);
       final botPt = colAt(s, 1.0);
-      // Alpha varies with s to give a slight left-right depth cue.
-      final alpha = _lerpd(0.28, 0.20, s) * intensity;
-      linePaint.color = const Color(0xFF8B7355).withValues(alpha: alpha);
+      final alpha = _lerpd(0.20, 0.28, s) * intensity;
+      linePaint
+        ..color = const Color(0xFF8B7355).withValues(alpha: alpha)
+        ..strokeWidth = 0.6;
       canvas.drawLine(topPt, botPt, linePaint);
     }
   }
@@ -405,13 +408,15 @@ class GoParticleScenePainter extends CustomPainter {
       final row = stone.row.clamp(0, n - 1);
       final center = gridPoint(col, row);
 
-      // depth: rows near bottom (row ~0) are near; near top are far
+      // depth: 0 = far (top of board), 1 = near (bottom of board).
+      // Near stones: larger, brighter, sharp.
+      // Far stones: smaller, dimmer, blurry (atmospheric perspective).
       final depth = 1.0 - row / (n - 1).toDouble();
       final radius = size.width *
-          (_lerpd(0.028, 0.016, depth)) *
+          (_lerpd(0.016, 0.028, depth)) *
           (0.9 + 0.2 * _noise(col * 7 + row * 13));
-      final blur = depth * 2.8 * blurStrength * preset.depthOfField;
-      final alpha = _lerpd(0.82, 0.38, depth) * intensity;
+      final blur = (1.0 - depth) * 2.8 * blurStrength * preset.depthOfField;
+      final alpha = _lerpd(0.38, 0.82, depth) * intensity;
 
       _drawStone(canvas, center, radius, blur, alpha, stone.isBlack);
     }
