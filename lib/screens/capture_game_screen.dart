@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../game/board_image_recognizer.dart';
 import '../game/capture_ai.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
@@ -18,6 +20,17 @@ class CaptureGameScreen extends StatefulWidget {
   State<CaptureGameScreen> createState() => _CaptureGameScreenState();
 }
 
+Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
+  final result = BoardImageRecognizer.recognize(bytes);
+  return {
+    'boardSize': result.boardSize,
+    'confidence': result.confidence,
+    'board': result.board
+        .map((row) => row.map((stone) => stone.index).toList())
+        .toList(),
+  };
+}
+
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
@@ -28,6 +41,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   int _boardSize = 9;
   CaptureInitialMode _initialMode = CaptureInitialMode.twistCross;
   bool _isAdjusting = false;
+  bool _isRecognizingScreenshot = false;
 
   @override
   void initState() {
@@ -184,6 +198,13 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                               ],
                             ),
                           ),
+                          const SizedBox(height: 10),
+                          _ImportScreenshotCard(
+                            isLoading: _isRecognizingScreenshot,
+                            onTap: _isRecognizingScreenshot
+                                ? null
+                                : _importBoardFromScreenshot,
+                          ),
                           const SizedBox(height: 14),
                         ],
                       ),
@@ -241,7 +262,94 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     await prefs.setString(_initialModeKey, _initialMode.name);
   }
 
-  void _startGame({required StoneColor humanColor}) {
+  Future<void> _importBoardFromScreenshot() async {
+    try {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 88,
+      );
+      if (file == null || !mounted) return;
+
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+
+      setState(() {
+        _isRecognizingScreenshot = true;
+      });
+      final result = await _recognizeBoard(bytes);
+      if (!mounted) return;
+
+      final edited = await Navigator.of(context).push<_ImportBoardDraft>(
+        CupertinoPageRoute(
+          builder: (_) => _ImportPreviewScreen(
+            initialBoardSize: result.boardSize,
+            initialBoard: result.board,
+            confidence: result.confidence,
+          ),
+        ),
+      );
+      if (edited == null || !mounted) return;
+
+      setState(() {
+        _boardSize = edited.boardSize;
+        _initialMode = CaptureInitialMode.setup;
+      });
+      await _saveSelection();
+      if (!mounted) return;
+
+      _startGame(
+        humanColor: StoneColor.black,
+        forceSetup: true,
+        initialBoard: edited.board,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: const Text('导入失败'),
+          content: const Text('未能从截屏中识别棋盘，请确认图片清晰且包含完整棋盘。'),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('知道了'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRecognizingScreenshot = false;
+        });
+      }
+    }
+  }
+
+  Future<BoardRecognitionResult> _recognizeBoard(Uint8List bytes) async {
+    final raw = await compute(_recognizeBoardInIsolate, bytes);
+    final board = (raw['board'] as List)
+        .map<List<StoneColor>>(
+          (row) => (row as List)
+              .map<StoneColor>((index) => StoneColor.values[index as int])
+              .toList(),
+        )
+        .toList();
+    return BoardRecognitionResult(
+      boardSize: raw['boardSize'] as int,
+      board: board,
+      confidence: (raw['confidence'] as num).toDouble(),
+    );
+  }
+
+  void _startGame({
+    required StoneColor humanColor,
+    bool forceSetup = false,
+    List<List<StoneColor>>? initialBoard,
+  }) {
     _saveSelection();
     Navigator.of(context, rootNavigator: true).push(
       CupertinoPageRoute(
@@ -251,13 +359,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
             captureTarget: _captureTarget,
             difficulty: _difficulty,
             humanColor: humanColor,
-            initialMode: _initialMode,
+            initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
+            initialBoardOverride: initialBoard,
           ),
           child: CaptureGamePlayScreen(
             difficulty: _difficulty,
             captureTarget: _captureTarget,
             humanColor: humanColor,
-            initialMode: _initialMode,
+            initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
           ),
         ),
       ),
@@ -783,6 +892,235 @@ class _LotusPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _ImportScreenshotCard extends StatelessWidget {
+  const _ImportScreenshotCard({
+    required this.onTap,
+    required this.isLoading,
+  });
+
+  final VoidCallback? onTap;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: onTap,
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFECE4FF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: isLoading
+                  ? const CupertinoActivityIndicator(radius: 10)
+                  : const Icon(
+                      CupertinoIcons.photo_on_rectangle,
+                      color: Color(0xFF7A63C8),
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isLoading ? '识别中...' : '导入截屏摆棋',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF36271E),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    '自动识别棋盘和棋子，预览后微调进入摆棋',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF897564),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              CupertinoIcons.chevron_right,
+              color: Color(0xFFC09468),
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ImportBoardDraft {
+  const _ImportBoardDraft({
+    required this.boardSize,
+    required this.board,
+  });
+
+  final int boardSize;
+  final List<List<StoneColor>> board;
+}
+
+class _ImportPreviewScreen extends StatefulWidget {
+  const _ImportPreviewScreen({
+    required this.initialBoardSize,
+    required this.initialBoard,
+    required this.confidence,
+  });
+
+  final int initialBoardSize;
+  final List<List<StoneColor>> initialBoard;
+  final double confidence;
+
+  @override
+  State<_ImportPreviewScreen> createState() => _ImportPreviewScreenState();
+}
+
+class _ImportPreviewScreenState extends State<_ImportPreviewScreen> {
+  late int _boardSize;
+  late List<List<StoneColor>> _board;
+
+  @override
+  void initState() {
+    super.initState();
+    _boardSize = widget.initialBoardSize;
+    _board = _cloneBoard(widget.initialBoard);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gameState = GameState(
+      boardSize: _boardSize,
+      board: _board,
+      currentPlayer: StoneColor.black,
+    );
+    final confidencePct = (widget.confidence * 100).toStringAsFixed(0);
+
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text('截屏识别预览'),
+        previousPageTitle: _CaptureCopy.pageTitle,
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: _startSetup,
+          child: const Text('开始摆棋'),
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: _SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '识别置信度 $confidencePct%',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF7A63C8),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '点击棋盘交叉点可循环切换：空 -> 黑 -> 白。确认后进入摆棋模式。',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF6B5C50)),
+                    ),
+                    const SizedBox(height: 12),
+                    _PillSegmentControl<int>(
+                      selectedValue: _boardSize,
+                      options: const [
+                        _SegmentOption(value: 9, label: '9 路'),
+                        _SegmentOption(value: 13, label: '13 路'),
+                        _SegmentOption(value: 19, label: '19 路'),
+                      ],
+                      onChanged: _changeBoardSize,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0DFC9),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: GoBoardWidget(
+                      gameState: gameState,
+                      onTap: (row, col) => _toggleStone(row, col),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              child: SizedBox(
+                width: double.infinity,
+                child: CupertinoButton.filled(
+                  onPressed: _startSetup,
+                  child: const Text('进入摆棋模式'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _changeBoardSize(int newSize) {
+    if (newSize == _boardSize) return;
+    setState(() {
+      _boardSize = newSize;
+      _board = List.generate(
+        _boardSize,
+        (_) => List<StoneColor>.filled(_boardSize, StoneColor.empty),
+      );
+    });
+  }
+
+  void _toggleStone(int row, int col) {
+    setState(() {
+      final current = _board[row][col];
+      _board[row][col] = switch (current) {
+        StoneColor.empty => StoneColor.black,
+        StoneColor.black => StoneColor.white,
+        StoneColor.white => StoneColor.empty,
+      };
+    });
+  }
+
+  void _startSetup() {
+    Navigator.of(context).pop(
+      _ImportBoardDraft(
+        boardSize: _boardSize,
+        board: _cloneBoard(_board),
+      ),
+    );
+  }
+
+  List<List<StoneColor>> _cloneBoard(List<List<StoneColor>> source) {
+    return source.map((row) => List<StoneColor>.from(row)).toList();
+  }
 }
 
 class CaptureGamePlayScreen extends StatefulWidget {

@@ -54,6 +54,7 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
 }
 
 enum CaptureGameResult { none, blackWins, whiteWins }
+
 enum CaptureInitialMode { twistCross, empty, setup }
 
 class CaptureGameProvider extends ChangeNotifier {
@@ -63,11 +64,26 @@ class CaptureGameProvider extends ChangeNotifier {
     required this.difficulty,
     this.humanColor = StoneColor.black,
     this.initialMode = CaptureInitialMode.twistCross,
+    this.initialBoardOverride,
+    this.initialPlayerOverride,
   })  : assert(
           boardSize == 9 || boardSize == 13 || boardSize == 19,
           'boardSize must be 9, 13, or 19.',
         ),
-        assert(captureTarget > 0, 'captureTarget must be greater than 0.') {
+        assert(captureTarget > 0, 'captureTarget must be greater than 0.'),
+        assert(
+          initialBoardOverride == null ||
+              _isValidBoardShape(initialBoardOverride, boardSize),
+          'initialBoardOverride must match boardSize.',
+        ) {
+    if (initialBoardOverride != null &&
+        !_isValidBoardShape(initialBoardOverride, boardSize)) {
+      throw ArgumentError.value(
+        initialBoardOverride,
+        'initialBoardOverride',
+        '棋盘尺寸与 boardSize 不一致。',
+      );
+    }
     _startNewGame();
     if (!isPlacementMode && _gameState.currentPlayer != humanColor) {
       Future<void>.microtask(_doAiMove);
@@ -79,6 +95,14 @@ class CaptureGameProvider extends ChangeNotifier {
   final DifficultyLevel difficulty;
   final StoneColor humanColor;
   final CaptureInitialMode initialMode;
+  final List<List<StoneColor>>? initialBoardOverride;
+  final StoneColor? initialPlayerOverride;
+
+  static bool _isValidBoardShape(List<List<StoneColor>>? board, int size) {
+    if (board == null) return true;
+    return board.length == size && board.every((row) => row.length == size);
+  }
+
   CaptureAiStyle _aiStyle = CaptureAiStyle.hunter;
   CaptureAiAgent? _cachedAgent;
 
@@ -110,7 +134,8 @@ class CaptureGameProvider extends ChangeNotifier {
 
   Future<bool> placeStone(int row, int col) async {
     if (_isAiThinking || _result != CaptureGameResult.none) return false;
-    if (!isPlacementMode && _gameState.currentPlayer != humanColor) return false;
+    if (!isPlacementMode && _gameState.currentPlayer != humanColor)
+      return false;
 
     final newState = GoEngine.placeStone(_gameState, row, col);
     if (newState == null) return false;
@@ -149,8 +174,7 @@ class CaptureGameProvider extends ChangeNotifier {
     } else {
       // Auto-play mode: skip over AI moves to restore human's last turn
       _gameState = _undoStack.removeLast();
-      while (
-          _undoStack.isNotEmpty && _gameState.currentPlayer != humanColor) {
+      while (_undoStack.isNotEmpty && _gameState.currentPlayer != humanColor) {
         _gameState = _undoStack.removeLast();
       }
     }
@@ -227,9 +251,25 @@ class CaptureGameProvider extends ChangeNotifier {
       boardSize,
       (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
     );
-    var initialPlayer = StoneColor.black;
+    var initialPlayer = initialPlayerOverride ?? StoneColor.black;
 
-    if (initialMode == CaptureInitialMode.twistCross) {
+    if (initialBoardOverride != null) {
+      final source = initialBoardOverride!;
+      final isValidSize = source.length == boardSize &&
+          source.every((row) => row.length == boardSize);
+      if (!isValidSize) {
+        throw ArgumentError(
+          'initialBoardOverride must be ${boardSize}x$boardSize, '
+          'but received ${source.length}x'
+          '${source.isNotEmpty ? source[0].length : 0}.',
+        );
+      }
+      for (int r = 0; r < boardSize; r++) {
+        for (int c = 0; c < boardSize; c++) {
+          emptyBoard[r][c] = source[r][c];
+        }
+      }
+    } else if (initialMode == CaptureInitialMode.twistCross) {
       final center = boardSize ~/ 2;
       if (center > 0 && center < boardSize - 1) {
         emptyBoard[center - 1][center] = StoneColor.black;
