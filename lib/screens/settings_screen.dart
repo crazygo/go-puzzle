@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/settings_provider.dart';
+import '../widgets/go_particle_hero_background.dart';
 import '../widgets/page_hero_banner.dart';
 
 /// Settings tab screen.
@@ -42,6 +43,8 @@ class SettingsScreen extends StatelessWidget {
                       _buildFeedbackSection(context),
                       const SizedBox(height: 24),
                       _buildAboutSection(context),
+                      const SizedBox(height: 24),
+                      _buildDeveloperSection(context),
                       const SizedBox(height: 32),
                     ]),
                   ),
@@ -211,6 +214,191 @@ class SettingsScreen extends StatelessWidget {
       ],
     );
   }
+
+  Widget _buildDeveloperSection(BuildContext context) {
+    return _Section(
+      title: '开发者',
+      children: [
+        _TapRow(
+          title: '粒子背景预览',
+          subtitle: '查看 GoParticleHeroBackground 效果',
+          onTap: () {
+            Navigator.of(context, rootNavigator: true).push(
+              CupertinoPageRoute<void>(
+                builder: (_) => const _ParticleBackgroundDebugScreen(),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+// ── Debug: particle background preview screen ─────────────────────────────────
+
+class _ParticleBackgroundDebugScreen extends StatefulWidget {
+  const _ParticleBackgroundDebugScreen();
+
+  @override
+  State<_ParticleBackgroundDebugScreen> createState() =>
+      _ParticleBackgroundDebugScreenState();
+}
+
+class _ParticleBackgroundDebugScreenState
+    extends State<_ParticleBackgroundDebugScreen> {
+  double _intensity = 1.0;
+  double _blur = 1.0;
+  double _warmth = 1.0;
+  double _dof = 1.0;
+  double _fadeStart = 0.58;
+  int _boardSize = 9;
+
+  static const List<int> _boardSizes = [9, 13, 19];
+
+  GoScenePreset get _preset => GoScenePreset(
+        boardSize: _boardSize,
+        warmth: _warmth,
+        depthOfField: _dof,
+        stones: GoScenePreset.defaultPreset.stones,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('粒子背景预览'),
+      ),
+      child: Stack(
+        children: [
+          // Full-bleed background
+          Positioned.fill(
+            child: GoParticleHeroBackground(
+              preset: _preset,
+              intensity: _intensity,
+              blurStrength: _blur,
+              contentFadeStart: _fadeStart,
+            ),
+          ),
+          // Controls panel at the bottom
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: SafeArea(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemBackground
+                      .resolveFrom(context)
+                      .withOpacity(0.88),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [
+                    BoxShadow(
+                        color: Color(0x18000000),
+                        blurRadius: 12,
+                        offset: Offset(0, 4)),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _DebugSlider(
+                      label: '强度',
+                      value: _intensity,
+                      onChanged: (v) => setState(() => _intensity = v),
+                    ),
+                    _DebugSlider(
+                      label: '模糊',
+                      value: _blur,
+                      onChanged: (v) => setState(() => _blur = v),
+                    ),
+                    _DebugSlider(
+                      label: '暖色',
+                      value: _warmth,
+                      onChanged: (v) => setState(() => _warmth = v),
+                    ),
+                    _DebugSlider(
+                      label: '景深',
+                      value: _dof,
+                      onChanged: (v) => setState(() => _dof = v),
+                    ),
+                    _DebugSlider(
+                      label: '渐隐',
+                      value: _fadeStart,
+                      onChanged: (v) => setState(() => _fadeStart = v),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Text('棋盘',
+                            style: TextStyle(
+                                fontSize: 13, color: CupertinoColors.label)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: CupertinoSlidingSegmentedControl<int>(
+                            groupValue: _boardSize,
+                            children: {
+                              for (final s in _boardSizes)
+                                s: Text('${s}路',
+                                    style: const TextStyle(fontSize: 12)),
+                            },
+                            onValueChanged: (v) {
+                              if (v != null) setState(() => _boardSize = v);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DebugSlider extends StatelessWidget {
+  const _DebugSlider({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 36,
+          child: Text(label,
+              style: const TextStyle(
+                  fontSize: 12, color: CupertinoColors.secondaryLabel)),
+        ),
+        Expanded(
+          child: CupertinoSlider(
+            value: value,
+            onChanged: onChanged,
+          ),
+        ),
+        SizedBox(
+          width: 34,
+          child: Text(
+            value.toStringAsFixed(2),
+            style: const TextStyle(
+                fontSize: 11, color: CupertinoColors.secondaryLabel),
+            textAlign: TextAlign.right,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _Section extends StatelessWidget {
@@ -361,6 +549,53 @@ class _InfoRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TapRow extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  const _TapRow({required this.title, this.subtitle, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 16, color: CupertinoColors.label)),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color:
+                            CupertinoColors.secondaryLabel.resolveFrom(context),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const Icon(
+              CupertinoIcons.chevron_right,
+              size: 16,
+              color: CupertinoColors.systemGrey2,
+            ),
+          ],
+        ),
       ),
     );
   }
