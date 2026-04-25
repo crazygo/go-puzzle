@@ -118,7 +118,7 @@ class GoParticleHeroBackground extends StatelessWidget {
     required this.preset,
     this.intensity = 1.0,
     this.blurStrength = 1.0,
-    this.contentFadeStart = 0.58,
+    this.contentFadeStart = 0.82,
   });
 
   final GoScenePreset preset;
@@ -166,7 +166,7 @@ class GoParticleScenePainter extends CustomPainter {
     required this.preset,
     this.intensity = 1.0,
     this.blurStrength = 1.0,
-    this.contentFadeStart = 0.58,
+    this.contentFadeStart = 0.82,
   });
 
   final GoScenePreset preset;
@@ -272,19 +272,19 @@ class GoParticleScenePainter extends CustomPainter {
       ..lineTo(nearLeft.dx, nearLeft.dy)
       ..close();
 
-    // Warm maple/hinoki wood: natural tan — matches reference photo color.
+    // Warm hinoki/kaya wood — rich honey-tan, fully opaque, matches reference.
     final topColor = Color.lerp(
-        const Color(0xFFDFC680), const Color(0xFFDCC078), preset.warmth)!;
+        const Color(0xFFCFAB62), const Color(0xFFCCA85E), preset.warmth)!;
     final botColor = Color.lerp(
-        const Color(0xFFCCA850), const Color(0xFFC8A048), preset.warmth)!;
+        const Color(0xFFB88C3A), const Color(0xFFB48836), preset.warmth)!;
 
     final surfacePaint = Paint()
       ..shader = ui.Gradient.linear(
         farLeft,
         nearLeft,
         [
-          topColor.withValues(alpha: 0.66 * intensity),
-          botColor.withValues(alpha: 0.80 * intensity),
+          topColor.withValues(alpha: 0.96 * intensity),
+          botColor.withValues(alpha: 0.98 * intensity),
         ],
       );
     canvas.drawPath(boardPath, surfacePaint);
@@ -309,9 +309,10 @@ class GoParticleScenePainter extends CustomPainter {
 
     // ── Board thickness: THICK left face and bottom face ──────────────────
     // Real Go boards are 1–2 cm thick; scale to look substantial on screen.
-    final edgeH = size.height * 0.058;  // ~5.8% of screen height
+    final edgeH = size.height * 0.11;  // ~11% of screen height — thick like real Go board
 
-    // Left face — the dark "shadow" side facing us from the left.
+    // Left face — natural wood side, moderately darker than the top surface.
+    // Camera is upper-left so this face receives indirect light, not full shadow.
     final leftFacePath = Path()
       ..moveTo(farLeft.dx, farLeft.dy)
       ..lineTo(nearLeft.dx, nearLeft.dy)
@@ -325,13 +326,13 @@ class GoParticleScenePainter extends CustomPainter {
           farLeft,
           nearLeft,
           [
-            const Color(0xFF8A6C28).withValues(alpha: 0.60 * intensity),
-            const Color(0xFF6A4E18).withValues(alpha: 0.78 * intensity),
+            const Color(0xFFB08030).withValues(alpha: 0.80 * intensity),
+            const Color(0xFFA07028).withValues(alpha: 0.88 * intensity),
           ],
         ),
     );
 
-    // Bottom near-edge face — lit from above, slightly warmer.
+    // Bottom near-edge face — top-lit, warm wood.
     final edgePath = Path()
       ..moveTo(nearLeft.dx, nearLeft.dy)
       ..lineTo(nearRight.dx, nearRight.dy)
@@ -345,13 +346,13 @@ class GoParticleScenePainter extends CustomPainter {
           nearLeft,
           Offset(nearLeft.dx, nearLeft.dy + edgeH),
           [
-            const Color(0xFFA88038).withValues(alpha: 0.72 * intensity),
-            const Color(0xFF6A4A18).withValues(alpha: 0.50 * intensity),
+            const Color(0xFFBE9040).withValues(alpha: 0.90 * intensity),
+            const Color(0xFF8C6020).withValues(alpha: 0.70 * intensity),
           ],
         ),
     );
 
-    // Bottom-left corner join — fill the gap between the two faces.
+    // Bottom-left corner join.
     final cornerPath = Path()
       ..moveTo(nearLeft.dx, nearLeft.dy)
       ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
@@ -362,7 +363,7 @@ class GoParticleScenePainter extends CustomPainter {
       cornerPath,
       Paint()
         ..color =
-            const Color(0xFF7A5820).withValues(alpha: 0.55 * intensity),
+            const Color(0xFF9C7030).withValues(alpha: 0.70 * intensity),
     );
   }
 
@@ -483,15 +484,20 @@ class GoParticleScenePainter extends CustomPainter {
 
       final center = _p(colFrac, rowFrac, size);
 
-      // Horizontal semi-axis from projected column cell width.
+      // rx: from projected horizontal cell width (perspective-correct).
       final pL = _p((colFrac - halfStep).clamp(0.0, 1.0), rowFrac, size);
       final pR = _p((colFrac + halfStep).clamp(0.0, 1.0), rowFrac, size);
       final rx = (pR.dx - pL.dx).abs() * 0.46 *
           (0.9 + 0.2 * _noise(col * 7 + row * 13));
 
-      // Near stones: ry/rx ≈ 0.48 — clearly flat disc, not too thick.
-      // Far stones: ry/rx ≈ 0.20 — very flat due to perspective compression.
-      final ry = rx * _lerpd(0.48, 0.20, rowFrac);
+      // ry: from projected VERTICAL cell height — ensures stone foreshortening
+      // exactly matches the board grid, regardless of tilt or depth.
+      final pN = _p(colFrac, (rowFrac - halfStep).clamp(0.0, 1.0), size);
+      final pF = _p(colFrac, (rowFrac + halfStep).clamp(0.0, 1.0), size);
+      final projCellH = (pF.dy - pN.dy).abs();
+      // A stone disc radius = half cell. Apply same 0.46 fill ratio as rx,
+      // then scale by 0.80 so stone looks like a flat disc, not a tall oval.
+      final ry = projCellH * 0.46 * 0.80;
 
       // Depth-of-field blur only at far distances; keep near stones crisp.
       final blur = rowFrac * 2.0 * blurStrength * preset.depthOfField;
@@ -513,91 +519,88 @@ class GoParticleScenePainter extends CustomPainter {
     final bodyRect =
         Rect.fromCenter(center: center, width: rx * 2, height: ry * 2);
 
-    // 1. Contact shadow — CLIPPED to the area BELOW the stone equator.
-    //    Wrapping shadow on the top/sides creates a dark halo = sunken-crater illusion.
-    //    By clipping to just below centre, shadow only appears under the stone = raised look.
-    final shadowBlur = rx * 0.18 + 0.5;
+    // 1. Contact shadow — clipped below equator, strong enough to read clearly.
+    final shadowBlur = rx * 0.22 + 0.8;
     canvas.save();
     canvas.clipRect(Rect.fromLTRB(
       center.dx - rx * 2.5,
-      center.dy + ry * 0.10,          // start just below the stone equator
+      center.dy + ry * 0.05,
       center.dx + rx * 2.5,
       center.dy + ry + shadowBlur * 3,
     ));
     canvas.drawOval(
       Rect.fromCenter(
-          center: center + Offset(rx * 0.05, ry * 0.55),
-          width: rx * 2.20,
-          height: ry * 1.40),
+          center: center + Offset(rx * 0.10, ry * 0.60),
+          width: rx * 2.30,
+          height: ry * 1.50),
       Paint()
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, shadowBlur)
         ..color =
-            const Color(0xFF000000).withValues(alpha: 0.30 * clampedAlpha),
+            const Color(0xFF000000).withValues(alpha: 0.42 * clampedAlpha),
     );
     canvas.restore();
 
-    // 2. Stone body.
-    //    Gradient radius = rx*1.60 — covers the entire stone ellipse so no
-    //    part of the stone clamps to the dark end-stop, which would create a
-    //    dark halo that makes stones look like sunken craters.
+    // 2. Stone body — high-contrast dome gradient for visible 3D roundness.
+    //    Gradient radius = rx*1.40: covers stone fully but keeps contrast tight
+    //    so lit upper-left vs dark lower-right creates clear convex dome shape.
     final layerRect = bodyRect.inflate(rx.clamp(4.0, 14.0));
     canvas.saveLayer(layerRect, Paint());
 
-    final focalPt = center + Offset(-rx * 0.22, -ry * 0.28);
+    final focalPt = center + Offset(-rx * 0.25, -ry * 0.32);
     final bodyPaint = Paint()
       ..shader = ui.Gradient.radial(
         focalPt,
-        rx * 1.60,
+        rx * 1.40,
         isBlack
             ? [
-                Color.fromARGB(ai, 95, 90, 82),   // lit upper-left
-                Color.fromARGB(ai, 48, 44, 38),   // main body
-                Color.fromARGB(ai, 22, 20, 17),   // outer edge
+                Color.fromARGB(ai, 115, 108, 96),  // bright lit upper-left
+                Color.fromARGB(ai, 52,  48,  42),  // mid charcoal body
+                Color.fromARGB(ai, 16,  14,  11),  // dark lower-right rim
               ]
             : [
-                Color.fromARGB(ai, 252, 250, 246), // bright lit spot
-                Color.fromARGB(ai, 232, 228, 220), // main body
-                Color.fromARGB(ai, 200, 196, 188), // outer edge (not too dark)
+                Color.fromARGB(ai, 255, 254, 252),  // near-white lit spot
+                Color.fromARGB(ai, 238, 235, 228),  // ivory body
+                Color.fromARGB(ai, 208, 204, 196),  // warm-gray rim
               ],
-        [0.0, 0.50, 1.0],
+        [0.0, 0.45, 1.0],
       );
     if (blur > 0.4) {
       bodyPaint.maskFilter = MaskFilter.blur(BlurStyle.normal, blur);
     }
     canvas.drawOval(bodyRect, bodyPaint);
 
-    // White stone edge ring — subtle definition.
+    // White stone edge ring.
     if (!isBlack && blur < 2.0) {
       canvas.drawOval(
         bodyRect,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 0.6
+          ..strokeWidth = 0.7
           ..color =
-              const Color(0xFF505048).withValues(alpha: 0.12 * clampedAlpha),
+              const Color(0xFF484840).withValues(alpha: 0.13 * clampedAlpha),
       );
     }
 
-    // 3. Specular — bright spot at upper-left.
+    // 3. Specular — crisp bright oval at upper-left; larger on white stones.
     if (blur < 2.5) {
-      final hlW = rx * (isBlack ? 0.22 : 0.44);
-      final hlH = ry * (isBlack ? 0.18 : 0.32);
-      final hlCenter = center + Offset(-rx * 0.20, -ry * 0.28);
+      final hlW = rx * (isBlack ? 0.28 : 0.50);
+      final hlH = ry * (isBlack ? 0.22 : 0.38);
+      final hlCenter = center + Offset(-rx * 0.24, -ry * 0.34);
       canvas.drawOval(
         Rect.fromCenter(center: hlCenter, width: hlW, height: hlH),
         Paint()
           ..shader = ui.Gradient.radial(
             hlCenter,
-            hlW * 0.50,
+            hlW * 0.48,
             [
               isBlack
-                  ? const Color(0x22FFFFFF)
-                  : const Color(0xCCFFFFFF),
+                  ? const Color(0x30FFFFFF)
+                  : const Color(0xE0FFFFFF),
               const Color(0x00FFFFFF),
             ],
           )
           ..maskFilter =
-              MaskFilter.blur(BlurStyle.normal, isBlack ? 1.5 : 0.6),
+              MaskFilter.blur(BlurStyle.normal, isBlack ? 1.0 : 0.5),
       );
     }
 
