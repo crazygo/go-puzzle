@@ -20,6 +20,17 @@ class GoSceneStone {
   final int row;
 
   final bool isBlack;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GoSceneStone &&
+          col == other.col &&
+          row == other.row &&
+          isBlack == other.isBlack;
+
+  @override
+  int get hashCode => Object.hash(col, row, isBlack);
 }
 
 /// Configuration preset that drives the particle background scene.
@@ -55,6 +66,27 @@ class GoScenePreset {
       GoSceneStone(col: 4, row: 7, isBlack: false),
     ],
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GoScenePreset &&
+          boardSize == other.boardSize &&
+          warmth == other.warmth &&
+          depthOfField == other.depthOfField &&
+          _listEquals(stones, other.stones);
+
+  @override
+  int get hashCode => Object.hash(boardSize, warmth, depthOfField,
+      Object.hashAll(stones));
+
+  static bool _listEquals<T>(List<T> a, List<T> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }
 
 // ── Main widget ───────────────────────────────────────────────────────────────
@@ -457,8 +489,8 @@ class GoParticleScenePainter extends CustomPainter {
     ];
 
     for (final leaf in leaves) {
-      final rect =
-          Rect.fromCenter(center: leaf.center, width: leaf.width, height: leaf.height);
+      final rect = Rect.fromCenter(
+          center: leaf.center, width: leaf.width, height: leaf.height);
       final paint = Paint()
         ..shader = ui.Gradient.radial(
           leaf.center,
@@ -551,7 +583,9 @@ class GoParticleScenePainter extends CustomPainter {
       )
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur);
     canvas.drawOval(
-        Rect.fromCenter(center: center, width: width, height: height), paint);
+      Rect.fromCenter(center: center, width: width, height: height),
+      paint,
+    );
   }
 
   // ── 8. Lower fade ──────────────────────────────────────────────────────────
