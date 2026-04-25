@@ -83,7 +83,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                               children: [
                                 _PracticeHeader(
                                   title: '下一盘',
-                                  subtitle: '先吃 $_captureTarget 子为胜',
+                                  subtitle: '先吃$_captureTarget子为胜',
                                   isAdjusting: _isAdjusting,
                                   onAdjustTap: () => setState(
                                     () => _isAdjusting = !_isAdjusting,
@@ -290,13 +290,16 @@ class _CaptureCopy {
 }
 
 String _initialModeLabel(CaptureInitialMode mode) {
-  switch (mode) {
-    case CaptureInitialMode.empty:
-      return '空白';
-    case CaptureInitialMode.setup:
-      return '摆棋';
-    case CaptureInitialMode.twistCross:
-      return '扭十字';
+  return mode.label;
+}
+
+extension _CaptureInitialModeLabelExt on CaptureInitialMode {
+  String get label {
+    return switch (this) {
+      CaptureInitialMode.twistCross => '扭十字',
+      CaptureInitialMode.empty => '空白',
+      CaptureInitialMode.setup => '摆棋',
+    };
   }
 }
 
@@ -466,8 +469,8 @@ class _PracticeHeader extends StatelessWidget {
           ),
         ),
         CupertinoButton(
-          padding: EdgeInsets.zero,
-          minimumSize: Size.zero,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          minimumSize: const Size(44, 44),
           onPressed: onAdjustTap,
           child: Text(
             isAdjusting ? '完成' : '调整 ›',
@@ -508,7 +511,7 @@ class _ConfigPreview extends StatelessWidget {
           Expanded(
             child: _ConfigPreviewItem(
               icon: CupertinoIcons.circle_grid_3x3_fill,
-              label: '$boardSize路',
+              label: '$boardSize 路',
             ),
           ),
           const _ConfigPreviewDivider(),
@@ -526,10 +529,10 @@ class _ConfigPreview extends StatelessWidget {
             ),
           ),
           const _ConfigPreviewDivider(),
-          const Expanded(
+          Expanded(
             child: _ConfigPreviewItem(
               icon: CupertinoIcons.star_fill,
-              label: '均衡雅致',
+              label: CaptureAiStyle.hunter.label,
             ),
           ),
         ],
@@ -822,7 +825,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
             border: null,
             previousPageTitle: _CaptureCopy.pageTitle,
             middle: Text(
-              '${_modeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${widget.difficulty.displayName}',
+              '${_initialModeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${widget.difficulty.displayName}',
             ),
             trailing: CupertinoButton(
               padding: EdgeInsets.zero,
@@ -938,14 +941,6 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
       return '轮到 AI 落子（$aiName）';
     }
     return '轮到你落子（$playerName）';
-  }
-
-  String _modeLabel(CaptureInitialMode mode) {
-    return switch (mode) {
-      CaptureInitialMode.twistCross => '扭十字',
-      CaptureInitialMode.empty => '空白',
-      CaptureInitialMode.setup => '摆棋',
-    };
   }
 
   Future<bool> _handleBoardTap({

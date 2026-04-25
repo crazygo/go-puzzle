@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_puzzle/game/capture_ai.dart';
 import 'package:go_puzzle/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,8 +17,8 @@ void main() {
     expect(find.text('小闲围棋'), findsOneWidget);
     expect(find.text('AI 陪你下好每一步'), findsOneWidget);
     expect(find.text('下一盘'), findsOneWidget);
-    expect(find.text('先吃 5 子为胜'), findsOneWidget);
-    expect(find.text('均衡雅致'), findsOneWidget);
+    expect(find.text('先吃5子为胜'), findsOneWidget);
+    expect(find.text(CaptureAiStyle.hunter.label), findsOneWidget);
     expect(find.text('中级 · 9 路 · 吃5子'), findsNothing);
 
     final startButton = find.widgetWithText(CupertinoButton, '执黑先行');
@@ -35,8 +36,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('高级'), findsOneWidget);
-    expect(find.text('13路'), findsWidgets);
-    expect(find.text('先吃 5 子为胜'), findsOneWidget);
+    expect(find.text('13 路'), findsWidgets);
+    expect(find.text('先吃5子为胜'), findsOneWidget);
   });
 
   testWidgets('segment control updates selected option on tap', (tester) async {

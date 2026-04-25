@@ -20,7 +20,7 @@ void main() {
 
     expect(find.text('小闲围棋'), findsWidgets);
     expect(find.text('下一盘'), findsOneWidget);
-    expect(find.text('先吃 5 子为胜'), findsOneWidget);
+    expect(find.text('先吃5子为胜'), findsOneWidget);
     expect(find.text('执黑先行'), findsOneWidget);
   });
 }
