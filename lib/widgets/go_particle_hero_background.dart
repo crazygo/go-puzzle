@@ -484,15 +484,16 @@ class GoParticleScenePainter extends CustomPainter {
 
   static double _lerpd(double a, double b, double t) => a + (b - a) * t;
 
-  // ── 5. Stone splats ────────────────────────────────────────────────────────
+  // ── 5. Stone splats — full 3-D ─────────────────────────────────────────────
 
   void _drawStoneSplats(Canvas canvas, Size size, _CamBasis cam) {
     final n = preset.boardSize;
     if (n < 2) return;
 
-    final halfStep = 0.5 / (n - 1);
+    // World-space stone radius: 46% of a grid cell.
+    final stoneR = 0.46 / (n - 1);
 
-    // Clip all stones to the board top-surface polygon.
+    // Clip to board top surface polygon.
     final boardPath = Path()
       ..moveTo(_p(0.0, 0.0, cam).dx, _p(0.0, 0.0, cam).dy)
       ..lineTo(_p(1.0, 0.0, cam).dx, _p(1.0, 0.0, cam).dy)
@@ -502,135 +503,125 @@ class GoParticleScenePainter extends CustomPainter {
     canvas.save();
     canvas.clipPath(boardPath);
 
-    for (final stone in preset.stones) {
+    // Painter's algorithm: sort far stones first so near stones draw on top.
+    final stones = [...preset.stones];
+    stones.sort((a, b) {
+      final da = cam.depth(_Vec3(
+          a.col.clamp(0, n - 1) / (n - 1), a.row.clamp(0, n - 1) / (n - 1), _kThick));
+      final db = cam.depth(_Vec3(
+          b.col.clamp(0, n - 1) / (n - 1), b.row.clamp(0, n - 1) / (n - 1), _kThick));
+      return db.compareTo(da);
+    });
+
+    for (final stone in stones) {
       final col = stone.col.clamp(0, n - 1);
       final row = stone.row.clamp(0, n - 1);
-      final colFrac = col / (n - 1).toDouble();
-      final rowFrac = row / (n - 1).toDouble();
+      final cf = col / (n - 1).toDouble();
+      final rf = row / (n - 1).toDouble();
 
-      final center = _p(colFrac, rowFrac, cam);
+      final center = cam.project(_Vec3(cf, rf, _kThick));
+      if (center == null) continue;
 
-      // rx: from projected horizontal cell width (perspective-correct).
-      final pL = _p((colFrac - halfStep).clamp(0.0, 1.0), rowFrac, cam);
-      final pR = _p((colFrac + halfStep).clamp(0.0, 1.0), rowFrac, cam);
-      final rx = (pR.dx - pL.dx).abs() * 0.56 *
-          (0.92 + 0.16 * _noise(col * 7 + row * 13));
+      // Screen-space radii from 3D tangent projections.
+      final px1 = cam.project(_Vec3(cf - stoneR, rf, _kThick));
+      final px2 = cam.project(_Vec3(cf + stoneR, rf, _kThick));
+      final rx = (px1 != null && px2 != null)
+          ? (px2.dx - px1.dx).abs() / 2
+          : stoneR * size.width;
 
-      // ry: from projected VERTICAL cell height — ensures stone foreshortening
-      // exactly matches the board grid, regardless of tilt or depth.
-      final pN = _p(colFrac, (rowFrac - halfStep).clamp(0.0, 1.0), cam);
-      final pF = _p(colFrac, (rowFrac + halfStep).clamp(0.0, 1.0), cam);
-      final projCellH = (pF.dy - pN.dy).abs();
-      final ry = projCellH * 0.56 * 0.88;
+      // Y radius: stone world radius in the forward direction, foreshortened.
+      final py1 = cam.project(_Vec3(cf, rf - stoneR, _kThick));
+      final py2 = cam.project(_Vec3(cf, rf + stoneR, _kThick));
+      final ry = (py1 != null && py2 != null)
+          ? (py2.dy - py1.dy).abs() / 2
+          : stoneR * size.height;
 
-      // Depth-of-field blur only at far distances; keep near stones crisp.
-      final blur = rowFrac * 2.0 * blurStrength * preset.depthOfField;
-      final alpha = _lerpd(0.92, 0.40, rowFrac) * intensity;
+      // 3D highlight: project the sphere-surface point that faces the light.
+      // Light direction (_kLx, _kLy, _kLz) is unit vector toward light.
+      final litWorld = _Vec3(
+        cf + _kLx * stoneR,
+        rf + _kLy * stoneR,
+        _kThick + _kLz * stoneR,
+      );
+      final litScreen = cam.project(litWorld);
 
-      _drawStone(canvas, center, rx, ry, blur, alpha, stone.isBlack);
+      _drawStone3D(canvas, center, rx, ry, litScreen, stone.isBlack);
     }
 
     canvas.restore();
   }
 
-  /// Draws a flat lenticular Go stone (disc shape, not a sphere).
-  ///
-  /// [rx] = horizontal semi-axis, [ry] = vertical semi-axis.
-  /// Light source is assumed to come from the upper-left.
-  void _drawStone(Canvas canvas, Offset center, double rx, double ry,
-      double blur, double alpha, bool isBlack) {
-    final clampedAlpha = alpha.clamp(0.0, 1.0);
-    final int ai = (clampedAlpha * 255).round();
+  /// Draws a 3D Go stone (biconvex lens) with perspective-derived dimensions
+  /// and a highlight position derived from the world-space 3D light direction.
+  void _drawStone3D(Canvas canvas, Offset center, double rx, double ry,
+      Offset? litScreen, bool isBlack) {
+    final bodyRect = Rect.fromCenter(center: center, width: rx * 2, height: ry * 2);
 
-    final bodyRect =
-        Rect.fromCenter(center: center, width: rx * 2, height: ry * 2);
-
-    // 1. Contact shadow — small, tight oval directly below stone, no halo ring.
-    final shadowBlur = rx * 0.18 + 0.6;
-    canvas.save();
-    canvas.clipRect(Rect.fromLTRB(
-      center.dx - rx * 1.8,
-      center.dy + ry * 0.15,
-      center.dx + rx * 1.8,
-      center.dy + ry + shadowBlur * 2.5,
-    ));
+    // 1. Contact shadow on the board surface.
+    //    Light from upper-left → shadow extends lower-right.
+    final shadowCenter = center + Offset(rx * 0.12, ry * 0.35);
+    final shadowBlur = (rx * 0.28 + 1.0).clamp(1.5, 10.0);
     canvas.drawOval(
       Rect.fromCenter(
-          center: center + Offset(rx * 0.08, ry * 0.52),
-          width: rx * 1.70,
-          height: ry * 1.10),
+          center: shadowCenter, width: rx * 1.9, height: ry * 1.05),
       Paint()
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, shadowBlur)
-        ..color =
-            const Color(0xFF000000).withValues(alpha: 0.30 * clampedAlpha),
+        ..color = const Color(0xFF000000).withValues(alpha: 0.40 * intensity),
     );
-    canvas.restore();
 
-    // 2. Stone body — high-contrast dome gradient for visible 3D roundness.
-    //    Tighter radius rx*1.05 keeps gradient contrast within the stone boundary.
-    //    Focal point at upper-left creates clear lit dome vs dark rim.
-    final layerRect = bodyRect.inflate(rx.clamp(4.0, 14.0));
-    canvas.saveLayer(layerRect, Paint());
+    // 2. Stone body — radial gradient centred on the 3D-derived lit point.
+    //    All colors are fully opaque (no transparency on the stone itself).
+    final focalPt = litScreen ?? (center + Offset(-rx * 0.28, -ry * 0.36));
+    canvas.drawOval(
+      bodyRect,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          focalPt,
+          rx * 1.30,
+          isBlack
+              ? const [
+                  Color(0xFF8C8476), // lit dome
+                  Color(0xFF2D2925), // deep charcoal
+                  Color(0xFF0C0A08), // near-black rim
+                ]
+              : const [
+                  Color(0xFFFFFFFF), // pure white lit
+                  Color(0xFFF0EDE8), // ivory body
+                  Color(0xFFC0BCB4), // shadowed rim
+                ],
+          [0.0, 0.42, 1.0],
+        ),
+    );
 
-    final focalPt = center + Offset(-rx * 0.28, -ry * 0.38);
-    final bodyPaint = Paint()
-      ..shader = ui.Gradient.radial(
-        focalPt,
-        rx * 1.08,
-        isBlack
-            ? [
-                Color.fromARGB(ai, 140, 132, 118),  // bright lit upper-left
-                Color.fromARGB(ai, 50,  46,  40),   // deep charcoal
-                Color.fromARGB(ai, 12,  10,  8),    // near-black rim
-              ]
-            : [
-                Color.fromARGB(ai, 255, 255, 255),  // pure white
-                Color.fromARGB(ai, 242, 240, 235),  // clean ivory body
-                Color.fromARGB(ai, 200, 196, 188),  // shadowed rim
-              ],
-        [0.0, 0.40, 1.0],
-      );
-    if (blur > 0.4) {
-      bodyPaint.maskFilter = MaskFilter.blur(BlurStyle.normal, blur);
-    }
-    canvas.drawOval(bodyRect, bodyPaint);
-
-    // White stone edge ring.
-    if (!isBlack && blur < 2.0) {
+    // 3. Edge ring (white stones only — subtle grey to ground the stone).
+    if (!isBlack) {
       canvas.drawOval(
         bodyRect,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 0.7
-          ..color =
-              const Color(0xFF484840).withValues(alpha: 0.13 * clampedAlpha),
+          ..strokeWidth = 0.8
+          ..color = const Color(0xFF484840).withValues(alpha: 0.22 * intensity),
       );
     }
 
-    // 3. Specular — crisp bright oval at upper-left; larger on white stones.
-    if (blur < 2.5) {
-      final hlW = rx * (isBlack ? 0.28 : 0.50);
-      final hlH = ry * (isBlack ? 0.22 : 0.38);
-      final hlCenter = center + Offset(-rx * 0.24, -ry * 0.34);
-      canvas.drawOval(
-        Rect.fromCenter(center: hlCenter, width: hlW, height: hlH),
-        Paint()
-          ..shader = ui.Gradient.radial(
-            hlCenter,
-            hlW * 0.48,
-            [
-              isBlack
-                  ? const Color(0x55FFFFFF)
-                  : const Color(0xF0FFFFFF),
-              const Color(0x00FFFFFF),
-            ],
-          )
-          ..maskFilter =
-              MaskFilter.blur(BlurStyle.normal, isBlack ? 1.0 : 0.5),
-      );
-    }
-
-    canvas.restore();
+    // 4. Specular highlight at the 3D lit point.
+    final hlCenter = litScreen ?? (center + Offset(-rx * 0.24, -ry * 0.34));
+    final hlW = rx * (isBlack ? 0.30 : 0.52);
+    final hlH = ry * (isBlack ? 0.26 : 0.42);
+    canvas.drawOval(
+      Rect.fromCenter(center: hlCenter, width: hlW, height: hlH),
+      Paint()
+        ..shader = ui.Gradient.radial(
+          hlCenter,
+          hlW * 0.5,
+          [
+            isBlack ? const Color(0x60FFFFFF) : const Color(0xF5FFFFFF),
+            const Color(0x00FFFFFF),
+          ],
+        )
+        ..maskFilter =
+            MaskFilter.blur(BlurStyle.normal, isBlack ? 1.8 : 0.6),
+    );
   }
 
   // ── 6. Leaf splats ─────────────────────────────────────────────────────────
