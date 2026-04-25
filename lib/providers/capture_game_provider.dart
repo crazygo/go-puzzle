@@ -70,7 +70,20 @@ class CaptureGameProvider extends ChangeNotifier {
           boardSize == 9 || boardSize == 13 || boardSize == 19,
           'boardSize must be 9, 13, or 19.',
         ),
-        assert(captureTarget > 0, 'captureTarget must be greater than 0.') {
+        assert(captureTarget > 0, 'captureTarget must be greater than 0.'),
+        assert(
+          initialBoardOverride == null ||
+              _isValidBoardShape(initialBoardOverride, boardSize),
+          'initialBoardOverride must match boardSize.',
+        ) {
+    if (initialBoardOverride != null &&
+        !_isValidBoardShape(initialBoardOverride, boardSize)) {
+      throw ArgumentError.value(
+        initialBoardOverride,
+        'initialBoardOverride',
+        '棋盘尺寸与 boardSize 不一致。',
+      );
+    }
     _startNewGame();
     if (!isPlacementMode && _gameState.currentPlayer != humanColor) {
       Future<void>.microtask(_doAiMove);
@@ -84,6 +97,12 @@ class CaptureGameProvider extends ChangeNotifier {
   final CaptureInitialMode initialMode;
   final List<List<StoneColor>>? initialBoardOverride;
   final StoneColor? initialPlayerOverride;
+
+  static bool _isValidBoardShape(List<List<StoneColor>>? board, int size) {
+    if (board == null) return true;
+    return board.length == size && board.every((row) => row.length == size);
+  }
+
   CaptureAiStyle _aiStyle = CaptureAiStyle.hunter;
   CaptureAiAgent? _cachedAgent;
 
@@ -236,12 +255,9 @@ class CaptureGameProvider extends ChangeNotifier {
 
     if (initialBoardOverride != null) {
       final source = initialBoardOverride!;
-      if (source.length == boardSize &&
-          source.every((row) => row.length == boardSize)) {
-        for (int r = 0; r < boardSize; r++) {
-          for (int c = 0; c < boardSize; c++) {
-            emptyBoard[r][c] = source[r][c];
-          }
+      for (int r = 0; r < boardSize; r++) {
+        for (int c = 0; c < boardSize; c++) {
+          emptyBoard[r][c] = source[r][c];
         }
       }
     } else if (initialMode == CaptureInitialMode.twistCross) {

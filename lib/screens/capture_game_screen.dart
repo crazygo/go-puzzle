@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
@@ -21,6 +19,17 @@ class CaptureGameScreen extends StatefulWidget {
   State<CaptureGameScreen> createState() => _CaptureGameScreenState();
 }
 
+Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
+  final result = BoardImageRecognizer.recognize(bytes);
+  return {
+    'boardSize': result.boardSize,
+    'confidence': result.confidence,
+    'board': result.board
+        .map((row) => row.map((stone) => stone.index).toList())
+        .toList(),
+  };
+}
+
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
@@ -30,6 +39,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   DifficultyLevel _difficulty = DifficultyLevel.intermediate;
   int _boardSize = 9;
   CaptureInitialMode _initialMode = CaptureInitialMode.twistCross;
+  bool _isAdjusting = false;
+  bool _isRecognizingScreenshot = false;
 
   @override
   void initState() {
@@ -84,67 +95,85 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const _SectionLabel(title: '棋盘'),
-                                const SizedBox(height: 4),
-                                _PillSegmentControl<int>(
-                                  selectedValue: _boardSize,
-                                  options: const [
-                                    _SegmentOption(value: 9, label: '9 路'),
-                                    _SegmentOption(value: 13, label: '13 路'),
-                                    _SegmentOption(value: 19, label: '19 路'),
-                                  ],
-                                  onChanged: (value) =>
-                                      _updateSelection(boardSize: value),
+                                _PracticeHeader(
+                                  title: '下一盘',
+                                  subtitle: '先吃$_captureTarget子为胜',
+                                  isAdjusting: _isAdjusting,
+                                  onAdjustTap: () => setState(
+                                    () => _isAdjusting = !_isAdjusting,
+                                  ),
                                 ),
-                                const SizedBox(height: 20),
-                                const _SectionLabel(title: '难度'),
-                                const SizedBox(height: 8),
-                                _PillSegmentControl<DifficultyLevel>(
-                                  selectedValue: _difficulty,
-                                  options: const [
-                                    _SegmentOption(
-                                      value: DifficultyLevel.beginner,
-                                      label: '初级',
-                                    ),
-                                    _SegmentOption(
-                                      value: DifficultyLevel.intermediate,
-                                      label: '中级',
-                                    ),
-                                    _SegmentOption(
-                                      value: DifficultyLevel.advanced,
-                                      label: '高级',
-                                    ),
-                                  ],
-                                  onChanged: (value) =>
-                                      _updateSelection(difficulty: value),
-                                ),
-                                const SizedBox(height: 20),
-                                const _SectionLabel(title: '初始'),
-                                const SizedBox(height: 8),
-                                _PillSegmentControl<CaptureInitialMode>(
-                                  selectedValue: _initialMode,
-                                  options: const [
-                                    _SegmentOption(
-                                      value: CaptureInitialMode.twistCross,
-                                      label: '扭十字',
-                                    ),
-                                    _SegmentOption(
-                                      value: CaptureInitialMode.empty,
-                                      label: '空白',
-                                    ),
-                                    _SegmentOption(
-                                      value: CaptureInitialMode.setup,
-                                      label: '摆棋',
-                                    ),
-                                  ],
-                                  onChanged: (value) =>
-                                      _updateSelection(initialMode: value),
-                                ),
-                                const SizedBox(height: 20),
-                                const _SectionLabel(title: 'AI 风格'),
-                                const SizedBox(height: 8),
-                                const _AiStyleTile(),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 18),
+                                if (_isAdjusting) ...[
+                                  const _SectionLabel(title: '棋盘'),
+                                  const SizedBox(height: 4),
+                                  _PillSegmentControl<int>(
+                                    selectedValue: _boardSize,
+                                    options: const [
+                                      _SegmentOption(value: 9, label: '9 路'),
+                                      _SegmentOption(value: 13, label: '13 路'),
+                                      _SegmentOption(value: 19, label: '19 路'),
+                                    ],
+                                    onChanged: (value) =>
+                                        _updateSelection(boardSize: value),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const _SectionLabel(title: '难度'),
+                                  const SizedBox(height: 8),
+                                  _PillSegmentControl<DifficultyLevel>(
+                                    selectedValue: _difficulty,
+                                    options: const [
+                                      _SegmentOption(
+                                        value: DifficultyLevel.beginner,
+                                        label: '初级',
+                                      ),
+                                      _SegmentOption(
+                                        value: DifficultyLevel.intermediate,
+                                        label: '中级',
+                                      ),
+                                      _SegmentOption(
+                                        value: DifficultyLevel.advanced,
+                                        label: '高级',
+                                      ),
+                                    ],
+                                    onChanged: (value) =>
+                                        _updateSelection(difficulty: value),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const _SectionLabel(title: '初始'),
+                                  const SizedBox(height: 8),
+                                  _PillSegmentControl<CaptureInitialMode>(
+                                    selectedValue: _initialMode,
+                                    options: const [
+                                      _SegmentOption(
+                                        value: CaptureInitialMode.twistCross,
+                                        label: '扭十字',
+                                      ),
+                                      _SegmentOption(
+                                        value: CaptureInitialMode.empty,
+                                        label: '空白',
+                                      ),
+                                      _SegmentOption(
+                                        value: CaptureInitialMode.setup,
+                                        label: '摆棋',
+                                      ),
+                                    ],
+                                    onChanged: (value) =>
+                                        _updateSelection(initialMode: value),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const _SectionLabel(title: 'AI 风格'),
+                                  const SizedBox(height: 8),
+                                  const _AiStyleTile(),
+                                  const SizedBox(height: 24),
+                                ] else ...[
+                                  _ConfigPreview(
+                                    boardSize: _boardSize,
+                                    difficulty: _difficulty,
+                                    initialMode: _initialMode,
+                                  ),
+                                  const SizedBox(height: 24),
+                                ],
                                 if (_initialMode ==
                                     CaptureInitialMode.setup) ...[
                                   _PrimaryActionButton(
@@ -168,35 +197,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          const _HomeSectionTitle(
-                            title: '今日练习',
-                            trailing: null,
-                          ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           _ImportScreenshotCard(
-                            onTap: _importBoardFromScreenshot,
-                          ),
-                          const SizedBox(height: 8),
-                          _PracticeCard(
-                            title: '围地上攻防练习',
-                            subtitle:
-                                '基础练习 · 吃$_captureTarget子 · ${_difficulty.displayName}',
-                            onTap: () =>
-                                _startGame(humanColor: StoneColor.black),
-                          ),
-                          const SizedBox(height: 10),
-                          const _HomeSectionTitle(
-                            title: '最近对局',
-                            trailing: '查看全部',
-                          ),
-                          const SizedBox(height: 10),
-                          _RecentMatchCard(
-                            boardSize: _boardSize,
-                            difficulty: _difficulty,
-                            captureTarget: _captureTarget,
-                            onTap: () =>
-                                _startGame(humanColor: StoneColor.black),
+                            isLoading: _isRecognizingScreenshot,
+                            onTap: _isRecognizingScreenshot
+                                ? null
+                                : _importBoardFromScreenshot,
                           ),
                           const SizedBox(height: 14),
                         ],
@@ -258,12 +264,20 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   Future<void> _importBoardFromScreenshot() async {
     try {
       final picker = ImagePicker();
-      final file = await picker.pickImage(source: ImageSource.gallery);
+      final file = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 88,
+      );
       if (file == null || !mounted) return;
 
       final bytes = await file.readAsBytes();
       if (!mounted) return;
 
+      setState(() {
+        _isRecognizingScreenshot = true;
+      });
       final result = await _recognizeBoard(bytes);
       if (!mounted) return;
 
@@ -305,17 +319,36 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
           ],
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRecognizingScreenshot = false;
+        });
+      }
     }
   }
 
   Future<BoardRecognitionResult> _recognizeBoard(Uint8List bytes) async {
-    return BoardImageRecognizer.recognize(bytes);
+    final raw = await compute(_recognizeBoardInIsolate, bytes);
+    final board = (raw['board'] as List)
+        .map<List<StoneColor>>(
+          (row) => (row as List)
+              .map<StoneColor>((index) => StoneColor.values[index as int])
+              .toList(),
+        )
+        .toList();
+    return BoardRecognitionResult(
+      boardSize: raw['boardSize'] as int,
+      board: board,
+      confidence: (raw['confidence'] as num).toDouble(),
+    );
   }
 
-  void _startGame(
-      {required StoneColor humanColor,
-      bool forceSetup = false,
-      List<List<StoneColor>>? initialBoard}) {
+  void _startGame({
+    required StoneColor humanColor,
+    bool forceSetup = false,
+    List<List<StoneColor>>? initialBoard,
+  }) {
     _saveSelection();
     Navigator.of(context, rootNavigator: true).push(
       CupertinoPageRoute(
@@ -363,6 +396,20 @@ class _CaptureCopy {
   static const startAsBlackButton = '执黑先行';
   static const startAsWhiteButton = '执白后行';
   static const startSetupButton = '开始';
+}
+
+String _initialModeLabel(CaptureInitialMode mode) {
+  return mode.label;
+}
+
+extension _CaptureInitialModeLabelExt on CaptureInitialMode {
+  String get label {
+    return switch (this) {
+      CaptureInitialMode.twistCross => '扭十字',
+      CaptureInitialMode.empty => '空白',
+      CaptureInitialMode.setup => '摆棋',
+    };
+  }
 }
 
 class _SegmentOption<T> {
@@ -485,6 +532,170 @@ class _SectionLabel extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: Color(0xFF3A2A1F),
       ),
+    );
+  }
+}
+
+class _PracticeHeader extends StatelessWidget {
+  const _PracticeHeader({
+    required this.title,
+    required this.subtitle,
+    required this.isAdjusting,
+    required this.onAdjustTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool isAdjusting;
+  final VoidCallback onAdjustTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF3A2A1F),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF8C7966),
+                ),
+              ),
+            ],
+          ),
+        ),
+        CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          minimumSize: const Size(44, 44),
+          onPressed: onAdjustTap,
+          child: Text(
+            isAdjusting ? '完成' : '调整 ›',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFFB68454),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ConfigPreview extends StatelessWidget {
+  const _ConfigPreview({
+    required this.boardSize,
+    required this.difficulty,
+    required this.initialMode,
+  });
+
+  final int boardSize;
+  final DifficultyLevel difficulty;
+  final CaptureInitialMode initialMode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0x26D8C1A4)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ConfigPreviewItem(
+              icon: CupertinoIcons.circle_grid_3x3_fill,
+              label: '$boardSize 路',
+            ),
+          ),
+          const _ConfigPreviewDivider(),
+          Expanded(
+            child: _ConfigPreviewItem(
+              icon: CupertinoIcons.triangle_fill,
+              label: difficulty.displayName,
+            ),
+          ),
+          const _ConfigPreviewDivider(),
+          Expanded(
+            child: _ConfigPreviewItem(
+              icon: CupertinoIcons.circle_grid_3x3_fill,
+              label: _initialModeLabel(initialMode),
+            ),
+          ),
+          const _ConfigPreviewDivider(),
+          Expanded(
+            child: _ConfigPreviewItem(
+              icon: CupertinoIcons.star_fill,
+              label: CaptureAiStyle.hunter.label,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConfigPreviewItem extends StatelessWidget {
+  const _ConfigPreviewItem({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8F0E3),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Color(0xFFB68454)),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF36271E),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ConfigPreviewDivider extends StatelessWidget {
+  const _ConfigPreviewDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 68,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      color: const Color(0x1ED2B28E),
     );
   }
 }
@@ -682,45 +893,14 @@ class _LotusPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _HomeSectionTitle extends StatelessWidget {
-  const _HomeSectionTitle({
-    required this.title,
-    required this.trailing,
+class _ImportScreenshotCard extends StatelessWidget {
+  const _ImportScreenshotCard({
+    required this.onTap,
+    required this.isLoading,
   });
 
-  final String title;
-  final String? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF36271E),
-          ),
-        ),
-        const Spacer(),
-        if (trailing != null)
-          Text(
-            trailing!,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFFB08965),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _ImportScreenshotCard extends StatelessWidget {
-  const _ImportScreenshotCard({required this.onTap});
-
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -738,26 +918,28 @@ class _ImportScreenshotCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.center,
-              child: const Icon(
-                CupertinoIcons.photo_on_rectangle,
-                color: Color(0xFF7A63C8),
-              ),
+              child: isLoading
+                  ? const CupertinoActivityIndicator(radius: 10)
+                  : const Icon(
+                      CupertinoIcons.photo_on_rectangle,
+                      color: Color(0xFF7A63C8),
+                    ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '导入截屏摆棋',
-                    style: TextStyle(
+                    isLoading ? '识别中...' : '导入截屏摆棋',
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF36271E),
                     ),
                   ),
-                  SizedBox(height: 2),
-                  Text(
+                  const SizedBox(height: 2),
+                  const Text(
                     '自动识别棋盘和棋子，预览后微调进入摆棋',
                     style: TextStyle(
                       fontSize: 11.5,
@@ -771,152 +953,6 @@ class _ImportScreenshotCard extends StatelessWidget {
               CupertinoIcons.chevron_right,
               color: Color(0xFFC09468),
               size: 18,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PracticeCard extends StatelessWidget {
-  const _PracticeCard({
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        onPressed: onTap,
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF4E7D6),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.center,
-              child: const Icon(
-                CupertinoIcons.game_controller_solid,
-                color: Color(0xFFB57B44),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF36271E),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: Color(0xFF897564),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              CupertinoIcons.chevron_right,
-              color: Color(0xFFC09468),
-              size: 18,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RecentMatchCard extends StatelessWidget {
-  const _RecentMatchCard({
-    required this.boardSize,
-    required this.difficulty,
-    required this.captureTarget,
-    required this.onTap,
-  });
-
-  final int boardSize;
-  final DifficultyLevel difficulty;
-  final int captureTarget;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        onPressed: onTap,
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFFE8DED0), Color(0xFFC1B19C)],
-                ),
-              ),
-              alignment: Alignment.center,
-              child: const Icon(
-                CupertinoIcons.person_alt_circle_fill,
-                color: CupertinoColors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '山泉水长',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF36271E),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$boardSize 路 · ${difficulty.displayName} · 吃$captureTarget子',
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: Color(0xFF897564),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Text(
-              '胜 62%',
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF9F7240),
-              ),
             ),
           ],
         ),
@@ -1127,7 +1163,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
             border: null,
             previousPageTitle: _CaptureCopy.pageTitle,
             middle: Text(
-              '${_modeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${widget.difficulty.displayName}',
+              '${_initialModeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${widget.difficulty.displayName}',
             ),
             trailing: CupertinoButton(
               padding: EdgeInsets.zero,
@@ -1243,14 +1279,6 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
       return '轮到 AI 落子（$aiName）';
     }
     return '轮到你落子（$playerName）';
-  }
-
-  String _modeLabel(CaptureInitialMode mode) {
-    return switch (mode) {
-      CaptureInitialMode.twistCross => '扭十字',
-      CaptureInitialMode.empty => '空白',
-      CaptureInitialMode.setup => '摆棋',
-    };
   }
 
   Future<bool> _handleBoardTap({

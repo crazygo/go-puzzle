@@ -52,23 +52,32 @@ class BoardImageRecognizer {
 
   static _GridCandidate _findBestGridCandidate(_LumaMap lumaMap) {
     final minDim = math.min(lumaMap.width, lumaMap.height).toDouble();
-    final minSide = (minDim * 0.42).round().toDouble();
-    final maxSide = (minDim * 0.96).round().toDouble();
+    final rough = lumaMap.estimateGridRegion();
+    final minSide =
+        (math.max(minDim * 0.42, rough.shortSide * 0.82)).roundToDouble();
+    final maxSide =
+        (math.min(minDim * 0.96, rough.longSide * 1.18)).roundToDouble();
 
     _GridCandidate? best;
 
     for (final boardSize in _boardSizeCandidates) {
-      final stepSpan = (minDim * 0.05).clamp(12.0, 44.0);
+      final stepSpan = (minDim * 0.06).clamp(14.0, 48.0);
       for (double side = minSide; side <= maxSide; side += stepSpan) {
         final step = side / (boardSize - 1);
         if (step < 10) continue;
 
-        final xyStep = math.max(6.0, side / 9);
-        final maxX = lumaMap.width - side - 1;
-        final maxY = lumaMap.height - side - 1;
+        final xyStep = math.max(8.0, side / 8.5);
+        final leftStart =
+            (rough.left - side * 0.12).clamp(0.0, (lumaMap.width - side - 1));
+        final leftEnd =
+            (rough.right - side * 0.88).clamp(0.0, (lumaMap.width - side - 1));
+        final topStart =
+            (rough.top - side * 0.12).clamp(0.0, (lumaMap.height - side - 1));
+        final topEnd = (rough.bottom - side * 0.88)
+            .clamp(0.0, (lumaMap.height - side - 1));
 
-        for (double top = 0; top <= maxY; top += xyStep) {
-          for (double left = 0; left <= maxX; left += xyStep) {
+        for (double top = topStart; top <= topEnd; top += xyStep) {
+          for (double left = leftStart; left <= leftEnd; left += xyStep) {
             final candidate = _scoreCandidate(
               lumaMap: lumaMap,
               left: left,
@@ -146,9 +155,10 @@ class BoardImageRecognizer {
   }) {
     final step = side / (boardSize - 1);
     final lineThickness = (step * 0.08).clamp(1.0, 2.6);
-
     var lineDarkness = 0.0;
     var sampledLines = 0;
+    var midDarkness = 0.0;
+    var sampledMids = 0;
 
     for (int i = 0; i < boardSize; i++) {
       final offset = i * step;
@@ -170,9 +180,32 @@ class BoardImageRecognizer {
         thickness: lineThickness,
       );
       sampledLines += 2;
+
+      if (i < boardSize - 1) {
+        final midOffset = offset + step / 2;
+        final midX = left + midOffset;
+        final midY = top + midOffset;
+        midDarkness += lumaMap.darknessAlongLine(
+          x1: midX,
+          y1: top,
+          x2: midX,
+          y2: top + side,
+          thickness: lineThickness,
+        );
+        midDarkness += lumaMap.darknessAlongLine(
+          x1: left,
+          y1: midY,
+          x2: left + side,
+          y2: midY,
+          thickness: lineThickness,
+        );
+        sampledMids += 2;
+      }
     }
 
     final avgLineDarkness = sampledLines == 0 ? 0 : lineDarkness / sampledLines;
+    final avgMidDarkness = sampledMids == 0 ? 0 : midDarkness / sampledMids;
+    final lineSeparation = avgLineDarkness - avgMidDarkness;
     final interiorDarkness = lumaMap.darkRatioInRect(
       left: left + side * 0.06,
       top: top + side * 0.06,
@@ -194,7 +227,8 @@ class BoardImageRecognizer {
     );
 
     final contrastBonus = ((interiorLuma - borderLuma) / 255).clamp(-0.2, 0.3);
-    final rawScore = lineAdvantage * 1.7 + contrastBonus;
+    final rawScore =
+        lineAdvantage * 1.15 + lineSeparation * 1.95 + contrastBonus;
     final confidence = (0.25 + rawScore * 1.1).clamp(0.2, 0.99).toDouble();
 
     return _GridCandidate(
@@ -373,6 +407,57 @@ class _LumaMap {
     return 128;
   }
 
+  _GridRegion estimateGridRegion() {
+    var minX = width - 1;
+    var minY = height - 1;
+    var maxX = 0;
+    var maxY = 0;
+    var darkCount = 0;
+
+    final stride = width > 700 ? 2 : 1;
+    for (int y = 0; y < height; y += stride) {
+      for (int x = 0; x < width; x += stride) {
+        if (luma[y * width + x] > darkThreshold) continue;
+        minX = math.min(minX, x);
+        minY = math.min(minY, y);
+        maxX = math.max(maxX, x);
+        maxY = math.max(maxY, y);
+        darkCount++;
+      }
+    }
+
+    if (darkCount < width * height * 0.003 || maxX <= minX || maxY <= minY) {
+      final side = math.min(width, height) * 0.86;
+      final left = (width - side) / 2;
+      final top = (height - side) / 2;
+      return _GridRegion(
+        left: left,
+        top: top,
+        right: left + side,
+        bottom: top + side,
+        shortSide: side,
+        longSide: side,
+      );
+    }
+
+    final rawW = (maxX - minX).toDouble();
+    final rawH = (maxY - minY).toDouble();
+    final pad = math.max(8.0, math.min(rawW, rawH) * 0.05);
+    final left = (minX - pad).clamp(0, width - 1).toDouble();
+    final top = (minY - pad).clamp(0, height - 1).toDouble();
+    final right = (maxX + pad).clamp(0, width - 1).toDouble();
+    final bottom = (maxY + pad).clamp(0, height - 1).toDouble();
+
+    return _GridRegion(
+      left: left,
+      top: top,
+      right: right,
+      bottom: bottom,
+      shortSide: math.min(rawW, rawH) + pad * 2,
+      longSide: math.max(rawW, rawH) + pad * 2,
+    );
+  }
+
   double darknessAlongLine({
     required double x1,
     required double y1,
@@ -476,6 +561,24 @@ class _LumaMap {
     }
     return count == 0 ? 0 : sum / count;
   }
+}
+
+class _GridRegion {
+  const _GridRegion({
+    required this.left,
+    required this.top,
+    required this.right,
+    required this.bottom,
+    required this.shortSide,
+    required this.longSide,
+  });
+
+  final double left;
+  final double top;
+  final double right;
+  final double bottom;
+  final double shortSide;
+  final double longSide;
 }
 
 class _GridCandidate {
