@@ -492,6 +492,16 @@ class GoParticleScenePainter extends CustomPainter {
 
     final halfStep = 0.5 / (n - 1);
 
+    // Clip all stones to the board top-surface polygon.
+    final boardPath = Path()
+      ..moveTo(_p(0.0, 0.0, cam).dx, _p(0.0, 0.0, cam).dy)
+      ..lineTo(_p(1.0, 0.0, cam).dx, _p(1.0, 0.0, cam).dy)
+      ..lineTo(_p(1.0, 1.0, cam).dx, _p(1.0, 1.0, cam).dy)
+      ..lineTo(_p(0.0, 1.0, cam).dx, _p(0.0, 1.0, cam).dy)
+      ..close();
+    canvas.save();
+    canvas.clipPath(boardPath);
+
     for (final stone in preset.stones) {
       final col = stone.col.clamp(0, n - 1);
       final row = stone.row.clamp(0, n - 1);
@@ -511,8 +521,6 @@ class GoParticleScenePainter extends CustomPainter {
       final pN = _p(colFrac, (rowFrac - halfStep).clamp(0.0, 1.0), cam);
       final pF = _p(colFrac, (rowFrac + halfStep).clamp(0.0, 1.0), cam);
       final projCellH = (pF.dy - pN.dy).abs();
-      // A stone disc radius = half cell. Apply same 0.56 fill ratio as rx,
-      // then scale by 0.88 for natural disc foreshortening.
       final ry = projCellH * 0.56 * 0.88;
 
       // Depth-of-field blur only at far distances; keep near stones crisp.
@@ -521,6 +529,8 @@ class GoParticleScenePainter extends CustomPainter {
 
       _drawStone(canvas, center, rx, ry, blur, alpha, stone.isBlack);
     }
+
+    canvas.restore();
   }
 
   /// Draws a flat lenticular Go stone (disc shape, not a sphere).
