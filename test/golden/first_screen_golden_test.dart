@@ -19,7 +19,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('小闲围棋'), findsWidgets);
-    expect(find.text('AI 风格'), findsOneWidget);
+    expect(find.text('下一盘'), findsOneWidget);
+    expect(find.text('先吃 5 子为胜'), findsOneWidget);
     expect(find.text('执黑先行'), findsOneWidget);
   });
 }

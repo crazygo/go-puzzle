@@ -507,14 +507,14 @@ class _ConfigPreview extends StatelessWidget {
         children: [
           Expanded(
             child: _ConfigPreviewItem(
-              icon: CupertinoIcons.square_grid_3x3_fill,
+              icon: CupertinoIcons.circle_grid_3x3_fill,
               label: '$boardSize路',
             ),
           ),
           const _ConfigPreviewDivider(),
           Expanded(
             child: _ConfigPreviewItem(
-              icon: CupertinoIcons.mountain_fill,
+              icon: CupertinoIcons.triangle_fill,
               label: difficulty.displayName,
             ),
           ),
@@ -528,7 +528,7 @@ class _ConfigPreview extends StatelessWidget {
           const _ConfigPreviewDivider(),
           const Expanded(
             child: _ConfigPreviewItem(
-              icon: CupertinoIcons.flower,
+              icon: CupertinoIcons.star_fill,
               label: '均衡雅致',
             ),
           ),
