@@ -484,26 +484,17 @@ class GoParticleScenePainter extends CustomPainter {
 
   static double _lerpd(double a, double b, double t) => a + (b - a) * t;
 
-  // ── 5. Stone splats — full 3-D ─────────────────────────────────────────────
+  // ── 5. Stones — 3-D biconvex lens, smooth Phong shading ──────────────────
 
   void _drawStoneSplats(Canvas canvas, Size size, _CamBasis cam) {
     final n = preset.boardSize;
     if (n < 2) return;
 
-    // World-space stone radius: 46% of a grid cell.
-    final stoneR = 0.46 / (n - 1);
+    // World-space radii. Go stone ≈ oblate ellipsoid (biconvex lens).
+    final Rxy = 0.44 / (n - 1); // horizontal radius
+    final Rz  = Rxy * 0.30;     // vertical  radius (≈ 30% of horizontal)
 
-    // Clip to board top surface polygon.
-    final boardPath = Path()
-      ..moveTo(_p(0.0, 0.0, cam).dx, _p(0.0, 0.0, cam).dy)
-      ..lineTo(_p(1.0, 0.0, cam).dx, _p(1.0, 0.0, cam).dy)
-      ..lineTo(_p(1.0, 1.0, cam).dx, _p(1.0, 1.0, cam).dy)
-      ..lineTo(_p(0.0, 1.0, cam).dx, _p(0.0, 1.0, cam).dy)
-      ..close();
-    canvas.save();
-    canvas.clipPath(boardPath);
-
-    // Painter's algorithm: sort far stones first so near stones draw on top.
+    // Painter's algorithm: far stones first.
     final stones = [...preset.stones];
     stones.sort((a, b) {
       final da = cam.depth(_Vec3(
@@ -514,114 +505,184 @@ class GoParticleScenePainter extends CustomPainter {
     });
 
     for (final stone in stones) {
-      final col = stone.col.clamp(0, n - 1);
-      final row = stone.row.clamp(0, n - 1);
-      final cf = col / (n - 1).toDouble();
-      final rf = row / (n - 1).toDouble();
-
-      final center = cam.project(_Vec3(cf, rf, _kThick));
-      if (center == null) continue;
-
-      // Screen-space radii from 3D tangent projections.
-      final px1 = cam.project(_Vec3(cf - stoneR, rf, _kThick));
-      final px2 = cam.project(_Vec3(cf + stoneR, rf, _kThick));
-      final rx = (px1 != null && px2 != null)
-          ? (px2.dx - px1.dx).abs() / 2
-          : stoneR * size.width;
-
-      // Y radius: stone world radius in the forward direction, foreshortened.
-      final py1 = cam.project(_Vec3(cf, rf - stoneR, _kThick));
-      final py2 = cam.project(_Vec3(cf, rf + stoneR, _kThick));
-      final ry = (py1 != null && py2 != null)
-          ? (py2.dy - py1.dy).abs() / 2
-          : stoneR * size.height;
-
-      // 3D highlight: project the sphere-surface point that faces the light.
-      // Light direction (_kLx, _kLy, _kLz) is unit vector toward light.
-      final litWorld = _Vec3(
-        cf + _kLx * stoneR,
-        rf + _kLy * stoneR,
-        _kThick + _kLz * stoneR,
-      );
-      final litScreen = cam.project(litWorld);
-
-      _drawStone3D(canvas, center, rx, ry, litScreen, stone.isBlack);
+      final cf = stone.col.clamp(0, n - 1) / (n - 1).toDouble();
+      final rf = stone.row.clamp(0, n - 1) / (n - 1).toDouble();
+      // Centre sits at board surface + Rz so bottom touches board at Z=_kThick.
+      _drawStonePhong(canvas, cam, _Vec3(cf, rf, _kThick + Rz), Rxy, Rz,
+          stone.isBlack);
     }
-
-    canvas.restore();
   }
 
-  /// Draws a 3D Go stone (biconvex lens) with perspective-derived dimensions
-  /// and a highlight position derived from the world-space 3D light direction.
-  void _drawStone3D(Canvas canvas, Offset center, double rx, double ry,
-      Offset? litScreen, bool isBlack) {
-    final bodyRect = Rect.fromCenter(center: center, width: rx * 2, height: ry * 2);
+  /// Smooth 3-D Go stone using:
+  ///   • Projected equatorial ring as silhouette outline
+  ///   • Analytically derived Phong specular peak projected to screen
+  ///   • Smooth radial gradient fill (Lambertian + Phong model, no faceting)
+  ///   • Contact shadow with correct light-direction offset
+  void _drawStonePhong(Canvas canvas, _CamBasis cam, _Vec3 center,
+      double Rxy, double Rz, bool isBlack) {
+    const lightDir = _Vec3(_kLx, _kLy, _kLz);
 
-    // 1. Contact shadow on the board surface.
-    //    Light from upper-left → shadow extends lower-right.
-    final shadowCenter = center + Offset(rx * 0.12, ry * 0.35);
-    final shadowBlur = (rx * 0.28 + 1.0).clamp(1.5, 10.0);
-    canvas.drawOval(
-      Rect.fromCenter(
-          center: shadowCenter, width: rx * 1.9, height: ry * 1.05),
-      Paint()
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, shadowBlur)
-        ..color = const Color(0xFF000000).withValues(alpha: 0.40 * intensity),
+    // ── Silhouette: project the equatorial ring + top pole ──────────────────
+    // Equatorial ring (theta=π/2) is the widest cross-section of the lens.
+    // The top pole adds the dome height above it.
+    const nEq = 24;
+    final eqPts = <Offset>[];
+    for (int i = 0; i < nEq; i++) {
+      final phi = 2.0 * math.pi * i / nEq;
+      final p = cam.project(_Vec3(
+        center.x + Rxy * math.cos(phi),
+        center.y + Rxy * math.sin(phi),
+        center.z, // equatorial Z = stone centre Z
+      ));
+      if (p != null) eqPts.add(p);
+    }
+    if (eqPts.length < 3) return;
+
+    // Top pole: the highest point of the stone (Z = centre + Rz).
+    final topPole = cam.project(_Vec3(center.x, center.y, center.z + Rz));
+
+    // Build outline: equatorial polygon, then replace the screen-topmost arc
+    // with the top pole to correctly represent the dome's visible tip.
+    //
+    // Strategy: split equatorial points into left/right halves relative to the
+    // topmost equatorial screen point; insert top-pole between them.
+    int topIdx = 0;
+    for (int i = 1; i < eqPts.length; i++) {
+      if (eqPts[i].dy < eqPts[topIdx].dy) topIdx = i;
+    }
+    int botIdx = 0;
+    for (int i = 1; i < eqPts.length; i++) {
+      if (eqPts[i].dy > eqPts[botIdx].dy) botIdx = i;
+    }
+
+    final outline = Path();
+    if (topPole != null && topPole.dy < eqPts[topIdx].dy) {
+      // Walk from botIdx → topIdx (one direction) through topPole, back via other.
+      final n2 = eqPts.length;
+      outline.moveTo(eqPts[botIdx].dx, eqPts[botIdx].dy);
+      // Arc from botIdx to topIdx going forward (increasing index).
+      int i = (botIdx + 1) % n2;
+      while (i != topIdx) {
+        outline.lineTo(eqPts[i].dx, eqPts[i].dy);
+        i = (i + 1) % n2;
+      }
+      // Insert top pole.
+      outline.lineTo(eqPts[topIdx].dx, eqPts[topIdx].dy);
+      outline.lineTo(topPole.dx, topPole.dy);
+      // Continue from topIdx back to botIdx via the other arc.
+      i = (topIdx + 1) % n2;
+      while (i != botIdx) {
+        outline.lineTo(eqPts[i].dx, eqPts[i].dy);
+        i = (i + 1) % n2;
+      }
+    } else {
+      outline.moveTo(eqPts[0].dx, eqPts[0].dy);
+      for (final p in eqPts.skip(1)) outline.lineTo(p.dx, p.dy);
+    }
+    outline.close();
+
+    // ── Contact shadow on board surface ─────────────────────────────────────
+    // Light comes from (_kLx, _kLy, _kLz). Shadow offset is opposite XY component.
+    final shadowC = cam.project(_Vec3(
+      center.x - _kLx * Rz * 0.55,
+      center.y - _kLy * Rz * 0.55,
+      _kThick,
+    ));
+    if (shadowC != null) {
+      final se = cam.project(_Vec3(center.x + Rxy, center.y, _kThick));
+      final sw = cam.project(_Vec3(center.x - Rxy, center.y, _kThick));
+      final sn = cam.project(_Vec3(center.x, center.y - Rxy, _kThick));
+      final ss = cam.project(_Vec3(center.x, center.y + Rxy, _kThick));
+      if (se != null && sw != null) {
+        final srx = (se.dx - sw.dx).abs() * 0.55;
+        final sry = (sn != null && ss != null)
+            ? (ss.dy - sn.dy).abs() * 0.30
+            : srx * 0.42;
+        canvas.drawOval(
+          Rect.fromCenter(center: shadowC, width: srx * 2, height: sry * 2),
+          Paint()
+            ..maskFilter =
+                MaskFilter.blur(BlurStyle.normal, (srx * 0.32).clamp(1.5, 9.0))
+            ..color =
+                const Color(0xFF000000).withValues(alpha: 0.46 * intensity),
+        );
+      }
+    }
+
+    // ── Phong specular peak position ─────────────────────────────────────────
+    // H = normalize(L + V) is the halfway vector. The specular peak lies at
+    // the surface point whose outward normal equals H.
+    // For ellipsoid (x/Rxy)^2+(y/Rxy)^2+(z/Rz)^2=1, the surface point with
+    // normal proportional to (Hx,Hy,Hz) is:
+    //   P = center + normalize(Hx, Hy, Hz*Rxy/Rz) * Rxy  (scaled to surface).
+    final viewDir = (cam.pos - center).normalized();
+    final halfVec = (lightDir + viewDir).normalized();
+    final hScaled = _Vec3(halfVec.x, halfVec.y, halfVec.z * (Rxy / Rz));
+    final hNorm   = hScaled.normalized();
+    final specPt  = _Vec3(
+      center.x + hNorm.x * Rxy,
+      center.y + hNorm.y * Rxy,
+      center.z + hNorm.z * Rz,
     );
+    final specScreen = cam.project(specPt);
 
-    // 2. Stone body — radial gradient centred on the 3D-derived lit point.
-    //    All colors are fully opaque (no transparency on the stone itself).
-    final focalPt = litScreen ?? (center + Offset(-rx * 0.28, -ry * 0.36));
-    canvas.drawOval(
-      bodyRect,
+    // ── Gradient parameters ──────────────────────────────────────────────────
+    // Gradient centre = specular peak on screen; radius spans stone + rim.
+    final cxS = eqPts.fold(0.0, (s, p) => s + p.dx) / eqPts.length;
+    final cyS = eqPts.fold(0.0, (s, p) => s + p.dy) / eqPts.length;
+    final screenCtr = Offset(cxS, cyS);
+    final maxR = eqPts.map((p) => (p - screenCtr).distance).reduce(math.max);
+    final gradCtr = specScreen ?? screenCtr;
+
+    // ── Stone body — smooth Phong radial gradient ────────────────────────────
+    canvas.drawPath(
+      outline,
       Paint()
         ..shader = ui.Gradient.radial(
-          focalPt,
-          rx * 1.30,
+          gradCtr,
+          maxR * 2.1, // extends beyond edge → rim stays dark
           isBlack
               ? const [
-                  Color(0xFF8C8476), // lit dome
-                  Color(0xFF2D2925), // deep charcoal
-                  Color(0xFF0C0A08), // near-black rim
+                  Color(0xFF9E948A), // lit dome
+                  Color(0xFF302A24), // diffuse charcoal
+                  Color(0xFF0D0B09), // dark rim
                 ]
               : const [
-                  Color(0xFFFFFFFF), // pure white lit
-                  Color(0xFFF0EDE8), // ivory body
-                  Color(0xFFC0BCB4), // shadowed rim
+                  Color(0xFFFFFFFF), // specular white
+                  Color(0xFFEBE8E2), // ivory diffuse
+                  Color(0xFFB4B0A8), // shadowed rim
                 ],
-          [0.0, 0.42, 1.0],
+          [0.0, 0.36, 1.0],
         ),
     );
 
-    // 3. Edge ring (white stones only — subtle grey to ground the stone).
-    if (!isBlack) {
+    // ── Specular highlight — crisp Phong hot-spot ────────────────────────────
+    if (specScreen != null) {
+      final hlR = maxR * (isBlack ? 0.26 : 0.40);
       canvas.drawOval(
-        bodyRect,
+        Rect.fromCenter(
+            center: specScreen, width: hlR * 2.0, height: hlR * 1.55),
         Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 0.8
-          ..color = const Color(0xFF484840).withValues(alpha: 0.22 * intensity),
+          ..shader = ui.Gradient.radial(specScreen, hlR, [
+            isBlack ? const Color(0x5CFFFFFF) : const Color(0xF2FFFFFF),
+            const Color(0x00FFFFFF),
+          ])
+          ..maskFilter =
+              MaskFilter.blur(BlurStyle.normal, isBlack ? 1.8 : 0.4),
       );
     }
 
-    // 4. Specular highlight at the 3D lit point.
-    final hlCenter = litScreen ?? (center + Offset(-rx * 0.24, -ry * 0.34));
-    final hlW = rx * (isBlack ? 0.30 : 0.52);
-    final hlH = ry * (isBlack ? 0.26 : 0.42);
-    canvas.drawOval(
-      Rect.fromCenter(center: hlCenter, width: hlW, height: hlH),
-      Paint()
-        ..shader = ui.Gradient.radial(
-          hlCenter,
-          hlW * 0.5,
-          [
-            isBlack ? const Color(0x60FFFFFF) : const Color(0xF5FFFFFF),
-            const Color(0x00FFFFFF),
-          ],
-        )
-        ..maskFilter =
-            MaskFilter.blur(BlurStyle.normal, isBlack ? 1.8 : 0.6),
-    );
+    // ── Edge ring — white stones need subtle grey boundary ───────────────────
+    if (!isBlack) {
+      canvas.drawPath(
+        outline,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.9
+          ..color =
+              const Color(0xFF484840).withValues(alpha: 0.20 * intensity),
+      );
+    }
   }
 
   // ── 6. Leaf splats ─────────────────────────────────────────────────────────
