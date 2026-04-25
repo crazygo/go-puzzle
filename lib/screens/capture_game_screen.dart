@@ -836,6 +836,7 @@ class CaptureGamePlayScreen extends StatelessWidget {
     if (provider.result == CaptureGameResult.blackWins) return '对局结束：人类胜';
     if (provider.result == CaptureGameResult.whiteWins) return '对局结束：AI 胜';
     if (provider.isAiThinking) return 'AI 正在思考（${provider.aiStyle.label}）';
+    if (provider.gameState.currentPlayer == StoneColor.white) return '轮到 AI 落子（白棋）';
     return '轮到你落子（黑棋）';
   }
 
@@ -919,7 +920,7 @@ class _PlayerSummaryRow extends StatelessWidget {
         Expanded(
           child: _PlayerSideCard(
             title: '人类',
-            isBlack: false,
+            isBlack: true,
             tag: leftTag,
             progress: blackCaptured,
             captureTarget: captureTarget,
@@ -930,7 +931,7 @@ class _PlayerSummaryRow extends StatelessWidget {
         Expanded(
           child: _PlayerSideCard(
             title: '猎捕者',
-            isBlack: true,
+            isBlack: false,
             tag: rightTag,
             progress: whiteCaptured,
             captureTarget: captureTarget,
