@@ -258,13 +258,10 @@ class CaptureGameProvider extends ChangeNotifier {
       final isValidSize = source.length == boardSize &&
           source.every((row) => row.length == boardSize);
       if (!isValidSize) {
-        assert(
-          isValidSize,
-          'initialBoardOverride must be a ${boardSize}x$boardSize board, '
-          'but got ${source.length} rows.',
-        );
         throw ArgumentError(
-          'initialBoardOverride must match boardSize ($boardSize x $boardSize).',
+          'initialBoardOverride must be ${boardSize}x$boardSize, '
+          'but received ${source.length}x'
+          '${source.isNotEmpty ? source[0].length : 0}.',
         );
       }
       for (int r = 0; r < boardSize; r++) {
