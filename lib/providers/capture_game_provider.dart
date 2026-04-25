@@ -69,7 +69,7 @@ class CaptureGameProvider extends ChangeNotifier {
         ),
         assert(captureTarget > 0, 'captureTarget must be greater than 0.') {
     _startNewGame();
-    if (!isInSetupPhase && _gameState.currentPlayer != humanColor) {
+    if (!isPlacementMode && _gameState.currentPlayer != humanColor) {
       Future<void>.microtask(_doAiMove);
     }
   }
@@ -81,8 +81,6 @@ class CaptureGameProvider extends ChangeNotifier {
   final CaptureInitialMode initialMode;
   CaptureAiStyle _aiStyle = CaptureAiStyle.hunter;
   CaptureAiAgent? _cachedAgent;
-  StoneColor _setupStone = StoneColor.black;
-  bool _setupStarted = false;
 
   late GameState _gameState;
   CaptureGameResult _result = CaptureGameResult.none;
@@ -94,8 +92,7 @@ class CaptureGameProvider extends ChangeNotifier {
   bool get isAiThinking => _isAiThinking;
   bool get canUndo => _undoStack.isNotEmpty && !_isAiThinking;
   CaptureAiStyle get aiStyle => _aiStyle;
-  bool get isInSetupPhase => initialMode == CaptureInitialMode.setup && !_setupStarted;
-  StoneColor get setupStone => _setupStone;
+  bool get isPlacementMode => initialMode == CaptureInitialMode.setup;
 
   CaptureAiAgent get _activeAgent {
     return _cachedAgent ??=
@@ -112,11 +109,8 @@ class CaptureGameProvider extends ChangeNotifier {
   }
 
   Future<bool> placeStone(int row, int col) async {
-    if (isInSetupPhase) {
-      return placeSetupStone(row, col);
-    }
     if (_isAiThinking || _result != CaptureGameResult.none) return false;
-    if (_gameState.currentPlayer != humanColor) return false;
+    if (!isPlacementMode && _gameState.currentPlayer != humanColor) return false;
 
     final newState = GoEngine.placeStone(_gameState, row, col);
     if (newState == null) return false;
@@ -126,46 +120,14 @@ class CaptureGameProvider extends ChangeNotifier {
     _checkWinCondition();
     notifyListeners();
 
-    if (_result == CaptureGameResult.none) {
+    if (!isPlacementMode && _result == CaptureGameResult.none) {
       await _doAiMove();
     }
     return true;
-  }
-
-  Future<bool> placeSetupStone(int row, int col) async {
-    if (!isInSetupPhase || _result != CaptureGameResult.none || _isAiThinking) {
-      return false;
-    }
-    final current = _gameState.board[row][col];
-    if (current == _setupStone) {
-      _setCell(row, col, StoneColor.empty);
-    } else {
-      _setCell(row, col, _setupStone);
-    }
-    notifyListeners();
-    return true;
-  }
-
-  void setSetupStone(StoneColor color) {
-    if (!isInSetupPhase || (color != StoneColor.black && color != StoneColor.white)) {
-      return;
-    }
-    _setupStone = color;
-    notifyListeners();
-  }
-
-  Future<void> startSetupGame() async {
-    if (!isInSetupPhase) return;
-    _setupStarted = true;
-    _undoStack.clear();
-    notifyListeners();
-    if (_gameState.currentPlayer != humanColor) {
-      await _doAiMove();
-    }
   }
 
   Future<void> clearSetupBoard() async {
-    if (!isInSetupPhase) return;
+    if (!isPlacementMode) return;
     final emptyBoard = List.generate(
       boardSize,
       (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
@@ -173,8 +135,9 @@ class CaptureGameProvider extends ChangeNotifier {
     _gameState = GameState(
       boardSize: boardSize,
       board: emptyBoard,
-      currentPlayer: humanColor,
+      currentPlayer: StoneColor.black,
     );
+    _undoStack.clear();
     notifyListeners();
   }
 
@@ -250,8 +213,6 @@ class CaptureGameProvider extends ChangeNotifier {
       boardSize,
       (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
     );
-    _setupStarted = initialMode != CaptureInitialMode.setup;
-    _setupStone = StoneColor.black;
     var initialPlayer = StoneColor.black;
 
     if (initialMode == CaptureInitialMode.twistCross) {
@@ -262,9 +223,6 @@ class CaptureGameProvider extends ChangeNotifier {
         emptyBoard[center][center - 1] = StoneColor.white;
         emptyBoard[center][center + 1] = StoneColor.white;
       }
-      initialPlayer = humanColor;
-    } else if (initialMode == CaptureInitialMode.setup) {
-      initialPlayer = humanColor;
     }
 
     _gameState = GameState(
@@ -276,15 +234,6 @@ class CaptureGameProvider extends ChangeNotifier {
     _isAiThinking = false;
     _undoStack.clear();
     notifyListeners();
-  }
-
-  void _setCell(int row, int col, StoneColor color) {
-    final updatedBoard = List.generate(
-      boardSize,
-      (r) => List<StoneColor>.from(_gameState.board[r]),
-    );
-    updatedBoard[row][col] = color;
-    _gameState = _gameState.copyWith(board: updatedBoard);
   }
 
   Future<void> _doAiMove() async {

@@ -784,7 +784,7 @@ class _RecentMatchCard extends StatelessWidget {
   }
 }
 
-class CaptureGamePlayScreen extends StatelessWidget {
+class CaptureGamePlayScreen extends StatefulWidget {
   const CaptureGamePlayScreen({
     super.key,
     required this.difficulty,
@@ -797,6 +797,14 @@ class CaptureGamePlayScreen extends StatelessWidget {
   final int captureTarget;
   final StoneColor humanColor;
   final CaptureInitialMode initialMode;
+
+  @override
+  State<CaptureGamePlayScreen> createState() => _CaptureGamePlayScreenState();
+}
+
+class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
+  List<_HintMark> _hintMarks = const [];
+  bool _isLoadingHints = false;
 
   @override
   Widget build(BuildContext context) {
@@ -817,7 +825,7 @@ class CaptureGamePlayScreen extends StatelessWidget {
             border: null,
             previousPageTitle: _CaptureCopy.pageTitle,
             middle: Text(
-              '${_modeLabel(initialMode)} · 吃$captureTarget子 · ${difficulty.displayName}',
+              '${_modeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${widget.difficulty.displayName}',
             ),
             trailing: CupertinoButton(
               padding: EdgeInsets.zero,
@@ -838,7 +846,7 @@ class CaptureGamePlayScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   child: _PlayerSummaryRow(
-                    captureTarget: captureTarget,
+                    captureTarget: widget.captureTarget,
                     blackCaptured: blackCaptured,
                     whiteCaptured: whiteCaptured,
                     aiThinking: aiThinking,
@@ -866,7 +874,12 @@ class CaptureGamePlayScreen extends StatelessWidget {
                           child: _TapBoard(
                             gameState: provider.gameState,
                             enabled: !aiThinking && !isFinished,
-                            onTap: provider.placeStone,
+                            hintMarks: _hintMarks,
+                            onTap: (row, col) => _handleBoardTap(
+                              provider: provider,
+                              row: row,
+                              col: col,
+                            ),
                           ),
                         ),
                       ),
@@ -876,30 +889,25 @@ class CaptureGamePlayScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                   child: _BottomInfoCard(
-                    infoText: _buildInfoText(provider, humanColor),
+                    infoText: _buildInfoText(provider, widget.humanColor),
                     blackRate: blackRate,
                     whiteRate: whiteRate,
                   ),
                 ),
-                if (provider.isInSetupPhase)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
-                    child: _SetupPanel(
-                      provider: provider,
-                      humanColor: humanColor,
-                    ),
-                  ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 22),
                   child: Row(
                     children: [
                       Expanded(
                         child: _DecoratedActionButton(
-                          text: provider.isInSetupPhase ? '清空棋盘' : '后退一手',
+                          text: provider.isPlacementMode ? '清空棋盘' : '后退一手',
                           filled: false,
-                          onPressed: provider.isInSetupPhase
+                          onPressed: provider.isPlacementMode
                               ? () {
                                   provider.clearSetupBoard();
+                                  setState(() {
+                                    _hintMarks = const [];
+                                  });
                                 }
                               : (provider.canUndo ? provider.undoMove : null),
                         ),
@@ -909,7 +917,9 @@ class CaptureGamePlayScreen extends StatelessWidget {
                         child: _DecoratedActionButton(
                           text: '提示 3 手',
                           filled: true,
-                          onPressed: () => _showHint(context, provider),
+                          onPressed: _isLoadingHints
+                              ? null
+                              : () => _showHintsOnBoard(provider),
                         ),
                       ),
                     ],
@@ -926,7 +936,7 @@ class CaptureGamePlayScreen extends StatelessWidget {
   String _buildInfoText(CaptureGameProvider provider, StoneColor humanColor) {
     if (provider.result == CaptureGameResult.blackWins) return '对局结束：人类胜';
     if (provider.result == CaptureGameResult.whiteWins) return '对局结束：AI 胜';
-    if (provider.isInSetupPhase) return '摆棋阶段：可自由放置黑白棋，完成后点击“开始”。';
+    if (provider.isPlacementMode) return '摆棋模式：始终由你摆子，系统按黑白轮流切换。';
     if (provider.isAiThinking) return 'AI 正在思考（${provider.aiStyle.label}）';
     final playerName = humanColor == StoneColor.black ? '黑棋' : '白棋';
     final aiName = humanColor == StoneColor.black ? '白棋' : '黑棋';
@@ -944,11 +954,51 @@ class CaptureGamePlayScreen extends StatelessWidget {
     };
   }
 
-  void _showHint(BuildContext context, CaptureGameProvider provider) {
-    showCupertinoDialog<void>(
-      context: context,
-      builder: (_) => _HintDialog(provider: provider),
-    );
+  Future<bool> _handleBoardTap({
+    required CaptureGameProvider provider,
+    required int row,
+    required int col,
+  }) async {
+    final placed = await provider.placeStone(row, col);
+    if (placed && mounted) {
+      setState(() {
+        _hintMarks = const [];
+      });
+    }
+    return placed;
+  }
+
+  Future<void> _showHintsOnBoard(CaptureGameProvider provider) async {
+    setState(() {
+      _isLoadingHints = true;
+    });
+    try {
+      final hints = await provider.suggestMovesAsync(count: 3);
+      if (!mounted) return;
+      final firstColor = provider.gameState.currentPlayer;
+      setState(() {
+        _hintMarks = hints
+            .asMap()
+            .entries
+            .map(
+              (entry) => _HintMark(
+                position: entry.value,
+                color: entry.key.isEven
+                    ? firstColor
+                    : (firstColor == StoneColor.black
+                        ? StoneColor.white
+                        : StoneColor.black),
+              ),
+            )
+            .toList();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingHints = false;
+        });
+      }
+    }
   }
 
   void _showStylePicker(BuildContext context, CaptureGameProvider provider) {
@@ -978,82 +1028,6 @@ class CaptureGamePlayScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-class _SetupPanel extends StatelessWidget {
-  const _SetupPanel({
-    required this.provider,
-    required this.humanColor,
-  });
-
-  final CaptureGameProvider provider;
-  final StoneColor humanColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: const Color(0x12A86930),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            '摆棋模式',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF5B422B),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _DecoratedActionButton(
-                  text: '摆黑棋',
-                  filled: provider.setupStone == StoneColor.black,
-                  onPressed: () => provider.setSetupStone(StoneColor.black),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _DecoratedActionButton(
-                  text: '摆白棋',
-                  filled: provider.setupStone == StoneColor.white,
-                  onPressed: () => provider.setSetupStone(StoneColor.white),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _DecoratedActionButton(
-            text: '开始',
-            filled: true,
-            onPressed: () {
-              provider.startSetupGame();
-            },
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '你执${humanColor == StoneColor.black ? '黑' : '白'}，点击“开始”后将按当前轮到一方继续。',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF7A6A5A)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HintDialog extends StatefulWidget {
-  const _HintDialog({required this.provider});
-
-  final CaptureGameProvider provider;
-
-  @override
-  State<_HintDialog> createState() => _HintDialogState();
 }
 
 class _PlayerSummaryRow extends StatelessWidget {
@@ -1270,54 +1244,73 @@ class _DecoratedActionButton extends StatelessWidget {
   }
 }
 
-class _HintDialogState extends State<_HintDialog> {
-  late final Future<List<BoardPosition>> _future;
+class _HintMark {
+  const _HintMark({
+    required this.position,
+    required this.color,
+  });
+
+  final BoardPosition position;
+  final StoneColor color;
+}
+
+class _HintOverlayPainter extends CustomPainter {
+  const _HintOverlayPainter({
+    required this.boardSize,
+    required this.hints,
+  });
+
+  final int boardSize;
+  final List<_HintMark> hints;
 
   @override
-  void initState() {
-    super.initState();
-    _future = widget.provider.suggestMovesAsync();
+  void paint(Canvas canvas, Size size) {
+    const padding = 0.5;
+    final cell = size.width / (boardSize - 1 + 2 * padding);
+    final origin = cell * padding;
+    final radius = cell * 0.34;
+
+    for (final hint in hints) {
+      final center = Offset(
+        origin + hint.position.col * cell,
+        origin + hint.position.row * cell,
+      );
+      final hintColor = hint.color == StoneColor.black
+          ? const Color(0xE0000000)
+          : const Color(0xE0FFFFFF);
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = hintColor;
+      _drawDashedCircle(canvas, center, radius, paint);
+    }
+  }
+
+  void _drawDashedCircle(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint paint,
+  ) {
+    const dashCount = 18;
+    const gapRatio = 0.45;
+    final step = (2 * 3.141592653589793) / dashCount;
+    for (int i = 0; i < dashCount; i++) {
+      final start = i * step;
+      final sweep = step * gapRatio;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        start,
+        sweep,
+        false,
+        paint,
+      );
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return CupertinoAlertDialog(
-      title: const Text('提示 3 手'),
-      content: FutureBuilder<List<BoardPosition>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text('计算提示时出错，请重试。'),
-            );
-          }
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: CupertinoActivityIndicator(),
-            );
-          }
-          final hints = snapshot.data ?? [];
-          return Text(
-            hints.isEmpty
-                ? '暂无可用提示'
-                : hints
-                    .asMap()
-                    .entries
-                    .map((e) =>
-                        '${e.key + 1}. (${e.value.row + 1}, ${e.value.col + 1})')
-                    .join('\n'),
-          );
-        },
-      ),
-      actions: [
-        CupertinoDialogAction(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('知道了'),
-        ),
-      ],
-    );
+  bool shouldRepaint(covariant _HintOverlayPainter oldDelegate) {
+    return oldDelegate.boardSize != boardSize || oldDelegate.hints != hints;
   }
 }
 
@@ -1325,11 +1318,13 @@ class _TapBoard extends StatelessWidget {
   const _TapBoard({
     required this.gameState,
     required this.enabled,
+    required this.hintMarks,
     required this.onTap,
   });
 
   final GameState gameState;
   final bool enabled;
+  final List<_HintMark> hintMarks;
   final Future<bool> Function(int row, int col) onTap;
 
   @override
@@ -1340,9 +1335,25 @@ class _TapBoard extends StatelessWidget {
         return GestureDetector(
           onTapUp:
               enabled ? (d) => _handleTap(d.localPosition, boardSizePx) : null,
-          child: CustomPaint(
-            size: Size.square(boardSizePx),
-            painter: GoBoardPainter(gameState: gameState),
+          child: SizedBox(
+            width: boardSizePx,
+            height: boardSizePx,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CustomPaint(
+                  painter: GoBoardPainter(gameState: gameState),
+                ),
+                IgnorePointer(
+                  child: CustomPaint(
+                    painter: _HintOverlayPainter(
+                      boardSize: gameState.boardSize,
+                      hints: hintMarks,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
