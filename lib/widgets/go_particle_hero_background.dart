@@ -181,25 +181,22 @@ class GoParticleScenePainter extends CustomPainter {
   }
 
   // ── Camera / projection constants ─────────────────────────────────────────
-  // Perspective projection model:
-  //   depth(r) = 1 + r * (kDepthFar - 1)   where r=0 is near, r=1 is far.
-  //   rowY  = (kVpY + (kNearY - kVpY) / depth) * height
-  //   halfW = kNearHalfW * width / depth
-  //   rowX  = width/2 + (c - 0.5) * 2 * halfW
+  // Single-point perspective with horizontal tilt to simulate a camera
+  // positioned to the upper-left of the board.
+  //
+  //   depth(r) = 1 + r * (kDepthFar - 1)
+  //   baseY    = (kVpY + (kNearY - kVpY) / depth) * height
+  //   tiltY    = kTilt * (0.5 - c) * height / depth   ← left lower, right higher
+  //   halfW    = kNearHalfW * width / depth
+  //   rowX     = width/2 + (c - 0.5) * 2 * halfW
 
-  // Vanishing point at 8 % of height — visible near the top of the frame,
-  // giving a natural camera-above-board angle.
-  static const _kVpY = 0.08;
-
-  // Near edge at 82 % of height — the board extends down toward the bottom.
-  static const _kNearY = 0.82;
-
-  // Near half-width is 62 % of the canvas width → the near edge spans 124 %
-  // of the screen, going off both sides (realistic wide-angle crop).
-  static const _kNearHalfW = 0.62;
-
-  // Depth ratio near:far = 1:2.8 — strong foreshortening.
-  static const _kDepthFar = 2.8;
+  static const _kVpY      = 0.08;  // vanishing point Y (fraction of height)
+  static const _kNearY    = 0.78;  // centre of near edge (reduced to allow for tilt)
+  static const _kNearHalfW = 0.68; // wider near half-width → board fills more of screen
+  static const _kDepthFar = 2.6;   // near:far width ratio (reduced → less elongated)
+  // Horizontal tilt: left side of the near edge is ~0.13 h lower than right.
+  // This creates the upper-left camera look without full two-point perspective.
+  static const _kTilt = 0.13;
 
   /// Perspective-project board fractions (c, r) to screen [Offset].
   ///
@@ -207,7 +204,10 @@ class GoParticleScenePainter extends CustomPainter {
   /// * [r] ∈ [0, 1] — near (bottom) → far (top) row fraction.
   Offset _p(double c, double r, Size size) {
     final depth = 1.0 + r * (_kDepthFar - 1.0);
-    final rowY = (_kVpY + (_kNearY - _kVpY) / depth) * size.height;
+    final baseY = (_kVpY + (_kNearY - _kVpY) / depth) * size.height;
+    // Tilt: left side is lower (higher Y); right side is higher (lower Y).
+    final tiltY = _kTilt * (0.5 - c) * size.height / depth;
+    final rowY = baseY + tiltY;
     final halfW = _kNearHalfW * size.width / depth;
     final rowX = size.width * 0.5 + (c - 0.5) * 2.0 * halfW;
     return Offset(rowX, rowY);
@@ -276,25 +276,69 @@ class GoParticleScenePainter extends CustomPainter {
       ..lineTo(nearLeft.dx, nearLeft.dy)
       ..close();
 
-    // Surface gradient: top (far) is lighter, bottom (near) is warmer.
+    // Warm kaya/hinoki wood: golden-tan surface, darker near edge.
+    // This matches the natural wood color seen in real Go board photos.
     final topColor = Color.lerp(
-        const Color(0xFFCFB880), const Color(0xFFD4BC88), preset.warmth)!;
+        const Color(0xFFCEB870), const Color(0xFFCCB468), preset.warmth)!;
     final botColor = Color.lerp(
-        const Color(0xFFB8882C), const Color(0xFFC49438), preset.warmth)!;
+        const Color(0xFFB89040), const Color(0xFFB48838), preset.warmth)!;
 
     final surfacePaint = Paint()
       ..shader = ui.Gradient.linear(
         farLeft,
         nearLeft,
         [
-          topColor.withValues(alpha: 0.68 * intensity),
-          botColor.withValues(alpha: 0.82 * intensity),
+          topColor.withValues(alpha: 0.62 * intensity),
+          botColor.withValues(alpha: 0.75 * intensity),
         ],
       );
     canvas.drawPath(boardPath, surfacePaint);
 
-    // Board thickness face at the near edge.
+    // Subtle light-spot in the upper-centre of the board surface (as seen in
+    // real photos of kaya boards under overhead lighting).
+    final lightCentre = _p(0.38, 0.68, size);
+    canvas.drawOval(
+      Rect.fromCenter(
+          center: lightCentre,
+          width: size.width * 0.55,
+          height: size.height * 0.12),
+      Paint()
+        ..shader = ui.Gradient.radial(
+          lightCentre,
+          size.width * 0.28,
+          [
+            const Color(0xFFFFFFFF).withValues(alpha: 0.18 * intensity),
+            const Color(0x00FFFFFF),
+          ],
+        ),
+    );
+
+    // ── Left board face (visible because camera is from upper-left) ────────
     final edgeH = size.height * 0.022;
+    final leftFacePath = Path()
+      ..moveTo(farLeft.dx, farLeft.dy)
+      ..lineTo(nearLeft.dx, nearLeft.dy)
+      ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
+      ..lineTo(farLeft.dx, farLeft.dy + edgeH)
+      ..close();
+    final leftFaceTop = Color.lerp(
+        const Color(0xFF9A8040), const Color(0xFF9C8444), preset.warmth)!;
+    final leftFaceBot = Color.lerp(
+        const Color(0xFF5A4010), const Color(0xFF604618), preset.warmth)!;
+    canvas.drawPath(
+      leftFacePath,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          farLeft,
+          nearLeft,
+          [
+            leftFaceTop.withValues(alpha: 0.55 * intensity),
+            leftFaceBot.withValues(alpha: 0.70 * intensity),
+          ],
+        ),
+    );
+
+    // ── Bottom (near-edge) thickness face ─────────────────────────────────
     final edgePath = Path()
       ..moveTo(nearLeft.dx, nearLeft.dy)
       ..lineTo(nearRight.dx, nearRight.dy)
@@ -302,9 +346,9 @@ class GoParticleScenePainter extends CustomPainter {
       ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
       ..close();
     final edgeTop = Color.lerp(
-        const Color(0xFF9E7020), const Color(0xFFA87828), preset.warmth)!;
+        const Color(0xFF9A8040), const Color(0xFFA08848), preset.warmth)!;
     final edgeBot = Color.lerp(
-        const Color(0xFF5A3A08), const Color(0xFF623E10), preset.warmth)!;
+        const Color(0xFF5A3A08), const Color(0xFF604010), preset.warmth)!;
     canvas.drawPath(
       edgePath,
       Paint()
@@ -312,8 +356,8 @@ class GoParticleScenePainter extends CustomPainter {
           nearLeft,
           Offset(nearLeft.dx, nearLeft.dy + edgeH),
           [
-            edgeTop.withValues(alpha: 0.70 * intensity),
-            edgeBot.withValues(alpha: 0.45 * intensity),
+            edgeTop.withValues(alpha: 0.68 * intensity),
+            edgeBot.withValues(alpha: 0.42 * intensity),
           ],
         ),
     );
@@ -324,10 +368,10 @@ class GoParticleScenePainter extends CustomPainter {
   void _drawWoodParticles(Canvas canvas, Size size) {
     const particleCount = 340;
     final woodColors = [
-      const Color(0xFFD4B882),
-      const Color(0xFFCFAF78),
-      const Color(0xFFDCC48E),
-      const Color(0xFFC8A870),
+      const Color(0xFFC8AA60),
+      const Color(0xFFC2A255),
+      const Color(0xFFD0B468),
+      const Color(0xFFBC9C50),
     ];
 
     // Clip particles to the board surface.
@@ -395,25 +439,25 @@ class GoParticleScenePainter extends CustomPainter {
 
     final linePaint = Paint()..style = PaintingStyle.stroke;
 
-    // Horizontal lines — row 0 is near (bright/thick), row n-1 is far (dim/thin).
+    // Horizontal lines — row 0 is near (bold/dark), row n-1 is far (faint).
     for (int r = 0; r < n; r++) {
       final rowFrac = r / (n - 1).toDouble();
-      final alpha = _lerpd(0.45, 0.09, rowFrac) * intensity;
-      final sw = _lerpd(1.1, 0.35, rowFrac);
+      final alpha = _lerpd(0.52, 0.12, rowFrac) * intensity;
+      final sw = _lerpd(1.2, 0.40, rowFrac);
       linePaint
-        ..color = const Color(0xFF8B7355).withValues(alpha: alpha)
+        ..color = const Color(0xFF5C4020).withValues(alpha: alpha)
         ..strokeWidth = sw;
       canvas.drawLine(_p(0.0, rowFrac, size), _p(1.0, rowFrac, size), linePaint);
     }
 
-    // Vertical lines — slight alpha variation across columns (centre stronger).
+    // Vertical lines — subtle, slightly stronger at centre.
     for (int c = 0; c < n; c++) {
       final colFrac = c / (n - 1).toDouble();
       final centerBias = 1.0 - (colFrac - 0.5).abs() * 1.6;
-      final alpha = (0.20 + 0.08 * centerBias.clamp(0.0, 1.0)) * intensity;
+      final alpha = (0.24 + 0.10 * centerBias.clamp(0.0, 1.0)) * intensity;
       linePaint
-        ..color = const Color(0xFF8B7355).withValues(alpha: alpha)
-        ..strokeWidth = 0.55;
+        ..color = const Color(0xFF5C4020).withValues(alpha: alpha)
+        ..strokeWidth = 0.6;
       canvas.drawLine(_p(colFrac, 0.0, size), _p(colFrac, 1.0, size), linePaint);
     }
   }
@@ -426,6 +470,8 @@ class GoParticleScenePainter extends CustomPainter {
     final n = preset.boardSize;
     if (n < 2) return;
 
+    final halfStep = 0.5 / (n - 1);
+
     for (final stone in preset.stones) {
       final col = stone.col.clamp(0, n - 1);
       final row = stone.row.clamp(0, n - 1);
@@ -434,77 +480,113 @@ class GoParticleScenePainter extends CustomPainter {
 
       final center = _p(colFrac, rowFrac, size);
 
-      // Derive stone radius from the projected horizontal cell spacing at this
-      // row — this automatically gives perspective-correct sizing.
-      final halfStep = 0.5 / (n - 1);
+      // Horizontal semi-axis from projected column cell width.
       final pL = _p((colFrac - halfStep).clamp(0.0, 1.0), rowFrac, size);
       final pR = _p((colFrac + halfStep).clamp(0.0, 1.0), rowFrac, size);
-      final cellW = (pR.dx - pL.dx).abs();
-      final radius = cellW * 0.44 * (0.9 + 0.2 * _noise(col * 7 + row * 13));
+      final rx = (pR.dx - pL.dx).abs() * 0.50 *
+          (0.9 + 0.2 * _noise(col * 7 + row * 13));
 
-      final blur = rowFrac * 2.8 * blurStrength * preset.depthOfField;
-      final alpha = _lerpd(0.85, 0.36, rowFrac) * intensity;
+      // Near stones: ry/rx ≈ 0.60 (clearly elliptical disc).
+      // Far stones: ry/rx ≈ 0.28 (very flat, high foreshortening).
+      final ry = rx * _lerpd(0.60, 0.28, rowFrac);
 
-      _drawStone(canvas, center, radius, blur, alpha, stone.isBlack);
+      // Depth-of-field blur only at far distances; keep near stones crisp.
+      final blur = rowFrac * 2.0 * blurStrength * preset.depthOfField;
+      final alpha = _lerpd(0.92, 0.40, rowFrac) * intensity;
+
+      _drawStone(canvas, center, rx, ry, blur, alpha, stone.isBlack);
     }
   }
 
-  void _drawStone(Canvas canvas, Offset center, double radius, double blur,
-      double alpha, bool isBlack) {
-    // 1. Contact shadow
-    final shadowPaint = Paint()
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 0.8 + 1.0)
-      ..color = const Color(0xFF000000).withValues(alpha: 0.22 * alpha);
+  /// Draws a flat lenticular Go stone (disc shape, not a sphere).
+  ///
+  /// [rx] = horizontal semi-axis, [ry] = vertical semi-axis.
+  /// Light source is assumed to come from the upper-left.
+  void _drawStone(Canvas canvas, Offset center, double rx, double ry,
+      double blur, double alpha, bool isBlack) {
+    final clampedAlpha = alpha.clamp(0.0, 1.0);
+
+    // 1. Soft contact shadow — elliptical, slightly offset down-right.
+    final shadowBlur = rx * 0.5 + 1.5;
     canvas.drawOval(
       Rect.fromCenter(
-          center: center + Offset(radius * 0.15, radius * 0.4),
-          width: radius * 2.2,
-          height: radius * 1.1),
-      shadowPaint,
+          center: center + Offset(rx * 0.10, ry * 0.50),
+          width: rx * 2.6,
+          height: ry * 2.0),
+      Paint()
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, shadowBlur)
+        ..color =
+            const Color(0xFF000000).withValues(alpha: 0.32 * clampedAlpha),
     );
 
-    // 2. Body – use saveLayer so alpha applies to the whole stone at once.
-    final bodyRect = Rect.fromCenter(
-        center: center, width: radius * 2, height: radius * 2);
-    canvas.saveLayer(bodyRect.inflate(radius), Paint());
-    final clampedAlpha = alpha.clamp(0.0, 1.0);
-    final alphaInt = (clampedAlpha * 255).round();
-    final gradPaint = Paint()
+    // 2. Stone body — lenticular disc (convex lens shape).
+    //    Radial gradient with focal point at upper-left gives 3D curvature
+    //    without looking like a sphere.  The gradient covers ~1.1×rx so the
+    //    stone edges darken toward the rim, as seen on real Go stones.
+    final bodyRect =
+        Rect.fromCenter(center: center, width: rx * 2, height: ry * 2);
+    final layerRect = bodyRect.inflate(rx.clamp(8.0, 32.0));
+    canvas.saveLayer(layerRect, Paint());
+
+    final int ai = (clampedAlpha * 255).round();
+    final focalPt = center + Offset(-rx * 0.22, -ry * 0.28);
+
+    final bodyPaint = Paint()
       ..shader = ui.Gradient.radial(
-        center + Offset(-radius * 0.25, -radius * 0.28),
-        radius * 1.2,
+        focalPt,
+        rx * 1.15,
         isBlack
             ? [
-                Color.fromARGB(alphaInt, 80, 74, 70),
-                Color.fromARGB(alphaInt, 20, 20, 20),
+                Color.fromARGB(ai, 72, 68, 62),   // lit centre
+                Color.fromARGB(ai, 28, 24, 20),   // mid-tone
+                Color.fromARGB(ai, 10, 8, 7),     // dark rim
               ]
             : [
-                Color.fromARGB(alphaInt, 252, 250, 246),
-                Color.fromARGB(alphaInt, 224, 219, 210),
+                Color.fromARGB(ai, 255, 255, 254), // bright lit centre
+                Color.fromARGB(ai, 235, 232, 226), // off-white mid
+                Color.fromARGB(ai, 190, 186, 178), // gray rim
               ],
+        [0.0, 0.55, 1.0],
       );
-    if (blur > 0.3) {
-      gradPaint.maskFilter = MaskFilter.blur(BlurStyle.normal, blur);
+    if (blur > 0.4) {
+      bodyPaint.maskFilter = MaskFilter.blur(BlurStyle.normal, blur);
     }
-    canvas.drawOval(bodyRect, gradPaint);
+    canvas.drawOval(bodyRect, bodyPaint);
 
-    // 3. Highlight
+    // White stones: thin gray stroke to separate from light board background.
+    if (!isBlack && blur < 2.0) {
+      canvas.drawOval(
+        bodyRect,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0
+          ..color =
+              const Color(0xFF707068).withValues(alpha: 0.22 * clampedAlpha),
+      );
+    }
+
+    // 3. Specular highlight — small bright oval at upper-left (lens reflection).
+    //    White stones: strong clean highlight. Black stones: faint subtle glint.
     if (blur < 2.5) {
-      final hlRadius = radius * 0.28;
-      final hlCenter = center + Offset(-radius * 0.30, -radius * 0.32);
-      final hlPaint = Paint()
-        ..shader = ui.Gradient.radial(
-          hlCenter,
-          hlRadius * 1.4,
-          [
-            isBlack
-                ? const Color(0x40FFFFFF)
-                : const Color(0xC8FFFFFF),
-            const Color(0x00FFFFFF),
-          ],
-        )
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, hlRadius * 0.6);
-      canvas.drawCircle(hlCenter, hlRadius * 1.4, hlPaint);
+      final hlW = rx * (isBlack ? 0.28 : 0.52);
+      final hlH = ry * (isBlack ? 0.20 : 0.38);
+      final hlCenter = center + Offset(-rx * 0.20, -ry * 0.30);
+      canvas.drawOval(
+        Rect.fromCenter(center: hlCenter, width: hlW, height: hlH),
+        Paint()
+          ..shader = ui.Gradient.radial(
+            hlCenter + Offset(-hlW * 0.08, -hlH * 0.08),
+            hlW * 0.52,
+            [
+              isBlack
+                  ? const Color(0x30FFFFFF)
+                  : const Color(0xF8FFFFFF),
+              const Color(0x00FFFFFF),
+            ],
+          )
+          ..maskFilter =
+              MaskFilter.blur(BlurStyle.normal, isBlack ? 2.5 : 0.6),
+      );
     }
 
     canvas.restore();
