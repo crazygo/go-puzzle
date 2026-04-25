@@ -20,10 +20,12 @@ class CaptureGameScreen extends StatefulWidget {
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
+  static const _initialModeKey = 'capture_setup.initial_mode';
   static const _captureTarget = 5;
 
   DifficultyLevel _difficulty = DifficultyLevel.intermediate;
   int _boardSize = 9;
+  CaptureInitialMode _initialMode = CaptureInitialMode.twistCross;
 
   @override
   void initState() {
@@ -113,13 +115,42 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       _updateSelection(difficulty: value),
                                 ),
                                 const SizedBox(height: 20),
+                                const _SectionLabel(title: '初始'),
+                                const SizedBox(height: 8),
+                                _PillSegmentControl<CaptureInitialMode>(
+                                  selectedValue: _initialMode,
+                                  options: const [
+                                    _SegmentOption(
+                                      value: CaptureInitialMode.twistCross,
+                                      label: '扭十字',
+                                    ),
+                                    _SegmentOption(
+                                      value: CaptureInitialMode.empty,
+                                      label: '空白',
+                                    ),
+                                    _SegmentOption(
+                                      value: CaptureInitialMode.setup,
+                                      label: '摆棋',
+                                    ),
+                                  ],
+                                  onChanged: (value) =>
+                                      _updateSelection(initialMode: value),
+                                ),
+                                const SizedBox(height: 20),
                                 const _SectionLabel(title: 'AI 风格'),
                                 const SizedBox(height: 8),
                                 const _AiStyleTile(),
                                 const SizedBox(height: 24),
                                 _PrimaryActionButton(
-                                  title: _CaptureCopy.startButton,
-                                  onPressed: _startGame,
+                                  title: _CaptureCopy.startAsBlackButton,
+                                  onPressed: () =>
+                                      _startGame(humanColor: StoneColor.black),
+                                ),
+                                const SizedBox(height: 10),
+                                _SecondaryActionButton(
+                                  title: _CaptureCopy.startAsWhiteButton,
+                                  onPressed: () =>
+                                      _startGame(humanColor: StoneColor.white),
                                 ),
                               ],
                             ),
@@ -134,7 +165,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                             title: '围地上攻防练习',
                             subtitle:
                                 '基础练习 · 吃$_captureTarget子 · ${_difficulty.displayName}',
-                            onTap: _startGame,
+                            onTap: () =>
+                                _startGame(humanColor: StoneColor.black),
                           ),
                           const SizedBox(height: 10),
                           const _HomeSectionTitle(
@@ -146,7 +178,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                             boardSize: _boardSize,
                             difficulty: _difficulty,
                             captureTarget: _captureTarget,
-                            onTap: _startGame,
+                            onTap: () =>
+                                _startGame(humanColor: StoneColor.black),
                           ),
                           const SizedBox(height: 14),
                         ],
@@ -168,11 +201,16 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
     final savedDifficulty = prefs.getString(_difficultyKey);
     final savedBoardSize = prefs.getInt(_boardSizeKey);
+    final savedInitialMode = prefs.getString(_initialModeKey);
 
     setState(() {
       _difficulty = DifficultyLevel.values.firstWhere(
         (v) => v.name == savedDifficulty,
         orElse: () => _difficulty,
+      );
+      _initialMode = CaptureInitialMode.values.firstWhere(
+        (v) => v.name == savedInitialMode,
+        orElse: () => _initialMode,
       );
       if (savedBoardSize == 9 || savedBoardSize == 13 || savedBoardSize == 19) {
         _boardSize = savedBoardSize!;
@@ -183,10 +221,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   void _updateSelection({
     DifficultyLevel? difficulty,
     int? boardSize,
+    CaptureInitialMode? initialMode,
   }) {
     setState(() {
       _difficulty = difficulty ?? _difficulty;
       _boardSize = boardSize ?? _boardSize;
+      _initialMode = initialMode ?? _initialMode;
     });
     _saveSelection();
   }
@@ -195,9 +235,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_difficultyKey, _difficulty.name);
     await prefs.setInt(_boardSizeKey, _boardSize);
+    await prefs.setString(_initialModeKey, _initialMode.name);
   }
 
-  void _startGame() {
+  void _startGame({required StoneColor humanColor}) {
     _saveSelection();
     Navigator.of(context, rootNavigator: true).push(
       CupertinoPageRoute(
@@ -206,10 +247,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
             boardSize: _boardSize,
             captureTarget: _captureTarget,
             difficulty: _difficulty,
+            humanColor: humanColor,
+            initialMode: _initialMode,
           ),
           child: CaptureGamePlayScreen(
             difficulty: _difficulty,
             captureTarget: _captureTarget,
+            humanColor: humanColor,
+            initialMode: _initialMode,
           ),
         ),
       ),
@@ -237,7 +282,8 @@ class _ParticlePreviewCanvas extends StatelessWidget {
 class _CaptureCopy {
   static const pageTitle = '小闲围棋';
   static const pageSubtitle = 'AI 陪你下好每一步';
-  static const startButton = '开始对弈';
+  static const startAsBlackButton = '执黑开始';
+  static const startAsWhiteButton = '执白开始';
 }
 
 class _SegmentOption<T> {
@@ -285,6 +331,34 @@ class _PrimaryActionButton extends StatelessWidget {
               color: CupertinoColors.white,
               letterSpacing: 1.2,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SecondaryActionButton extends StatelessWidget {
+  const _SecondaryActionButton({required this.title, required this.onPressed});
+
+  final String title;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: CupertinoButton(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        borderRadius: BorderRadius.circular(14),
+        color: const Color(0x14A86930),
+        onPressed: onPressed,
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF915C2F),
           ),
         ),
       ),
@@ -715,10 +789,14 @@ class CaptureGamePlayScreen extends StatelessWidget {
     super.key,
     required this.difficulty,
     required this.captureTarget,
+    required this.humanColor,
+    required this.initialMode,
   });
 
   final DifficultyLevel difficulty;
   final int captureTarget;
+  final StoneColor humanColor;
+  final CaptureInitialMode initialMode;
 
   @override
   Widget build(BuildContext context) {
@@ -738,7 +816,9 @@ class CaptureGamePlayScreen extends StatelessWidget {
             backgroundColor: const Color(0xFFF3F0ED),
             border: null,
             previousPageTitle: _CaptureCopy.pageTitle,
-            middle: Text('吃$captureTarget子 · ${difficulty.displayName}'),
+            middle: Text(
+              '${_modeLabel(initialMode)} · 吃$captureTarget子 · ${difficulty.displayName}',
+            ),
             trailing: CupertinoButton(
               padding: EdgeInsets.zero,
               onPressed: () => _showStylePicker(context, provider),
@@ -796,21 +876,32 @@ class CaptureGamePlayScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                   child: _BottomInfoCard(
-                    infoText: _buildInfoText(provider),
+                    infoText: _buildInfoText(provider, humanColor),
                     blackRate: blackRate,
                     whiteRate: whiteRate,
                   ),
                 ),
+                if (provider.isInSetupPhase)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+                    child: _SetupPanel(
+                      provider: provider,
+                      humanColor: humanColor,
+                    ),
+                  ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 22),
                   child: Row(
                     children: [
                       Expanded(
                         child: _DecoratedActionButton(
-                          text: '后退一手',
+                          text: provider.isInSetupPhase ? '清空棋盘' : '后退一手',
                           filled: false,
-                          onPressed:
-                              provider.canUndo ? provider.undoMove : null,
+                          onPressed: provider.isInSetupPhase
+                              ? () {
+                                  provider.clearSetupBoard();
+                                }
+                              : (provider.canUndo ? provider.undoMove : null),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -832,12 +923,25 @@ class CaptureGamePlayScreen extends StatelessWidget {
     );
   }
 
-  String _buildInfoText(CaptureGameProvider provider) {
+  String _buildInfoText(CaptureGameProvider provider, StoneColor humanColor) {
     if (provider.result == CaptureGameResult.blackWins) return '对局结束：人类胜';
     if (provider.result == CaptureGameResult.whiteWins) return '对局结束：AI 胜';
+    if (provider.isInSetupPhase) return '摆棋阶段：可自由放置黑白棋，完成后点击“开始”。';
     if (provider.isAiThinking) return 'AI 正在思考（${provider.aiStyle.label}）';
-    if (provider.gameState.currentPlayer == StoneColor.white) return '轮到 AI 落子（白棋）';
-    return '轮到你落子（黑棋）';
+    final playerName = humanColor == StoneColor.black ? '黑棋' : '白棋';
+    final aiName = humanColor == StoneColor.black ? '白棋' : '黑棋';
+    if (provider.gameState.currentPlayer != humanColor) {
+      return '轮到 AI 落子（$aiName）';
+    }
+    return '轮到你落子（$playerName）';
+  }
+
+  String _modeLabel(CaptureInitialMode mode) {
+    return switch (mode) {
+      CaptureInitialMode.twistCross => '扭十字',
+      CaptureInitialMode.empty => '空白',
+      CaptureInitialMode.setup => '摆棋',
+    };
   }
 
   void _showHint(BuildContext context, CaptureGameProvider provider) {
@@ -871,6 +975,73 @@ class CaptureGamePlayScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),
+      ),
+    );
+  }
+}
+
+class _SetupPanel extends StatelessWidget {
+  const _SetupPanel({
+    required this.provider,
+    required this.humanColor,
+  });
+
+  final CaptureGameProvider provider;
+  final StoneColor humanColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: const Color(0x12A86930),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '摆棋模式',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF5B422B),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _DecoratedActionButton(
+                  text: '摆黑棋',
+                  filled: provider.setupStone == StoneColor.black,
+                  onPressed: () => provider.setSetupStone(StoneColor.black),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _DecoratedActionButton(
+                  text: '摆白棋',
+                  filled: provider.setupStone == StoneColor.white,
+                  onPressed: () => provider.setSetupStone(StoneColor.white),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _DecoratedActionButton(
+            text: '开始',
+            filled: true,
+            onPressed: () {
+              provider.startSetupGame();
+            },
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '你执${humanColor == StoneColor.black ? '黑' : '白'}，点击“开始”后将按当前轮到一方继续。',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF7A6A5A)),
+          ),
+        ],
       ),
     );
   }
@@ -919,7 +1090,7 @@ class _PlayerSummaryRow extends StatelessWidget {
       children: [
         Expanded(
           child: _PlayerSideCard(
-            title: '人类',
+            title: '黑棋',
             isBlack: true,
             tag: leftTag,
             progress: blackCaptured,
@@ -930,7 +1101,7 @@ class _PlayerSummaryRow extends StatelessWidget {
         const SizedBox(width: 14),
         Expanded(
           child: _PlayerSideCard(
-            title: '猎捕者',
+            title: '白棋',
             isBlack: false,
             tag: rightTag,
             progress: whiteCaptured,

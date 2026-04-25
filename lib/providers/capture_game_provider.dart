@@ -54,25 +54,35 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
 }
 
 enum CaptureGameResult { none, blackWins, whiteWins }
+enum CaptureInitialMode { twistCross, empty, setup }
 
 class CaptureGameProvider extends ChangeNotifier {
   CaptureGameProvider({
     required this.boardSize,
     required this.captureTarget,
     required this.difficulty,
+    required this.humanColor,
+    required this.initialMode,
   })  : assert(
           boardSize == 9 || boardSize == 13 || boardSize == 19,
           'boardSize must be 9, 13, or 19.',
         ),
         assert(captureTarget > 0, 'captureTarget must be greater than 0.') {
     _startNewGame();
+    if (!isInSetupPhase && _gameState.currentPlayer != humanColor) {
+      Future<void>.microtask(_doAiMove);
+    }
   }
 
   final int boardSize;
   final int captureTarget;
   final DifficultyLevel difficulty;
+  final StoneColor humanColor;
+  final CaptureInitialMode initialMode;
   CaptureAiStyle _aiStyle = CaptureAiStyle.hunter;
   CaptureAiAgent? _cachedAgent;
+  StoneColor _setupStone = StoneColor.black;
+  bool _setupStarted = false;
 
   late GameState _gameState;
   CaptureGameResult _result = CaptureGameResult.none;
@@ -84,6 +94,8 @@ class CaptureGameProvider extends ChangeNotifier {
   bool get isAiThinking => _isAiThinking;
   bool get canUndo => _undoStack.isNotEmpty && !_isAiThinking;
   CaptureAiStyle get aiStyle => _aiStyle;
+  bool get isInSetupPhase => initialMode == CaptureInitialMode.setup && !_setupStarted;
+  StoneColor get setupStone => _setupStone;
 
   CaptureAiAgent get _activeAgent {
     return _cachedAgent ??=
@@ -100,8 +112,11 @@ class CaptureGameProvider extends ChangeNotifier {
   }
 
   Future<bool> placeStone(int row, int col) async {
+    if (isInSetupPhase) {
+      return placeSetupStone(row, col);
+    }
     if (_isAiThinking || _result != CaptureGameResult.none) return false;
-    if (_gameState.currentPlayer != StoneColor.black) return false;
+    if (_gameState.currentPlayer != humanColor) return false;
 
     final newState = GoEngine.placeStone(_gameState, row, col);
     if (newState == null) return false;
@@ -115,6 +130,52 @@ class CaptureGameProvider extends ChangeNotifier {
       await _doAiMove();
     }
     return true;
+  }
+
+  Future<bool> placeSetupStone(int row, int col) async {
+    if (!isInSetupPhase || _result != CaptureGameResult.none || _isAiThinking) {
+      return false;
+    }
+    final current = _gameState.board[row][col];
+    if (current == _setupStone) {
+      _setCell(row, col, StoneColor.empty);
+    } else {
+      _setCell(row, col, _setupStone);
+    }
+    notifyListeners();
+    return true;
+  }
+
+  void setSetupStone(StoneColor color) {
+    if (!isInSetupPhase || (color != StoneColor.black && color != StoneColor.white)) {
+      return;
+    }
+    _setupStone = color;
+    notifyListeners();
+  }
+
+  Future<void> startSetupGame() async {
+    if (!isInSetupPhase) return;
+    _setupStarted = true;
+    _undoStack.clear();
+    notifyListeners();
+    if (_gameState.currentPlayer != humanColor) {
+      await _doAiMove();
+    }
+  }
+
+  Future<void> clearSetupBoard() async {
+    if (!isInSetupPhase) return;
+    final emptyBoard = List.generate(
+      boardSize,
+      (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
+    );
+    _gameState = GameState(
+      boardSize: boardSize,
+      board: emptyBoard,
+      currentPlayer: humanColor,
+    );
+    notifyListeners();
   }
 
   void undoMove() {
@@ -189,15 +250,41 @@ class CaptureGameProvider extends ChangeNotifier {
       boardSize,
       (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
     );
+    _setupStarted = initialMode != CaptureInitialMode.setup;
+    _setupStone = StoneColor.black;
+    var initialPlayer = StoneColor.black;
+
+    if (initialMode == CaptureInitialMode.twistCross) {
+      final center = boardSize ~/ 2;
+      if (center > 0 && center < boardSize - 1) {
+        emptyBoard[center - 1][center] = StoneColor.black;
+        emptyBoard[center + 1][center] = StoneColor.black;
+        emptyBoard[center][center - 1] = StoneColor.white;
+        emptyBoard[center][center + 1] = StoneColor.white;
+      }
+      initialPlayer = humanColor;
+    } else if (initialMode == CaptureInitialMode.setup) {
+      initialPlayer = humanColor;
+    }
+
     _gameState = GameState(
       boardSize: boardSize,
       board: emptyBoard,
-      currentPlayer: StoneColor.black,
+      currentPlayer: initialPlayer,
     );
     _result = CaptureGameResult.none;
     _isAiThinking = false;
     _undoStack.clear();
     notifyListeners();
+  }
+
+  void _setCell(int row, int col, StoneColor color) {
+    final updatedBoard = List.generate(
+      boardSize,
+      (r) => List<StoneColor>.from(_gameState.board[r]),
+    );
+    updatedBoard[row][col] = color;
+    _gameState = _gameState.copyWith(board: updatedBoard);
   }
 
   Future<void> _doAiMove() async {
