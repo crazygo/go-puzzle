@@ -61,8 +61,8 @@ class CaptureGameProvider extends ChangeNotifier {
     required this.boardSize,
     required this.captureTarget,
     required this.difficulty,
-    required this.humanColor,
-    required this.initialMode,
+    this.humanColor = StoneColor.black,
+    this.initialMode = CaptureInitialMode.twistCross,
   })  : assert(
           boardSize == 9 || boardSize == 13 || boardSize == 19,
           'boardSize must be 9, 13, or 19.',
@@ -143,9 +143,23 @@ class CaptureGameProvider extends ChangeNotifier {
 
   void undoMove() {
     if (!canUndo) return;
-    _gameState = _undoStack.removeLast();
+    if (isPlacementMode) {
+      // Setup mode: undo one move at a time
+      _gameState = _undoStack.removeLast();
+    } else {
+      // Auto-play mode: skip over AI moves to restore human's last turn
+      _gameState = _undoStack.removeLast();
+      while (
+          _undoStack.isNotEmpty && _gameState.currentPlayer != humanColor) {
+        _gameState = _undoStack.removeLast();
+      }
+    }
     _result = CaptureGameResult.none;
     notifyListeners();
+    // If we exhausted the stack and it's still AI's turn, kick off AI again
+    if (!isPlacementMode && _gameState.currentPlayer != humanColor) {
+      Future<void>.microtask(_doAiMove);
+    }
   }
 
   List<BoardPosition> suggestMoves({int count = 3}) {

@@ -789,8 +789,8 @@ class CaptureGamePlayScreen extends StatefulWidget {
     super.key,
     required this.difficulty,
     required this.captureTarget,
-    required this.humanColor,
-    required this.initialMode,
+    this.humanColor = StoneColor.black,
+    this.initialMode = CaptureInitialMode.twistCross,
   });
 
   final DifficultyLevel difficulty;
@@ -849,8 +849,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                     captureTarget: widget.captureTarget,
                     blackCaptured: blackCaptured,
                     whiteCaptured: whiteCaptured,
-                    aiThinking: aiThinking,
                     result: provider.result,
+                    currentPlayer: provider.gameState.currentPlayer,
+                    isSetupMode: provider.isPlacementMode,
                   ),
                 ),
                 Expanded(
@@ -1035,30 +1036,34 @@ class _PlayerSummaryRow extends StatelessWidget {
     required this.captureTarget,
     required this.blackCaptured,
     required this.whiteCaptured,
-    required this.aiThinking,
     required this.result,
+    required this.currentPlayer,
+    required this.isSetupMode,
   });
 
   final int captureTarget;
   final int blackCaptured;
   final int whiteCaptured;
-  final bool aiThinking;
   final CaptureGameResult result;
+  final StoneColor currentPlayer;
+  final bool isSetupMode;
 
   @override
   Widget build(BuildContext context) {
-    final leftTag = switch (result) {
-      CaptureGameResult.blackWins => '胜利',
-      CaptureGameResult.whiteWins => '已结束',
-      _ when aiThinking => '等待中',
-      _ => '思考中',
-    };
-    final rightTag = switch (result) {
-      CaptureGameResult.blackWins => '已结束',
-      CaptureGameResult.whiteWins => '胜利',
-      _ when aiThinking => '思考中',
-      _ => '等待中',
-    };
+    String? blackTag;
+    String? whiteTag;
+
+    if (result == CaptureGameResult.blackWins) {
+      blackTag = '胜利';
+      whiteTag = '已结束';
+    } else if (result == CaptureGameResult.whiteWins) {
+      blackTag = '已结束';
+      whiteTag = '胜利';
+    } else {
+      final label = isSetupMode ? '请落子' : '思考中';
+      blackTag = currentPlayer == StoneColor.black ? label : null;
+      whiteTag = currentPlayer == StoneColor.white ? label : null;
+    }
 
     return Row(
       children: [
@@ -1066,7 +1071,7 @@ class _PlayerSummaryRow extends StatelessWidget {
           child: _PlayerSideCard(
             title: '黑棋',
             isBlack: true,
-            tag: leftTag,
+            tag: blackTag,
             progress: blackCaptured,
             captureTarget: captureTarget,
             alignEnd: false,
@@ -1077,7 +1082,7 @@ class _PlayerSummaryRow extends StatelessWidget {
           child: _PlayerSideCard(
             title: '白棋',
             isBlack: false,
-            tag: rightTag,
+            tag: whiteTag,
             progress: whiteCaptured,
             captureTarget: captureTarget,
             alignEnd: true,
@@ -1092,7 +1097,7 @@ class _PlayerSideCard extends StatelessWidget {
   const _PlayerSideCard({
     required this.title,
     required this.isBlack,
-    required this.tag,
+    this.tag,
     required this.progress,
     required this.captureTarget,
     required this.alignEnd,
@@ -1100,7 +1105,7 @@ class _PlayerSideCard extends StatelessWidget {
 
   final String title;
   final bool isBlack;
-  final String tag;
+  final String? tag;
   final int progress;
   final int captureTarget;
   final bool alignEnd;
@@ -1125,22 +1130,25 @@ class _PlayerSideCard extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(width: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFEADCCB),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Text(
-                tag,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF8E7157),
-                  fontWeight: FontWeight.w600,
+            if (tag != null) ...[
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEADCCB),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                child: Text(
+                  tag!,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF8E7157),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
         const SizedBox(height: 8),

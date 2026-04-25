@@ -18,7 +18,7 @@ void main() {
     expect(find.text('AI 风格'), findsOneWidget);
     expect(find.text('中级 · 9 路 · 吃5子'), findsNothing);
 
-    final startButton = find.widgetWithText(CupertinoButton, '开始对弈');
+    final startButton = find.widgetWithText(CupertinoButton, '执黑开始');
     expect(startButton, findsOneWidget);
   });
 
@@ -60,7 +60,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    final startButton = find.widgetWithText(CupertinoButton, '开始对弈');
+    final startButton = find.widgetWithText(CupertinoButton, '执黑开始');
     await tester.dragUntilVisible(
       startButton,
       find.byType(Scrollable),
