@@ -61,12 +61,14 @@ class GoScenePreset {
   static const GoScenePreset defaultPreset = GoScenePreset(
     boardSize: 9,
     stones: [
-      GoSceneStone(col: 2, row: 2, isBlack: true),
+      GoSceneStone(col: 4, row: 2, isBlack: true),
       GoSceneStone(col: 6, row: 2, isBlack: false),
-      GoSceneStone(col: 4, row: 4, isBlack: true),
-      GoSceneStone(col: 2, row: 6, isBlack: false),
-      GoSceneStone(col: 6, row: 6, isBlack: true),
-      GoSceneStone(col: 4, row: 7, isBlack: false),
+      GoSceneStone(col: 5, row: 3, isBlack: false),
+      GoSceneStone(col: 3, row: 4, isBlack: true),
+      GoSceneStone(col: 6, row: 4, isBlack: true),
+      GoSceneStone(col: 4, row: 5, isBlack: false),
+      GoSceneStone(col: 7, row: 5, isBlack: true),
+      GoSceneStone(col: 5, row: 6, isBlack: false),
     ],
   );
 
@@ -178,6 +180,39 @@ class GoParticleScenePainter extends CustomPainter {
     return v - v.floor();
   }
 
+  // ── Camera / projection constants ─────────────────────────────────────────
+  // Perspective projection model:
+  //   depth(r) = 1 + r * (kDepthFar - 1)   where r=0 is near, r=1 is far.
+  //   rowY  = (kVpY + (kNearY - kVpY) / depth) * height
+  //   halfW = kNearHalfW * width / depth
+  //   rowX  = width/2 + (c - 0.5) * 2 * halfW
+
+  // Vanishing point at 8 % of height — visible near the top of the frame,
+  // giving a natural camera-above-board angle.
+  static const _kVpY = 0.08;
+
+  // Near edge at 82 % of height — the board extends down toward the bottom.
+  static const _kNearY = 0.82;
+
+  // Near half-width is 62 % of the canvas width → the near edge spans 124 %
+  // of the screen, going off both sides (realistic wide-angle crop).
+  static const _kNearHalfW = 0.62;
+
+  // Depth ratio near:far = 1:2.8 — strong foreshortening.
+  static const _kDepthFar = 2.8;
+
+  /// Perspective-project board fractions (c, r) to screen [Offset].
+  ///
+  /// * [c] ∈ [0, 1] — left → right column fraction.
+  /// * [r] ∈ [0, 1] — near (bottom) → far (top) row fraction.
+  Offset _p(double c, double r, Size size) {
+    final depth = 1.0 + r * (_kDepthFar - 1.0);
+    final rowY = (_kVpY + (_kNearY - _kVpY) / depth) * size.height;
+    final halfW = _kNearHalfW * size.width / depth;
+    final rowX = size.width * 0.5 + (c - 0.5) * 2.0 * halfW;
+    return Offset(rowX, rowY);
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     _drawWarmBase(canvas, size);
@@ -225,43 +260,69 @@ class GoParticleScenePainter extends CustomPainter {
 
   // ── 2. Board plane ─────────────────────────────────────────────────────────
 
-  /// The board is represented as a foreshortened trapezoid: wider/lower at the
-  /// bottom (near), narrower/higher at the top (far).
+  /// The board surface is a perspective-correct trapezoid.  The near edge
+  /// extends beyond the canvas so the board feels physically large.  A thin
+  /// thickness face is drawn at the near edge to give a sense of depth.
   void _drawBoardPlane(Canvas canvas, Size size) {
-    final tl = Offset(size.width * 0.18, size.height * 0.06);
-    final tr = Offset(size.width * 0.88, size.height * 0.06);
-    final br = Offset(size.width * 0.96, size.height * 0.70);
-    final bl = Offset(size.width * 0.04, size.height * 0.70);
+    final farLeft   = _p(0.0, 1.0, size);
+    final farRight  = _p(1.0, 1.0, size);
+    final nearLeft  = _p(0.0, 0.0, size);
+    final nearRight = _p(1.0, 0.0, size);
 
-    final path = Path()
-      ..moveTo(tl.dx, tl.dy)
-      ..lineTo(tr.dx, tr.dy)
-      ..lineTo(br.dx, br.dy)
-      ..lineTo(bl.dx, bl.dy)
+    final boardPath = Path()
+      ..moveTo(farLeft.dx, farLeft.dy)
+      ..lineTo(farRight.dx, farRight.dy)
+      ..lineTo(nearRight.dx, nearRight.dy)
+      ..lineTo(nearLeft.dx, nearLeft.dy)
       ..close();
 
-    // warmth shifts board tone toward amber; lower warmth → lighter/cooler wood
-    final topColor = Color.lerp(const Color(0xFFD8C8A8), const Color(0xFFDFCBAA),
-        preset.warmth)!;
-    final botColor = Color.lerp(const Color(0xFFC4B08A), const Color(0xFFCCB282),
-        preset.warmth)!;
+    // Surface gradient: top (far) is lighter, bottom (near) is warmer.
+    final topColor = Color.lerp(
+        const Color(0xFFCFB880), const Color(0xFFD4BC88), preset.warmth)!;
+    final botColor = Color.lerp(
+        const Color(0xFFB8882C), const Color(0xFFC49438), preset.warmth)!;
 
-    final paint = Paint()
+    final surfacePaint = Paint()
       ..shader = ui.Gradient.linear(
-        Offset(size.width * 0.5, size.height * 0.06),
-        Offset(size.width * 0.5, size.height * 0.70),
+        farLeft,
+        nearLeft,
         [
-          topColor.withValues(alpha: 0.55 * intensity),
-          botColor.withValues(alpha: 0.40 * intensity),
+          topColor.withValues(alpha: 0.68 * intensity),
+          botColor.withValues(alpha: 0.82 * intensity),
         ],
       );
-    canvas.drawPath(path, paint);
+    canvas.drawPath(boardPath, surfacePaint);
+
+    // Board thickness face at the near edge.
+    final edgeH = size.height * 0.022;
+    final edgePath = Path()
+      ..moveTo(nearLeft.dx, nearLeft.dy)
+      ..lineTo(nearRight.dx, nearRight.dy)
+      ..lineTo(nearRight.dx, nearRight.dy + edgeH)
+      ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
+      ..close();
+    final edgeTop = Color.lerp(
+        const Color(0xFF9E7020), const Color(0xFFA87828), preset.warmth)!;
+    final edgeBot = Color.lerp(
+        const Color(0xFF5A3A08), const Color(0xFF623E10), preset.warmth)!;
+    canvas.drawPath(
+      edgePath,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          nearLeft,
+          Offset(nearLeft.dx, nearLeft.dy + edgeH),
+          [
+            edgeTop.withValues(alpha: 0.70 * intensity),
+            edgeBot.withValues(alpha: 0.45 * intensity),
+          ],
+        ),
+    );
   }
 
   // ── 3. Wood grain particles ────────────────────────────────────────────────
 
   void _drawWoodParticles(Canvas canvas, Size size) {
-    const particleCount = 320;
+    const particleCount = 340;
     final woodColors = [
       const Color(0xFFD4B882),
       const Color(0xFFCFAF78),
@@ -269,107 +330,91 @@ class GoParticleScenePainter extends CustomPainter {
       const Color(0xFFC8A870),
     ];
 
+    // Clip particles to the board surface.
+    final boardPath = Path()
+      ..moveTo(_p(0.0, 1.0, size).dx, _p(0.0, 1.0, size).dy)
+      ..lineTo(_p(1.0, 1.0, size).dx, _p(1.0, 1.0, size).dy)
+      ..lineTo(_p(1.0, 0.0, size).dx, _p(1.0, 0.0, size).dy)
+      ..lineTo(_p(0.0, 0.0, size).dx, _p(0.0, 0.0, size).dy)
+      ..close();
+
+    canvas.save();
+    canvas.clipPath(boardPath);
+
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
     for (int i = 0; i < particleCount; i++) {
-      final nx = _noise(i * 3 + 1);
-      final ny = _noise(i * 7 + 2);
-      // Constrain particles to the board area
-      final px = size.width * (0.06 + 0.88 * nx);
-      final py = size.height * (0.06 + 0.64 * ny);
+      final nx = _noise(i * 3 + 1); // c fraction
+      final ny = _noise(i * 7 + 2); // r fraction: 0=near, 1=far
 
-      // depth: 0 = top of the board area (far), 1 = bottom of the board area (near)
-      final depth = ny;
-      // Far (depth=0) particles are smaller, thinner, dimmer, and blurry.
-      // Near (depth=1) particles are longer, thicker, more opaque, and sharp.
-      final dof = (1.0 - depth) * blurStrength * preset.depthOfField;
+      final center = _p(nx, ny, size);
+      final depth = 1.0 + ny * (_kDepthFar - 1.0);
+      final depthScale = 1.0 / depth; // far particles are smaller
 
-      final length =
-          size.width * (0.014 + 0.026 * depth + 0.012 * _noise(i * 13));
-      final strokeWidth = (0.4 + 0.7 * depth).clamp(0.4, 1.1);
-      final alpha = (0.06 + 0.12 * depth) * intensity;
-      final angle = -0.12 + 0.22 * _noise(i * 19) + math.pi * 0.04 * depth;
-      final colorIdx = (_noise(i * 11) * woodColors.length).floor() %
-          woodColors.length;
-      final color = woodColors[colorIdx];
+      final dof = ny * blurStrength * preset.depthOfField;
+      final length = size.width *
+          (0.018 + 0.032 * (1.0 - ny) + 0.014 * _noise(i * 13)) *
+          depthScale;
+      final strokeWidth = (0.35 + 1.0 * (1.0 - ny)).clamp(0.35, 1.4) * depthScale;
+      final alpha = (0.10 + 0.22 * (1.0 - ny)) * intensity;
+      // Grain runs roughly horizontal with slight perspective convergence.
+      final angle = -0.06 + 0.16 * _noise(i * 19) + 0.04 * ny;
+      final colorIdx =
+          (_noise(i * 11) * woodColors.length).floor() % woodColors.length;
 
       final dx = math.cos(angle) * length * 0.5;
       final dy = math.sin(angle) * length * 0.5;
 
       if (dof > 0.08) {
-        paint.maskFilter =
-            MaskFilter.blur(BlurStyle.normal, dof * 2.0);
+        paint.maskFilter = MaskFilter.blur(BlurStyle.normal, dof * 2.0);
       } else {
         paint.maskFilter = null;
       }
 
       paint
-        ..color = color.withValues(alpha: alpha.clamp(0.02, 0.22))
+        ..color = woodColors[colorIdx].withValues(alpha: alpha.clamp(0.04, 0.32))
         ..strokeWidth = strokeWidth;
 
       canvas.drawLine(
-        Offset(px - dx, py - dy),
-        Offset(px + dx, py + dy),
+        Offset(center.dx - dx, center.dy - dy),
+        Offset(center.dx + dx, center.dy + dy),
         paint,
       );
     }
     paint.maskFilter = null;
+    canvas.restore();
   }
 
   // ── 4. Grid lines ──────────────────────────────────────────────────────────
 
   void _drawGridLines(Canvas canvas, Size size) {
-    final n = preset.boardSize; // number of lines
+    final n = preset.boardSize;
     if (n < 2) return;
-
-    // Board trapezoid corners (same as _drawBoardPlane).
-    final topLeft = Offset(size.width * 0.18, size.height * 0.06);
-    final topRight = Offset(size.width * 0.88, size.height * 0.06);
-    final bottomRight = Offset(size.width * 0.96, size.height * 0.70);
-    final bottomLeft = Offset(size.width * 0.04, size.height * 0.70);
-
-    // Interpolate a point on a perspective row (t: 0=top, 1=bottom).
-    Offset rowLeft(double t) => Offset(
-          _lerpd(topLeft.dx, bottomLeft.dx, t),
-          _lerpd(topLeft.dy, bottomLeft.dy, t),
-        );
-    Offset rowRight(double t) => Offset(
-          _lerpd(topRight.dx, bottomRight.dx, t),
-          _lerpd(topRight.dy, bottomRight.dy, t),
-        );
-    // Interpolate on a column (s: 0=left, 1=right) at row t.
-    Offset colAt(double s, double t) => Offset(
-          _lerpd(rowLeft(t).dx, rowRight(t).dx, s),
-          _lerpd(rowLeft(t).dy, rowRight(t).dy, s),
-        );
 
     final linePaint = Paint()..style = PaintingStyle.stroke;
 
-    // Horizontal lines (constant row index).
-    // r=0 drawn at bottom (near/bright), r=n-1 drawn at top (far/dim).
+    // Horizontal lines — row 0 is near (bright/thick), row n-1 is far (dim/thin).
     for (int r = 0; r < n; r++) {
-      final t = r / (n - 1).toDouble();
-      // depth: 0=near(bottom), 1=far(top)
-      final depth = t;
-      final alpha = _lerpd(0.32, 0.06, depth) * intensity;
+      final rowFrac = r / (n - 1).toDouble();
+      final alpha = _lerpd(0.45, 0.09, rowFrac) * intensity;
+      final sw = _lerpd(1.1, 0.35, rowFrac);
       linePaint
         ..color = const Color(0xFF8B7355).withValues(alpha: alpha)
-        ..strokeWidth = _lerpd(0.8, 0.4, depth); // near lines are thicker
-      canvas.drawLine(rowLeft(1.0 - t), rowRight(1.0 - t), linePaint);
+        ..strokeWidth = sw;
+      canvas.drawLine(_p(0.0, rowFrac, size), _p(1.0, rowFrac, size), linePaint);
     }
 
-    // Vertical lines (constant column index).
+    // Vertical lines — slight alpha variation across columns (centre stronger).
     for (int c = 0; c < n; c++) {
-      final s = c / (n - 1).toDouble();
-      final topPt = colAt(s, 0.0);
-      final botPt = colAt(s, 1.0);
-      final alpha = _lerpd(0.20, 0.28, s) * intensity;
+      final colFrac = c / (n - 1).toDouble();
+      final centerBias = 1.0 - (colFrac - 0.5).abs() * 1.6;
+      final alpha = (0.20 + 0.08 * centerBias.clamp(0.0, 1.0)) * intensity;
       linePaint
         ..color = const Color(0xFF8B7355).withValues(alpha: alpha)
-        ..strokeWidth = 0.6;
-      canvas.drawLine(topPt, botPt, linePaint);
+        ..strokeWidth = 0.55;
+      canvas.drawLine(_p(colFrac, 0.0, size), _p(colFrac, 1.0, size), linePaint);
     }
   }
 
@@ -381,42 +426,24 @@ class GoParticleScenePainter extends CustomPainter {
     final n = preset.boardSize;
     if (n < 2) return;
 
-    final topLeft = Offset(size.width * 0.18, size.height * 0.06);
-    final topRight = Offset(size.width * 0.88, size.height * 0.06);
-    final bottomRight = Offset(size.width * 0.96, size.height * 0.70);
-    final bottomLeft = Offset(size.width * 0.04, size.height * 0.70);
-
-    Offset gridPoint(int col, int row) {
-      final s = col / (n - 1).toDouble();
-      final t = 1.0 - row / (n - 1).toDouble(); // row 0 = bottom (near)
-      final left = Offset(
-        _lerpd(topLeft.dx, bottomLeft.dx, t),
-        _lerpd(topLeft.dy, bottomLeft.dy, t),
-      );
-      final right = Offset(
-        _lerpd(topRight.dx, bottomRight.dx, t),
-        _lerpd(topRight.dy, bottomRight.dy, t),
-      );
-      return Offset(
-        _lerpd(left.dx, right.dx, s),
-        _lerpd(left.dy, right.dy, s),
-      );
-    }
-
     for (final stone in preset.stones) {
       final col = stone.col.clamp(0, n - 1);
       final row = stone.row.clamp(0, n - 1);
-      final center = gridPoint(col, row);
+      final colFrac = col / (n - 1).toDouble();
+      final rowFrac = row / (n - 1).toDouble();
 
-      // depth: 0 = far (top of board), 1 = near (bottom of board).
-      // Near stones: larger, brighter, sharp.
-      // Far stones: smaller, dimmer, blurry (atmospheric perspective).
-      final depth = 1.0 - row / (n - 1).toDouble();
-      final radius = size.width *
-          (_lerpd(0.016, 0.028, depth)) *
-          (0.9 + 0.2 * _noise(col * 7 + row * 13));
-      final blur = (1.0 - depth) * 2.8 * blurStrength * preset.depthOfField;
-      final alpha = _lerpd(0.38, 0.82, depth) * intensity;
+      final center = _p(colFrac, rowFrac, size);
+
+      // Derive stone radius from the projected horizontal cell spacing at this
+      // row — this automatically gives perspective-correct sizing.
+      final halfStep = 0.5 / (n - 1);
+      final pL = _p((colFrac - halfStep).clamp(0.0, 1.0), rowFrac, size);
+      final pR = _p((colFrac + halfStep).clamp(0.0, 1.0), rowFrac, size);
+      final cellW = (pR.dx - pL.dx).abs();
+      final radius = cellW * 0.44 * (0.9 + 0.2 * _noise(col * 7 + row * 13));
+
+      final blur = rowFrac * 2.8 * blurStrength * preset.depthOfField;
+      final alpha = _lerpd(0.85, 0.36, rowFrac) * intensity;
 
       _drawStone(canvas, center, radius, blur, alpha, stone.isBlack);
     }
