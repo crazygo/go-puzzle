@@ -180,62 +180,55 @@ class GoParticleScenePainter extends CustomPainter {
     return v - v.floor();
   }
 
-  // ── Camera / projection constants ─────────────────────────────────────────
-  // Single-point perspective with horizontal tilt to simulate a camera
-  // positioned to the upper-left of the board.
-
-  static const _kVpY      = 0.04;
-  static const _kNearY    = 0.80;
-  static const _kNearHalfW = 0.74;
-  static const _kDepthFar = 1.85;
-  static const _kTilt = 0.14;
-
-  /// Perspective-project board fractions (c, r) to screen [Offset].
-  ///
-  /// * [c] ∈ [0, 1] — left → right column fraction.
-  /// * [r] ∈ [0, 1] — near (bottom) → far (top) row fraction.
-  Offset _p(double c, double r, Size size) {
-    final depth = 1.0 + r * (_kDepthFar - 1.0);
-    final baseY = (_kVpY + (_kNearY - _kVpY) / depth) * size.height;
-    final tiltY = _kTilt * (0.5 - c) * size.height / depth;
-    final rowY = baseY + tiltY;
-    final halfW = _kNearHalfW * size.width / depth;
-    final rowX = size.width * 0.5 + (c - 0.5) * 2.0 * halfW;
-    return Offset(rowX, rowY);
-  }
-
-  // ── 3-D lighting ───────────────────────────────────────────────────────────
-  // World axes: X=right, Y=into-scene, Z=up  (consistent with _p() camera).
-  // Camera is upper-left, so the light is placed in the same direction.
+  // ── Real 3-D perspective camera ───────────────────────────────────────────
+  // World axes: X = right, Y = into scene, Z = up.
+  // Board top surface occupies [0,1]×[0,1] in XY at Z = _kThick.
+  // Camera is upper-left: negative X offset, in front (negative Y), elevated Z.
   //
-  // Normalized light direction (from any surface point toward the light source):
-  //   Light = upper-left overhead → lx<0, ly<0, lz>0
-  //   (-0.38, -0.44, 0.82) ≈ unit vector
+  // _CamBasis is built once per paint() call and passed to every draw method.
+
+  static const _kThick  = 0.065;                      // board thickness (world units)
+  static const _kCamPos = _Vec3(-0.15, -0.55, 0.72);  // camera position
+  static const _kCamTgt = _Vec3(0.50,  0.50,  _kThick); // look-at target
+  static const _kFovY   = 1.012;                       // 58° vertical FoV (radians)
+
+  /// Project board-surface fraction (c, r) → screen Offset via real camera.
+  Offset _p(double c, double r, _CamBasis cam) =>
+      cam.project(_Vec3(c, r, _kThick)) ??
+      Offset(cam.size.width * c, cam.size.height);
+
+  // ── 3-D Lambertian lighting ───────────────────────────────────────────────
+  // Light direction (unit vector FROM surface TOWARD light): upper-left overhead.
   static const _kLx = -0.38, _kLy = -0.44, _kLz = 0.82;
   static const _kAmbient = 0.28;
 
-  /// Lambertian shading for a face with outward world-space normal (nx,ny,nz).
-  /// Returns brightness multiplier ∈ [_kAmbient, 1.0].
+  /// Lambertian brightness for a face with outward world-space normal (nx,ny,nz).
   static double _lit(double nx, double ny, double nz) {
     final d = (nx * _kLx + ny * _kLy + nz * _kLz).clamp(0.0, 1.0);
     return _kAmbient + (1.0 - _kAmbient) * d;
   }
 
-  /// Multiply a [Color]'s RGB channels by brightness [b] ∈ [0, 1].
+  /// Scale a [Color]'s RGB channels by brightness [b] ∈ [0, 1].
   static Color _dim(Color c, double b) => Color.fromARGB(
         c.alpha,
-        (c.red * b).round().clamp(0, 255),
+        (c.red   * b).round().clamp(0, 255),
         (c.green * b).round().clamp(0, 255),
-        (c.blue * b).round().clamp(0, 255),
+        (c.blue  * b).round().clamp(0, 255),
       );
 
   @override
   void paint(Canvas canvas, Size size) {
+    final cam = _CamBasis.build(
+      pos: _kCamPos,
+      target: _kCamTgt,
+      fovY: _kFovY,
+      size: size,
+    );
     _drawWarmBase(canvas, size);
-    _drawBoardPlane(canvas, size);
-    _drawWoodParticles(canvas, size);
-    _drawGridLines(canvas, size);
-    _drawStoneSplats(canvas, size);
+    _drawBoardPlane(canvas, size, cam);
+    _drawWoodParticles(canvas, size, cam);
+    _drawGridLines(canvas, size, cam);
+    _drawStoneSplats(canvas, size, cam);
     _drawLeafSplats(canvas, size);
     _drawBowlSplats(canvas, size);
     _drawLowerFade(canvas, size);
@@ -274,121 +267,121 @@ class GoParticleScenePainter extends CustomPainter {
     }
   }
 
-  // ── 2. Board plane ─────────────────────────────────────────────────────────
+  // ── 2. Board box — real 3-D ────────────────────────────────────────────────
 
-  void _drawBoardPlane(Canvas canvas, Size size) {
-    final farLeft   = _p(0.0, 1.0, size);
-    final farRight  = _p(1.0, 1.0, size);
-    final nearLeft  = _p(0.0, 0.0, size);
-    final nearRight = _p(1.0, 0.0, size);
+  void _drawBoardPlane(Canvas canvas, Size size, _CamBasis cam) {
+    final t = _kThick;
 
-    final boardPath = Path()
-      ..moveTo(farLeft.dx, farLeft.dy)
-      ..lineTo(farRight.dx, farRight.dy)
-      ..lineTo(nearRight.dx, nearRight.dy)
-      ..lineTo(nearLeft.dx, nearLeft.dy)
-      ..close();
+    // 8 vertices of the board box in world space.
+    // Indices 0-3: bottom face; 4-7: top face.
+    final v = [
+      _Vec3(0, 0, 0), _Vec3(1, 0, 0), _Vec3(1, 1, 0), _Vec3(0, 1, 0),
+      _Vec3(0, 0, t), _Vec3(1, 0, t), _Vec3(1, 1, t), _Vec3(0, 1, t),
+    ];
 
-    // ── Wood base color ─────────────────────────────────────────────────────
-    // A single unlit base color drives all face colors through Lambertian
-    // shading. When multiplied by the top-face brightness it produces a warm
-    // natural maple appearance.
-    final base = Color.lerp(
-        const Color(0xFFEEC060), const Color(0xFFEABA58), preset.warmth)!;
+    // Project all 8 vertices.
+    final sv = [for (final w in v) cam.project(w)];
 
-    // ── Top surface ──────────────────────────────────────────────────────────
-    // World normal: (0, 0, 1) — straight up.
-    final topBright = _lit(0, 0, 1); // ≈ 0.87
-    // Near edge catches slightly more reflected light; far edge slightly less.
-    final topNear = _dim(base, topBright * 1.05).withValues(alpha: intensity);
-    final topFar  = _dim(base, topBright * 0.88).withValues(alpha: intensity);
-    canvas.drawPath(
-      boardPath,
-      Paint()
-        ..shader = ui.Gradient.linear(farLeft, nearLeft, [topFar, topNear]),
-    );
+    // Six faces: (vertex-index list, outward world-space normal).
+    final faces = <(List<int>, _Vec3)>[
+      ([7, 6, 5, 4], const _Vec3( 0,  0,  1)),  // top
+      ([0, 1, 2, 3], const _Vec3( 0,  0, -1)),  // bottom
+      ([4, 5, 1, 0], const _Vec3( 0, -1,  0)),  // front
+      ([6, 7, 3, 2], const _Vec3( 0,  1,  0)),  // back
+      ([7, 4, 0, 3], const _Vec3(-1,  0,  0)),  // left
+      ([5, 6, 2, 1], const _Vec3( 1,  0,  0)),  // right
+    ];
 
-    // Subtle overhead light hotspot — not distracting.
-    final lightCentre = _p(0.42, 0.55, size);
-    canvas.drawOval(
-      Rect.fromCenter(
-          center: lightCentre,
-          width: size.width * 0.48,
-          height: size.height * 0.10),
-      Paint()
-        ..shader = ui.Gradient.radial(
-          lightCentre,
-          size.width * 0.25,
-          [
-            const Color(0xFFFFFFFF).withValues(alpha: 0.15 * intensity),
-            const Color(0x00FFFFFF),
-          ],
-        ),
-    );
+    // Back-face culling: a face is visible when the camera is on the side the
+    // outward normal points toward, i.e. dot(n, cam.pos - faceCenter) > 0.
+    final visible = <(List<int>, _Vec3, double)>[];
+    for (final (vi, n) in faces) {
+      var cx = 0.0, cy = 0.0, cz = 0.0;
+      for (final i in vi) { cx += v[i].x; cy += v[i].y; cz += v[i].z; }
+      final cnt = vi.length.toDouble();
+      final center = _Vec3(cx / cnt, cy / cnt, cz / cnt);
+      if (n.dot(cam.pos - center) > 0) {
+        visible.add((vi, n, cam.depth(center)));
+      }
+    }
 
-    // ── Board thickness ──────────────────────────────────────────────────────
-    final edgeH = size.height * 0.11;
+    // Painter's algorithm: draw farthest faces first.
+    visible.sort((a, b) => b.$3.compareTo(a.$3));
 
-    // Left face — world normal: (-1, 0, 0).
-    // Camera & light are to the upper-left → this face is partially lit.
-    final leftBright = _lit(-1, 0, 0); // ≈ 0.55
-    final leftTop = _dim(base, leftBright).withValues(alpha: intensity);
-    final leftBot = _dim(base, leftBright * 0.74).withValues(alpha: intensity);
-    canvas.drawPath(
-      Path()
-        ..moveTo(farLeft.dx, farLeft.dy)
-        ..lineTo(nearLeft.dx, nearLeft.dy)
-        ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
-        ..lineTo(farLeft.dx, farLeft.dy + edgeH)
-        ..close(),
-      Paint()
-        ..shader = ui.Gradient.linear(
-          nearLeft,
-          Offset(nearLeft.dx, nearLeft.dy + edgeH),
-          [leftTop, leftBot],
-        ),
-    );
+    const base = Color(0xFFEEC060);
 
-    // Front face (near edge) — world normal: (0, -1, 0).
-    // Faces toward viewer and somewhat toward the light.
-    final frontBright = _lit(0, -1, 0); // ≈ 0.60
-    final frontTop = _dim(base, frontBright).withValues(alpha: intensity);
-    final frontBot = _dim(base, frontBright * 0.70).withValues(alpha: intensity);
-    canvas.drawPath(
-      Path()
-        ..moveTo(nearLeft.dx, nearLeft.dy)
-        ..lineTo(nearRight.dx, nearRight.dy)
-        ..lineTo(nearRight.dx, nearRight.dy + edgeH)
-        ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
-        ..close(),
-      Paint()
-        ..shader = ui.Gradient.linear(
-          nearLeft,
-          Offset(nearLeft.dx, nearLeft.dy + edgeH),
-          [frontTop, frontBot],
-        ),
-    );
+    for (final (vi, n, _) in visible) {
+      final pts = [for (final i in vi) sv[i]].whereType<Offset>().toList();
+      if (pts.length < 3) continue;
 
-    // Corner join — average of left and front normals → slightly in shadow.
-    final cornerBright = _lit(-0.707, -0.707, 0) * 0.90;
-    canvas.drawPath(
-      Path()
-        ..moveTo(nearLeft.dx, nearLeft.dy)
-        ..lineTo(nearLeft.dx, nearLeft.dy + edgeH)
-        ..lineTo(farLeft.dx, farLeft.dy + edgeH)
-        ..lineTo(farLeft.dx, farLeft.dy)
-        ..close(),
-      Paint()..color = _dim(base, cornerBright).withValues(alpha: intensity),
-    );
+      final path = Path()..moveTo(pts[0].dx, pts[0].dy);
+      for (final pt in pts.skip(1)) path.lineTo(pt.dx, pt.dy);
+      path.close();
+
+      final bright = _lit(n.x, n.y, n.z);
+
+      if (n.z > 0.5) {
+        // ── Top surface: far (dim) → near (bright) gradient ─────────────────
+        final pFar  = cam.project(_Vec3(0.5, 1.0, t));
+        final pNear = cam.project(_Vec3(0.5, 0.0, t));
+        if (pFar != null && pNear != null) {
+          canvas.drawPath(
+            path,
+            Paint()
+              ..shader = ui.Gradient.linear(pFar, pNear, [
+                _dim(base, bright * 0.88).withValues(alpha: intensity),
+                _dim(base, bright * 1.05).withValues(alpha: intensity),
+              ]),
+          );
+        } else {
+          canvas.drawPath(
+            path,
+            Paint()..color = _dim(base, bright).withValues(alpha: intensity),
+          );
+        }
+        // Subtle overhead light hotspot.
+        final lp = cam.project(_Vec3(0.38, 0.45, t));
+        if (lp != null) {
+          canvas.drawOval(
+            Rect.fromCenter(
+                center: lp,
+                width: size.width * 0.44,
+                height: size.height * 0.09),
+            Paint()
+              ..shader = ui.Gradient.radial(lp, size.width * 0.23, [
+                const Color(0xFFFFFFFF).withValues(alpha: 0.13 * intensity),
+                const Color(0x00FFFFFF),
+              ]),
+          );
+        }
+      } else {
+        // ── Side face: top-edge (brighter) → bottom-edge (darker) gradient ──
+        final topY = pts.map((p) => p.dy).reduce(math.min);
+        final botY = pts.map((p) => p.dy).reduce(math.max);
+        final midX = pts.fold(0.0, (a, p) => a + p.dx) / pts.length;
+        canvas.drawPath(
+          path,
+          Paint()
+            ..shader = ui.Gradient.linear(
+              Offset(midX, topY),
+              Offset(midX, botY),
+              [
+                _dim(base, bright).withValues(alpha: intensity),
+                _dim(base, bright * 0.68).withValues(alpha: intensity),
+              ],
+            ),
+        );
+      }
+    }
   }
 
   // ── 3. Wood grain particles ────────────────────────────────────────────────
 
-  void _drawWoodParticles(Canvas canvas, Size size) {
+  void _drawWoodParticles(Canvas canvas, Size size, _CamBasis cam) {
     const particleCount = 340;
     // Grain is slightly lighter and darker than the top surface.
     final topBright = _lit(0, 0, 1);
-    final base = const Color(0xFFEEC060);
+    const base = Color(0xFFEEC060);
     final woodColors = [
       _dim(base, topBright * 1.08),
       _dim(base, topBright * 0.95),
@@ -396,12 +389,15 @@ class GoParticleScenePainter extends CustomPainter {
       _dim(base, topBright * 0.88),
     ];
 
+    // Reference depth at the near edge — used to normalize depthScale.
+    final czRef = cam.depth(_Vec3(0.5, 0.0, _kThick));
+
     // Clip particles to the board surface.
     final boardPath = Path()
-      ..moveTo(_p(0.0, 1.0, size).dx, _p(0.0, 1.0, size).dy)
-      ..lineTo(_p(1.0, 1.0, size).dx, _p(1.0, 1.0, size).dy)
-      ..lineTo(_p(1.0, 0.0, size).dx, _p(1.0, 0.0, size).dy)
-      ..lineTo(_p(0.0, 0.0, size).dx, _p(0.0, 0.0, size).dy)
+      ..moveTo(_p(0.0, 1.0, cam).dx, _p(0.0, 1.0, cam).dy)
+      ..lineTo(_p(1.0, 1.0, cam).dx, _p(1.0, 1.0, cam).dy)
+      ..lineTo(_p(1.0, 0.0, cam).dx, _p(1.0, 0.0, cam).dy)
+      ..lineTo(_p(0.0, 0.0, cam).dx, _p(0.0, 0.0, cam).dy)
       ..close();
 
     canvas.save();
@@ -415,9 +411,11 @@ class GoParticleScenePainter extends CustomPainter {
       final nx = _noise(i * 3 + 1); // c fraction
       final ny = _noise(i * 7 + 2); // r fraction: 0=near, 1=far
 
-      final center = _p(nx, ny, size);
-      final depth = 1.0 + ny * (_kDepthFar - 1.0);
-      final depthScale = 1.0 / depth; // far particles are smaller
+      final center = _p(nx, ny, cam);
+
+      // Real perspective depth for this particle.
+      final cz = cam.depth(_Vec3(nx, ny, _kThick));
+      final depthScale = czRef / cz.clamp(0.001, double.infinity);
 
       final dof = ny * blurStrength * preset.depthOfField;
       final length = size.width *
@@ -455,7 +453,7 @@ class GoParticleScenePainter extends CustomPainter {
 
   // ── 4. Grid lines ──────────────────────────────────────────────────────────
 
-  void _drawGridLines(Canvas canvas, Size size) {
+  void _drawGridLines(Canvas canvas, Size size, _CamBasis cam) {
     final n = preset.boardSize;
     if (n < 2) return;
 
@@ -469,7 +467,7 @@ class GoParticleScenePainter extends CustomPainter {
       linePaint
         ..color = const Color(0xFF3C2808).withValues(alpha: alpha)
         ..strokeWidth = sw;
-      canvas.drawLine(_p(0.0, rowFrac, size), _p(1.0, rowFrac, size), linePaint);
+      canvas.drawLine(_p(0.0, rowFrac, cam), _p(1.0, rowFrac, cam), linePaint);
     }
 
     // Vertical lines — clearly visible on warm board.
@@ -480,7 +478,7 @@ class GoParticleScenePainter extends CustomPainter {
       linePaint
         ..color = const Color(0xFF3C2808).withValues(alpha: alpha)
         ..strokeWidth = 0.7;
-      canvas.drawLine(_p(colFrac, 0.0, size), _p(colFrac, 1.0, size), linePaint);
+      canvas.drawLine(_p(colFrac, 0.0, cam), _p(colFrac, 1.0, cam), linePaint);
     }
   }
 
@@ -488,7 +486,7 @@ class GoParticleScenePainter extends CustomPainter {
 
   // ── 5. Stone splats ────────────────────────────────────────────────────────
 
-  void _drawStoneSplats(Canvas canvas, Size size) {
+  void _drawStoneSplats(Canvas canvas, Size size, _CamBasis cam) {
     final n = preset.boardSize;
     if (n < 2) return;
 
@@ -500,18 +498,18 @@ class GoParticleScenePainter extends CustomPainter {
       final colFrac = col / (n - 1).toDouble();
       final rowFrac = row / (n - 1).toDouble();
 
-      final center = _p(colFrac, rowFrac, size);
+      final center = _p(colFrac, rowFrac, cam);
 
       // rx: from projected horizontal cell width (perspective-correct).
-      final pL = _p((colFrac - halfStep).clamp(0.0, 1.0), rowFrac, size);
-      final pR = _p((colFrac + halfStep).clamp(0.0, 1.0), rowFrac, size);
+      final pL = _p((colFrac - halfStep).clamp(0.0, 1.0), rowFrac, cam);
+      final pR = _p((colFrac + halfStep).clamp(0.0, 1.0), rowFrac, cam);
       final rx = (pR.dx - pL.dx).abs() * 0.56 *
           (0.92 + 0.16 * _noise(col * 7 + row * 13));
 
       // ry: from projected VERTICAL cell height — ensures stone foreshortening
       // exactly matches the board grid, regardless of tilt or depth.
-      final pN = _p(colFrac, (rowFrac - halfStep).clamp(0.0, 1.0), size);
-      final pF = _p(colFrac, (rowFrac + halfStep).clamp(0.0, 1.0), size);
+      final pN = _p(colFrac, (rowFrac - halfStep).clamp(0.0, 1.0), cam);
+      final pF = _p(colFrac, (rowFrac + halfStep).clamp(0.0, 1.0), cam);
       final projCellH = (pF.dy - pN.dy).abs();
       // A stone disc radius = half cell. Apply same 0.56 fill ratio as rx,
       // then scale by 0.88 for natural disc foreshortening.
@@ -815,4 +813,77 @@ class _LeafSpec {
   final Color color;
   final double alpha;
   final double blur;
+}
+
+// ── 3-D math helpers ──────────────────────────────────────────────────────────
+
+class _Vec3 {
+  final double x, y, z;
+  const _Vec3(this.x, this.y, this.z);
+
+  _Vec3 operator +(_Vec3 o) => _Vec3(x + o.x, y + o.y, z + o.z);
+  _Vec3 operator -(_Vec3 o) => _Vec3(x - o.x, y - o.y, z - o.z);
+  _Vec3 operator *(double s) => _Vec3(x * s, y * s, z * s);
+
+  double dot(_Vec3 o) => x * o.x + y * o.y + z * o.z;
+  _Vec3 cross(_Vec3 o) =>
+      _Vec3(y * o.z - z * o.y, z * o.x - x * o.z, x * o.y - y * o.x);
+
+  double get len => math.sqrt(x * x + y * y + z * z);
+  _Vec3 normalized() {
+    final l = len;
+    return l < 1e-9 ? this : this * (1.0 / l);
+  }
+}
+
+class _CamBasis {
+  _CamBasis._({
+    required this.pos,
+    required this.fwd,
+    required this.right,
+    required this.up,
+    required this.tanHalfFov,
+    required this.size,
+  });
+
+  factory _CamBasis.build({
+    required _Vec3 pos,
+    required _Vec3 target,
+    required double fovY,
+    required Size size,
+  }) {
+    const worldUp = _Vec3(0, 0, 1);
+    final fwd = (target - pos).normalized();
+    final right = fwd.cross(worldUp).normalized();
+    final up = right.cross(fwd);
+    return _CamBasis._(
+      pos: pos,
+      fwd: fwd,
+      right: right,
+      up: up,
+      tanHalfFov: math.tan(fovY / 2),
+      size: size,
+    );
+  }
+
+  final _Vec3 pos, fwd, right, up;
+  final double tanHalfFov;
+  final Size size;
+
+  /// Projects a world-space point to canvas [Offset]. Returns null if behind
+  /// the camera (cz ≤ 0).
+  Offset? project(_Vec3 p) {
+    final d = p - pos;
+    final cz = d.dot(fwd);
+    if (cz <= 0.001) return null;
+    final cx = d.dot(right);
+    final cy = d.dot(up);
+    final aspect = size.width / size.height;
+    final nx = cx / (cz * tanHalfFov * aspect);
+    final ny = cy / (cz * tanHalfFov);
+    return Offset(size.width * (0.5 + nx * 0.5), size.height * (0.5 - ny * 0.5));
+  }
+
+  /// Camera-space depth of a world-space point (distance along look direction).
+  double depth(_Vec3 p) => (p - pos).dot(fwd);
 }
