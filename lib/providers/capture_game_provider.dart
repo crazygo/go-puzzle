@@ -54,23 +54,31 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
 }
 
 enum CaptureGameResult { none, blackWins, whiteWins }
+enum CaptureInitialMode { twistCross, empty, setup }
 
 class CaptureGameProvider extends ChangeNotifier {
   CaptureGameProvider({
     required this.boardSize,
     required this.captureTarget,
     required this.difficulty,
+    this.humanColor = StoneColor.black,
+    this.initialMode = CaptureInitialMode.twistCross,
   })  : assert(
           boardSize == 9 || boardSize == 13 || boardSize == 19,
           'boardSize must be 9, 13, or 19.',
         ),
         assert(captureTarget > 0, 'captureTarget must be greater than 0.') {
     _startNewGame();
+    if (!isPlacementMode && _gameState.currentPlayer != humanColor) {
+      Future<void>.microtask(_doAiMove);
+    }
   }
 
   final int boardSize;
   final int captureTarget;
   final DifficultyLevel difficulty;
+  final StoneColor humanColor;
+  final CaptureInitialMode initialMode;
   CaptureAiStyle _aiStyle = CaptureAiStyle.hunter;
   CaptureAiAgent? _cachedAgent;
 
@@ -84,6 +92,7 @@ class CaptureGameProvider extends ChangeNotifier {
   bool get isAiThinking => _isAiThinking;
   bool get canUndo => _undoStack.isNotEmpty && !_isAiThinking;
   CaptureAiStyle get aiStyle => _aiStyle;
+  bool get isPlacementMode => initialMode == CaptureInitialMode.setup;
 
   CaptureAiAgent get _activeAgent {
     return _cachedAgent ??=
@@ -101,7 +110,7 @@ class CaptureGameProvider extends ChangeNotifier {
 
   Future<bool> placeStone(int row, int col) async {
     if (_isAiThinking || _result != CaptureGameResult.none) return false;
-    if (_gameState.currentPlayer != StoneColor.black) return false;
+    if (!isPlacementMode && _gameState.currentPlayer != humanColor) return false;
 
     final newState = GoEngine.placeStone(_gameState, row, col);
     if (newState == null) return false;
@@ -111,17 +120,46 @@ class CaptureGameProvider extends ChangeNotifier {
     _checkWinCondition();
     notifyListeners();
 
-    if (_result == CaptureGameResult.none) {
+    if (!isPlacementMode && _result == CaptureGameResult.none) {
       await _doAiMove();
     }
     return true;
   }
 
+  Future<void> clearSetupBoard() async {
+    if (!isPlacementMode) return;
+    final emptyBoard = List.generate(
+      boardSize,
+      (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
+    );
+    _gameState = GameState(
+      boardSize: boardSize,
+      board: emptyBoard,
+      currentPlayer: StoneColor.black,
+    );
+    _undoStack.clear();
+    notifyListeners();
+  }
+
   void undoMove() {
     if (!canUndo) return;
-    _gameState = _undoStack.removeLast();
+    if (isPlacementMode) {
+      // Setup mode: undo one move at a time
+      _gameState = _undoStack.removeLast();
+    } else {
+      // Auto-play mode: skip over AI moves to restore human's last turn
+      _gameState = _undoStack.removeLast();
+      while (
+          _undoStack.isNotEmpty && _gameState.currentPlayer != humanColor) {
+        _gameState = _undoStack.removeLast();
+      }
+    }
     _result = CaptureGameResult.none;
     notifyListeners();
+    // If we exhausted the stack and it's still AI's turn, kick off AI again
+    if (!isPlacementMode && _gameState.currentPlayer != humanColor) {
+      Future<void>.microtask(_doAiMove);
+    }
   }
 
   List<BoardPosition> suggestMoves({int count = 3}) {
@@ -189,10 +227,22 @@ class CaptureGameProvider extends ChangeNotifier {
       boardSize,
       (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
     );
+    var initialPlayer = StoneColor.black;
+
+    if (initialMode == CaptureInitialMode.twistCross) {
+      final center = boardSize ~/ 2;
+      if (center > 0 && center < boardSize - 1) {
+        emptyBoard[center - 1][center] = StoneColor.black;
+        emptyBoard[center + 1][center] = StoneColor.black;
+        emptyBoard[center][center - 1] = StoneColor.white;
+        emptyBoard[center][center + 1] = StoneColor.white;
+      }
+    }
+
     _gameState = GameState(
       boardSize: boardSize,
       board: emptyBoard,
-      currentPlayer: StoneColor.black,
+      currentPlayer: initialPlayer,
     );
     _result = CaptureGameResult.none;
     _isAiThinking = false;
