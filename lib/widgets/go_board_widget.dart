@@ -14,6 +14,7 @@ class GoBoardPainter extends CustomPainter {
   final GameState gameState;
   final BoardPosition? hintPosition;
   final bool showMoveNumbers;
+  final bool showCaptureWarning;
 
   // Stone radius / cell size ratio
   static const double _stoneSizeRatio = 0.48;
@@ -22,6 +23,7 @@ class GoBoardPainter extends CustomPainter {
     required this.gameState,
     this.hintPosition,
     this.showMoveNumbers = false,
+    this.showCaptureWarning = true,
   });
 
   @override
@@ -38,7 +40,9 @@ class GoBoardPainter extends CustomPainter {
     _drawStones(canvas, origin, n, cellSize);
     _drawLastMoveMark(canvas, origin, cellSize);
     _drawHintMark(canvas, origin, cellSize);
-    _drawAtariMarks(canvas, origin, cellSize);
+    if (showCaptureWarning) {
+      _drawAtariMarks(canvas, origin, cellSize);
+    }
   }
 
   void _drawBackground(Canvas canvas, Size size) {
@@ -63,7 +67,8 @@ class GoBoardPainter extends CustomPainter {
       ],
     );
     final gradientPaint = Paint()
-      ..shader = gradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+      ..shader =
+          gradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(0, 0, size.width, size.height),
@@ -99,8 +104,10 @@ class GoBoardPainter extends CustomPainter {
     for (int i = 1; i < n - 1; i++) {
       final x = origin + i * cellSize;
       final y = origin + i * cellSize;
-      canvas.drawLine(Offset(x, origin), Offset(x, origin + boardAreaSize), linePaint);
-      canvas.drawLine(Offset(origin, y), Offset(origin + boardAreaSize, y), linePaint);
+      canvas.drawLine(
+          Offset(x, origin), Offset(x, origin + boardAreaSize), linePaint);
+      canvas.drawLine(
+          Offset(origin, y), Offset(origin + boardAreaSize, y), linePaint);
     }
   }
 
@@ -302,7 +309,8 @@ class GoBoardPainter extends CustomPainter {
         ..color = Colors.red.withOpacity(0.7)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5;
-      canvas.drawCircle(Offset(cx, cy), cellSize * _stoneSizeRatio + 1, ringPaint);
+      canvas.drawCircle(
+          Offset(cx, cy), cellSize * _stoneSizeRatio + 1, ringPaint);
     }
   }
 
@@ -310,7 +318,8 @@ class GoBoardPainter extends CustomPainter {
   bool shouldRepaint(GoBoardPainter oldDelegate) {
     return oldDelegate.gameState != gameState ||
         oldDelegate.hintPosition != hintPosition ||
-        oldDelegate.showMoveNumbers != showMoveNumbers;
+        oldDelegate.showMoveNumbers != showMoveNumbers ||
+        oldDelegate.showCaptureWarning != showCaptureWarning;
   }
 }
 
@@ -320,6 +329,7 @@ class GoBoardWidget extends StatelessWidget {
   final void Function(int row, int col)? onTap;
   final BoardPosition? hintPosition;
   final bool showMoveNumbers;
+  final bool showCaptureWarning;
   final double? size;
 
   const GoBoardWidget({
@@ -328,6 +338,7 @@ class GoBoardWidget extends StatelessWidget {
     this.onTap,
     this.hintPosition,
     this.showMoveNumbers = false,
+    this.showCaptureWarning = true,
     this.size,
   });
 
@@ -335,7 +346,8 @@ class GoBoardWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final boardSize = size ?? math.min(constraints.maxWidth, constraints.maxHeight);
+        final boardSize =
+            size ?? math.min(constraints.maxWidth, constraints.maxHeight);
         return GestureDetector(
           onTapDown: onTap == null
               ? null
@@ -348,6 +360,7 @@ class GoBoardWidget extends StatelessWidget {
                 gameState: gameState,
                 hintPosition: hintPosition,
                 showMoveNumbers: showMoveNumbers,
+                showCaptureWarning: showCaptureWarning,
               ),
             ),
           ),

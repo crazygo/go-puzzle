@@ -6,6 +6,7 @@ import 'package:go_puzzle/game/mcts_engine.dart';
 import 'package:go_puzzle/models/board_position.dart';
 import 'package:go_puzzle/models/game_state.dart';
 import 'package:go_puzzle/providers/capture_game_provider.dart';
+import 'package:go_puzzle/providers/settings_provider.dart';
 import 'package:go_puzzle/screens/capture_game_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -104,11 +105,15 @@ void main() {
         captureTarget: 5,
         difficulty: DifficultyLevel.beginner,
       );
+      final settings = SettingsProvider();
 
       await tester.pumpWidget(
         CupertinoApp(
-          home: ChangeNotifierProvider.value(
-            value: provider,
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
             child: const CaptureGamePlayScreen(
               difficulty: DifficultyLevel.beginner,
               captureTarget: 5,
@@ -118,6 +123,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.byIcon(CupertinoIcons.slider_horizontal_3), findsOneWidget);
+
+      await tester.tap(find.byIcon(CupertinoIcons.slider_horizontal_3));
+      await tester.pumpAndSettle();
+
+      expect(find.text('对局配置'), findsOneWidget);
       expect(find.text('猎杀'), findsOneWidget);
 
       await tester.tap(find.text('猎杀'));
@@ -127,7 +138,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(provider.aiStyle, CaptureAiStyle.counter);
-      expect(find.text('稳守'), findsOneWidget);
     });
   });
 }
