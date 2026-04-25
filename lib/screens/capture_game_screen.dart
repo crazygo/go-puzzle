@@ -553,31 +553,25 @@ class _PracticeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF3A2A1F),
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF8C7966),
-                ),
-              ),
-            ],
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF3A2A1F),
           ),
         ),
+        const SizedBox(width: 8),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF8C7966),
+          ),
+        ),
+        const Spacer(),
         CupertinoButton(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           minimumSize: const Size(44, 44),
