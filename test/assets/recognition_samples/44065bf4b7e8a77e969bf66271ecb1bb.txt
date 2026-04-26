@@ -1,0 +1,10 @@
+Size 19
+B,J8
+W,H7
+B,J7
+W,G6
+B,H6
+B,K6
+W,H5
+B,J5
+W,K5
