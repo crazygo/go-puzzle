@@ -177,7 +177,7 @@ class GoParticleScenePainter extends CustomPainter {
   //
   // _CamBasis is built once per paint() call and passed to every draw method.
 
-  static const _kThick = 0.092; // board thickness (world units)
+  static const _kThick = 0.046; // board thickness (world units, reduced 50%)
   static const _kCamPos = _Vec3(-0.16, -0.43, 0.64); // camera position
   static const _kCamTgt =
       _Vec3(0.48, 0.80, _kThick); // look-at target (push board down)
@@ -308,7 +308,8 @@ class GoParticleScenePainter extends CustomPainter {
       ([7, 6, 5, 4], const _Vec3(0, 0, 1)), // top
       ([0, 1, 2, 3], const _Vec3(0, 0, -1)), // bottom
       ([4, 5, 1, 0], const _Vec3(0, -1, 0)), // front
-      ([6, 7, 3, 2], const _Vec3(0, 1, 0)), // back
+      // NOTE: intentionally omit the back vertical face to avoid rendering a
+      // detached wall-like plane behind the board in preview scenes.
       ([7, 4, 0, 3], const _Vec3(-1, 0, 0)), // left
       ([5, 6, 2, 1], const _Vec3(1, 0, 0)), // right
     ];
