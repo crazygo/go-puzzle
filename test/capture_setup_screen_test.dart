@@ -17,11 +17,13 @@ void main() {
 
     expect(find.text('小闲围棋'), findsOneWidget);
     // Subtitle rotates hourly; verify a non-empty subtitle is rendered.
-    final banner = tester.widget<PageHeroBanner>(
-      find.byType(PageHeroBanner).first,
-    );
+    final bannerFinder = find.byType(PageHeroBanner);
+    expect(bannerFinder, findsOneWidget);
+    final banner = tester.widget<PageHeroBanner>(bannerFinder);
     expect(banner.subtitle, isNotNull);
-    expect(banner.subtitle, isNotEmpty);
+    final subtitle = banner.subtitle!.trim();
+    expect(subtitle, isNotEmpty);
+    expect(find.text(subtitle), findsOneWidget);
     expect(find.text('下一盘'), findsOneWidget);
     expect(find.text('先吃5子为胜'), findsOneWidget);
     expect(find.text(CaptureAiStyle.hunter.label), findsOneWidget);
