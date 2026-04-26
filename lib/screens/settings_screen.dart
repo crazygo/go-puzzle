@@ -262,9 +262,9 @@ class _ParticleBackgroundDebugScreenState
               Positioned.fill(
                 child: Transform.translate(
                   offset: Offset(0, -constraints.maxHeight * 0.5),
-                  child: const Transform.scale(
+                  child: Transform.scale(
                     scale: 0.9,
-                    child: GoParticleHeroBackground(
+                    child: const GoParticleHeroBackground(
                       preset: _preset,
                     ),
                   ),

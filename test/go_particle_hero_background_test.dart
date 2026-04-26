@@ -90,7 +90,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('GoParticleHeroBackground accepts custom intensity and blur',
+  testWidgets('GoParticleHeroBackground accepts custom intensity and blurStrength',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(390, 844);
@@ -108,7 +108,6 @@ void main() {
                   preset: GoScenePreset.defaultPreset,
                   intensity: 0.5,
                   blurStrength: 0.5,
-                  contentFadeStart: 0.4,
                 ),
               ),
             ],
