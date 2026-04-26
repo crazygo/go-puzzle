@@ -118,7 +118,6 @@ class GoParticleHeroBackground extends StatelessWidget {
     required this.preset,
     this.intensity = 1.0,
     this.blurStrength = 1.0,
-    this.contentFadeStart = 0.82,
   });
 
   final GoScenePreset preset;
@@ -129,10 +128,6 @@ class GoParticleHeroBackground extends StatelessWidget {
   /// Depth-of-field blur multiplier.
   final double blurStrength;
 
-  /// Normalised Y position (0–1) at which the lower-fade begins to blend
-  /// toward the warm-white UI background.
-  final double contentFadeStart;
-
   @override
   Widget build(BuildContext context) {
     return SizedBox.expand(
@@ -141,7 +136,6 @@ class GoParticleHeroBackground extends StatelessWidget {
           preset: preset,
           intensity: intensity,
           blurStrength: blurStrength,
-          contentFadeStart: contentFadeStart,
         ),
       ),
     );
@@ -159,19 +153,16 @@ class GoParticleHeroBackground extends StatelessWidget {
 ///   4. Wood grain particles
 ///   5. Grid lines
 ///   6. Stone splats
-///   7. Lower fade / information-reduction layer
 class GoParticleScenePainter extends CustomPainter {
   const GoParticleScenePainter({
     required this.preset,
     this.intensity = 1.0,
     this.blurStrength = 1.0,
-    this.contentFadeStart = 0.82,
   });
 
   final GoScenePreset preset;
   final double intensity;
   final double blurStrength;
-  final double contentFadeStart;
 
   // Deterministic cheap pseudo-random noise (no dart:math Random state needed).
   static double _noise(int seed) {
@@ -238,7 +229,6 @@ class GoParticleScenePainter extends CustomPainter {
     _drawGridLines(canvas, size, cam);
     _drawLeafFilteredSunlight(canvas, size, cam);
     _drawStoneSplats(canvas, size, cam);
-    _drawLowerFade(canvas, size);
   }
 
   // ── 1. Warm base gradient ──────────────────────────────────────────────────
@@ -755,45 +745,60 @@ class GoParticleScenePainter extends CustomPainter {
     outline.close();
 
     // ── Contact shadow on board surface ─────────────────────────────────────
-    // Light comes from (_kLx, _kLy, _kLz). Shadow offset is opposite XY component.
-    final shadowC = cam.project(_Vec3(
-      center.x - _kLx * Rz * 0.55,
-      center.y - _kLy * Rz * 0.55,
-      _kThick,
-    ));
-    if (shadowC != null) {
-      final se = cam.project(_Vec3(center.x + Rxy, center.y, _kThick));
-      final sw = cam.project(_Vec3(center.x - Rxy, center.y, _kThick));
-      final sn = cam.project(_Vec3(center.x, center.y - Rxy, _kThick));
-      final ss = cam.project(_Vec3(center.x, center.y + Rxy, _kThick));
-      if (se != null && sw != null) {
-        final srx = (se.dx - sw.dx).abs() * 0.55;
-        final sry = (sn != null && ss != null)
-            ? (ss.dy - sn.dy).abs() * 0.30
-            : srx * 0.42;
-        // Core contact shadow
-        canvas.drawOval(
-          Rect.fromCenter(center: shadowC, width: srx * 2, height: sry * 2),
-          Paint()
-            ..maskFilter =
-                MaskFilter.blur(BlurStyle.normal, (srx * 0.36).clamp(1.4, 8.8))
-            ..color =
-                const Color(0xFF000000).withValues(alpha: 0.35 * intensity),
+    // Use geometric casting instead of hand-tuned oval scaling:
+    // for each point on the stone equator, cast a ray opposite lightDir
+    // and intersect with board plane Z = _kThick.
+    if (lightDir.z > 1e-6) {
+      final shadowPts = <Offset>[];
+      const nShadow = 36;
+      for (int i = 0; i < nShadow; i++) {
+        final phi = 2.0 * math.pi * i / nShadow;
+        final surface = _Vec3(
+          center.x + Rxy * math.cos(phi),
+          center.y + Rxy * math.sin(phi),
+          center.z,
         );
-        // Wider penumbra
-        canvas.drawOval(
-          Rect.fromCenter(
-            center: shadowC.translate(srx * 0.02, sry * 0.08),
-            width: srx * 2.6,
-            height: sry * 2.1,
-          ),
+        final castT = (surface.z - _kThick) / lightDir.z;
+        final cast = _Vec3(
+          surface.x - lightDir.x * castT,
+          surface.y - lightDir.y * castT,
+          _kThick,
+        );
+        final sp = cam.project(cast);
+        if (sp != null) shadowPts.add(sp);
+      }
+      if (shadowPts.length >= 3) {
+        final shadowPath = Path()..moveTo(shadowPts.first.dx, shadowPts.first.dy);
+        for (final p in shadowPts.skip(1)) {
+          shadowPath.lineTo(p.dx, p.dy);
+        }
+        shadowPath.close();
+
+        final boardCenter = cam.project(_Vec3(center.x, center.y, _kThick));
+        final boardEdgeX = cam.project(_Vec3(center.x + Rxy, center.y, _kThick));
+        final pxPerStoneRadius = (boardCenter != null && boardEdgeX != null)
+            ? (boardEdgeX.dx - boardCenter.dx).abs().clamp(0.1, double.infinity)
+            : 8.0;
+        final casterHeight = center.z - _kThick;
+        final penumbraSigma = (casterHeight / lightDir.z) * pxPerStoneRadius * 0.22;
+
+        canvas.drawPath(
+          shadowPath,
           Paint()
+            ..color = const Color(0xFF000000).withValues(alpha: 0.28 * intensity)
             ..maskFilter = MaskFilter.blur(
               BlurStyle.normal,
-              (srx * 0.55).clamp(2.0, 11.0),
-            )
-            ..color =
-                const Color(0xFF000000).withValues(alpha: 0.12 * intensity),
+              penumbraSigma.clamp(0.9, 5.2),
+            ),
+        );
+        canvas.drawPath(
+          shadowPath,
+          Paint()
+            ..color = const Color(0xFF000000).withValues(alpha: 0.20 * intensity)
+            ..maskFilter = MaskFilter.blur(
+              BlurStyle.normal,
+              (penumbraSigma * 0.55).clamp(0.6, 3.0),
+            ),
         );
       }
     }
@@ -878,31 +883,11 @@ class GoParticleScenePainter extends CustomPainter {
     }
   }
 
-  // ── 8. Lower fade ──────────────────────────────────────────────────────────
-
-  void _drawLowerFade(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final fadeStart = contentFadeStart;
-    final paint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(0, size.height * fadeStart),
-        Offset(0, size.height),
-        [
-          const Color(0x00F9F3EA),
-          const Color(0xB8F9F3EA),
-          const Color(0xFFFBF7F0),
-        ],
-        [0.0, 0.55, 1.0],
-      );
-    canvas.drawRect(rect, paint);
-  }
-
   @override
   bool shouldRepaint(covariant GoParticleScenePainter oldDelegate) {
     return oldDelegate.preset != preset ||
         oldDelegate.intensity != intensity ||
-        oldDelegate.blurStrength != blurStrength ||
-        oldDelegate.contentFadeStart != contentFadeStart;
+        oldDelegate.blurStrength != blurStrength;
   }
 }
 
