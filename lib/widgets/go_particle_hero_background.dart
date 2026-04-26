@@ -552,9 +552,10 @@ class GoParticleScenePainter extends CustomPainter {
         ..maskFilter = null;
       final s = _p(0.0, rowFrac, cam);
       final e = _p(1.0, rowFrac, cam);
+      final engravedHighlightOffset = sw * 0.35;
       canvas.drawLine(
-        Offset(s.dx, s.dy - 0.35),
-        Offset(e.dx, e.dy - 0.35),
+        Offset(s.dx, s.dy - engravedHighlightOffset),
+        Offset(e.dx, e.dy - engravedHighlightOffset),
         linePaint,
       );
     }
