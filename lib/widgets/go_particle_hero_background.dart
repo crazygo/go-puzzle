@@ -745,45 +745,60 @@ class GoParticleScenePainter extends CustomPainter {
     outline.close();
 
     // ── Contact shadow on board surface ─────────────────────────────────────
-    // Light comes from (_kLx, _kLy, _kLz). Shadow offset is opposite XY component.
-    final shadowC = cam.project(_Vec3(
-      center.x - _kLx * Rz * 0.18,
-      center.y - _kLy * Rz * 0.18,
-      _kThick,
-    ));
-    if (shadowC != null) {
-      final se = cam.project(_Vec3(center.x + Rxy, center.y, _kThick));
-      final sw = cam.project(_Vec3(center.x - Rxy, center.y, _kThick));
-      final sn = cam.project(_Vec3(center.x, center.y - Rxy, _kThick));
-      final ss = cam.project(_Vec3(center.x, center.y + Rxy, _kThick));
-      if (se != null && sw != null) {
-        final srx = (se.dx - sw.dx).abs() * 0.55;
-        final sry = (sn != null && ss != null)
-            ? (ss.dy - sn.dy).abs() * 0.30
-            : srx * 0.42;
-        // Core contact shadow
-        canvas.drawOval(
-          Rect.fromCenter(center: shadowC, width: srx * 2, height: sry * 2),
-          Paint()
-            ..maskFilter =
-                MaskFilter.blur(BlurStyle.normal, (srx * 0.24).clamp(1.0, 5.6))
-            ..color =
-                const Color(0xFF000000).withValues(alpha: 0.40 * intensity),
+    // Use geometric casting instead of hand-tuned oval scaling:
+    // for each point on the stone equator, cast a ray opposite lightDir
+    // and intersect with board plane Z = _kThick.
+    if (lightDir.z > 1e-6) {
+      final shadowPts = <Offset>[];
+      const nShadow = 36;
+      for (int i = 0; i < nShadow; i++) {
+        final phi = 2.0 * math.pi * i / nShadow;
+        final surface = _Vec3(
+          center.x + Rxy * math.cos(phi),
+          center.y + Rxy * math.sin(phi),
+          center.z,
         );
-        // Wider penumbra
-        canvas.drawOval(
-          Rect.fromCenter(
-            center: shadowC.translate(srx * 0.01, sry * 0.05),
-            width: srx * 2.2,
-            height: sry * 1.8,
-          ),
+        final castT = (surface.z - _kThick) / lightDir.z;
+        final cast = _Vec3(
+          surface.x - lightDir.x * castT,
+          surface.y - lightDir.y * castT,
+          _kThick,
+        );
+        final sp = cam.project(cast);
+        if (sp != null) shadowPts.add(sp);
+      }
+      if (shadowPts.length >= 3) {
+        final shadowPath = Path()..moveTo(shadowPts.first.dx, shadowPts.first.dy);
+        for (final p in shadowPts.skip(1)) {
+          shadowPath.lineTo(p.dx, p.dy);
+        }
+        shadowPath.close();
+
+        final boardCenter = cam.project(_Vec3(center.x, center.y, _kThick));
+        final boardEdgeX = cam.project(_Vec3(center.x + Rxy, center.y, _kThick));
+        final pxPerStoneRadius = (boardCenter != null && boardEdgeX != null)
+            ? (boardEdgeX.dx - boardCenter.dx).abs().clamp(0.1, double.infinity)
+            : 8.0;
+        final casterHeight = center.z - _kThick;
+        final penumbraSigma = (casterHeight / lightDir.z) * pxPerStoneRadius * 0.22;
+
+        canvas.drawPath(
+          shadowPath,
           Paint()
+            ..color = const Color(0xFF000000).withValues(alpha: 0.28 * intensity)
             ..maskFilter = MaskFilter.blur(
               BlurStyle.normal,
-              (srx * 0.44).clamp(1.6, 8.2),
-            )
-            ..color =
-                const Color(0xFF000000).withValues(alpha: 0.10 * intensity),
+              penumbraSigma.clamp(0.9, 5.2),
+            ),
+        );
+        canvas.drawPath(
+          shadowPath,
+          Paint()
+            ..color = const Color(0xFF000000).withValues(alpha: 0.20 * intensity)
+            ..maskFilter = MaskFilter.blur(
+              BlurStyle.normal,
+              (penumbraSigma * 0.55).clamp(0.6, 3.0),
+            ),
         );
       }
     }
