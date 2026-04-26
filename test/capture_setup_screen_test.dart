@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/capture_ai.dart';
 import 'package:go_puzzle/main.dart';
+import 'package:go_puzzle/widgets/page_hero_banner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -15,7 +16,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('小闲围棋'), findsOneWidget);
-    expect(find.text('AI 陪你下好每一步'), findsOneWidget);
+    // Subtitle rotates hourly; verify a non-empty subtitle is rendered.
+    final banner = tester.widget<PageHeroBanner>(
+      find.byType(PageHeroBanner).first,
+    );
+    expect(banner.subtitle, isNotNull);
+    expect(banner.subtitle, isNotEmpty);
     expect(find.text('下一盘'), findsOneWidget);
     expect(find.text('先吃5子为胜'), findsOneWidget);
     expect(find.text(CaptureAiStyle.hunter.label), findsOneWidget);

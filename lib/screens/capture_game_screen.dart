@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
@@ -68,7 +70,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         child: Stack(
           children: [
             // Hero as full-bleed background layer
-            const Positioned(
+            Positioned(
               top: 0,
               left: 0,
               right: 0,
@@ -382,7 +384,7 @@ class _ParticlePreviewCanvas extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
-        child: const PageHeroBanner(
+        child: PageHeroBanner(
           title: _CaptureCopy.pageTitle,
           subtitle: _CaptureCopy.pageSubtitle,
         ),
@@ -393,7 +395,72 @@ class _ParticlePreviewCanvas extends StatelessWidget {
 
 class _CaptureCopy {
   static const pageTitle = '小闲围棋';
-  static const pageSubtitle = 'AI 陪你下好每一步';
+
+  static const _subtitles = [
+    '围棋让我放松',
+    '下棋使我更平静',
+    '我在这里是专注的',
+    '每一步都值得深思',
+    '棋盘上只有当下',
+    '落子无悔，心平气和',
+    '围棋教会我耐心',
+    '在这里，我找到专注',
+    '下棋让我忘记烦恼',
+    '一盘棋，一段宁静',
+    '每手棋都是一次思考',
+    '围棋是我的冥想',
+    '在棋盘上，心绪沉静',
+    '下一步，只看眼前',
+    '围棋让我学会等待',
+    '棋局如人生，从容应对',
+    '落子一刻，万虑皆空',
+    '下棋让我更专注',
+    '围棋是内心的修炼',
+    '在这里找到自己的节奏',
+    '每盘棋都是新的开始',
+    '棋盘上，时间慢了下来',
+    '围棋让我与自己对话',
+    '下棋时，世界变得安静',
+    '棋局中学会取舍',
+    '围棋给我带来平静',
+    '每一步都有它的意义',
+    '在棋盘上感受专注的力量',
+    '围棋让我享受思考的过程',
+    '落子时，心无杂念',
+    '围棋是我放松的方式',
+    '黑白之间，只有当下',
+    '围棋教会我谦逊',
+    '每次落子都是一次成长',
+    '在这里，我可以慢下来',
+    '下棋让思绪变得清晰',
+    '围棋让我学会专注于当下',
+    '棋局中，找到内心的平衡',
+    '一子一子，皆是修行',
+    '围棋让我感到愉悦',
+    '棋盘上，输赢都是收获',
+    '下棋使我沉淀下来',
+    '围棋是一种心灵的放空',
+    '每一盘棋都是一段旅程',
+    '在棋局中找到宁静',
+    '围棋让我学会了坚持',
+    '落子之间，感受当下',
+    '围棋让心绪安定',
+    '棋盘是我思考的空间',
+    '下棋，让我更了解自己',
+  ];
+
+  static const _millisecondsPerHour = 1000 * 3600;
+
+  /// Returns a subtitle that is stable within the same hour but rotates
+  /// across hours, using hours-since-epoch as the seed so the same clock
+  /// hour on different days shows different sentences.
+  static String get pageSubtitle {
+    final hoursSinceEpoch =
+        DateTime.now().millisecondsSinceEpoch ~/ _millisecondsPerHour;
+    final index = Random(hoursSinceEpoch).nextInt(_subtitles.length);
+    return _subtitles[index];
+  }
+
   static const startAsBlackButton = '执黑先行';
   static const startAsWhiteButton = '执白后行';
   static const startSetupButton = '开始';
