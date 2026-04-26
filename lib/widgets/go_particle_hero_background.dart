@@ -579,11 +579,16 @@ class GoParticleScenePainter extends CustomPainter {
 
   // ── 4.5 Leaf-filtered sunlight (dappled highlights + soft occlusion) ─────
   void _drawLeafFilteredSunlight(Canvas canvas, Size size, _CamBasis cam) {
+    final bottomLeft = _p(0.0, 1.0, cam);
+    final bottomRight = _p(1.0, 1.0, cam);
+    final topRight = _p(1.0, 0.0, cam);
+    final topLeft = _p(0.0, 0.0, cam);
+
     final boardPath = Path()
-      ..moveTo(_p(0.0, 1.0, cam).dx, _p(0.0, 1.0, cam).dy)
-      ..lineTo(_p(1.0, 1.0, cam).dx, _p(1.0, 1.0, cam).dy)
-      ..lineTo(_p(1.0, 0.0, cam).dx, _p(1.0, 0.0, cam).dy)
-      ..lineTo(_p(0.0, 0.0, cam).dx, _p(0.0, 0.0, cam).dy)
+      ..moveTo(bottomLeft.dx, bottomLeft.dy)
+      ..lineTo(bottomRight.dx, bottomRight.dy)
+      ..lineTo(topRight.dx, topRight.dy)
+      ..lineTo(topLeft.dx, topLeft.dy)
       ..close();
 
     canvas.save();
