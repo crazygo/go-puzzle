@@ -6,8 +6,11 @@
 - After dependency or environment changes, run checks from the repo root: `flutter pub get`, `flutter analyze --no-fatal-infos --no-fatal-warnings`, and `flutter test`.
 
 ## Planning
-- When an implementation plan is requested, write it in English and include these sections in order: Background, Goals, Implementation Plan (phased), and Acceptance Criteria.
-- Keep acceptance criteria testable and user-observable where applicable, and include validation commands such as `flutter analyze` and `flutter test` when relevant.
+- When an implementation plan is requested, write it in English and include these sections in order:
+    1. **Background**: Substructured into **Context** (current state), **Problem** (limitations/pain points), and **Motivation** (why this change is valuable).
+    2. **Goals**: Clear, high-level objectives.
+    3. **Implementation Plan**: Phased approach to delivery.
+    4. **Acceptance Criteria**: Testable and user-observable criteria, including validation commands (e.g., `flutter analyze`, `flutter test`).
 - If a plan should be persisted, save it under `docs/plans/` with a `YYYY-MM-DD-HH-mm` prefix using 24-hour time.
 
 ## iOS and signing
