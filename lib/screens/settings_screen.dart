@@ -247,20 +247,7 @@ class _ParticleBackgroundDebugScreen extends StatefulWidget {
 
 class _ParticleBackgroundDebugScreenState
     extends State<_ParticleBackgroundDebugScreen> {
-  double _warmth = 1.0;
-  double _dof = 1.0;
-  double _fadeStart = 0.58;
-  int _boardSize = 9;
-  bool _controlsCollapsed = false;
-
-  static const List<int> _boardSizes = [9, 13, 19];
-
-  GoScenePreset get _preset => GoScenePreset(
-        boardSize: _boardSize,
-        warmth: _warmth,
-        depthOfField: _dof,
-        stones: GoScenePreset.defaultPreset.stones,
-      );
+  static const GoScenePreset _preset = GoScenePreset.defaultPreset;
 
   @override
   Widget build(BuildContext context) {
@@ -268,171 +255,25 @@ class _ParticleBackgroundDebugScreenState
       navigationBar: const CupertinoNavigationBar(
         middle: Text('粒子背景预览'),
       ),
-      child: Stack(
-        children: [
-          // Full-bleed background
-          Positioned.fill(
-            child: Transform.translate(
-              offset: const Offset(0, -36),
-              child: Transform.scale(
-                scale: 0.9,
-                child: GoParticleHeroBackground(
-                  preset: _preset,
-                  contentFadeStart: _fadeStart,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: Transform.translate(
+                  offset: Offset(0, -constraints.maxHeight * 0.5),
+                  child: const Transform.scale(
+                    scale: 0.9,
+                    child: GoParticleHeroBackground(
+                      preset: _preset,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          // Controls panel at the bottom
-          SafeArea(
-            child: Stack(
-              children: [
-                if (!_controlsCollapsed)
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: CupertinoColors.systemBackground
-                            .resolveFrom(context)
-                            .withOpacity(0.88),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: const [
-                          BoxShadow(
-                              color: Color(0x18000000),
-                              blurRadius: 12,
-                              offset: Offset(0, 4)),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _DebugSlider(
-                            label: '暖色',
-                            value: _warmth,
-                            onChanged: (v) => setState(() => _warmth = v),
-                          ),
-                          _DebugSlider(
-                            label: '景深',
-                            value: _dof,
-                            onChanged: (v) => setState(() => _dof = v),
-                          ),
-                          _DebugSlider(
-                            label: '渐隐',
-                            value: _fadeStart,
-                            onChanged: (v) => setState(() => _fadeStart = v),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Text('棋盘',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      color: CupertinoColors.label)),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: CupertinoSlidingSegmentedControl<int>(
-                                  groupValue: _boardSize,
-                                  children: {
-                                    for (final s in _boardSizes)
-                                      s: Text('${s}路',
-                                          style: const TextStyle(fontSize: 12)),
-                                  },
-                                  onValueChanged: (v) {
-                                    if (v != null) {
-                                      setState(() => _boardSize = v);
-                                    }
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                Positioned(
-                  left: 16,
-                  bottom: 16,
-                  child: CupertinoButton(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    minimumSize: const Size(32, 32),
-                    color: CupertinoColors.systemGrey6
-                        .resolveFrom(context)
-                        .withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(12),
-                    onPressed: () => setState(
-                      () => _controlsCollapsed = !_controlsCollapsed,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _controlsCollapsed
-                              ? CupertinoIcons.chevron_up
-                              : CupertinoIcons.chevron_down,
-                          size: 16,
-                          color: CupertinoColors.label.resolveFrom(context),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _controlsCollapsed ? '展开' : '收起',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: CupertinoColors.label.resolveFrom(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
-    );
-  }
-}
-
-class _DebugSlider extends StatelessWidget {
-  const _DebugSlider({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final double value;
-  final ValueChanged<double> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 36,
-          child: Text(label,
-              style: const TextStyle(
-                  fontSize: 12, color: CupertinoColors.secondaryLabel)),
-        ),
-        Expanded(
-          child: CupertinoSlider(
-            value: value,
-            onChanged: onChanged,
-          ),
-        ),
-        SizedBox(
-          width: 34,
-          child: Text(
-            value.toStringAsFixed(2),
-            style: const TextStyle(
-                fontSize: 11, color: CupertinoColors.secondaryLabel),
-            textAlign: TextAlign.right,
-          ),
-        ),
-      ],
     );
   }
 }

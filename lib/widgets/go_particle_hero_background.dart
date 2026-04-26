@@ -118,7 +118,6 @@ class GoParticleHeroBackground extends StatelessWidget {
     required this.preset,
     this.intensity = 1.0,
     this.blurStrength = 1.0,
-    this.contentFadeStart = 0.82,
   });
 
   final GoScenePreset preset;
@@ -129,10 +128,6 @@ class GoParticleHeroBackground extends StatelessWidget {
   /// Depth-of-field blur multiplier.
   final double blurStrength;
 
-  /// Normalised Y position (0–1) at which the lower-fade begins to blend
-  /// toward the warm-white UI background.
-  final double contentFadeStart;
-
   @override
   Widget build(BuildContext context) {
     return SizedBox.expand(
@@ -141,7 +136,6 @@ class GoParticleHeroBackground extends StatelessWidget {
           preset: preset,
           intensity: intensity,
           blurStrength: blurStrength,
-          contentFadeStart: contentFadeStart,
         ),
       ),
     );
@@ -159,19 +153,16 @@ class GoParticleHeroBackground extends StatelessWidget {
 ///   4. Wood grain particles
 ///   5. Grid lines
 ///   6. Stone splats
-///   7. Lower fade / information-reduction layer
 class GoParticleScenePainter extends CustomPainter {
   const GoParticleScenePainter({
     required this.preset,
     this.intensity = 1.0,
     this.blurStrength = 1.0,
-    this.contentFadeStart = 0.82,
   });
 
   final GoScenePreset preset;
   final double intensity;
   final double blurStrength;
-  final double contentFadeStart;
 
   // Deterministic cheap pseudo-random noise (no dart:math Random state needed).
   static double _noise(int seed) {
@@ -238,7 +229,6 @@ class GoParticleScenePainter extends CustomPainter {
     _drawGridLines(canvas, size, cam);
     _drawLeafFilteredSunlight(canvas, size, cam);
     _drawStoneSplats(canvas, size, cam);
-    _drawLowerFade(canvas, size);
   }
 
   // ── 1. Warm base gradient ──────────────────────────────────────────────────
@@ -757,8 +747,8 @@ class GoParticleScenePainter extends CustomPainter {
     // ── Contact shadow on board surface ─────────────────────────────────────
     // Light comes from (_kLx, _kLy, _kLz). Shadow offset is opposite XY component.
     final shadowC = cam.project(_Vec3(
-      center.x - _kLx * Rz * 0.55,
-      center.y - _kLy * Rz * 0.55,
+      center.x - _kLx * Rz * 0.18,
+      center.y - _kLy * Rz * 0.18,
       _kThick,
     ));
     if (shadowC != null) {
@@ -776,24 +766,24 @@ class GoParticleScenePainter extends CustomPainter {
           Rect.fromCenter(center: shadowC, width: srx * 2, height: sry * 2),
           Paint()
             ..maskFilter =
-                MaskFilter.blur(BlurStyle.normal, (srx * 0.36).clamp(1.4, 8.8))
+                MaskFilter.blur(BlurStyle.normal, (srx * 0.24).clamp(1.0, 5.6))
             ..color =
-                const Color(0xFF000000).withValues(alpha: 0.35 * intensity),
+                const Color(0xFF000000).withValues(alpha: 0.40 * intensity),
         );
         // Wider penumbra
         canvas.drawOval(
           Rect.fromCenter(
-            center: shadowC.translate(srx * 0.02, sry * 0.08),
-            width: srx * 2.6,
-            height: sry * 2.1,
+            center: shadowC.translate(srx * 0.01, sry * 0.05),
+            width: srx * 2.2,
+            height: sry * 1.8,
           ),
           Paint()
             ..maskFilter = MaskFilter.blur(
               BlurStyle.normal,
-              (srx * 0.55).clamp(2.0, 11.0),
+              (srx * 0.44).clamp(1.6, 8.2),
             )
             ..color =
-                const Color(0xFF000000).withValues(alpha: 0.12 * intensity),
+                const Color(0xFF000000).withValues(alpha: 0.10 * intensity),
         );
       }
     }
@@ -878,31 +868,11 @@ class GoParticleScenePainter extends CustomPainter {
     }
   }
 
-  // ── 8. Lower fade ──────────────────────────────────────────────────────────
-
-  void _drawLowerFade(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final fadeStart = contentFadeStart;
-    final paint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(0, size.height * fadeStart),
-        Offset(0, size.height),
-        [
-          const Color(0x00F9F3EA),
-          const Color(0xB8F9F3EA),
-          const Color(0xFFFBF7F0),
-        ],
-        [0.0, 0.55, 1.0],
-      );
-    canvas.drawRect(rect, paint);
-  }
-
   @override
   bool shouldRepaint(covariant GoParticleScenePainter oldDelegate) {
     return oldDelegate.preset != preset ||
         oldDelegate.intensity != intensity ||
-        oldDelegate.blurStrength != blurStrength ||
-        oldDelegate.contentFadeStart != contentFadeStart;
+        oldDelegate.blurStrength != blurStrength;
   }
 }
 
