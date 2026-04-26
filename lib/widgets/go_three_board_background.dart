@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:three_js/three_js.dart' as three;
 
@@ -82,9 +84,26 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   double _elapsed = 0;
   bool _sceneInitialized = false;
 
+  /// Set to true when the OpenGL/flutter_angle plugin is not available on this
+  /// platform (e.g. headless test environments). The widget then renders as an
+  /// invisible SizedBox.expand so that the rest of the UI is unaffected.
+  bool _pluginUnavailable = false;
+
+  /// Saved FlutterError.onError handler, restored once the plugin check
+  /// completes (either on first successful frame or on plugin error).
+  FlutterExceptionHandler? _prevErrorHandler;
+
   @override
   void initState() {
     super.initState();
+
+    // Install a temporary error handler to catch MissingPluginException that
+    // flutter_angle throws in test environments or other platforms where the
+    // native plugin is not registered. The handler restores itself after the
+    // first error or after the scene is successfully initialized.
+    _prevErrorHandler = FlutterError.onError;
+    FlutterError.onError = _pluginErrorGuard;
+
     _threeJs = three.ThreeJS(
       settings: three.Settings(
         alpha: true,
@@ -95,10 +114,28 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         toneMappingExposure: 0.70,
       ),
       onSetupComplete: () {
+        // Scene initialized successfully – restore the original handler.
+        _restorePrevErrorHandler();
         if (mounted) setState(() {});
       },
       setup: _setup,
     );
+  }
+
+  void _pluginErrorGuard(FlutterErrorDetails details) {
+    if (!_sceneInitialized && details.exception is MissingPluginException) {
+      // flutter_angle is not available on this platform; fall back gracefully.
+      _restorePrevErrorHandler();
+      if (mounted) setState(() => _pluginUnavailable = true);
+      return;
+    }
+    _prevErrorHandler?.call(details);
+  }
+
+  void _restorePrevErrorHandler() {
+    if (FlutterError.onError == _pluginErrorGuard) {
+      FlutterError.onError = _prevErrorHandler;
+    }
   }
 
   @override
@@ -121,15 +158,16 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
   @override
   void dispose() {
+    _restorePrevErrorHandler();
     if (_sceneInitialized) {
       _threeJs.dispose();
     }
-    three.loading.clear();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_pluginUnavailable) return const SizedBox.expand();
     return SizedBox.expand(child: _threeJs.build());
   }
 
@@ -373,6 +411,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
   void _buildGrid() {
     final n = widget.boardSize;
+    if (n < 2) return;
     final step = _gridSpan / (n - 1);
     const start = -_gridSpan / 2;
     final lineMaterial = three.MeshBasicMaterial({

@@ -264,7 +264,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     ],
                   ),
                 ),
-                if (kIsWeb)
+                if (kIsWeb && kDebugMode)
                   SafeArea(
                     child: Align(
                       alignment: Alignment.topRight,
