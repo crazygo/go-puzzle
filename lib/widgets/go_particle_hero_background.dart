@@ -212,7 +212,10 @@ class GoParticleScenePainter extends CustomPainter {
     return lit.clamp(0.0, 1.25);
   }
 
-  /// Scale a [Color]'s RGB channels by brightness [b] ∈ [0, 1].
+  /// Scale a [Color]'s RGB channels by brightness [b].
+  ///
+  /// Values above `1.0` are expected for highlight intensification from [_lit];
+  /// each output channel is clamped to the valid 8-bit range.
   static Color _dim(Color c, double b) => Color.fromARGB(
         c.alpha,
         (c.red * b).round().clamp(0, 255),
