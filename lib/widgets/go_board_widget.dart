@@ -46,35 +46,102 @@ class GoBoardPainter extends CustomPainter {
   }
 
   void _drawBackground(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFDEB887) // burlywood – classic Go board color
-      ..style = PaintingStyle.fill;
+    final boardRect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final sideRadius = Radius.circular(size.shortestSide * 0.03);
+    final sideRRect = RRect.fromRectAndRadius(boardRect, sideRadius);
+
+    // Side wood base (slightly darker than top, but still wood-toned).
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        const Radius.circular(8),
-      ),
-      paint,
+      sideRRect,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFE0B06B), Color(0xFFC98E4F), Color(0xFF9A6530)],
+        ).createShader(boardRect),
     );
 
-    // Wood grain effect (subtle gradient)
-    final gradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        const Color(0xFFE8C882).withOpacity(0.3),
-        const Color(0xFFC8A05A).withOpacity(0.3),
-      ],
+    final bevel = size.shortestSide * 0.018;
+    final topRect = boardRect.deflate(bevel);
+    final topRRect = RRect.fromRectAndRadius(
+      topRect,
+      Radius.circular(size.shortestSide * 0.026),
     );
-    final gradientPaint = Paint()
-      ..shader =
-          gradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    // Top wood base.
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        const Radius.circular(8),
-      ),
-      gradientPaint,
+      topRRect,
+      Paint()..color = const Color(0xFFE8C98E),
+    );
+
+    // Directional long grain.
+    canvas.save();
+    canvas.clipRRect(topRRect);
+    final grainPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final grainCount = (size.height / 2.6).floor();
+    for (int i = 0; i < grainCount; i++) {
+      final t = i / grainCount;
+      final y = topRect.top + t * topRect.height;
+      final wave = math.sin(i * 0.75) * size.height * 0.0018;
+      grainPaint
+        ..strokeWidth = 0.55 + 0.25 * (1.0 - t)
+        ..color = Color.lerp(
+          const Color(0xFFF3DDB3),
+          const Color(0xFFC99655),
+          (0.28 + 0.44 * _grainNoise(i.toDouble())).clamp(0.0, 1.0),
+        )!
+            .withOpacity(0.16 + 0.10 * _grainNoise(i * 1.17));
+      canvas.drawLine(
+        Offset(topRect.left, y + wave),
+        Offset(topRect.right, y - wave * 0.3),
+        grainPaint,
+      );
+    }
+
+    // Local darker veins.
+    for (int i = 0; i < 12; i++) {
+      final t = i / 11;
+      final y = topRect.top + (0.08 + 0.84 * t) * topRect.height;
+      final span = (0.25 + 0.6 * _grainNoise(i * 2.1)) * topRect.width;
+      final startX = topRect.left + (topRect.width - span) * _grainNoise(i + 9);
+      grainPaint
+        ..strokeWidth = 0.7
+        ..color = const Color(0xFFA9783D).withOpacity(0.10);
+      canvas.drawLine(
+        Offset(startX, y),
+        Offset(startX + span, y + math.sin(i * 0.9) * 0.8),
+        grainPaint,
+      );
+    }
+    canvas.restore();
+
+    // Bevel: light from upper-right, shadow toward lower-left.
+    final bevelPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = bevel * 0.85;
+    bevelPaint.color = const Color(0xFFFFEED0).withOpacity(0.45);
+    canvas.drawLine(
+      Offset(topRect.left, topRect.top),
+      Offset(topRect.right, topRect.top),
+      bevelPaint,
+    );
+    canvas.drawLine(
+      Offset(topRect.right, topRect.top),
+      Offset(topRect.right, topRect.bottom),
+      bevelPaint,
+    );
+    bevelPaint.color = const Color(0xFF8A5B2F).withOpacity(0.35);
+    canvas.drawLine(
+      Offset(topRect.left, topRect.bottom),
+      Offset(topRect.right, topRect.bottom),
+      bevelPaint,
+    );
+    canvas.drawLine(
+      Offset(topRect.left, topRect.top),
+      Offset(topRect.left, topRect.bottom),
+      bevelPaint,
     );
   }
 
@@ -85,30 +152,63 @@ class GoBoardPainter extends CustomPainter {
     int n,
     double cellSize,
   ) {
-    final linePaint = Paint()
-      ..color = const Color(0xFF8B6914)
-      ..strokeWidth = 0.8
-      ..style = PaintingStyle.stroke;
-
-    // Outer border (thicker)
+    // Outer border (engraved frame)
     final borderPaint = Paint()
-      ..color = const Color(0xFF6B4E10)
-      ..strokeWidth = 1.5
+      ..color = const Color(0xFF7A5C36).withOpacity(0.62)
+      ..strokeWidth = 1.15
       ..style = PaintingStyle.stroke;
     canvas.drawRect(
       Rect.fromLTWH(origin, origin, boardAreaSize, boardAreaSize),
       borderPaint,
     );
 
-    // Interior grid lines
+    // Interior engraved grooves.
     for (int i = 1; i < n - 1; i++) {
       final x = origin + i * cellSize;
       final y = origin + i * cellSize;
-      canvas.drawLine(
-          Offset(x, origin), Offset(x, origin + boardAreaSize), linePaint);
-      canvas.drawLine(
-          Offset(origin, y), Offset(origin + boardAreaSize, y), linePaint);
+      _drawGrooveLine(
+        canvas,
+        Offset(x, origin),
+        Offset(x, origin + boardAreaSize),
+        const Offset(0.33, 0),
+      );
+      _drawGrooveLine(
+        canvas,
+        Offset(origin, y),
+        Offset(origin + boardAreaSize, y),
+        const Offset(0, -0.33),
+      );
     }
+  }
+
+  void _drawGrooveLine(
+    Canvas canvas,
+    Offset a,
+    Offset b,
+    Offset embossOffset,
+  ) {
+    final core = Paint()
+      ..color = const Color(0xFF7A5C36).withOpacity(0.56)
+      ..strokeWidth = 0.72
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(a, b, core);
+
+    final highlight = Paint()
+      ..color = const Color(0xFFF6E7CA).withOpacity(0.24)
+      ..strokeWidth = 0.42
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(a - embossOffset, b - embossOffset, highlight);
+
+    final shadow = Paint()
+      ..color = const Color(0xFF5A3F24).withOpacity(0.18)
+      ..strokeWidth = 0.4
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(a + embossOffset, b + embossOffset, shadow);
+  }
+
+  double _grainNoise(double x) {
+    final s1 = math.sin(x * 12.9898) * 43758.5453;
+    return s1 - s1.floorToDouble();
   }
 
   void _drawStarPoints(Canvas canvas, double origin, int n, double cellSize) {
