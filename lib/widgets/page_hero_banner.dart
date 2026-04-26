@@ -18,13 +18,13 @@ const double kPageHeroContentOffset =
 
 // ── Shared background decoration ─────────────────────────────────────────────
 /// Fallback scaffold background colour (shown before gradient is painted).
-const Color kPageBackgroundColor = Color(0xFFF6F1E9);
+const Color kPageBackgroundColor = Color(0xFFF2E2D3);
 
 const BoxDecoration kPageBackgroundDecoration = BoxDecoration(
   gradient: LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFFFFCF7), Color(0xFFF7F0E5)],
+    colors: [Color(0xFFF8EEE6), Color(0xFFF2E2D3)],
   ),
 );
 
@@ -39,6 +39,7 @@ class PageHeroBanner extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.action,
+    this.showOrbitalArt = true,
   });
 
   final String title;
@@ -46,6 +47,7 @@ class PageHeroBanner extends StatelessWidget {
 
   /// Optional widget placed in the top-right of the hero (e.g. a "今天" button).
   final Widget? action;
+  final bool showOrbitalArt;
 
   @override
   Widget build(BuildContext context) {
@@ -103,13 +105,14 @@ class PageHeroBanner extends StatelessWidget {
               ],
             ),
           ),
-          Positioned(
-            right: 0,
-            top: topPad,
-            bottom: 0,
-            width: 160,
-            child: const _HeroOrbitalArt(),
-          ),
+          if (showOrbitalArt)
+            Positioned(
+              right: 0,
+              top: topPad,
+              bottom: 0,
+              width: 160,
+              child: const _HeroOrbitalArt(),
+            ),
         ],
       ),
     );
@@ -325,8 +328,8 @@ class _LandscapePainter extends CustomPainter {
       ..close();
     canvas.drawPath(mid, paint);
 
-    _drawPavilion(canvas,
-        Offset(size.width * 0.50, size.height * 0.42), size.width * 0.028);
+    _drawPavilion(canvas, Offset(size.width * 0.50, size.height * 0.42),
+        size.width * 0.028);
   }
 
   void _drawPavilion(Canvas canvas, Offset base, double scale) {
@@ -375,8 +378,8 @@ class _LandscapePainter extends CustomPainter {
       ..moveTo(0, size.height)
       ..quadraticBezierTo(size.width * 0.35, size.height * 0.86,
           size.width * 0.65, size.height * 0.90)
-      ..quadraticBezierTo(size.width * 0.82, size.height * 0.87,
-          size.width, size.height * 0.92)
+      ..quadraticBezierTo(
+          size.width * 0.82, size.height * 0.87, size.width, size.height * 0.92)
       ..lineTo(size.width, size.height)
       ..close();
     canvas.drawPath(hill2, paint);
@@ -495,16 +498,14 @@ class _OrbitPainter extends CustomPainter {
       final opacity =
           (0.028 + 0.28 * tailFade * opacityScale).clamp(0.015, 0.16);
       final radius = (0.32 + 1.1 * tailFade + flutter * 0.18) * dotScale;
-      particlePaint.color =
-          const Color(0xFFC99557).withValues(alpha: opacity);
+      particlePaint.color = const Color(0xFFC99557).withValues(alpha: opacity);
       canvas.drawCircle(offset, radius, particlePaint);
     }
 
     final stroke = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.75
-      ..color =
-          const Color(0xFFC99557).withValues(alpha: 0.038 * opacityScale);
+      ..color = const Color(0xFFC99557).withValues(alpha: 0.038 * opacityScale);
     final arcRect = Rect.fromCenter(
       center: center,
       width: radiusX * 2,
