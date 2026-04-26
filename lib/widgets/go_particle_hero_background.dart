@@ -412,7 +412,7 @@ class GoParticleScenePainter extends CustomPainter {
     const particleCount = 760;
     // Grain is slightly lighter and darker than the top surface.
     final topBright = _lit(0, 0, 1);
-    const base = Color(0xFFEED9B8);
+    const base = Color(0xFFE8C98E);
     final woodColors = [
       _dim(base, topBright * 1.08),
       _dim(base, topBright * 0.95),
@@ -493,8 +493,8 @@ class GoParticleScenePainter extends CustomPainter {
       bandPaint
         ..strokeWidth = (1.0 - y) * 0.8 + 0.2
         ..color = Color.lerp(
-          const Color(0xFFD8B788),
-          const Color(0xFFF4DFC1),
+          const Color(0xFFC99655),
+          const Color(0xFFF3DDB3),
           _noise(i * 13 + 5),
         )!
             .withValues(alpha: (0.045 + 0.045 * (1.0 - y)) * intensity)
@@ -526,7 +526,7 @@ class GoParticleScenePainter extends CustomPainter {
       final alpha = _lerpd(0.42, 0.17, rowFrac) * intensity;
       final sw = _lerpd(1.0, 0.40, rowFrac);
       linePaint
-        ..color = const Color(0xFF7D664A).withValues(alpha: alpha * 0.40)
+        ..color = const Color(0xFF7A5C36).withValues(alpha: alpha * 0.62)
         ..strokeWidth = sw * 0.56
         ..maskFilter = rowFrac > 0.5
             ? MaskFilter.blur(
@@ -537,7 +537,7 @@ class GoParticleScenePainter extends CustomPainter {
       canvas.drawLine(_p(0.0, rowFrac, cam), _p(1.0, rowFrac, cam), linePaint);
       // Tiny engraved highlight on one side of each line.
       linePaint
-        ..color = const Color(0xFFF8E7CC).withValues(alpha: alpha * 0.16)
+        ..color = const Color(0xFFF3DDB3).withValues(alpha: alpha * 0.20)
         ..strokeWidth = sw * 0.34
         ..maskFilter = null;
       final s = _p(0.0, rowFrac, cam);
@@ -556,7 +556,7 @@ class GoParticleScenePainter extends CustomPainter {
       final centerBias = 1.0 - (colFrac - 0.5).abs() * 1.6;
       final alpha = (0.19 + 0.08 * centerBias.clamp(0.0, 1.0)) * intensity;
       linePaint
-        ..color = const Color(0xFF7D664A).withValues(alpha: alpha)
+        ..color = const Color(0xFF7A5C36).withValues(alpha: alpha * 0.92)
         ..strokeWidth = 0.42
         ..maskFilter = MaskFilter.blur(
           BlurStyle.normal,
@@ -768,24 +768,28 @@ class GoParticleScenePainter extends CustomPainter {
         if (sp != null) shadowPts.add(sp);
       }
       if (shadowPts.length >= 3) {
-        final shadowPath = Path()..moveTo(shadowPts.first.dx, shadowPts.first.dy);
+        final shadowPath = Path()
+          ..moveTo(shadowPts.first.dx, shadowPts.first.dy);
         for (final p in shadowPts.skip(1)) {
           shadowPath.lineTo(p.dx, p.dy);
         }
         shadowPath.close();
 
         final boardCenter = cam.project(_Vec3(center.x, center.y, _kThick));
-        final boardEdgeX = cam.project(_Vec3(center.x + Rxy, center.y, _kThick));
+        final boardEdgeX =
+            cam.project(_Vec3(center.x + Rxy, center.y, _kThick));
         final pxPerStoneRadius = (boardCenter != null && boardEdgeX != null)
             ? (boardEdgeX.dx - boardCenter.dx).abs().clamp(0.1, double.infinity)
             : 8.0;
         final casterHeight = center.z - _kThick;
-        final penumbraSigma = (casterHeight / lightDir.z) * pxPerStoneRadius * 0.22;
+        final penumbraSigma =
+            (casterHeight / lightDir.z) * pxPerStoneRadius * 0.22;
 
         canvas.drawPath(
           shadowPath,
           Paint()
-            ..color = const Color(0xFF000000).withValues(alpha: 0.28 * intensity)
+            ..color =
+                const Color(0xFF000000).withValues(alpha: 0.28 * intensity)
             ..maskFilter = MaskFilter.blur(
               BlurStyle.normal,
               penumbraSigma.clamp(0.9, 5.2),
@@ -794,7 +798,8 @@ class GoParticleScenePainter extends CustomPainter {
         canvas.drawPath(
           shadowPath,
           Paint()
-            ..color = const Color(0xFF000000).withValues(alpha: 0.20 * intensity)
+            ..color =
+                const Color(0xFF000000).withValues(alpha: 0.20 * intensity)
             ..maskFilter = MaskFilter.blur(
               BlurStyle.normal,
               (penumbraSigma * 0.55).clamp(0.6, 3.0),
