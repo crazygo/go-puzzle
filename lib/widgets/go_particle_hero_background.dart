@@ -665,7 +665,7 @@ class GoParticleScenePainter extends CustomPainter {
 
     // World-space radii. Go stone ≈ oblate ellipsoid (biconvex lens).
     final Rxy = 0.43 / (n - 1); // horizontal radius
-    final Rz = Rxy * 0.36; // vertical  radius (thicker real stone)
+    final Rz = Rxy * 0.50; // vertical radius (stronger biconvex profile)
 
     // Painter's algorithm: far stones first.
     final stones = [...preset.stones];
@@ -830,16 +830,16 @@ class GoParticleScenePainter extends CustomPainter {
         maxR * 2.1, // extends beyond edge → rim stays dark
         isBlack
             ? const [
-                Color(0xFF70665E), // lit dome
-                Color(0xFF2D2722), // diffuse charcoal
-                Color(0xFF171412), // dark rim
+                Color(0xFF8B8077), // lit dome
+                Color(0xFF2F2924), // diffuse charcoal
+                Color(0xFF110F0E), // dark rim
               ]
             : const [
-                Color(0xFFF7F0E2), // warm white highlight
-                Color(0xFFE8DFCF), // ivory diffuse
-                Color(0xFFB9AF9F), // shadowed rim
+                Color(0xFFFFF8EA), // warm white highlight
+                Color(0xFFE6DCCB), // ivory diffuse
+                Color(0xFFA89F90), // shadowed rim
               ],
-        [0.0, 0.40, 1.0],
+        [0.0, 0.32, 1.0],
       );
     final focus = 0.28;
     final dof = math.max(0.0, center.y - focus) *
@@ -853,16 +853,16 @@ class GoParticleScenePainter extends CustomPainter {
 
     // ── Specular highlight — crisp Phong hot-spot ────────────────────────────
     if (specScreen != null) {
-      final hlR = maxR * (isBlack ? 0.22 : 0.34);
+      final hlR = maxR * (isBlack ? 0.26 : 0.38);
       canvas.drawOval(
         Rect.fromCenter(
             center: specScreen, width: hlR * 2.0, height: hlR * 1.55),
         Paint()
           ..shader = ui.Gradient.radial(specScreen, hlR, [
-            isBlack ? const Color(0x30FFF8ED) : const Color(0x88FFFDF8),
+            isBlack ? const Color(0x46FFF8ED) : const Color(0x99FFFDF8),
             const Color(0x00FFFFFF),
           ])
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, isBlack ? 1.2 : 0.8),
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, isBlack ? 1.0 : 0.7),
       );
     }
 
