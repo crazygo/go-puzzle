@@ -119,7 +119,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   final three.Group _leafShadowGroup = three.Group();
   final three.Group _debugGuideGroup = three.Group();
   three.AmbientLight? _ambientLight;
-  three.SpotLight? _keyLight;
+  three.DirectionalLight? _keyLight;
   three.DirectionalLight? _fillLight;
   three.SpotLight? _sheenLight;
   three.MeshStandardMaterial? _boardTopMaterial;
@@ -361,14 +361,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         widget.ambientLightColor, widget.ambientLightIntensity);
     _threeJs.scene.add(_ambientLight!);
 
-    final key = three.SpotLight(
-      widget.keyLightColor,
-      widget.keyLightIntensity,
-      26,
-      math.pi / 4.1,
-      0.78,
-      1.0,
-    );
+    final key =
+        three.DirectionalLight(widget.keyLightColor, widget.keyLightIntensity);
     key.position.setValues(
       widget.keyLightPosition.x,
       widget.keyLightPosition.y,
