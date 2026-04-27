@@ -12,9 +12,10 @@ Use this skill when the user wants a real browser screenshot instead of a framew
 1. Decide the target URL, output path, and viewport.
 2. Prefer repo-relative output paths such as `.cache/screenshots/page.png`.
 3. Use the bundled script instead of rewriting Playwright launch code.
-4. For Flutter Web verification, prefer a freshly started web-server port when `pubspec.yaml`, web assets, or fonts changed. Do not assume an old port reflects the latest code.
-5. If the output file already exists, keep the history by renaming the old file to `name vN.ext` before writing the new file.
-6. Report the exact viewport and DPR you used in the final response.
+4. For Flutter Web verification, always start a fresh `flutter run -d web-server` process for the shot. Do not reuse a previous server and do not rely on hot restart; hot restart is not deterministic enough for screenshot comparison.
+5. After the screenshot is captured, stop/kill the Flutter web-server process before taking the next screenshot. A fresh process per shot keeps the flow idempotent.
+6. If the output file already exists, keep the history by renaming the old file to `name vN.ext` before writing the new file.
+7. Report the exact viewport, DPR, URL, and server lifecycle used in the final response.
 
 ## Runtime Model
 
@@ -25,6 +26,14 @@ Run `scripts/browser_screenshot.sh`. It:
 - launches the browser through Playwright
 - waits for visual stability instead of capturing the first rendered frame
 - uses a fixed viewport and device scale factor for repeatable comparison
+
+For Flutter Web, the expected lifecycle is:
+
+1. Start a new `flutter run -d web-server --web-hostname 127.0.0.1 --web-port <port>` process.
+2. Wait until `lib/main.dart is being served at ...`.
+3. Run `scripts/browser_screenshot.sh`.
+4. Stop the Flutter process with `q` in the PTY, or kill the exact process if it does not exit.
+5. Use a new process for the next shot, even when only params changed.
 
 The skill expects a local Playwright dependency to already exist. It does not rely on a network install during execution.
 
