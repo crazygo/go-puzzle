@@ -1273,54 +1273,46 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
                   children: [
                     Row(
                       children: [
-                        const Expanded(
-                          child: Text(
-                            '棋盘调试面板',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF3A2A1F),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: CupertinoSlidingSegmentedControl<int>(
+                              groupValue: _selectedTab,
+                              children: {
+                                for (int i = 0; i < _tabTitles.length; i++)
+                                  i: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    child: Text(
+                                      _tabTitles[i],
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                              },
+                              onValueChanged: (next) {
+                                if (next != null) {
+                                  setState(() => _selectedTab = next);
+                                }
+                              },
                             ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         CupertinoButton(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          minimumSize: const Size(44, 30),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: const Size(42, 30),
                           onPressed: widget.onReset,
                           child: const Text('重置'),
                         ),
                         CupertinoButton(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          minimumSize: const Size(44, 30),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: const Size(42, 30),
                           onPressed: widget.onClose,
                           child: const Text('关闭'),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 8),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: CupertinoSlidingSegmentedControl<int>(
-                        groupValue: _selectedTab,
-                        children: {
-                          for (int i = 0; i < _tabTitles.length; i++)
-                            i: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              child: Text(
-                                _tabTitles[i],
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ),
-                        },
-                        onValueChanged: (next) {
-                          if (next != null) {
-                            setState(() => _selectedTab = next);
-                          }
-                        },
-                      ),
                     ),
                     const SizedBox(height: 10),
                     Expanded(
