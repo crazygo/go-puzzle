@@ -43,10 +43,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardCameraDepth = 4.85;
   static const double _defaultHomeBoardTargetZOffset = -0.31;
   static const double _defaultHomeCardTopFactor = 0.44;
-  static const double _defaultLeafShadowOpacity = 0.16;
-  static const double _defaultLeafShadowSpeed = 1.05;
-  static const double _defaultLeafShadowSway = 1.0;
-  static const double _defaultKeyLightSwing = 1.0;
+  static const double _defaultLeafShadowOpacity = 0.08;
+  static const double _defaultLeafShadowSpeed = 0.72;
+  static const double _defaultLeafShadowSway = 0.55;
+  static const double _defaultKeyLightSwing = 0.65;
 
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';

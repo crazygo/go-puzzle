@@ -281,12 +281,12 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   }
 
   void _buildLights() {
-    _threeJs.scene.add(three.AmbientLight(0xffecd8, 0.22));
+    _threeJs.scene.add(three.AmbientLight(0xffefdf, 0.24));
 
-    final key = three.DirectionalLight(0xffe0ba, 1.22);
-    key.position.setValues(4.8, 6.0, 4.2);
+    final key = three.DirectionalLight(0xfff1d4, 1.35);
+    key.position.setValues(5.4, 6.4, 3.2);
     key.castShadow = true;
-    key.target?.position.setValues(0.8, -0.10, -0.55);
+    key.target?.position.setValues(1.0, -0.08, -0.60);
     _threeJs.scene.add(key);
     if (key.target != null) {
       _threeJs.scene.add(key.target);
@@ -294,13 +294,13 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _keyLight = key;
     _keyLightBasePosition = key.position.clone();
 
-    final fill = three.DirectionalLight(0xf3e6d3, 0.16);
-    fill.position.setValues(-4.6, 2.8, -2.8);
+    final fill = three.DirectionalLight(0xe0c8a5, 0.10);
+    fill.position.setValues(-4.2, 2.9, -3.2);
     _threeJs.scene.add(fill);
 
-    final sheen = three.SpotLight(0xffeccb, 0.28, 18, math.pi / 6, 0.78, 1.2);
-    sheen.position.setValues(3.4, 4.7, 2.8);
-    sheen.target?.position.setValues(0.6, -0.03, -0.2);
+    final sheen = three.SpotLight(0xffffee, 0.30, 22, math.pi / 6.8, 0.72, 1.1);
+    sheen.position.setValues(4.2, 5.0, 1.4);
+    sheen.target?.position.setValues(1.5, -0.02, -0.8);
     _threeJs.scene.add(sheen);
     if (sheen.target != null) {
       _threeJs.scene.add(sheen.target);
@@ -422,6 +422,21 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _root
       ..add(reflectionA)
       ..add(reflectionB);
+
+    final boardShadeMaterial = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0x684826,
+      three.MaterialProperty.opacity: 0.08,
+      three.MaterialProperty.transparent: true,
+      three.MaterialProperty.depthWrite: false,
+    });
+    final boardShade = three.Mesh(
+      three.PlaneGeometry(4.7, 3.4),
+      boardShadeMaterial,
+    )
+      ..position.setValues(-1.8, _boardTop + 0.045, 0.2)
+      ..rotation.x = -math.pi / 2
+      ..rotation.z = -0.08;
+    _root.add(boardShade);
   }
 
   void _addBoardBox({
@@ -581,30 +596,30 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _leafShadowGroup.clear();
     _leafShadowBlobs.clear();
 
-    final opacity = widget.leafShadowOpacity.clamp(0.02, 0.18);
+    final opacity = widget.leafShadowOpacity.clamp(0.01, 0.12);
     final coreMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x6b563b,
-      three.MaterialProperty.opacity: opacity * 0.38,
+      three.MaterialProperty.opacity: opacity * 0.24,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.depthWrite: false,
     });
     final penumbraMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x8a6a47,
-      three.MaterialProperty.opacity: opacity * 0.16,
+      three.MaterialProperty.opacity: opacity * 0.12,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.depthWrite: false,
     });
 
-    const centerX = 2.15;
-    const centerZ = -1.95;
-    for (int i = 0; i < 10; i++) {
-      final ring = 0.70 + _noise(210 + i * 31) * 1.70;
-      final angle = -1.05 + _noise(310 + i * 19) * 1.05;
+    const centerX = 2.9;
+    const centerZ = -2.75;
+    for (int i = 0; i < 8; i++) {
+      final ring = 0.82 + _noise(210 + i * 31) * 1.45;
+      final angle = -1.25 + _noise(310 + i * 19) * 0.95;
       final baseX = centerX + math.cos(angle) * ring;
       final baseZ = centerZ + math.sin(angle) * ring * 0.78;
-      final radius = 0.12 + _noise(410 + i * 7) * 0.14;
+      final radius = 0.10 + _noise(410 + i * 7) * 0.12;
       final phase = _noise(510 + i * 13) * math.pi * 2;
-      final phaseWeight = 0.010 + _noise(610 + i * 17) * 0.012;
+      final phaseWeight = 0.006 + _noise(610 + i * 17) * 0.007;
 
       final core = three.Mesh(
         three.CircleGeometry(radius: radius, segments: 26),
@@ -613,15 +628,15 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         ..position.setValues(baseX, _boardTop + 0.0385, baseZ)
         ..rotation.x = -math.pi / 2
         ..rotation.z = (_noise(710 + i * 29) - 0.5) * 1.05
-        ..scale.x = 1.45 + _noise(915 + i * 7) * 0.45;
+        ..scale.x = 1.35 + _noise(915 + i * 7) * 0.40;
       final penumbra = three.Mesh(
-        three.CircleGeometry(radius: radius * 2.2, segments: 30),
+        three.CircleGeometry(radius: radius * 2.55, segments: 30),
         penumbraMaterial,
       )
         ..position.setValues(baseX, _boardTop + 0.0380, baseZ)
         ..rotation.x = -math.pi / 2
         ..rotation.z = core.rotation.z
-        ..scale.x = core.scale.x * 1.18;
+        ..scale.x = core.scale.x * 1.30;
       _leafShadowGroup
         ..add(penumbra)
         ..add(core);
@@ -645,8 +660,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final sway = widget.leafShadowSway.clamp(0.3, 1.8);
     final speed = widget.leafShadowSpeed.clamp(0.4, 1.8);
     final w = t * 0.22 * speed;
-    final driftX = math.sin(w + 0.2) * 0.042 * sway;
-    final driftZ = math.cos(w * 0.92 + 0.8) * 0.024 * sway;
+    final driftX = math.sin(w + 0.2) * 0.024 * sway;
+    final driftZ = math.cos(w * 0.92 + 0.8) * 0.015 * sway;
     _leafShadowGroup.position.x = driftX;
     _leafShadowGroup.position.z = driftZ;
     _leafShadowGroup.rotation.y = -0.06 + math.sin(w * 0.7) * 0.014 * sway;
@@ -671,7 +686,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         base.y + math.sin(t * 0.27 + 0.6) * 0.06 * swing,
         base.z + math.cos(t * 0.29 + 0.9) * 0.07 * swing,
       );
-      key.intensity = 1.12 * intensityPulse;
+      key.intensity = 1.20 * intensityPulse;
     }
   }
 
@@ -684,13 +699,13 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     const start = -_gridSpan / 2;
     final blackMaterial = three.MeshStandardMaterial({
       three.MaterialProperty.color: 0x17110f,
-      three.MaterialProperty.roughness: 0.20,
-      three.MaterialProperty.metalness: 0.06,
+      three.MaterialProperty.roughness: 0.12,
+      three.MaterialProperty.metalness: 0.10,
     });
     final whiteMaterial = three.MeshStandardMaterial({
-      three.MaterialProperty.color: 0xf1e8db,
-      three.MaterialProperty.roughness: 0.46,
-      three.MaterialProperty.metalness: 0.02,
+      three.MaterialProperty.color: 0xf6ede1,
+      three.MaterialProperty.roughness: 0.24,
+      three.MaterialProperty.metalness: 0.04,
     });
     final shadowMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x3f2815,
@@ -718,24 +733,24 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         shadowMaterial,
       )
         ..position.setValues(
-          x + radius * 0.07,
+          x - radius * 0.16,
           _boardTop + 0.049,
-          z + radius * 0.10,
+          z + radius * 0.18,
         )
-        ..scale.x = 1.14
-        ..scale.z = 0.88;
+        ..scale.x = 1.18
+        ..scale.z = 0.82;
       _stoneGroup.add(shadow);
       final softShadow = three.Mesh(
         three.CylinderGeometry(radius * 1.55, radius * 1.55, 0.004, 40),
         softShadowMaterial,
       )
         ..position.setValues(
-          x + radius * 0.11,
+          x - radius * 0.26,
           _boardTop + 0.046,
-          z + radius * 0.16,
+          z + radius * 0.23,
         )
-        ..scale.x = 1.18
-        ..scale.z = 0.84;
+        ..scale.x = 1.26
+        ..scale.z = 0.80;
       _stoneGroup.add(softShadow);
 
       final mesh = three.Mesh(
