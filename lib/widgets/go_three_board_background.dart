@@ -54,6 +54,10 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.cameraLift = 0.0,
     this.cameraDepth,
     this.targetZOffset = 0.0,
+    this.leafShadowOpacity = 0.16,
+    this.leafShadowSpeed = 1.05,
+    this.leafShadowSway = 1.0,
+    this.keyLightSwing = 1.0,
   });
 
   final int boardSize;
@@ -65,6 +69,10 @@ class GoThreeBoardBackground extends StatefulWidget {
   final double cameraLift;
   final double? cameraDepth;
   final double targetZOffset;
+  final double leafShadowOpacity;
+  final double leafShadowSpeed;
+  final double leafShadowSway;
+  final double keyLightSwing;
 
   @override
   State<GoThreeBoardBackground> createState() => _GoThreeBoardBackgroundState();
@@ -161,6 +169,11 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         oldWidget.cameraDepth != widget.cameraDepth ||
         oldWidget.targetZOffset != widget.targetZOffset) {
       _setCamera(_elapsed);
+    }
+    if (oldWidget.leafShadowOpacity != widget.leafShadowOpacity ||
+        oldWidget.leafShadowSpeed != widget.leafShadowSpeed ||
+        oldWidget.leafShadowSway != widget.leafShadowSway) {
+      _buildLeafShadowCaustics();
     }
     _particleGroup.visible = widget.particles;
   }
@@ -514,7 +527,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
     final material = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x3a2613,
-      three.MaterialProperty.opacity: 0.07,
+      three.MaterialProperty.opacity:
+          widget.leafShadowOpacity.clamp(0.04, 0.28),
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.depthWrite: false,
     });
@@ -524,10 +538,12 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       final baseZ = (_noise(200 + i * 29) - 0.5) * (_gridSpan * 0.88);
       final width = 0.55 + _noise(300 + i * 17) * 0.95;
       final depth = 0.32 + _noise(400 + i * 13) * 0.78;
-      final speed = 0.85 + _noise(500 + i * 11) * 0.80;
+      final speed = (0.85 + _noise(500 + i * 11) * 0.80) *
+          widget.leafShadowSpeed.clamp(0.5, 2.0);
       final phase = _noise(600 + i * 7) * math.pi * 2;
-      final swayX = 0.07 + _noise(700 + i * 19) * 0.16;
-      final swayZ = 0.08 + _noise(800 + i * 5) * 0.20;
+      final swayMultiplier = widget.leafShadowSway.clamp(0.4, 2.2);
+      final swayX = (0.07 + _noise(700 + i * 19) * 0.16) * swayMultiplier;
+      final swayZ = (0.08 + _noise(800 + i * 5) * 0.20) * swayMultiplier;
       final mesh = three.Mesh(
         three.PlaneGeometry(width, depth),
         material,
@@ -555,7 +571,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   }
 
   void _animateLeafShadowCaustics(double t) {
-    final intensityPulse = 0.92 + 0.08 * math.sin(t * 1.15);
+    final swing = widget.keyLightSwing.clamp(0.0, 2.0);
+    final intensityPulse = 0.92 + 0.08 * math.sin(t * 1.15 * (0.6 + swing));
     for (final sprite in _leafShadowSprites) {
       final w = t * sprite.speed + sprite.phase;
       sprite.mesh.position.x = sprite.baseX + math.sin(w) * sprite.swayX;
@@ -570,9 +587,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final base = _keyLightBasePosition;
     if (key != null && base != null) {
       key.position.setValues(
-        base.x + math.sin(t * 0.88) * 0.14,
-        base.y + math.sin(t * 1.02 + 0.6) * 0.11,
-        base.z + math.cos(t * 0.76) * 0.13,
+        base.x + math.sin(t * 0.88) * 0.14 * swing,
+        base.y + math.sin(t * 1.02 + 0.6) * 0.11 * swing,
+        base.z + math.cos(t * 0.76) * 0.13 * swing,
       );
       key.intensity = 0.90 * intensityPulse;
     }
