@@ -99,6 +99,10 @@ class GoThreeBoardBackground extends StatefulWidget {
 }
 
 class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
+  static const String _boardTopAlbedoAsset =
+      'assets/textures/board_top_albedo_v2_1024.png';
+  static const bool _enableAdditiveBoardHighlights = false;
+  static const bool _enableLeafShadowCaustics = false;
   static const double _boardWidth = 8.0;
   static const double _boardTop = 0.0;
   static const double _boardThickness = 1.02;
@@ -265,7 +269,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
     _threeJs.scene.add(_root);
     _buildLights();
-    _buildBoard();
+    await _buildBoard();
     _buildSideWoodDetail();
     _buildGrid();
     _buildLeafShadowCaustics();
@@ -407,17 +411,27 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _sheenLight = sheen;
   }
 
-  void _buildBoard() {
+  Future<void> _buildBoard() async {
     final sideMaterial = three.MeshStandardMaterial({
       three.MaterialProperty.color: 0xa06a35,
       three.MaterialProperty.roughness: 0.78,
       three.MaterialProperty.metalness: 0.0,
     });
+    final boardTopAlbedo =
+        await three.TextureLoader(flipY: false).fromAsset(_boardTopAlbedoAsset);
+    if (boardTopAlbedo != null) {
+      boardTopAlbedo
+        ..colorSpace = three.SRGBColorSpace
+        ..wrapS = three.ClampToEdgeWrapping
+        ..wrapT = three.ClampToEdgeWrapping
+        ..needsUpdate = true;
+    }
     final topMaterial = three.MeshStandardMaterial({
       three.MaterialProperty.color: 0xdab074,
+      if (boardTopAlbedo != null) three.MaterialProperty.map: boardTopAlbedo,
       three.MaterialProperty.roughness: 0.36,
       three.MaterialProperty.metalness: 0.03,
-      three.MaterialProperty.emissive: 0x2d1e10,
+      three.MaterialProperty.emissive: 0x000000,
     });
     _boardTopMaterial = topMaterial;
 
@@ -458,40 +472,20 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       }
     }
 
-    _addBoardBox(
-      width: straightWidth,
-      height: 0.032,
-      depth: _boardWidth + 0.012,
-      y: _boardTop + 0.012,
-      material: topMaterial,
-    );
-    _addBoardBox(
-      width: _boardWidth + 0.012,
-      height: 0.032,
-      depth: straightWidth,
-      y: _boardTop + 0.013,
-      material: topMaterial,
-    );
+    final topSkin = three.Mesh(_buildRoundedBoardTopGeometry(), topMaterial)
+      ..position.setValues(-_boardWidth / 2, _boardTop + 0.034, _boardWidth / 2)
+      ..rotation.x = -math.pi / 2
+      ..scale.setValues(_boardWidth, _boardWidth, 1)
+      ..receiveShadow = true;
+    _root.add(topSkin);
 
-    for (final xSign in [-1.0, 1.0]) {
-      for (final zSign in [-1.0, 1.0]) {
-        final cornerSkin = three.Mesh(
-          three.CylinderGeometry(_cornerRadius, _cornerRadius, 0.034, 32),
-          topMaterial,
-        )
-          ..position.setValues(
-            xSign * (_boardWidth / 2 - _cornerRadius),
-            _boardTop + 0.015,
-            zSign * (_boardWidth / 2 - _cornerRadius),
-          )
-          ..receiveShadow = true;
-        _root.add(cornerSkin);
-      }
+    if (!_enableAdditiveBoardHighlights) {
+      _updateBoardBrightness();
+      return;
     }
-
     _frontGlowMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0xffc179,
-      three.MaterialProperty.opacity: 0.30,
+      three.MaterialProperty.opacity: 0.14,
       three.MaterialProperty.transparent: true,
     });
     final frontGlow = three.Mesh(
@@ -502,16 +496,16 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
     final reflectionMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0xfff3dd,
-      three.MaterialProperty.opacity: 0.06,
+      three.MaterialProperty.opacity: 0.024,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.blending: three.AdditiveBlending,
       three.MaterialProperty.depthWrite: false,
     });
     _reflectionMaterial = reflectionMaterial;
-    for (int i = 0; i < 5; i++) {
-      final t = i / 4;
+    for (int i = 0; i < 3; i++) {
+      final t = i / 2;
       final glow = three.Mesh(
-        three.CircleGeometry(radius: 0.28 + _noise(820 + i * 17) * 0.34),
+        three.CircleGeometry(radius: 0.20 + _noise(820 + i * 17) * 0.22),
         reflectionMaterial,
       )
         ..position.setValues(
@@ -521,22 +515,22 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         )
         ..rotation.x = -math.pi / 2
         ..rotation.z = -0.46 + (_noise(850 + i * 23) - 0.5) * 0.22
-        ..scale.x = 2.0 + _noise(860 + i * 29) * 1.5
-        ..scale.y = 0.65 + _noise(870 + i * 31) * 0.25;
+        ..scale.x = 1.35 + _noise(860 + i * 29) * 0.80
+        ..scale.y = 0.48 + _noise(870 + i * 31) * 0.18;
       _root.add(glow);
     }
 
     final shaftMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0xfff6e5,
-      three.MaterialProperty.opacity: 0.035,
+      three.MaterialProperty.opacity: 0.012,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.blending: three.AdditiveBlending,
       three.MaterialProperty.depthWrite: false,
     });
     _shaftMaterial = shaftMaterial;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 2; i++) {
       final shaft = three.Mesh(
-        three.PlaneGeometry(0.28 + i * 0.05, 2.6 - i * 0.32),
+        three.PlaneGeometry(0.20 + i * 0.04, 1.85 - i * 0.24),
         shaftMaterial,
       )
         ..position.setValues(2.95 + i * 0.32, 1.02 + i * 0.05, -2.85 + i * 0.18)
@@ -552,27 +546,27 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final b = widget.boardTopBrightness.clamp(0.4, 2.4);
     final top = _boardTopMaterial;
     if (top != null) {
-      top.color.setFromHex32(
-        _lerpColorHex(0xdab074, 0xfff2cb, (b - 1.0).clamp(0.0, 1.0)),
-      );
-      top.emissive?.setFromHex32(
-        _lerpColorHex(0x2d1e10, 0x8a6b3d, (b - 1.0).clamp(0.0, 1.0)),
-      );
+      top.color.setFromHex32(_lerpColorHex(
+        0xffffff,
+        0xfff2cb,
+        (b - 1.0).clamp(0.0, 1.0),
+      ));
+      top.emissive?.setFromHex32(0x000000);
       top.needsUpdate = true;
     }
     final reflection = _reflectionMaterial;
     if (reflection != null) {
-      reflection.opacity = 0.06 * b.clamp(0.4, 2.2);
+      reflection.opacity = 0.024 * b.clamp(0.4, 1.4);
       reflection.needsUpdate = true;
     }
     final shaft = _shaftMaterial;
     if (shaft != null) {
-      shaft.opacity = 0.035 * b.clamp(0.5, 2.4);
+      shaft.opacity = 0.012 * b.clamp(0.5, 1.4);
       shaft.needsUpdate = true;
     }
     final frontGlow = _frontGlowMaterial;
     if (frontGlow != null) {
-      frontGlow.opacity = 0.30 * b.clamp(0.4, 2.0);
+      frontGlow.opacity = 0.14 * b.clamp(0.4, 1.4);
       frontGlow.needsUpdate = true;
     }
   }
@@ -758,6 +752,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
   void _buildLeafShadowCaustics() {
     _leafShadowGroup.clear();
+    if (!_enableLeafShadowCaustics) return;
 
     final opacity = widget.leafShadowOpacity.clamp(0.02, 0.18);
     final coreMaterial = three.MeshBasicMaterial({
@@ -902,6 +897,21 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       if (a[i] != b[i]) return false;
     }
     return true;
+  }
+
+  three.ShapeGeometry _buildRoundedBoardTopGeometry() {
+    const r = _cornerRadius / _boardWidth;
+    final shape = three.Shape()
+      ..moveTo(r, 0)
+      ..lineTo(1 - r, 0)
+      ..quadraticCurveTo(1, 0, 1, r)
+      ..lineTo(1, 1 - r)
+      ..quadraticCurveTo(1, 1, 1 - r, 1)
+      ..lineTo(r, 1)
+      ..quadraticCurveTo(0, 1, 0, 1 - r)
+      ..lineTo(0, r)
+      ..quadraticCurveTo(0, 0, r, 0);
+    return three.ShapeGeometry([shape], curveSegments: 12);
   }
 }
 
