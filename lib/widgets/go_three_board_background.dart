@@ -127,7 +127,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         clearAlpha: 0,
         clearColor: 0x000000,
         screenResolution: 1.0,
-        toneMappingExposure: 0.70,
+        toneMappingExposure: 0.82,
       ),
       onSetupComplete: () {
         // Scene initialized successfully – restore the original handler.
@@ -283,13 +283,14 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   }
 
   void _buildLights() {
-    _threeJs.scene.add(three.AmbientLight(0xffead2, 0.18));
+    _threeJs.scene.add(three.AmbientLight(0xffead2, 0.26));
+    _threeJs.scene.add(three.HemisphereLight(0xfff2dd, 0xb88f64, 0.22));
 
     final key = three.SpotLight(
       0xfffaf0,
-      1.24,
-      22,
-      math.pi / 4.8,
+      1.10,
+      28,
+      math.pi / 4.2,
       0.74,
       1.0,
     );
@@ -306,11 +307,11 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _keyLight = key;
     _keyLightBasePosition = key.position.clone();
 
-    final fill = three.DirectionalLight(0xf1e4d0, 0.14);
+    final fill = three.DirectionalLight(0xf1e4d0, 0.24);
     fill.position.setValues(-5.2, 3.2, 2.2);
     _threeJs.scene.add(fill);
 
-    final sheen = three.SpotLight(0xffd9a9, 0.24, 15, math.pi / 7, 0.86, 1.4);
+    final sheen = three.SpotLight(0xffd9a9, 0.30, 17, math.pi / 6.5, 0.88, 1.2);
     sheen.position.setValues(3.6, 4.9, -1.2);
     sheen.target?.position.setValues(0.9, -0.04, 0.2);
     _threeJs.scene.add(sheen);
@@ -326,8 +327,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       three.MaterialProperty.metalness: 0.0,
     });
     final topMaterial = three.MeshStandardMaterial({
-      three.MaterialProperty.color: 0xdab074,
-      three.MaterialProperty.roughness: 0.56,
+      three.MaterialProperty.color: 0xe5c38d,
+      three.MaterialProperty.roughness: 0.50,
       three.MaterialProperty.metalness: 0.0,
     });
 
@@ -465,12 +466,12 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     const start = -_gridSpan / 2;
     final lineMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x6b5237,
-      three.MaterialProperty.opacity: 0.26,
+      three.MaterialProperty.opacity: 0.20,
       three.MaterialProperty.transparent: true,
     });
     final grooveShadowMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x4b3420,
-      three.MaterialProperty.opacity: 0.12,
+      three.MaterialProperty.opacity: 0.08,
       three.MaterialProperty.transparent: true,
     });
     final grooveHighlightMaterial = three.MeshBasicMaterial({
@@ -570,13 +571,13 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final opacity = widget.leafShadowOpacity.clamp(0.03, 0.22);
     final coreMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x4a3320,
-      three.MaterialProperty.opacity: opacity * 0.68,
+      three.MaterialProperty.opacity: opacity * 0.48,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.depthWrite: false,
     });
     final penumbraMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x5a3f27,
-      three.MaterialProperty.opacity: opacity * 0.26,
+      three.MaterialProperty.opacity: opacity * 0.18,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.depthWrite: false,
     });
