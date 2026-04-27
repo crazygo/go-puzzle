@@ -202,7 +202,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultKeyLightIntensity = 0.92;
   static const double _defaultFillLightIntensity = 0.14;
   static const double _defaultAmbientLightIntensity = 0.19;
-  static const double _defaultSheenLightIntensity = 0.36;
+  static const double _defaultSheenLightIntensity = 0.20;
   static const int _defaultKeyLightColor = 0xfff0d2;
   static const int _defaultFillLightColor = 0xf4e8d8;
   static const int _defaultAmbientLightColor = 0xffeddc;

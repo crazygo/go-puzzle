@@ -63,7 +63,7 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.keyLightIntensity = 0.92,
     this.fillLightIntensity = 0.14,
     this.ambientLightIntensity = 0.19,
-    this.sheenLightIntensity = 0.36,
+    this.sheenLightIntensity = 0.20,
     this.keyLightColor = 0xfff0d2,
     this.fillLightColor = 0xf4e8d8,
     this.ambientLightColor = 0xffeddc,
