@@ -190,10 +190,10 @@ class GoParticleScenePainter extends CustomPainter {
       Offset(cam.size.width * c, cam.size.height);
 
   // ── 3-D Lambertian lighting ───────────────────────────────────────────────
-  // Light direction (unit vector FROM surface TOWARD light): upper-left overhead.
-  static const _kLx = -0.42, _kLy = -0.30, _kLz = 0.86;
-  static const _kAmbient = 0.33;
-  static const _kFillLight = 0.20;
+  // Light direction (unit vector FROM surface TOWARD light): upper-right overhead.
+  static const _kLx = 0.46, _kLy = -0.24, _kLz = 0.85;
+  static const _kAmbient = 0.30;
+  static const _kFillLight = 0.24;
 
   /// Lambertian brightness for a face with outward world-space normal (nx,ny,nz).
   static double _lit(double nx, double ny, double nz) {
@@ -784,13 +784,13 @@ class GoParticleScenePainter extends CustomPainter {
             : 8.0;
         final casterHeight = center.z - _kThick;
         final penumbraSigma =
-            (casterHeight / lightDir.z) * pxPerStoneRadius * 0.22;
+            (casterHeight / lightDir.z) * pxPerStoneRadius * 0.26;
 
         canvas.drawPath(
           shadowPath,
           Paint()
             ..color =
-                const Color(0xFF000000).withValues(alpha: 0.28 * intensity)
+                const Color(0xFF000000).withValues(alpha: 0.30 * intensity)
             ..maskFilter = MaskFilter.blur(
               BlurStyle.normal,
               penumbraSigma.clamp(0.9, 5.2),
@@ -800,10 +800,10 @@ class GoParticleScenePainter extends CustomPainter {
           shadowPath,
           Paint()
             ..color =
-                const Color(0xFF000000).withValues(alpha: 0.20 * intensity)
+                const Color(0xFF000000).withValues(alpha: 0.18 * intensity)
             ..maskFilter = MaskFilter.blur(
               BlurStyle.normal,
-              (penumbraSigma * 0.55).clamp(0.6, 3.0),
+              (penumbraSigma * 0.70).clamp(0.8, 3.4),
             ),
         );
       }
@@ -841,14 +841,14 @@ class GoParticleScenePainter extends CustomPainter {
         maxR * 2.1, // extends beyond edge → rim stays dark
         isBlack
             ? const [
-                Color(0xFF8B8077), // lit dome
-                Color(0xFF2F2924), // diffuse charcoal
-                Color(0xFF110F0E), // dark rim
+                Color(0xFF82756B), // lit dome
+                Color(0xFF26211D), // diffuse charcoal
+                Color(0xFF0D0B0A), // dark rim
               ]
             : const [
-                Color(0xFFFFF8EA), // warm white highlight
-                Color(0xFFE6DCCB), // ivory diffuse
-                Color(0xFFA89F90), // shadowed rim
+                Color(0xFFFFF9EC), // warm white highlight
+                Color(0xFFEBE2D4), // ivory diffuse
+                Color(0xFF9E9486), // shadowed rim
               ],
         [0.0, 0.32, 1.0],
       );
@@ -864,16 +864,16 @@ class GoParticleScenePainter extends CustomPainter {
 
     // ── Specular highlight — crisp Phong hot-spot ────────────────────────────
     if (specScreen != null) {
-      final hlR = maxR * (isBlack ? 0.26 : 0.38);
+      final hlR = maxR * (isBlack ? 0.34 : 0.30);
       canvas.drawOval(
         Rect.fromCenter(
             center: specScreen, width: hlR * 2.0, height: hlR * 1.55),
         Paint()
           ..shader = ui.Gradient.radial(specScreen, hlR, [
-            isBlack ? const Color(0x46FFF8ED) : const Color(0x99FFFDF8),
+            isBlack ? const Color(0x66FFF8ED) : const Color(0x7AFFFDF8),
             const Color(0x00FFFFFF),
           ])
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, isBlack ? 1.0 : 0.7),
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, isBlack ? 0.8 : 1.0),
       );
     }
 

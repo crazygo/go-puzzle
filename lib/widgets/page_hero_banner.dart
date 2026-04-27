@@ -4,9 +4,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 
+import 'go_particle_hero_background.dart';
+
 // ── Hero layout constants (shared across all main tab screens) ───────────────
 /// Visible hero height below the status bar.
-const double kPageHeroVisibleHeight = 136.0;
+const double kPageHeroVisibleHeight = 332.0;
 
 /// How much the scrollable content card overlaps the bottom of the hero.
 const double kPageHeroCardOverlap = 24.0;
@@ -14,7 +16,22 @@ const double kPageHeroCardOverlap = 24.0;
 /// Height of the transparent spacer that reveals the hero behind the
 /// scroll view (= kPageHeroVisibleHeight - kPageHeroCardOverlap).
 const double kPageHeroContentOffset =
-    kPageHeroVisibleHeight - kPageHeroCardOverlap; // 112.0
+    kPageHeroVisibleHeight - kPageHeroCardOverlap;
+
+const GoScenePreset _kHeroBoardPreset = GoScenePreset(
+  boardSize: 13,
+  warmth: 1.0,
+  depthOfField: 0.72,
+  stones: [
+    GoSceneStone(col: 3, row: 3, isBlack: true),
+    GoSceneStone(col: 5, row: 3, isBlack: false),
+    GoSceneStone(col: 7, row: 3, isBlack: true),
+    GoSceneStone(col: 9, row: 4, isBlack: false),
+    GoSceneStone(col: 8, row: 6, isBlack: true),
+    GoSceneStone(col: 10, row: 6, isBlack: false),
+    GoSceneStone(col: 9, row: 8, isBlack: true),
+  ],
+);
 
 // ── Shared background decoration ─────────────────────────────────────────────
 /// Fallback scaffold background colour (shown before gradient is painted).
@@ -56,7 +73,35 @@ class PageHeroBanner extends StatelessWidget {
         clipBehavior: Clip.hardEdge,
         children: [
           Positioned.fill(
-            child: const CustomPaint(painter: _LandscapePainter()),
+            child: GoParticleHeroBackground(
+              preset: _kHeroBoardPreset,
+              intensity: 1.0,
+              blurStrength: 0.68,
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: 0.16,
+                child: const CustomPaint(painter: _LandscapePainter()),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0x20FFFDF8),
+                    const Color(0x00FFFDF8),
+                    const Color(0x15FFFFFF),
+                  ],
+                  stops: const [0.0, 0.42, 1.0],
+                ),
+              ),
+            ),
           ),
           Positioned(
             top: topPad + 12,
@@ -102,13 +147,6 @@ class PageHeroBanner extends StatelessWidget {
                 ],
               ],
             ),
-          ),
-          Positioned(
-            right: 0,
-            top: topPad,
-            bottom: 0,
-            width: 160,
-            child: const _HeroOrbitalArt(),
           ),
         ],
       ),
