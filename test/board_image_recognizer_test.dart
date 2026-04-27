@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -22,61 +23,17 @@ void main() {
 
     final result = BoardImageRecognizer.recognize(bytes);
 
-    expect(result.boardSize, anyOf(9, 13, 19));
-    expect(
-      result.confidence,
-      greaterThan(0.05),
-      reason: 'Synthetic board renders can score lower than photo captures.',
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 9,
-      row: 4,
-      col: 4,
-      color: StoneColor.black,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 9,
-      row: 4,
-      col: 5,
-      color: StoneColor.black,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 9,
-      row: 5,
-      col: 5,
-      color: StoneColor.black,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 9,
-      row: 3,
-      col: 4,
-      color: StoneColor.white,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 9,
-      row: 5,
-      col: 4,
-      color: StoneColor.white,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 9,
-      row: 0,
-      col: 0,
-      color: StoneColor.empty,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 9,
-      row: 8,
-      col: 8,
-      color: StoneColor.empty,
-    );
+    expect(result.boardSize, equals(9));
+    expect(result.confidence, greaterThan(0.05));
+    expect(_extractStoneSet(result.board, StoneColor.black), {
+      const _Pos(4, 4),
+      const _Pos(4, 5),
+      const _Pos(5, 5),
+    });
+    expect(_extractStoneSet(result.board, StoneColor.white), {
+      const _Pos(3, 4),
+      const _Pos(5, 4),
+    });
   });
 
   test('recognizes exact stones from synthetic 13x13 board', () {
@@ -96,111 +53,162 @@ void main() {
 
     final result = BoardImageRecognizer.recognize(bytes);
 
-    expect(result.boardSize, anyOf(9, 13, 19));
+    expect(result.boardSize, equals(13));
+    expect(result.confidence, greaterThan(0.05));
+    expect(_extractStoneSet(result.board, StoneColor.black), {
+      const _Pos(3, 7),
+      const _Pos(6, 6),
+      const _Pos(10, 2),
+    });
+    expect(_extractStoneSet(result.board, StoneColor.white), {
+      const _Pos(2, 2),
+      const _Pos(6, 7),
+      const _Pos(11, 11),
+    });
+  });
+
+  test('real screenshot dataset pass rate is above 60%', () {
+    final sampleDir = Directory('test/assets/recognition_samples');
+    final txtFiles = sampleDir
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.txt'))
+        .toList()
+      ..sort((a, b) => a.path.compareTo(b.path));
+
+    expect(txtFiles, isNotEmpty, reason: 'Recognition sample txt files are required');
+
+    var passed = 0;
+    final details = <String>[];
+
+    for (final txt in txtFiles) {
+      final base = txt.path.substring(0, txt.path.length - 4);
+      final png = File('$base.png');
+      expect(png.existsSync(), isTrue, reason: 'Missing png for ${txt.path}');
+
+      final expected = _parseGroundTruth(txt.readAsStringSync());
+      final result = BoardImageRecognizer.recognize(png.readAsBytesSync());
+
+      final actualBlack = _extractStoneSet(result.board, StoneColor.black);
+      final actualWhite = _extractStoneSet(result.board, StoneColor.white);
+
+      final passedOne = result.boardSize == expected.boardSize &&
+          _unorderedSetEquals(actualBlack, expected.black) &&
+          _unorderedSetEquals(actualWhite, expected.white);
+
+      if (passedOne) {
+        passed++;
+      } else {
+        details.add(
+          '${png.uri.pathSegments.last}: expected size=${expected.boardSize}, '
+          'black=${expected.black.length}, white=${expected.white.length}; '
+          'actual size=${result.boardSize}, black=${actualBlack.length}, '
+          'white=${actualWhite.length}',
+        );
+      }
+    }
+
+    final passRate = passed / txtFiles.length;
     expect(
-      result.confidence,
-      greaterThan(0.05),
-      reason: 'Synthetic board renders can score lower than photo captures.',
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 13,
-      row: 3,
-      col: 7,
-      color: StoneColor.black,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 13,
-      row: 6,
-      col: 6,
-      color: StoneColor.black,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 13,
-      row: 10,
-      col: 2,
-      color: StoneColor.black,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 13,
-      row: 2,
-      col: 2,
-      color: StoneColor.white,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 13,
-      row: 6,
-      col: 7,
-      color: StoneColor.white,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 13,
-      row: 11,
-      col: 11,
-      color: StoneColor.white,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 13,
-      row: 0,
-      col: 12,
-      color: StoneColor.empty,
-    );
-    _expectScaledStoneAt(
-      result,
-      sourceSize: 13,
-      row: 12,
-      col: 0,
-      color: StoneColor.empty,
+      passRate,
+      greaterThan(0.6),
+      reason:
+          'pass=$passed/${txtFiles.length}. failed details: ${details.join(' | ')}',
     );
   });
 }
 
-void _expectScaledStoneAt(
-  BoardRecognitionResult result, {
-  required int sourceSize,
-  required int row,
-  required int col,
-  required StoneColor color,
-}) {
-  final mappedRow = ((row * (result.boardSize - 1)) / (sourceSize - 1)).round();
-  final mappedCol = ((col * (result.boardSize - 1)) / (sourceSize - 1)).round();
-  final found = _containsColorAround(
-    board: result.board,
-    row: mappedRow,
-    col: mappedCol,
-    color: color,
-  );
-  expect(
-    found,
-    isTrue,
-    reason:
-        'unexpected stone at source ($row, $col) -> mapped ($mappedRow, $mappedCol)',
-  );
+class _ExpectedBoard {
+  const _ExpectedBoard({
+    required this.boardSize,
+    required this.black,
+    required this.white,
+  });
+
+  final int boardSize;
+  final Set<_Pos> black;
+  final Set<_Pos> white;
 }
 
-bool _containsColorAround({
-  required List<List<StoneColor>> board,
-  required int row,
-  required int col,
-  required StoneColor color,
-}) {
-  const searchRadius = 3;
-  final size = board.length;
-  for (int dr = -searchRadius; dr <= searchRadius; dr++) {
-    for (int dc = -searchRadius; dc <= searchRadius; dc++) {
-      final rr = row + dr;
-      final cc = col + dc;
-      if (rr < 0 || cc < 0 || rr >= size || cc >= size) continue;
-      if (board[rr][cc] == color) return true;
+_ExpectedBoard _parseGroundTruth(String text) {
+  final lines = text
+      .split(RegExp(r'\r?\n'))
+      .map((l) => l.trim())
+      .where((l) => l.isNotEmpty)
+      .toList();
+
+  final sizeLine = lines.firstWhere(
+    (l) => l.toLowerCase().startsWith('size '),
+    orElse: () => throw FormatException('Missing `Size N` line'),
+  );
+  final boardSize = int.parse(sizeLine.substring(5).trim());
+
+  final black = <_Pos>{};
+  final white = <_Pos>{};
+
+  for (final line in lines.skip(1)) {
+    final parts = line.split(',');
+    if (parts.length != 2) continue;
+
+    final color = parts[0].trim().toUpperCase();
+    final coord = parts[1].trim().toUpperCase();
+    if (coord.length < 2) continue;
+
+    final colChar = coord[0];
+    final rowNum = int.tryParse(coord.substring(1));
+    if (rowNum == null) continue;
+
+    final col = _columnIndex(colChar);
+    final row = boardSize - rowNum;
+    if (col < 0 || row < 0 || col >= boardSize || row >= boardSize) continue;
+
+    final pos = _Pos(row, col);
+    if (color == 'B') {
+      black.add(pos);
+    } else if (color == 'W') {
+      white.add(pos);
     }
   }
-  return false;
+
+  return _ExpectedBoard(boardSize: boardSize, black: black, white: white);
+}
+
+int _columnIndex(String col) {
+  const letters = 'ABCDEFGHJKLMNOPQRST';
+  return letters.indexOf(col);
+}
+
+Set<_Pos> _extractStoneSet(List<List<StoneColor>> board, StoneColor color) {
+  final res = <_Pos>{};
+  for (int r = 0; r < board.length; r++) {
+    for (int c = 0; c < board[r].length; c++) {
+      if (board[r][c] == color) res.add(_Pos(r, c));
+    }
+  }
+  return res;
+}
+
+bool _unorderedSetEquals(Set<_Pos> a, Set<_Pos> b) {
+  if (a.length != b.length) return false;
+  for (final p in a) {
+    if (!b.contains(p)) return false;
+  }
+  return true;
+}
+
+class _Pos {
+  const _Pos(this.row, this.col);
+
+  final int row;
+  final int col;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _Pos && runtimeType == other.runtimeType && row == other.row && col == other.col;
+
+  @override
+  int get hashCode => Object.hash(row, col);
 }
 
 Uint8List _buildSyntheticBoardImage({
