@@ -103,6 +103,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       'assets/textures/board_top_albedo_v2_1024.png';
   static const bool _enableAdditiveBoardHighlights = false;
   static const bool _enableLeafShadowCaustics = false;
+  static const double _surfaceSheenOpacity = 0.34;
   static const Offset3 _keyLightTarget = Offset3(0.9, -0.10, -0.35);
   static const Offset3 _sheenLightPosition = Offset3(6.2, 5.9, -3.9);
   static const Offset3 _sheenLightTarget = Offset3(0.4, -0.05, 0.08);
@@ -123,6 +124,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   three.DirectionalLight? _fillLight;
   three.SpotLight? _sheenLight;
   three.MeshStandardMaterial? _boardTopMaterial;
+  final List<three.MeshBasicMaterial> _surfaceSheenMaterials = [];
   three.MeshBasicMaterial? _reflectionMaterial;
   three.MeshBasicMaterial? _shaftMaterial;
   three.MeshBasicMaterial? _frontGlowMaterial;
@@ -489,6 +491,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       ..scale.setValues(_boardWidth, _boardWidth, 1)
       ..receiveShadow = true;
     _root.add(topSkin);
+    _buildSurfaceSheen();
 
     if (!_enableAdditiveBoardHighlights) {
       _updateBoardBrightness();
@@ -553,6 +556,38 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _updateBoardBrightness();
   }
 
+  void _buildSurfaceSheen() {
+    _surfaceSheenMaterials.clear();
+    const layers = [
+      (radius: 1.05, opacity: 0.045, scaleX: 2.75, scaleZ: 1.24),
+      (radius: 1.42, opacity: 0.026, scaleX: 2.70, scaleZ: 1.18),
+      (radius: 1.84, opacity: 0.014, scaleX: 2.55, scaleZ: 1.08),
+    ];
+    for (int i = 0; i < layers.length; i++) {
+      final layer = layers[i];
+      final material = three.MeshBasicMaterial({
+        three.MaterialProperty.color: 0xffedc5,
+        three.MaterialProperty.opacity: layer.opacity * _surfaceSheenOpacity,
+        three.MaterialProperty.transparent: true,
+        three.MaterialProperty.depthWrite: false,
+        three.MaterialProperty.depthTest: true,
+        three.MaterialProperty.toneMapped: false,
+      });
+      _surfaceSheenMaterials.add(material);
+      final sheen = three.Mesh(
+        three.CircleGeometry(radius: layer.radius, segments: 96),
+        material,
+      )
+        ..position.setValues(
+            1.72 + i * 0.16, _boardTop + 0.041 + i * 0.001, -1.16 - i * 0.10)
+        ..rotation.x = -math.pi / 2
+        ..rotation.z = -0.18
+        ..scale.x = layer.scaleX
+        ..scale.y = layer.scaleZ;
+      _root.add(sheen);
+    }
+  }
+
   void _updateBoardBrightness() {
     final b = widget.boardTopBrightness.clamp(0.4, 2.4);
     final top = _boardTopMaterial;
@@ -564,6 +599,17 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       ));
       top.emissive?.setFromHex32(0x000000);
       top.needsUpdate = true;
+    }
+    for (int i = 0; i < _surfaceSheenMaterials.length; i++) {
+      final material = _surfaceSheenMaterials[i];
+      final baseOpacity = i == 0
+          ? 0.045
+          : i == 1
+              ? 0.026
+              : 0.014;
+      material.opacity =
+          baseOpacity * _surfaceSheenOpacity * b.clamp(0.75, 1.2);
+      material.needsUpdate = true;
     }
     final reflection = _reflectionMaterial;
     if (reflection != null) {
