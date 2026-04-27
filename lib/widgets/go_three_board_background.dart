@@ -281,12 +281,15 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   }
 
   void _buildLights() {
-    _threeJs.scene.add(three.AmbientLight(0xffead2, 0.16));
+    _threeJs.scene.add(three.AmbientLight(0xffeddc, 0.19));
 
-    final key = three.DirectionalLight(0xffd7a4, 1.02);
-    key.position.setValues(4.8, 6.0, 4.2);
+    final key = three.DirectionalLight(0xfff0d2, 0.92);
+    key.position.setValues(5.8, 5.6, -3.8);
     key.castShadow = true;
-    key.target?.position.setValues(0.8, -0.10, -0.55);
+    key.target?.position.setValues(0.3, -0.08, 0.05);
+    key.shadow?.mapSize.width = 2048;
+    key.shadow?.mapSize.height = 2048;
+    key.shadow?.bias = -0.0008;
     _threeJs.scene.add(key);
     if (key.target != null) {
       _threeJs.scene.add(key.target);
@@ -294,13 +297,17 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _keyLight = key;
     _keyLightBasePosition = key.position.clone();
 
-    final fill = three.DirectionalLight(0xf1e4d0, 0.10);
-    fill.position.setValues(-4.6, 2.8, -2.8);
+    final fill = three.DirectionalLight(0xf4e8d8, 0.14);
+    fill.position.setValues(-4.8, 2.6, 3.2);
     _threeJs.scene.add(fill);
 
-    final sheen = three.SpotLight(0xffd9a9, 0.16, 15, math.pi / 7, 0.82, 1.4);
-    sheen.position.setValues(3.0, 4.8, 2.0);
-    sheen.target?.position.setValues(0.7, -0.04, -0.3);
+    final sheen = three.SpotLight(0xfffaed, 0.36, 20, math.pi / 5, 0.82, 1.18);
+    sheen.position.setValues(6.2, 5.9, -3.9);
+    sheen.castShadow = true;
+    sheen.target?.position.setValues(0.4, -0.05, 0.08);
+    sheen.shadow?.mapSize.width = 2048;
+    sheen.shadow?.mapSize.height = 2048;
+    sheen.shadow?.bias = -0.0009;
     _threeJs.scene.add(sheen);
     if (sheen.target != null) {
       _threeJs.scene.add(sheen.target);
@@ -315,8 +322,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     });
     final topMaterial = three.MeshStandardMaterial({
       three.MaterialProperty.color: 0xdab074,
-      three.MaterialProperty.roughness: 0.56,
-      three.MaterialProperty.metalness: 0.0,
+      three.MaterialProperty.roughness: 0.36,
+      three.MaterialProperty.metalness: 0.03,
+      three.MaterialProperty.emissive: 0x2d1e10,
     });
 
     const straightWidth = _boardWidth - _cornerRadius * 2;
@@ -396,6 +404,49 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       }),
     )..position.setValues(0, _boardTop + 0.030, _boardWidth / 2 + 0.014);
     _root.add(frontGlow);
+
+    final reflectionMaterial = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0xfff3dd,
+      three.MaterialProperty.opacity: 0.06,
+      three.MaterialProperty.transparent: true,
+      three.MaterialProperty.blending: three.AdditiveBlending,
+      three.MaterialProperty.depthWrite: false,
+    });
+    for (int i = 0; i < 5; i++) {
+      final t = i / 4;
+      final glow = three.Mesh(
+        three.CircleGeometry(radius: 0.28 + _noise(820 + i * 17) * 0.34),
+        reflectionMaterial,
+      )
+        ..position.setValues(
+          1.85 + t * 1.70 + (_noise(830 + i * 13) - 0.5) * 0.14,
+          _boardTop + 0.046 + i * 0.0004,
+          -2.45 + t * 0.68 + (_noise(840 + i * 19) - 0.5) * 0.16,
+        )
+        ..rotation.x = -math.pi / 2
+        ..rotation.z = -0.46 + (_noise(850 + i * 23) - 0.5) * 0.22
+        ..scale.x = 2.0 + _noise(860 + i * 29) * 1.5
+        ..scale.y = 0.65 + _noise(870 + i * 31) * 0.25;
+      _root.add(glow);
+    }
+
+    final shaftMaterial = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0xfff6e5,
+      three.MaterialProperty.opacity: 0.035,
+      three.MaterialProperty.transparent: true,
+      three.MaterialProperty.blending: three.AdditiveBlending,
+      three.MaterialProperty.depthWrite: false,
+    });
+    for (int i = 0; i < 3; i++) {
+      final shaft = three.Mesh(
+        three.PlaneGeometry(0.28 + i * 0.05, 2.6 - i * 0.32),
+        shaftMaterial,
+      )
+        ..position.setValues(2.95 + i * 0.32, 1.02 + i * 0.05, -2.85 + i * 0.18)
+        ..rotation.y = -0.72
+        ..rotation.z = 0.18 + i * 0.04;
+      _root.add(shaft);
+    }
   }
 
   void _addBoardBox({
@@ -555,45 +606,47 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _leafShadowGroup.clear();
     _leafShadowBlobs.clear();
 
-    final opacity = widget.leafShadowOpacity.clamp(0.03, 0.22);
+    final opacity = widget.leafShadowOpacity.clamp(0.02, 0.18);
     final coreMaterial = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0x4a3320,
-      three.MaterialProperty.opacity: opacity * 0.68,
+      three.MaterialProperty.color: 0x6b563b,
+      three.MaterialProperty.opacity: opacity * 0.38,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.depthWrite: false,
     });
     final penumbraMaterial = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0x5a3f27,
-      three.MaterialProperty.opacity: opacity * 0.26,
+      three.MaterialProperty.color: 0x8a6a47,
+      three.MaterialProperty.opacity: opacity * 0.16,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.depthWrite: false,
     });
 
-    const centerX = 1.45;
-    const centerZ = -1.35;
-    for (int i = 0; i < 14; i++) {
-      final ring = 0.35 + _noise(210 + i * 31) * 1.85;
-      final angle = -0.85 + _noise(310 + i * 19) * 1.25;
+    const centerX = 2.15;
+    const centerZ = -1.95;
+    for (int i = 0; i < 10; i++) {
+      final ring = 0.70 + _noise(210 + i * 31) * 1.70;
+      final angle = -1.05 + _noise(310 + i * 19) * 1.05;
       final baseX = centerX + math.cos(angle) * ring;
       final baseZ = centerZ + math.sin(angle) * ring * 0.78;
-      final radius = 0.16 + _noise(410 + i * 7) * 0.28;
+      final radius = 0.12 + _noise(410 + i * 7) * 0.14;
       final phase = _noise(510 + i * 13) * math.pi * 2;
-      final phaseWeight = 0.010 + _noise(610 + i * 17) * 0.016;
+      final phaseWeight = 0.010 + _noise(610 + i * 17) * 0.012;
 
       final core = three.Mesh(
-        three.CircleGeometry(radius: radius, segments: 28),
+        three.CircleGeometry(radius: radius, segments: 26),
         coreMaterial,
       )
         ..position.setValues(baseX, _boardTop + 0.0385, baseZ)
         ..rotation.x = -math.pi / 2
-        ..rotation.z = (_noise(710 + i * 29) - 0.5) * 0.7;
+        ..rotation.z = (_noise(710 + i * 29) - 0.5) * 1.05
+        ..scale.x = 1.45 + _noise(915 + i * 7) * 0.45;
       final penumbra = three.Mesh(
-        three.CircleGeometry(radius: radius * 1.95, segments: 32),
+        three.CircleGeometry(radius: radius * 2.2, segments: 30),
         penumbraMaterial,
       )
         ..position.setValues(baseX, _boardTop + 0.0380, baseZ)
         ..rotation.x = -math.pi / 2
-        ..rotation.z = core.rotation.z;
+        ..rotation.z = core.rotation.z
+        ..scale.x = core.scale.x * 1.18;
       _leafShadowGroup
         ..add(penumbra)
         ..add(core);
@@ -617,8 +670,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final sway = widget.leafShadowSway.clamp(0.3, 1.8);
     final speed = widget.leafShadowSpeed.clamp(0.4, 1.8);
     final w = t * 0.22 * speed;
-    final driftX = math.sin(w + 0.2) * 0.055 * sway;
-    final driftZ = math.cos(w * 0.92 + 0.8) * 0.030 * sway;
+    final driftX = math.sin(w + 0.2) * 0.042 * sway;
+    final driftZ = math.cos(w * 0.92 + 0.8) * 0.024 * sway;
     _leafShadowGroup.position.x = driftX;
     _leafShadowGroup.position.z = driftZ;
     _leafShadowGroup.rotation.y = -0.06 + math.sin(w * 0.7) * 0.014 * sway;
@@ -628,8 +681,10 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           math.sin(w * 1.12 + blob.phase) * blob.phaseWeight * sway * 0.75;
       blob.core.position.x = blob.baseX + local;
       blob.core.position.z = blob.baseZ + local * 0.55;
+      blob.core.rotation.z += math.sin(w * 0.38 + blob.phase) * 0.00024;
       blob.penumbra.position.x = blob.baseX + local * 0.68;
       blob.penumbra.position.z = blob.baseZ + local * 0.42;
+      blob.penumbra.rotation.z = blob.core.rotation.z;
     }
 
     final intensityPulse = 0.94 + 0.045 * math.sin(t * 0.34 + 0.2);
@@ -641,7 +696,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         base.y + math.sin(t * 0.27 + 0.6) * 0.06 * swing,
         base.z + math.cos(t * 0.29 + 0.9) * 0.07 * swing,
       );
-      key.intensity = 0.98 * intensityPulse;
+      key.intensity = 1.02 * intensityPulse;
     }
   }
 
@@ -664,8 +719,14 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     });
     final shadowMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x3f2815,
-      three.MaterialProperty.opacity: 0.14,
+      three.MaterialProperty.opacity: 0.22,
       three.MaterialProperty.transparent: true,
+    });
+    final softShadowMaterial = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0x7a5a37,
+      three.MaterialProperty.opacity: 0.08,
+      three.MaterialProperty.transparent: true,
+      three.MaterialProperty.depthWrite: false,
     });
     final radius = step * 0.46;
 
@@ -682,13 +743,25 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         shadowMaterial,
       )
         ..position.setValues(
-          x + radius * 0.07,
+          x - radius * 0.10,
           _boardTop + 0.049,
-          z + radius * 0.10,
+          z + radius * 0.07,
         )
         ..scale.x = 1.14
         ..scale.z = 0.88;
       _stoneGroup.add(shadow);
+      final softShadow = three.Mesh(
+        three.CylinderGeometry(radius * 1.55, radius * 1.55, 0.004, 40),
+        softShadowMaterial,
+      )
+        ..position.setValues(
+          x - radius * 0.15,
+          _boardTop + 0.046,
+          z + radius * 0.12,
+        )
+        ..scale.x = 1.18
+        ..scale.z = 0.84;
+      _stoneGroup.add(softShadow);
 
       final mesh = three.Mesh(
         three.SphereGeometry(radius, 48, 18),
