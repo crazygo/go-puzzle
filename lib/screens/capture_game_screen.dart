@@ -234,11 +234,11 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardTopFactor = 0.12;
   static const double _defaultHomeBoardHeightFactor = 0.68;
   static const double _defaultHomeBoardCanvasYOffset = -82.0;
-  static const double _defaultHomeBoardSceneScale = 0.38;
-  static const double _defaultHomeBoardCameraLift = 5.5;
-  static const double _defaultHomeBoardCameraDepth = 5.15;
-  static const double _defaultHomeBoardTargetZOffset = -0.48;
-  static const double _defaultHomeBoardCinematicFov = 26.0;
+  static const double _defaultHomeBoardSceneScale = 0.28;
+  static const double _defaultHomeBoardCameraLift = 0.5;
+  static const double _defaultHomeBoardCameraDepth = 3.2;
+  static const double _defaultHomeBoardTargetZOffset = -0.28;
+  static const double _defaultHomeBoardCinematicFov = 24.3;
   static const double _defaultHomeCardTopFactor = 0.44;
   static const double _defaultLeafShadowOpacity = 0.16;
   static const bool _defaultStoneExtraOverlayEnabled = true;
@@ -1131,7 +1131,7 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
         _TuningSlider(
           label: '相机高',
           value: widget.boardCameraLift,
-          min: 2.5,
+          min: 0.5,
           max: 8.5,
           onChanged: widget.onBoardCameraLiftChanged,
         ),
