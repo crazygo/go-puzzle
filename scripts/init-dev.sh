@@ -8,6 +8,7 @@ set -euo pipefail
 #
 # Usage:
 #   bash scripts/init-dev.sh
+#   bash scripts/init-dev.sh --analyze
 #
 # Optional env vars:
 #   FLUTTER_VERSION=3.41.7
@@ -25,11 +26,37 @@ FLUTTER_DIST_URL="${FLUTTER_DIST_URL:-${DEFAULT_DIST_URL}}"
 FLUTTER_ARCHIVE_LOCAL="${FLUTTER_ARCHIVE_LOCAL:-${CACHE_DIR}/${FLUTTER_ARCHIVE}}"
 FLUTTER_DIR="${TOOLS_DIR}/flutter"
 FLUTTER_VERSION_STAMP="${FLUTTER_DIR}/.installed-version"
+RUN_ANALYZE=0
 
 mkdir -p "${TOOLS_DIR}" "${BIN_DIR}" "${CACHE_DIR}"
 
 log() {
   echo "[init-dev] $*"
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --analyze)
+        RUN_ANALYZE=1
+        shift
+        ;;
+      -h|--help)
+        cat <<'EOF'
+Usage:
+  bash scripts/init-dev.sh [--analyze]
+
+Options:
+  --analyze   Run flutter/dart analyze checks after bootstrap.
+EOF
+        exit 0
+        ;;
+      *)
+        log "Unknown argument: $1"
+        exit 1
+        ;;
+    esac
+  done
 }
 
 ensure_path() {
@@ -136,12 +163,17 @@ run_checks() {
   # Ensure CJK subset font is available for screenshot tests.
   bash "${ROOT_DIR}/scripts/ensure-test-fonts.sh"
 
-  # 编译/静态检查（对新同学友好：保留输出，但不因 info/warning 中断）
-  flutter analyze --no-fatal-infos --no-fatal-warnings
-  dart analyze --no-fatal-warnings
+  if [[ "${RUN_ANALYZE}" == "1" ]]; then
+    # 编译/静态检查（对新同学友好：保留输出，但不因 info/warning 中断）
+    flutter analyze --no-fatal-infos --no-fatal-warnings
+    dart analyze --no-fatal-warnings
+  else
+    log "Skipping analyze checks by default. Pass --analyze to enable."
+  fi
 }
 
 main() {
+  parse_args "$@"
   install_flutter
   ensure_path
   warmup
