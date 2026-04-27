@@ -877,12 +877,12 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     const start = -_gridSpan / 2;
     final blackMaterial = three.MeshStandardMaterial({
       three.MaterialProperty.color: 0x17110f,
-      three.MaterialProperty.roughness: 0.20,
-      three.MaterialProperty.metalness: 0.06,
+      three.MaterialProperty.roughness: 0.34,
+      three.MaterialProperty.metalness: 0.02,
     });
     final whiteMaterial = three.MeshStandardMaterial({
-      three.MaterialProperty.color: 0xf1e8db,
-      three.MaterialProperty.roughness: 0.46,
+      three.MaterialProperty.color: 0xf7efe2,
+      three.MaterialProperty.roughness: 0.54,
       three.MaterialProperty.metalness: 0.02,
     });
     final shadowMaterial = three.MeshBasicMaterial({
