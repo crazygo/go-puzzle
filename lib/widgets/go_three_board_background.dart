@@ -265,7 +265,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       ..position.setValues(0, widget.cinematicFrame ? -1.50 : 0, 0)
       ..rotation.y = widget.cinematicFrame ? 0.03 : 0;
     _threeJs.camera = three.PerspectiveCamera(
-      widget.cinematicFrame ? 24 : 28,
+      widget.cinematicFrame ? 26 : 28,
       _threeJs.width / _threeJs.height,
       0.1,
       100,
