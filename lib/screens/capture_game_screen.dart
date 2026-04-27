@@ -617,7 +617,7 @@ class _HomeBoardTuningLauncher extends StatelessWidget {
   }
 }
 
-class _HomeBoardTuningSheet extends StatelessWidget {
+class _HomeBoardTuningSheet extends StatefulWidget {
   const _HomeBoardTuningSheet({
     required this.shadowOpacity,
     required this.stoneExtraOverlayEnabled,
@@ -679,12 +679,107 @@ class _HomeBoardTuningSheet extends StatelessWidget {
   final VoidCallback onReset;
 
   @override
+  State<_HomeBoardTuningSheet> createState() => _HomeBoardTuningSheetState();
+}
+
+class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
+  static const List<String> _tabTitles = ['基础', '主光', '补光', '环境'];
+  int _selectedTab = 0;
+
+  @override
   Widget build(BuildContext context) {
+    final tabPages = <List<Widget>>[
+      [
+        _TuningSwitchRow(
+          title: '棋子额外阴影叠加',
+          value: widget.stoneExtraOverlayEnabled,
+          onChanged: widget.onStoneExtraOverlayChanged,
+        ),
+        _TuningSlider(
+          label: '棋盘亮度',
+          value: widget.boardTopBrightness,
+          min: 0.40,
+          max: 2.40,
+          onChanged: widget.onBoardTopBrightnessChanged,
+        ),
+        const _TuningGroupTitle('棋盘氛围'),
+        _TuningSlider(
+          label: '叶影强度',
+          value: widget.shadowOpacity,
+          min: 0.04,
+          max: 0.28,
+          onChanged: widget.onShadowOpacityChanged,
+        ),
+      ],
+      [
+        _Vector3Editor(
+          value: widget.keyLightPosition,
+          onChanged: widget.onKeyLightPositionChanged,
+        ),
+        _TuningSlider(
+          label: '主光强度',
+          value: widget.keyLightIntensity,
+          min: 0.0,
+          max: 1.8,
+          onChanged: widget.onKeyLightIntensityChanged,
+        ),
+        _RgbEditor(
+          title: '主光颜色',
+          colorHex: widget.keyLightColor,
+          onChanged: widget.onKeyLightColorChanged,
+        ),
+      ],
+      [
+        _Vector3Editor(
+          value: widget.fillLightPosition,
+          onChanged: widget.onFillLightPositionChanged,
+        ),
+        _TuningSlider(
+          label: '补光强度',
+          value: widget.fillLightIntensity,
+          min: 0.0,
+          max: 1.2,
+          onChanged: widget.onFillLightIntensityChanged,
+        ),
+        _RgbEditor(
+          title: '补光颜色',
+          colorHex: widget.fillLightColor,
+          onChanged: widget.onFillLightColorChanged,
+        ),
+      ],
+      [
+        _TuningSlider(
+          label: '环境光',
+          value: widget.ambientLightIntensity,
+          min: 0.0,
+          max: 0.9,
+          onChanged: widget.onAmbientLightIntensityChanged,
+        ),
+        _RgbEditor(
+          title: '环境光颜色',
+          colorHex: widget.ambientLightColor,
+          onChanged: widget.onAmbientLightColorChanged,
+        ),
+        _TuningSlider(
+          label: '高光灯',
+          value: widget.sheenLightIntensity,
+          min: 0.0,
+          max: 1.4,
+          onChanged: widget.onSheenLightIntensityChanged,
+        ),
+        _RgbEditor(
+          title: '高光颜色',
+          colorHex: widget.sheenLightColor,
+          onChanged: widget.onSheenLightColorChanged,
+        ),
+      ],
+    ];
+
     return Positioned.fill(
       child: Stack(
         children: [
           GestureDetector(
-            onTap: onClose,
+            onTap: widget.onClose,
             child: Container(color: const Color(0x48000000)),
           ),
           Align(
@@ -700,7 +795,7 @@ class _HomeBoardTuningSheet extends StatelessWidget {
                 );
               },
               child: Container(
-                height: MediaQuery.of(context).size.height * 0.68,
+                height: MediaQuery.of(context).size.height * 0.34,
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 decoration: const BoxDecoration(
                   color: Color(0xF7FFFDF9),
@@ -730,103 +825,45 @@ class _HomeBoardTuningSheet extends StatelessWidget {
                         CupertinoButton(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           minimumSize: const Size(44, 30),
-                          onPressed: onReset,
+                          onPressed: widget.onReset,
                           child: const Text('重置'),
                         ),
                         CupertinoButton(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           minimumSize: const Size(44, 30),
-                          onPressed: onClose,
+                          onPressed: widget.onClose,
                           child: const Text('关闭'),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
+                    CupertinoSlidingSegmentedControl<int>(
+                      groupValue: _selectedTab,
+                      children: {
+                        for (int i = 0; i < _tabTitles.length; i++)
+                          i: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            child: Text(
+                              _tabTitles[i],
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                      },
+                      onValueChanged: (next) {
+                        if (next != null) {
+                          setState(() => _selectedTab = next);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 10),
                     Expanded(
                       child: CupertinoScrollbar(
                         child: SingleChildScrollView(
                           child: Column(
-                            children: [
-                              _TuningSwitchRow(
-                                title: '棋子额外阴影叠加',
-                                value: stoneExtraOverlayEnabled,
-                                onChanged: onStoneExtraOverlayChanged,
-                              ),
-                              _TuningSlider(
-                                label: '棋盘亮度',
-                                value: boardTopBrightness,
-                                min: 0.40,
-                                max: 2.40,
-                                onChanged: onBoardTopBrightnessChanged,
-                              ),
-                              const _TuningGroupTitle('棋盘氛围'),
-                              _TuningSlider(
-                                label: '叶影强度',
-                                value: shadowOpacity,
-                                min: 0.04,
-                                max: 0.28,
-                                onChanged: onShadowOpacityChanged,
-                              ),
-                              const _TuningGroupTitle('主光 Key'),
-                              _Vector3Editor(
-                                value: keyLightPosition,
-                                onChanged: onKeyLightPositionChanged,
-                              ),
-                              _TuningSlider(
-                                label: '主光强度',
-                                value: keyLightIntensity,
-                                min: 0.0,
-                                max: 1.8,
-                                onChanged: onKeyLightIntensityChanged,
-                              ),
-                              _RgbEditor(
-                                title: '主光颜色',
-                                colorHex: keyLightColor,
-                                onChanged: onKeyLightColorChanged,
-                              ),
-                              const _TuningGroupTitle('补光 Fill'),
-                              _Vector3Editor(
-                                value: fillLightPosition,
-                                onChanged: onFillLightPositionChanged,
-                              ),
-                              _TuningSlider(
-                                label: '补光强度',
-                                value: fillLightIntensity,
-                                min: 0.0,
-                                max: 1.2,
-                                onChanged: onFillLightIntensityChanged,
-                              ),
-                              _RgbEditor(
-                                title: '补光颜色',
-                                colorHex: fillLightColor,
-                                onChanged: onFillLightColorChanged,
-                              ),
-                              const _TuningGroupTitle('环境与高光'),
-                              _TuningSlider(
-                                label: '环境光',
-                                value: ambientLightIntensity,
-                                min: 0.0,
-                                max: 0.9,
-                                onChanged: onAmbientLightIntensityChanged,
-                              ),
-                              _RgbEditor(
-                                title: '环境光颜色',
-                                colorHex: ambientLightColor,
-                                onChanged: onAmbientLightColorChanged,
-                              ),
-                              _TuningSlider(
-                                label: '高光灯',
-                                value: sheenLightIntensity,
-                                min: 0.0,
-                                max: 1.4,
-                                onChanged: onSheenLightIntensityChanged,
-                              ),
-                              _RgbEditor(
-                                title: '高光颜色',
-                                colorHex: sheenLightColor,
-                                onChanged: onSheenLightColorChanged,
-                              ),
-                            ],
+                            children: tabPages[_selectedTab],
                           ),
                         ),
                       ),
