@@ -239,13 +239,13 @@ Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardTopFactor = 0.12;
   static const double _defaultHomeBoardHeightFactor = 0.68;
-  static const double _defaultHomeBoardCanvasYOffset = 0.0;
+  static const double _defaultHomeBoardCanvasYOffset = -84.04;
   static const double _defaultHomeBoardSceneScale = 1.0;
   static const double _defaultHomeBoardCameraLift = 0.01;
-  static const double _defaultHomeBoardCameraDepth = 14.0;
+  static const double _defaultHomeBoardCameraDepth = 16.16;
   static const double _defaultHomeBoardTargetZOffset = 0.0;
   static const double _defaultHomeBoardCinematicFov = 28.0;
-  static const double _defaultHomeBoardRotationY = -0.3;
+  static const double _defaultHomeBoardRotationY = -0.36;
   static const double _defaultHomeCardTopFactor = 0.44;
   static const double _defaultLeafShadowOpacity = 0.16;
   static const bool _defaultStoneExtraOverlayEnabled = true;
