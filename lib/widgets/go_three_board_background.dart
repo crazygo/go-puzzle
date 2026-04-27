@@ -111,7 +111,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   static const Offset3 _sheenLightTarget = Offset3(0.4, -0.05, 0.08);
   static const double _boardWidth = 8.0;
   static const double _boardTop = 0.0;
-  static const double _boardThickness = 1.02;
+  static const double _boardThickness = 0.51;
   static const double _cornerRadius = 0.34;
   static const double _gridSpan = 7.24;
 
@@ -801,8 +801,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final step = _gridSpan / (n - 1);
     const start = -_gridSpan / 2;
     final lineMaterial = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0x6b5237,
-      three.MaterialProperty.opacity: 0.26,
+      three.MaterialProperty.color: 0x4b3724,
+      three.MaterialProperty.opacity: 0.36,
       three.MaterialProperty.transparent: true,
     });
     for (int i = 0; i < n; i++) {
@@ -973,7 +973,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           _boardTop + radius * 0.34,
           z,
         )
-        ..scale.y = 0.34
+        ..scale.y = 0.36
         ..castShadow = true
         ..receiveShadow = true;
       _stoneGroup.add(mesh);
