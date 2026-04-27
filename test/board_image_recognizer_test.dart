@@ -67,7 +67,7 @@ void main() {
     });
   });
 
-  test('real screenshot dataset pass rate is above 60%', () {
+  test('real screenshot dataset pass rate is 100%', () {
     final sampleDir = Directory('test/assets/recognition_samples');
     final txtFiles = sampleDir
         .listSync()
@@ -111,7 +111,7 @@ void main() {
     final passRate = passed / txtFiles.length;
     expect(
       passRate,
-      greaterThan(0.6),
+      equals(1.0),
       reason:
           'pass=$passed/${txtFiles.length}. failed details: ${details.join(' | ')}',
     );
