@@ -35,14 +35,14 @@ Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
 }
 
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
-  static const double _defaultHomeBoardTopFactor = 0.18;
+  static const double _defaultHomeBoardTopFactor = 0.12;
   static const double _defaultHomeBoardHeightFactor = 0.68;
   static const double _defaultHomeBoardCanvasYOffset = -82.0;
-  static const double _defaultHomeBoardSceneScale = 0.28;
+  static const double _defaultHomeBoardSceneScale = 0.38;
   static const double _defaultHomeBoardCameraLift = 5.5;
   static const double _defaultHomeBoardCameraDepth = 4.85;
-  static const double _defaultHomeBoardTargetZOffset = 0.68;
-  static const double _defaultHomeCardTopFactor = 0.63;
+  static const double _defaultHomeBoardTargetZOffset = -0.31;
+  static const double _defaultHomeCardTopFactor = 0.44;
 
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';

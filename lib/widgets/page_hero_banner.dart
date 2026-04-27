@@ -54,7 +54,7 @@ class PageHeroBanner extends StatelessWidget {
         clipBehavior: Clip.hardEdge,
         children: [
           Positioned(
-            top: topPad + 12,
+            top: topPad + 32,
             left: 24,
             right: 16,
             child: Row(
