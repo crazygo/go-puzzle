@@ -81,6 +81,10 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   final three.Group _root = three.Group();
   final three.Group _stoneGroup = three.Group();
   final three.Group _particleGroup = three.Group();
+  final three.Group _leafShadowGroup = three.Group();
+  final List<_LeafShadowSprite> _leafShadowSprites = [];
+  three.DirectionalLight? _keyLight;
+  three.Vector3? _keyLightBasePosition;
   double _elapsed = 0;
   bool _sceneInitialized = false;
 
@@ -207,6 +211,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _buildSideWoodDetail();
     _buildGrid();
     _buildWoodDetail();
+    _buildLeafShadowCaustics();
     _buildParticles();
     _rebuildStones();
 
@@ -215,6 +220,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       _elapsed += dt;
       if (widget.animate) {
         _setCamera(_elapsed);
+        _animateLeafShadowCaustics(_elapsed);
       }
       if (widget.particles) {
         _particleGroup.rotation.y += dt * 0.045;
@@ -272,6 +278,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     if (key.target != null) {
       _threeJs.scene.add(key.target);
     }
+    _keyLight = key;
+    _keyLightBasePosition = key.position.clone();
 
     final fill = three.DirectionalLight(0xe9d8c1, 0.15);
     fill.position.setValues(4.8, 3.4, -3.8);
@@ -500,6 +508,76 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _root.add(_particleGroup);
   }
 
+  void _buildLeafShadowCaustics() {
+    _leafShadowGroup.clear();
+    _leafShadowSprites.clear();
+
+    final material = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0x3a2613,
+      three.MaterialProperty.opacity: 0.07,
+      three.MaterialProperty.transparent: true,
+      three.MaterialProperty.depthWrite: false,
+    });
+
+    for (int i = 0; i < 9; i++) {
+      final baseX = (_noise(100 + i * 23) - 0.5) * (_gridSpan * 0.88);
+      final baseZ = (_noise(200 + i * 29) - 0.5) * (_gridSpan * 0.88);
+      final width = 0.55 + _noise(300 + i * 17) * 0.95;
+      final depth = 0.32 + _noise(400 + i * 13) * 0.78;
+      final speed = 0.85 + _noise(500 + i * 11) * 0.80;
+      final phase = _noise(600 + i * 7) * math.pi * 2;
+      final swayX = 0.07 + _noise(700 + i * 19) * 0.16;
+      final swayZ = 0.08 + _noise(800 + i * 5) * 0.20;
+      final mesh = three.Mesh(
+        three.PlaneGeometry(width, depth),
+        material,
+      )
+        ..position.setValues(baseX, _boardTop + 0.040, baseZ)
+        ..rotation.x = -math.pi / 2
+        ..rotation.z = (_noise(900 + i * 31) - 0.5) * 0.8;
+      _leafShadowGroup.add(mesh);
+      _leafShadowSprites.add(
+        _LeafShadowSprite(
+          mesh: mesh,
+          baseX: baseX,
+          baseZ: baseZ,
+          baseScaleX: 0.86 + _noise(1000 + i * 37) * 0.62,
+          baseScaleZ: 0.82 + _noise(1100 + i * 41) * 0.58,
+          speed: speed,
+          phase: phase,
+          swayX: swayX,
+          swayZ: swayZ,
+        ),
+      );
+    }
+
+    _root.add(_leafShadowGroup);
+  }
+
+  void _animateLeafShadowCaustics(double t) {
+    final intensityPulse = 0.92 + 0.08 * math.sin(t * 1.15);
+    for (final sprite in _leafShadowSprites) {
+      final w = t * sprite.speed + sprite.phase;
+      sprite.mesh.position.x = sprite.baseX + math.sin(w) * sprite.swayX;
+      sprite.mesh.position.z =
+          sprite.baseZ + math.cos(w * 0.93 + 0.5) * sprite.swayZ;
+      sprite.mesh.rotation.z = math.sin(w * 0.71) * 0.25;
+      sprite.mesh.scale.x = sprite.baseScaleX + math.sin(w * 1.21) * 0.12;
+      sprite.mesh.scale.z = sprite.baseScaleZ + math.cos(w * 1.09) * 0.10;
+    }
+
+    final key = _keyLight;
+    final base = _keyLightBasePosition;
+    if (key != null && base != null) {
+      key.position.setValues(
+        base.x + math.sin(t * 0.88) * 0.14,
+        base.y + math.sin(t * 1.02 + 0.6) * 0.11,
+        base.z + math.cos(t * 0.76) * 0.13,
+      );
+      key.intensity = 0.90 * intensityPulse;
+    }
+  }
+
   void _rebuildStones() {
     _stoneGroup.clear();
     final n = widget.boardSize;
@@ -577,4 +655,28 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     }
     return true;
   }
+}
+
+class _LeafShadowSprite {
+  _LeafShadowSprite({
+    required this.mesh,
+    required this.baseX,
+    required this.baseZ,
+    required this.baseScaleX,
+    required this.baseScaleZ,
+    required this.speed,
+    required this.phase,
+    required this.swayX,
+    required this.swayZ,
+  });
+
+  final three.Mesh mesh;
+  final double baseX;
+  final double baseZ;
+  final double baseScaleX;
+  final double baseScaleZ;
+  final double speed;
+  final double phase;
+  final double swayX;
+  final double swayZ;
 }
