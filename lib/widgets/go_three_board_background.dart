@@ -153,7 +153,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         clearAlpha: 0,
         clearColor: 0x000000,
         screenResolution: 1.0,
-        toneMappingExposure: 0.58,
+        toneMappingExposure: 0.50,
       ),
       onSetupComplete: () {
         // Scene initialized successfully – restore the original handler.
