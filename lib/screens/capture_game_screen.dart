@@ -53,6 +53,18 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
   int _fillLightColor = _CaptureGameScreenState._defaultFillLightColor;
   int _ambientLightColor = _CaptureGameScreenState._defaultAmbientLightColor;
   int _sheenLightColor = _CaptureGameScreenState._defaultSheenLightColor;
+  double _boardTopFactor = 0.03;
+  double _boardHeightFactor = 0.66;
+  double _boardCanvasYOffset =
+      _CaptureGameScreenState._defaultHomeBoardCanvasYOffset;
+  double _boardSceneScale = _CaptureGameScreenState._defaultHomeBoardSceneScale;
+  double _boardCameraLift = _CaptureGameScreenState._defaultHomeBoardCameraLift;
+  double _boardCameraDepth =
+      _CaptureGameScreenState._defaultHomeBoardCameraDepth;
+  double _boardTargetZOffset =
+      _CaptureGameScreenState._defaultHomeBoardTargetZOffset;
+  double _boardCinematicFov =
+      _CaptureGameScreenState._defaultHomeBoardCinematicFov;
 
   @override
   Widget build(BuildContext context) {
@@ -66,18 +78,14 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
               children: [
                 _HomeThreeBoardPreview(
                   constraints: constraints,
-                  topFactor: 0.03,
-                  heightFactor: 0.66,
-                  canvasYOffset:
-                      _CaptureGameScreenState._defaultHomeBoardCanvasYOffset,
-                  sceneScale:
-                      _CaptureGameScreenState._defaultHomeBoardSceneScale,
-                  cameraLift:
-                      _CaptureGameScreenState._defaultHomeBoardCameraLift,
-                  cameraDepth:
-                      _CaptureGameScreenState._defaultHomeBoardCameraDepth,
-                  targetZOffset:
-                      _CaptureGameScreenState._defaultHomeBoardTargetZOffset,
+                  topFactor: _boardTopFactor,
+                  heightFactor: _boardHeightFactor,
+                  canvasYOffset: _boardCanvasYOffset,
+                  sceneScale: _boardSceneScale,
+                  cameraLift: _boardCameraLift,
+                  cameraDepth: _boardCameraDepth,
+                  targetZOffset: _boardTargetZOffset,
+                  cinematicFov: _boardCinematicFov,
                   leafShadowOpacity: _leafShadowOpacity,
                   stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                   boardTopBrightness: _boardTopBrightness,
@@ -108,6 +116,14 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                     fillLightColor: _fillLightColor,
                     ambientLightColor: _ambientLightColor,
                     sheenLightColor: _sheenLightColor,
+                    boardTopFactor: _boardTopFactor,
+                    boardHeightFactor: _boardHeightFactor,
+                    boardCanvasYOffset: _boardCanvasYOffset,
+                    boardSceneScale: _boardSceneScale,
+                    boardCameraLift: _boardCameraLift,
+                    boardCameraDepth: _boardCameraDepth,
+                    boardTargetZOffset: _boardTargetZOffset,
+                    boardCinematicFov: _boardCinematicFov,
                     onShadowOpacityChanged: (value) =>
                         setState(() => _leafShadowOpacity = value),
                     onStoneExtraOverlayChanged: (value) =>
@@ -134,6 +150,22 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                         setState(() => _ambientLightColor = value),
                     onSheenLightColorChanged: (value) =>
                         setState(() => _sheenLightColor = value),
+                    onBoardTopFactorChanged: (value) =>
+                        setState(() => _boardTopFactor = value),
+                    onBoardHeightFactorChanged: (value) =>
+                        setState(() => _boardHeightFactor = value),
+                    onBoardCanvasYOffsetChanged: (value) =>
+                        setState(() => _boardCanvasYOffset = value),
+                    onBoardSceneScaleChanged: (value) =>
+                        setState(() => _boardSceneScale = value),
+                    onBoardCameraLiftChanged: (value) =>
+                        setState(() => _boardCameraLift = value),
+                    onBoardCameraDepthChanged: (value) =>
+                        setState(() => _boardCameraDepth = value),
+                    onBoardTargetZOffsetChanged: (value) =>
+                        setState(() => _boardTargetZOffset = value),
+                    onBoardCinematicFovChanged: (value) =>
+                        setState(() => _boardCinematicFov = value),
                     onClose: () => setState(() => _panelVisible = false),
                     onReset: _resetTuning,
                   )
@@ -172,6 +204,17 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
       _fillLightColor = _CaptureGameScreenState._defaultFillLightColor;
       _ambientLightColor = _CaptureGameScreenState._defaultAmbientLightColor;
       _sheenLightColor = _CaptureGameScreenState._defaultSheenLightColor;
+      _boardTopFactor = 0.03;
+      _boardHeightFactor = 0.66;
+      _boardCanvasYOffset =
+          _CaptureGameScreenState._defaultHomeBoardCanvasYOffset;
+      _boardSceneScale = _CaptureGameScreenState._defaultHomeBoardSceneScale;
+      _boardCameraLift = _CaptureGameScreenState._defaultHomeBoardCameraLift;
+      _boardCameraDepth = _CaptureGameScreenState._defaultHomeBoardCameraDepth;
+      _boardTargetZOffset =
+          _CaptureGameScreenState._defaultHomeBoardTargetZOffset;
+      _boardCinematicFov =
+          _CaptureGameScreenState._defaultHomeBoardCinematicFov;
     });
   }
 }
@@ -195,6 +238,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardCameraLift = 5.5;
   static const double _defaultHomeBoardCameraDepth = 5.15;
   static const double _defaultHomeBoardTargetZOffset = -0.48;
+  static const double _defaultHomeBoardCinematicFov = 26.0;
   static const double _defaultHomeCardTopFactor = 0.44;
   static const double _defaultLeafShadowOpacity = 0.16;
   static const bool _defaultStoneExtraOverlayEnabled = true;
@@ -231,6 +275,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardCameraLift = _defaultHomeBoardCameraLift;
   double _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
   double _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
+  double _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
   double _homeCardTopFactor = _defaultHomeCardTopFactor;
   double _leafShadowOpacity = _defaultLeafShadowOpacity;
   bool _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
@@ -288,6 +333,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   cameraLift: _homeBoardCameraLift,
                   cameraDepth: _homeBoardCameraDepth,
                   targetZOffset: _homeBoardTargetZOffset,
+                  cinematicFov: _homeBoardCinematicFov,
                   leafShadowOpacity: _leafShadowOpacity,
                   stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                   boardTopBrightness: _boardTopBrightness,
@@ -483,6 +529,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     fillLightColor: _fillLightColor,
                     ambientLightColor: _ambientLightColor,
                     sheenLightColor: _sheenLightColor,
+                    boardTopFactor: _homeBoardTopFactor,
+                    boardHeightFactor: _homeBoardHeightFactor,
+                    boardCanvasYOffset: _homeBoardCanvasYOffset,
+                    boardSceneScale: _homeBoardSceneScale,
+                    boardCameraLift: _homeBoardCameraLift,
+                    boardCameraDepth: _homeBoardCameraDepth,
+                    boardTargetZOffset: _homeBoardTargetZOffset,
+                    boardCinematicFov: _homeBoardCinematicFov,
                     onShadowOpacityChanged: (value) =>
                         setState(() => _leafShadowOpacity = value),
                     onStoneExtraOverlayChanged: (value) =>
@@ -509,6 +563,22 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _ambientLightColor = value),
                     onSheenLightColorChanged: (value) =>
                         setState(() => _sheenLightColor = value),
+                    onBoardTopFactorChanged: (value) =>
+                        setState(() => _homeBoardTopFactor = value),
+                    onBoardHeightFactorChanged: (value) =>
+                        setState(() => _homeBoardHeightFactor = value),
+                    onBoardCanvasYOffsetChanged: (value) =>
+                        setState(() => _homeBoardCanvasYOffset = value),
+                    onBoardSceneScaleChanged: (value) =>
+                        setState(() => _homeBoardSceneScale = value),
+                    onBoardCameraLiftChanged: (value) =>
+                        setState(() => _homeBoardCameraLift = value),
+                    onBoardCameraDepthChanged: (value) =>
+                        setState(() => _homeBoardCameraDepth = value),
+                    onBoardTargetZOffsetChanged: (value) =>
+                        setState(() => _homeBoardTargetZOffset = value),
+                    onBoardCinematicFovChanged: (value) =>
+                        setState(() => _homeBoardCinematicFov = value),
                     onClose: () =>
                         setState(() => _homeTuningSheetVisible = false),
                     onReset: _resetHomeBoardTuning,
@@ -530,6 +600,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _homeBoardCameraLift = _defaultHomeBoardCameraLift;
       _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
       _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
+      _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
       _homeCardTopFactor = _defaultHomeCardTopFactor;
       _leafShadowOpacity = _defaultLeafShadowOpacity;
       _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
@@ -784,6 +855,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
     required this.cameraLift,
     required this.cameraDepth,
     required this.targetZOffset,
+    required this.cinematicFov,
     required this.leafShadowOpacity,
     required this.stoneExtraOverlayEnabled,
     required this.boardTopBrightness,
@@ -808,6 +880,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
   final double cameraLift;
   final double cameraDepth;
   final double targetZOffset;
+  final double cinematicFov;
   final double leafShadowOpacity;
   final bool stoneExtraOverlayEnabled;
   final double boardTopBrightness;
@@ -841,6 +914,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
             cameraLift: cameraLift,
             cameraDepth: cameraDepth,
             targetZOffset: targetZOffset,
+            cinematicFov: cinematicFov,
             leafShadowOpacity: leafShadowOpacity,
             stoneExtraOverlayEnabled: stoneExtraOverlayEnabled,
             boardTopBrightness: boardTopBrightness,
@@ -928,6 +1002,14 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.fillLightColor,
     required this.ambientLightColor,
     required this.sheenLightColor,
+    required this.boardTopFactor,
+    required this.boardHeightFactor,
+    required this.boardCanvasYOffset,
+    required this.boardSceneScale,
+    required this.boardCameraLift,
+    required this.boardCameraDepth,
+    required this.boardTargetZOffset,
+    required this.boardCinematicFov,
     required this.onShadowOpacityChanged,
     required this.onStoneExtraOverlayChanged,
     required this.onBoardTopBrightnessChanged,
@@ -941,6 +1023,14 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.onFillLightColorChanged,
     required this.onAmbientLightColorChanged,
     required this.onSheenLightColorChanged,
+    required this.onBoardTopFactorChanged,
+    required this.onBoardHeightFactorChanged,
+    required this.onBoardCanvasYOffsetChanged,
+    required this.onBoardSceneScaleChanged,
+    required this.onBoardCameraLiftChanged,
+    required this.onBoardCameraDepthChanged,
+    required this.onBoardTargetZOffsetChanged,
+    required this.onBoardCinematicFovChanged,
     required this.onClose,
     required this.onReset,
   });
@@ -958,6 +1048,14 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final int fillLightColor;
   final int ambientLightColor;
   final int sheenLightColor;
+  final double boardTopFactor;
+  final double boardHeightFactor;
+  final double boardCanvasYOffset;
+  final double boardSceneScale;
+  final double boardCameraLift;
+  final double boardCameraDepth;
+  final double boardTargetZOffset;
+  final double boardCinematicFov;
   final ValueChanged<double> onShadowOpacityChanged;
   final ValueChanged<bool> onStoneExtraOverlayChanged;
   final ValueChanged<double> onBoardTopBrightnessChanged;
@@ -971,6 +1069,14 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final ValueChanged<int> onFillLightColorChanged;
   final ValueChanged<int> onAmbientLightColorChanged;
   final ValueChanged<int> onSheenLightColorChanged;
+  final ValueChanged<double> onBoardTopFactorChanged;
+  final ValueChanged<double> onBoardHeightFactorChanged;
+  final ValueChanged<double> onBoardCanvasYOffsetChanged;
+  final ValueChanged<double> onBoardSceneScaleChanged;
+  final ValueChanged<double> onBoardCameraLiftChanged;
+  final ValueChanged<double> onBoardCameraDepthChanged;
+  final ValueChanged<double> onBoardTargetZOffsetChanged;
+  final ValueChanged<double> onBoardCinematicFovChanged;
   final VoidCallback onClose;
   final VoidCallback onReset;
 
@@ -979,7 +1085,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
 }
 
 class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
-  static const List<String> _tabTitles = ['基础', '主光', '补光', '环境'];
+  static const List<String> _tabTitles = ['基础', '构图', '主光', '补光', '环境'];
   int _selectedTab = 0;
 
   @override
@@ -1005,6 +1111,65 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           min: 0.04,
           max: 0.28,
           onChanged: widget.onShadowOpacityChanged,
+        ),
+      ],
+      [
+        _TuningSlider(
+          label: 'FOV',
+          value: widget.boardCinematicFov,
+          min: 18,
+          max: 36,
+          onChanged: widget.onBoardCinematicFovChanged,
+        ),
+        _TuningSlider(
+          label: '缩放',
+          value: widget.boardSceneScale,
+          min: 0.24,
+          max: 0.62,
+          onChanged: widget.onBoardSceneScaleChanged,
+        ),
+        _TuningSlider(
+          label: '相机高',
+          value: widget.boardCameraLift,
+          min: 2.5,
+          max: 8.5,
+          onChanged: widget.onBoardCameraLiftChanged,
+        ),
+        _TuningSlider(
+          label: '相机远',
+          value: widget.boardCameraDepth,
+          min: 3.2,
+          max: 7.4,
+          onChanged: widget.onBoardCameraDepthChanged,
+        ),
+        _TuningSlider(
+          label: '目标Z',
+          value: widget.boardTargetZOffset,
+          min: -1.4,
+          max: 0.6,
+          onChanged: widget.onBoardTargetZOffsetChanged,
+        ),
+        const _TuningGroupTitle('画布位置'),
+        _TuningSlider(
+          label: '顶部',
+          value: widget.boardTopFactor,
+          min: 0.0,
+          max: 0.18,
+          onChanged: widget.onBoardTopFactorChanged,
+        ),
+        _TuningSlider(
+          label: '高度',
+          value: widget.boardHeightFactor,
+          min: 0.48,
+          max: 0.86,
+          onChanged: widget.onBoardHeightFactorChanged,
+        ),
+        _TuningSlider(
+          label: '偏移Y',
+          value: widget.boardCanvasYOffset,
+          min: -160,
+          max: 60,
+          onChanged: widget.onBoardCanvasYOffsetChanged,
         ),
       ],
       [
@@ -1110,7 +1275,7 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
                       children: [
                         const Expanded(
                           child: Text(
-                            '棋盘光影调试面板',
+                            '棋盘调试面板',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -1133,26 +1298,29 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    CupertinoSlidingSegmentedControl<int>(
-                      groupValue: _selectedTab,
-                      children: {
-                        for (int i = 0; i < _tabTitles.length; i++)
-                          i: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: CupertinoSlidingSegmentedControl<int>(
+                        groupValue: _selectedTab,
+                        children: {
+                          for (int i = 0; i < _tabTitles.length; i++)
+                            i: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              child: Text(
+                                _tabTitles[i],
+                                style: const TextStyle(fontSize: 12),
+                              ),
                             ),
-                            child: Text(
-                              _tabTitles[i],
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                      },
-                      onValueChanged: (next) {
-                        if (next != null) {
-                          setState(() => _selectedTab = next);
-                        }
-                      },
+                        },
+                        onValueChanged: (next) {
+                          if (next != null) {
+                            setState(() => _selectedTab = next);
+                          }
+                        },
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Expanded(

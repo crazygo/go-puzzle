@@ -50,6 +50,7 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.animate = true,
     this.particles = true,
     this.cinematicFrame = true,
+    this.cinematicFov = 26,
     this.sceneScale = 1.0,
     this.cameraLift = 0.0,
     this.cameraDepth,
@@ -75,6 +76,7 @@ class GoThreeBoardBackground extends StatefulWidget {
   final bool animate;
   final bool particles;
   final bool cinematicFrame;
+  final double cinematicFov;
   final double sceneScale;
   final double cameraLift;
   final double? cameraDepth;
@@ -205,6 +207,10 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         oldWidget.targetZOffset != widget.targetZOffset) {
       _setCamera(_elapsed);
     }
+    if (oldWidget.cinematicFov != widget.cinematicFov) {
+      _threeJs.camera.fov = widget.cinematicFrame ? widget.cinematicFov : 28;
+      _threeJs.camera.updateProjectionMatrix();
+    }
     if (oldWidget.leafShadowOpacity != widget.leafShadowOpacity) {
       _buildLeafShadowCaustics();
     }
@@ -244,7 +250,29 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   @override
   Widget build(BuildContext context) {
     if (_pluginUnavailable) return const SizedBox.expand();
-    return SizedBox.expand(child: _threeJs.build());
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fallbackSize =
+            MediaQuery.maybeOf(context)?.size ?? const Size(1, 1);
+        final width = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : fallbackSize.width;
+        final height = constraints.hasBoundedHeight
+            ? constraints.maxHeight
+            : fallbackSize.height;
+        final viewSize = Size(
+          width.isFinite && width > 0 ? width : fallbackSize.width,
+          height.isFinite && height > 0 ? height : fallbackSize.height,
+        );
+
+        return ClipRect(
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(size: viewSize),
+            child: SizedBox.expand(child: _threeJs.build()),
+          ),
+        );
+      },
+    );
   }
 
   bool get _isFlutterWidgetTest {
@@ -265,7 +293,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       ..position.setValues(0, widget.cinematicFrame ? -1.50 : 0, 0)
       ..rotation.y = widget.cinematicFrame ? 0.03 : 0;
     _threeJs.camera = three.PerspectiveCamera(
-      widget.cinematicFrame ? 26 : 28,
+      widget.cinematicFrame ? widget.cinematicFov : 28,
       _threeJs.width / _threeJs.height,
       0.1,
       100,
