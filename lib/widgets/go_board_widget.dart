@@ -74,33 +74,6 @@ class GoBoardPainter extends CustomPainter {
       Paint()..color = const Color(0xFFE8C98E),
     );
 
-    // Directional long grain (keep subtle so it won't compete with grid lines).
-    canvas.save();
-    canvas.clipRRect(topRRect);
-    final grainPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final grainCount = (size.height / 2.6).floor();
-    for (int i = 0; i < grainCount; i++) {
-      final t = i / grainCount;
-      final y = topRect.top + t * topRect.height;
-      final wave = math.sin(i * 0.75) * size.height * 0.0012;
-      grainPaint
-        ..strokeWidth = 0.55 + 0.25 * (1.0 - t)
-        ..color = Color.lerp(
-          const Color(0xFFF3DDB3),
-          const Color(0xFFC99655),
-          (0.28 + 0.44 * _grainNoise(i.toDouble())).clamp(0.0, 1.0),
-        )!
-            .withOpacity(0.11 + 0.07 * _grainNoise(i * 1.17));
-      canvas.drawLine(
-        Offset(topRect.left, y + wave),
-        Offset(topRect.right, y - wave * 0.3),
-        grainPaint,
-      );
-    }
-    canvas.restore();
-
     // Bevel: light from upper-right, shadow toward lower-left.
     final bevelPaint = Paint()
       ..style = PaintingStyle.stroke
@@ -188,11 +161,6 @@ class GoBoardPainter extends CustomPainter {
       ..strokeWidth = 0.4
       ..style = PaintingStyle.stroke;
     canvas.drawLine(a + embossOffset, b + embossOffset, shadow);
-  }
-
-  double _grainNoise(double x) {
-    final s1 = math.sin(x * 12.9898) * 43758.5453;
-    return s1 - s1.floorToDouble();
   }
 
   void _drawStarPoints(Canvas canvas, double origin, int n, double cellSize) {
