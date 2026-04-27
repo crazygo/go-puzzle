@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'screens/capture_game_screen.dart';
 import 'screens/main_screen.dart';
 
 void main() {
@@ -19,6 +20,9 @@ class GoPuzzleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showThreeBoardDebug =
+        Uri.base.queryParameters['threeBoardDebug'] == '1';
+
     return CupertinoApp(
       title: '小闲围棋',
       theme: const CupertinoThemeData(
@@ -53,7 +57,9 @@ class GoPuzzleApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const MainScreen(),
+      home: showThreeBoardDebug
+          ? const ThreeBoardDebugScreen()
+          : const MainScreen(),
       debugShowCheckedModeBanner: false,
       // Register the global Cupertino delegates explicitly. On WebKit, the
       // default CupertinoApp localization path reproduces a white overlay over

@@ -25,6 +25,157 @@ class CaptureGameScreen extends StatefulWidget {
   State<CaptureGameScreen> createState() => _CaptureGameScreenState();
 }
 
+class ThreeBoardDebugScreen extends StatefulWidget {
+  const ThreeBoardDebugScreen({super.key});
+
+  @override
+  State<ThreeBoardDebugScreen> createState() => _ThreeBoardDebugScreenState();
+}
+
+class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
+  bool _panelVisible = false;
+  double _leafShadowOpacity = _CaptureGameScreenState._defaultLeafShadowOpacity;
+  bool _stoneExtraOverlayEnabled =
+      _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
+  double _boardTopBrightness =
+      _CaptureGameScreenState._defaultBoardTopBrightness;
+  Offset3 _keyLightPosition = _CaptureGameScreenState._defaultKeyLightPosition;
+  Offset3 _fillLightPosition =
+      _CaptureGameScreenState._defaultFillLightPosition;
+  double _keyLightIntensity = _CaptureGameScreenState._defaultKeyLightIntensity;
+  double _fillLightIntensity =
+      _CaptureGameScreenState._defaultFillLightIntensity;
+  double _ambientLightIntensity =
+      _CaptureGameScreenState._defaultAmbientLightIntensity;
+  double _sheenLightIntensity =
+      _CaptureGameScreenState._defaultSheenLightIntensity;
+  int _keyLightColor = _CaptureGameScreenState._defaultKeyLightColor;
+  int _fillLightColor = _CaptureGameScreenState._defaultFillLightColor;
+  int _ambientLightColor = _CaptureGameScreenState._defaultAmbientLightColor;
+  int _sheenLightColor = _CaptureGameScreenState._defaultSheenLightColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      backgroundColor: kPageBackgroundColor,
+      child: DecoratedBox(
+        decoration: kPageBackgroundDecoration,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              children: [
+                _HomeThreeBoardPreview(
+                  constraints: constraints,
+                  topFactor: 0.03,
+                  heightFactor: 0.66,
+                  canvasYOffset:
+                      _CaptureGameScreenState._defaultHomeBoardCanvasYOffset,
+                  sceneScale:
+                      _CaptureGameScreenState._defaultHomeBoardSceneScale,
+                  cameraLift:
+                      _CaptureGameScreenState._defaultHomeBoardCameraLift,
+                  cameraDepth:
+                      _CaptureGameScreenState._defaultHomeBoardCameraDepth,
+                  targetZOffset:
+                      _CaptureGameScreenState._defaultHomeBoardTargetZOffset,
+                  leafShadowOpacity: _leafShadowOpacity,
+                  stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
+                  boardTopBrightness: _boardTopBrightness,
+                  keyLightPosition: _keyLightPosition,
+                  fillLightPosition: _fillLightPosition,
+                  keyLightIntensity: _keyLightIntensity,
+                  fillLightIntensity: _fillLightIntensity,
+                  ambientLightIntensity: _ambientLightIntensity,
+                  sheenLightIntensity: _sheenLightIntensity,
+                  keyLightColor: _keyLightColor,
+                  fillLightColor: _fillLightColor,
+                  ambientLightColor: _ambientLightColor,
+                  sheenLightColor: _sheenLightColor,
+                  showDebugGuides: false,
+                ),
+                if (_panelVisible)
+                  _HomeBoardTuningSheet(
+                    shadowOpacity: _leafShadowOpacity,
+                    stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
+                    boardTopBrightness: _boardTopBrightness,
+                    keyLightPosition: _keyLightPosition,
+                    fillLightPosition: _fillLightPosition,
+                    keyLightIntensity: _keyLightIntensity,
+                    fillLightIntensity: _fillLightIntensity,
+                    ambientLightIntensity: _ambientLightIntensity,
+                    sheenLightIntensity: _sheenLightIntensity,
+                    keyLightColor: _keyLightColor,
+                    fillLightColor: _fillLightColor,
+                    ambientLightColor: _ambientLightColor,
+                    sheenLightColor: _sheenLightColor,
+                    onShadowOpacityChanged: (value) =>
+                        setState(() => _leafShadowOpacity = value),
+                    onStoneExtraOverlayChanged: (value) =>
+                        setState(() => _stoneExtraOverlayEnabled = value),
+                    onBoardTopBrightnessChanged: (value) =>
+                        setState(() => _boardTopBrightness = value),
+                    onKeyLightPositionChanged: (value) =>
+                        setState(() => _keyLightPosition = value),
+                    onFillLightPositionChanged: (value) =>
+                        setState(() => _fillLightPosition = value),
+                    onKeyLightIntensityChanged: (value) =>
+                        setState(() => _keyLightIntensity = value),
+                    onFillLightIntensityChanged: (value) =>
+                        setState(() => _fillLightIntensity = value),
+                    onAmbientLightIntensityChanged: (value) =>
+                        setState(() => _ambientLightIntensity = value),
+                    onSheenLightIntensityChanged: (value) =>
+                        setState(() => _sheenLightIntensity = value),
+                    onKeyLightColorChanged: (value) =>
+                        setState(() => _keyLightColor = value),
+                    onFillLightColorChanged: (value) =>
+                        setState(() => _fillLightColor = value),
+                    onAmbientLightColorChanged: (value) =>
+                        setState(() => _ambientLightColor = value),
+                    onSheenLightColorChanged: (value) =>
+                        setState(() => _sheenLightColor = value),
+                    onClose: () => setState(() => _panelVisible = false),
+                    onReset: _resetTuning,
+                  )
+                else
+                  SafeArea(
+                    child: Align(
+                      alignment: Alignment.bottomRight,
+                      child: _HomeBoardTuningLauncher(
+                        onTap: () => setState(() => _panelVisible = true),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _resetTuning() {
+    setState(() {
+      _leafShadowOpacity = _CaptureGameScreenState._defaultLeafShadowOpacity;
+      _stoneExtraOverlayEnabled =
+          _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
+      _boardTopBrightness = _CaptureGameScreenState._defaultBoardTopBrightness;
+      _keyLightPosition = _CaptureGameScreenState._defaultKeyLightPosition;
+      _fillLightPosition = _CaptureGameScreenState._defaultFillLightPosition;
+      _keyLightIntensity = _CaptureGameScreenState._defaultKeyLightIntensity;
+      _fillLightIntensity = _CaptureGameScreenState._defaultFillLightIntensity;
+      _ambientLightIntensity =
+          _CaptureGameScreenState._defaultAmbientLightIntensity;
+      _sheenLightIntensity =
+          _CaptureGameScreenState._defaultSheenLightIntensity;
+      _keyLightColor = _CaptureGameScreenState._defaultKeyLightColor;
+      _fillLightColor = _CaptureGameScreenState._defaultFillLightColor;
+      _ambientLightColor = _CaptureGameScreenState._defaultAmbientLightColor;
+      _sheenLightColor = _CaptureGameScreenState._defaultSheenLightColor;
+    });
+  }
+}
+
 Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
   final result = BoardImageRecognizer.recognize(bytes);
   return {
@@ -128,39 +279,29 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
             return Stack(
               children: [
-                Positioned(
-                  top: constraints.maxHeight * _homeBoardTopFactor,
-                  left: 0,
-                  right: 0,
-                  height: constraints.maxHeight * _homeBoardHeightFactor,
-                  child: IgnorePointer(
-                    child: Transform.translate(
-                      offset: Offset(0, _homeBoardCanvasYOffset),
-                      child: GoThreeBoardBackground(
-                        boardSize: 19,
-                        stones: kGoThreeDemoStones,
-                        particles: true,
-                        sceneScale: _homeBoardSceneScale,
-                        cameraLift: _homeBoardCameraLift,
-                        cameraDepth: _homeBoardCameraDepth,
-                        targetZOffset: _homeBoardTargetZOffset,
-                        leafShadowOpacity: _leafShadowOpacity,
-                        stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
-                        boardTopBrightness: _boardTopBrightness,
-                        showDebugGuides: true,
-                        keyLightPosition: _keyLightPosition,
-                        fillLightPosition: _fillLightPosition,
-                        keyLightIntensity: _keyLightIntensity,
-                        fillLightIntensity: _fillLightIntensity,
-                        ambientLightIntensity: _ambientLightIntensity,
-                        sheenLightIntensity: _sheenLightIntensity,
-                        keyLightColor: _keyLightColor,
-                        fillLightColor: _fillLightColor,
-                        ambientLightColor: _ambientLightColor,
-                        sheenLightColor: _sheenLightColor,
-                      ),
-                    ),
-                  ),
+                _HomeThreeBoardPreview(
+                  constraints: constraints,
+                  topFactor: _homeBoardTopFactor,
+                  heightFactor: _homeBoardHeightFactor,
+                  canvasYOffset: _homeBoardCanvasYOffset,
+                  sceneScale: _homeBoardSceneScale,
+                  cameraLift: _homeBoardCameraLift,
+                  cameraDepth: _homeBoardCameraDepth,
+                  targetZOffset: _homeBoardTargetZOffset,
+                  leafShadowOpacity: _leafShadowOpacity,
+                  stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
+                  boardTopBrightness: _boardTopBrightness,
+                  keyLightPosition: _keyLightPosition,
+                  fillLightPosition: _fillLightPosition,
+                  keyLightIntensity: _keyLightIntensity,
+                  fillLightIntensity: _fillLightIntensity,
+                  ambientLightIntensity: _ambientLightIntensity,
+                  sheenLightIntensity: _sheenLightIntensity,
+                  keyLightColor: _keyLightColor,
+                  fillLightColor: _fillLightColor,
+                  ambientLightColor: _ambientLightColor,
+                  sheenLightColor: _sheenLightColor,
+                  showDebugGuides: true,
                 ),
                 Positioned(
                   top: 0,
@@ -627,6 +768,94 @@ class _ParticlePreviewCanvas extends StatelessWidget {
           title: _CaptureCopy.pageTitle,
           subtitle: _CaptureCopy.pageSubtitle,
           showOrbitalArt: false,
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeThreeBoardPreview extends StatelessWidget {
+  const _HomeThreeBoardPreview({
+    required this.constraints,
+    required this.topFactor,
+    required this.heightFactor,
+    required this.canvasYOffset,
+    required this.sceneScale,
+    required this.cameraLift,
+    required this.cameraDepth,
+    required this.targetZOffset,
+    required this.leafShadowOpacity,
+    required this.stoneExtraOverlayEnabled,
+    required this.boardTopBrightness,
+    required this.keyLightPosition,
+    required this.fillLightPosition,
+    required this.keyLightIntensity,
+    required this.fillLightIntensity,
+    required this.ambientLightIntensity,
+    required this.sheenLightIntensity,
+    required this.keyLightColor,
+    required this.fillLightColor,
+    required this.ambientLightColor,
+    required this.sheenLightColor,
+    required this.showDebugGuides,
+  });
+
+  final BoxConstraints constraints;
+  final double topFactor;
+  final double heightFactor;
+  final double canvasYOffset;
+  final double sceneScale;
+  final double cameraLift;
+  final double cameraDepth;
+  final double targetZOffset;
+  final double leafShadowOpacity;
+  final bool stoneExtraOverlayEnabled;
+  final double boardTopBrightness;
+  final Offset3 keyLightPosition;
+  final Offset3 fillLightPosition;
+  final double keyLightIntensity;
+  final double fillLightIntensity;
+  final double ambientLightIntensity;
+  final double sheenLightIntensity;
+  final int keyLightColor;
+  final int fillLightColor;
+  final int ambientLightColor;
+  final int sheenLightColor;
+  final bool showDebugGuides;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: constraints.maxHeight * topFactor,
+      left: 0,
+      right: 0,
+      height: constraints.maxHeight * heightFactor,
+      child: IgnorePointer(
+        child: Transform.translate(
+          offset: Offset(0, canvasYOffset),
+          child: GoThreeBoardBackground(
+            boardSize: 19,
+            stones: kGoThreeDemoStones,
+            particles: true,
+            sceneScale: sceneScale,
+            cameraLift: cameraLift,
+            cameraDepth: cameraDepth,
+            targetZOffset: targetZOffset,
+            leafShadowOpacity: leafShadowOpacity,
+            stoneExtraOverlayEnabled: stoneExtraOverlayEnabled,
+            boardTopBrightness: boardTopBrightness,
+            showDebugGuides: showDebugGuides,
+            keyLightPosition: keyLightPosition,
+            fillLightPosition: fillLightPosition,
+            keyLightIntensity: keyLightIntensity,
+            fillLightIntensity: fillLightIntensity,
+            ambientLightIntensity: ambientLightIntensity,
+            sheenLightIntensity: sheenLightIntensity,
+            keyLightColor: keyLightColor,
+            fillLightColor: fillLightColor,
+            ambientLightColor: ambientLightColor,
+            sheenLightColor: sheenLightColor,
+          ),
         ),
       ),
     );
