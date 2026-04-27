@@ -7,7 +7,9 @@ description: Controlled 3D Go board golden-iteration workflow for Flutter/Web wo
 
 ## Core Rule
 
-Use controlled variables. Change exactly one rendering capability per iteration unless the user explicitly asks otherwise.
+Use controlled variables by optimization objective. Change exactly one rendering goal per iteration unless the user explicitly asks otherwise.
+
+One objective may require multiple implementation changes when they serve the same visual cause. For example, a `highlight_overlay_structure` iteration may tune reflection, shaft, and front-glow overlays together. Do not interpret controlled variables as "only one numeric parameter".
 
 Examples of one capability:
 - Key light intensity/direction
@@ -20,6 +22,8 @@ Examples of one capability:
 - Stone roughness/specular
 
 Do not combine themes such as lighting plus camera plus board color in the same iteration.
+
+Prefer simple, correct lighting structure over accumulating compensating lights or overlays. One correct light/overlay relationship is better than many incorrect ones. When repeated numeric tuning has little visual effect, inspect structural causes such as additive fake highlights, transparent overlays, material emissive terms, or debug artifacts before adding new light sources.
 
 ## Workflow
 

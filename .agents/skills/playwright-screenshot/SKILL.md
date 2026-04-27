@@ -22,8 +22,10 @@ Use this skill when the user wants a real browser screenshot instead of a framew
 Run `scripts/browser_screenshot.sh`. It:
 
 - archives the previous screenshot if present
-- resolves a system Chrome or Chromium executable without hard-coded OS assumptions
+- uses an environment-provided Chrome or Chromium executable when configured
+- otherwise lets Playwright use its installed browser registry
 - launches the browser through Playwright
+- or connects to an already-running Chromium browser when `PLAYWRIGHT_CDP_URL` is set
 - waits for visual stability instead of capturing the first rendered frame
 - uses a fixed viewport and device scale factor for repeatable comparison
 
@@ -45,10 +47,43 @@ Supported resolution order for the Playwright module:
 
 Supported browser resolution order:
 
+- `PLAYWRIGHT_CDP_URL`, if set, bypasses browser launch and connects to that remote-debugging endpoint
 - `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, if set
 - `CHROME_BIN`, if set
 - common binaries on `PATH` such as `google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser`, or `chrome`
-- common macOS app bundle executables as a fallback only
+- Playwright's installed browser registry, when available
+
+Do not hard-code machine-specific browser paths in project workflows. CI and local machines should provide browser location through environment variables, PATH, or CDP.
+
+## macOS Chrome Crash Handling
+
+On macOS, `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` can crash before navigation with a report showing `HIServices _RegisterApplication` / `TransformProcessType` and `SIGABRT`. This is a browser process registration failure, not a page readiness problem.
+
+Playwright's installed Chromium can also fail before navigation if the current execution sandbox blocks macOS Mach port registration. The error commonly includes `MachPortRendezvous`, `bootstrap_check_in`, or `Permission denied (1100)`.
+
+When this happens:
+
+- Do not treat it as a Flutter render failure.
+- Do not keep retrying the same crashing browser executable.
+- Prefer Playwright's installed Chromium, a non-app-bundle Chromium/Chrome-for-Testing executable via `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, or a CI-provided `CHROME_BIN`.
+- If the current execution context cannot launch the browser, move screenshot execution to a non-sandboxed runner or start Chrome/Chromium outside that context with remote debugging and connect to it with `PLAYWRIGHT_CDP_URL`.
+- Record the failure in the final status and keep the current code iteration marked as `pending screenshot verification`.
+
+External CDP fallback:
+
+```bash
+"$CHROME_BIN" \
+  --remote-debugging-port=9222 \
+  --user-data-dir=/tmp/go-puzzle-cdp-chrome
+
+PLAYWRIGHT_CDP_URL=http://127.0.0.1:9222 \
+  bash skills/playwright-screenshot/scripts/browser_screenshot.sh \
+  "http://127.0.0.1:<port>/?threeBoardDebug=1" \
+  ".cache/screenshots/YYYY-MM-DD-HH-mm-threeBoardDebug-1.png" \
+  402 874 3 12000
+```
+
+`CHROME_BIN` is an example environment-provided executable. It may point to Chrome, Chromium, or Chrome for Testing depending on the machine. Do not commit a local absolute browser path into the workflow.
 
 ## iPhone 17 Preset
 

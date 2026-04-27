@@ -32,6 +32,28 @@ function parseNumber(name, value) {
   return parsed;
 }
 
+function browserStartupHint(error) {
+  const message = String(error?.message ?? error);
+  if (
+    process.platform === 'darwin' &&
+    (
+      message.includes('MachPortRendezvous') ||
+      message.includes('bootstrap_check_in') ||
+      message.includes('TransformProcessType') ||
+      message.includes('_RegisterApplication')
+    )
+  ) {
+    return (
+      '\n\nDetected a macOS browser startup failure before page navigation. ' +
+      'This is usually caused by the execution sandbox blocking Chromium app registration or Mach port bootstrap. ' +
+      'Run the screenshot in a non-sandboxed runner, provide a CI/browser executable through CHROME_BIN or PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, ' +
+      'or connect to an already-running browser with PLAYWRIGHT_CDP_URL.'
+    );
+  }
+
+  return '';
+}
+
 function analyzeScreenshot(buffer) {
   const png = PNG.sync.read(buffer);
   const bucketCounts = new Map();
@@ -119,6 +141,12 @@ const deviceScaleFactor = dprArg ? parseNumber('device scale factor', dprArg) : 
 const waitMs = waitArg ? parseNumber('wait time', waitArg) : 12000;
 
 const playwright = resolvePlaywright();
+const cdpUrl = process.env.PLAYWRIGHT_CDP_URL;
+
+function logStep(message) {
+  const timestamp = new Date().toISOString();
+  process.stderr.write(`[screenshot] ${timestamp} ${message}\n`);
+}
 
 const launchOptions = {
   headless: true,
@@ -139,24 +167,53 @@ if (process.platform === 'linux') {
   }
 }
 
-const browser = await playwright.chromium.launch(launchOptions);
+let browser;
+let context;
 
 try {
-  const page = await browser.newPage({
+  try {
+    logStep(cdpUrl ? `connect_over_cdp ${cdpUrl}` : 'launch_browser');
+    browser = cdpUrl
+      ? await playwright.chromium.connectOverCDP(cdpUrl)
+      : await playwright.chromium.launch(launchOptions);
+  } catch (error) {
+    throw new Error(`${error.message}${browserStartupHint(error)}`);
+  }
+
+  logStep('new_context');
+  context = await browser.newContext({
     viewport: { width, height },
     deviceScaleFactor,
   });
+  const page = await context.newPage();
 
   try {
+    logStep('goto networkidle');
     await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
   } catch {
+    logStep('goto networkidle failed; retry domcontentloaded');
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
   }
+  logStep('goto complete');
 
   const startedAt = Date.now();
   const deadline = startedAt + waitMs;
   let acceptedBuffer = null;
+  let lastBuffer = null;
   let lastMetrics = null;
+  const diagnostics = [];
+
+  page.on('console', (message) => {
+    diagnostics.push(`[console:${message.type()}] ${message.text()}`);
+  });
+  page.on('pageerror', (error) => {
+    diagnostics.push(`[pageerror] ${error.stack || error.message}`);
+  });
+  page.on('requestfailed', (request) => {
+    diagnostics.push(
+      `[requestfailed] ${request.url()} ${request.failure()?.errorText ?? ''}`,
+    );
+  });
 
   while (Date.now() <= deadline) {
     await page.waitForTimeout(700);
@@ -165,7 +222,11 @@ try {
       animations: 'disabled',
     });
     const metrics = analyzeScreenshot(buffer);
+    lastBuffer = buffer;
     lastMetrics = metrics;
+    logStep(
+      `sample dominantRatio=${metrics.dominantRatio.toFixed(3)} luminanceStdDev=${metrics.luminanceStdDev.toFixed(3)} edgeDensity=${metrics.edgeDensity.toFixed(3)}`,
+    );
     if (metrics.isVisuallyReady) {
       acceptedBuffer = buffer;
       break;
@@ -173,13 +234,64 @@ try {
   }
 
   if (!acceptedBuffer) {
+    const domSnapshot = await page.evaluate(() => {
+      const selectors = [
+        'flt-glass-pane',
+        'flutter-view',
+        'canvas',
+        'flt-scene-host',
+        'flt-semantics-host',
+        'script',
+      ];
+      const counts = Object.fromEntries(
+        selectors.map((selector) => [
+          selector,
+          document.querySelectorAll(selector).length,
+        ]),
+      );
+      return {
+        href: window.location.href,
+        readyState: document.readyState,
+        title: document.title,
+        bodyText: document.body?.innerText?.slice(0, 1200) ?? '',
+        bodyChildren: document.body?.children.length ?? 0,
+        counts,
+        bodyHtml: document.body?.outerHTML?.slice(0, 2000) ?? '',
+      };
+    }).catch((error) => ({ error: String(error?.message ?? error) }));
+    const timeoutImagePath = `${outputPath}.notready.png`;
+    const timeoutLogPath = `${outputPath}.notready.txt`;
+    await fs.mkdir(path.dirname(outputPath), { recursive: true });
+    if (lastBuffer) {
+      await fs.writeFile(timeoutImagePath, lastBuffer);
+    }
+    await fs.writeFile(
+      timeoutLogPath,
+      [
+        `url=${url}`,
+        `output_path=${outputPath}`,
+        `timeout_image_path=${lastBuffer ? timeoutImagePath : ''}`,
+        `dominantRatio=${lastMetrics?.dominantRatio?.toFixed(3) ?? 'n/a'}`,
+        `luminanceStdDev=${lastMetrics?.luminanceStdDev?.toFixed(3) ?? 'n/a'}`,
+        `edgeDensity=${lastMetrics?.edgeDensity?.toFixed(3) ?? 'n/a'}`,
+        '',
+        '[dom]',
+        JSON.stringify(domSnapshot, null, 2),
+        '',
+        '[events]',
+        ...diagnostics,
+      ].join('\n'),
+    );
     throw new Error(
-      `Screenshot did not reach a visually ready state before timeout. dominantRatio=${lastMetrics?.dominantRatio?.toFixed(3) ?? 'n/a'}, luminanceStdDev=${lastMetrics?.luminanceStdDev?.toFixed(3) ?? 'n/a'}, edgeDensity=${lastMetrics?.edgeDensity?.toFixed(3) ?? 'n/a'}`,
+      `Screenshot did not reach a visually ready state before timeout. dominantRatio=${lastMetrics?.dominantRatio?.toFixed(3) ?? 'n/a'}, luminanceStdDev=${lastMetrics?.luminanceStdDev?.toFixed(3) ?? 'n/a'}, edgeDensity=${lastMetrics?.edgeDensity?.toFixed(3) ?? 'n/a'}. Saved diagnostics to ${timeoutLogPath}`,
     );
   }
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, acceptedBuffer);
+  logStep(`saved ${outputPath}`);
 } finally {
-  await browser.close();
+  logStep('close_browser');
+  await context?.close().catch(() => {});
+  await browser?.close().catch(() => {});
 }
