@@ -193,8 +193,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardCanvasYOffset = -82.0;
   static const double _defaultHomeBoardSceneScale = 0.38;
   static const double _defaultHomeBoardCameraLift = 5.5;
-  static const double _defaultHomeBoardCameraDepth = 4.85;
-  static const double _defaultHomeBoardTargetZOffset = -0.31;
+  static const double _defaultHomeBoardCameraDepth = 5.15;
+  static const double _defaultHomeBoardTargetZOffset = -0.48;
   static const double _defaultHomeCardTopFactor = 0.44;
   static const double _defaultLeafShadowOpacity = 0.16;
   static const bool _defaultStoneExtraOverlayEnabled = true;
