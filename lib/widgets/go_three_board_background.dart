@@ -223,7 +223,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _buildBoard();
     _buildSideWoodDetail();
     _buildGrid();
-    _buildWoodDetail();
     _buildLeafShadowCaustics();
     _buildParticles();
     _rebuildStones();
@@ -507,17 +506,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       three.MaterialProperty.opacity: 0.26,
       three.MaterialProperty.transparent: true,
     });
-    final grooveShadowMaterial = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0x4b3420,
-      three.MaterialProperty.opacity: 0.12,
-      three.MaterialProperty.transparent: true,
-    });
-    final grooveHighlightMaterial = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0xf5d6aa,
-      three.MaterialProperty.opacity: 0.10,
-      three.MaterialProperty.transparent: true,
-    });
-
     for (int i = 0; i < n; i++) {
       final p = start + i * step;
       final horizontal = three.Mesh(
@@ -528,50 +516,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         three.BoxGeometry(0.010, 0.010, _gridSpan),
         lineMaterial,
       )..position.setValues(p, _boardTop + 0.035, 0);
-      final hShadow = three.Mesh(
-        three.BoxGeometry(_gridSpan, 0.004, 0.008),
-        grooveShadowMaterial,
-      )..position.setValues(0, _boardTop + 0.031, p + 0.0025);
-      final vShadow = three.Mesh(
-        three.BoxGeometry(0.008, 0.004, _gridSpan),
-        grooveShadowMaterial,
-      )..position.setValues(p + 0.0025, _boardTop + 0.031, 0);
-      final hHighlight = three.Mesh(
-        three.BoxGeometry(_gridSpan, 0.003, 0.006),
-        grooveHighlightMaterial,
-      )..position.setValues(0, _boardTop + 0.036, p - 0.002);
-      final vHighlight = three.Mesh(
-        three.BoxGeometry(0.006, 0.003, _gridSpan),
-        grooveHighlightMaterial,
-      )..position.setValues(p - 0.002, _boardTop + 0.036, 0);
       _root
         ..add(horizontal)
-        ..add(vertical)
-        ..add(hShadow)
-        ..add(vShadow)
-        ..add(hHighlight)
-        ..add(vHighlight);
-    }
-  }
-
-  void _buildWoodDetail() {
-    final material = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0x835128,
-      three.MaterialProperty.opacity: 0.26,
-      three.MaterialProperty.transparent: true,
-    });
-    for (int i = 0; i < 116; i++) {
-      final t = i / 115;
-      final z = -_boardWidth / 2 + t * _boardWidth;
-      final length = _boardWidth * (0.16 + 0.56 * _noise(i * 17));
-      final x = (_noise(i * 41) - 0.5) * (_boardWidth - length);
-      final grain = three.Mesh(
-        three.BoxGeometry(length, 0.006, 0.006),
-        material,
-      )
-        ..position.setValues(x, _boardTop + 0.043, z)
-        ..rotation.y = (_noise(i * 29) - 0.5) * 0.08;
-      _root.add(grain);
+        ..add(vertical);
     }
   }
 

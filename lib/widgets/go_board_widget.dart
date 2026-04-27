@@ -74,49 +74,6 @@ class GoBoardPainter extends CustomPainter {
       Paint()..color = const Color(0xFFE8C98E),
     );
 
-    // Directional long grain.
-    canvas.save();
-    canvas.clipRRect(topRRect);
-    final grainPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final grainCount = (size.height / 2.6).floor();
-    for (int i = 0; i < grainCount; i++) {
-      final t = i / grainCount;
-      final y = topRect.top + t * topRect.height;
-      final wave = math.sin(i * 0.75) * size.height * 0.0018;
-      grainPaint
-        ..strokeWidth = 0.55 + 0.25 * (1.0 - t)
-        ..color = Color.lerp(
-          const Color(0xFFF3DDB3),
-          const Color(0xFFC99655),
-          (0.28 + 0.44 * _grainNoise(i.toDouble())).clamp(0.0, 1.0),
-        )!
-            .withOpacity(0.16 + 0.10 * _grainNoise(i * 1.17));
-      canvas.drawLine(
-        Offset(topRect.left, y + wave),
-        Offset(topRect.right, y - wave * 0.3),
-        grainPaint,
-      );
-    }
-
-    // Local darker veins.
-    for (int i = 0; i < 12; i++) {
-      final t = i / 11;
-      final y = topRect.top + (0.08 + 0.84 * t) * topRect.height;
-      final span = (0.25 + 0.6 * _grainNoise(i * 2.1)) * topRect.width;
-      final startX = topRect.left + (topRect.width - span) * _grainNoise(i + 9);
-      grainPaint
-        ..strokeWidth = 0.7
-        ..color = const Color(0xFFA9783D).withOpacity(0.10);
-      canvas.drawLine(
-        Offset(startX, y),
-        Offset(startX + span, y + math.sin(i * 0.9) * 0.8),
-        grainPaint,
-      );
-    }
-    canvas.restore();
-
     // Bevel: light from upper-right, shadow toward lower-left.
     final bevelPaint = Paint()
       ..style = PaintingStyle.stroke
@@ -170,13 +127,11 @@ class GoBoardPainter extends CustomPainter {
         canvas,
         Offset(x, origin),
         Offset(x, origin + boardAreaSize),
-        const Offset(0.33, 0),
       );
       _drawGrooveLine(
         canvas,
         Offset(origin, y),
         Offset(origin + boardAreaSize, y),
-        const Offset(0, -0.33),
       );
     }
   }
@@ -185,30 +140,12 @@ class GoBoardPainter extends CustomPainter {
     Canvas canvas,
     Offset a,
     Offset b,
-    Offset embossOffset,
   ) {
     final core = Paint()
       ..color = const Color(0xFF7A5C36).withOpacity(0.56)
       ..strokeWidth = 0.72
       ..style = PaintingStyle.stroke;
     canvas.drawLine(a, b, core);
-
-    final highlight = Paint()
-      ..color = const Color(0xFFF6E7CA).withOpacity(0.24)
-      ..strokeWidth = 0.42
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(a - embossOffset, b - embossOffset, highlight);
-
-    final shadow = Paint()
-      ..color = const Color(0xFF5A3F24).withOpacity(0.18)
-      ..strokeWidth = 0.4
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(a + embossOffset, b + embossOffset, shadow);
-  }
-
-  double _grainNoise(double x) {
-    final s1 = math.sin(x * 12.9898) * 43758.5453;
-    return s1 - s1.floorToDouble();
   }
 
   void _drawStarPoints(Canvas canvas, double origin, int n, double cellSize) {
