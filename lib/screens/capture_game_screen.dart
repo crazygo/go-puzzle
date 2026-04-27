@@ -44,9 +44,18 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardTargetZOffset = -0.31;
   static const double _defaultHomeCardTopFactor = 0.44;
   static const double _defaultLeafShadowOpacity = 0.16;
-  static const double _defaultLeafShadowSpeed = 1.05;
-  static const double _defaultLeafShadowSway = 1.0;
-  static const double _defaultKeyLightSwing = 1.0;
+  static const bool _defaultStoneExtraOverlayEnabled = true;
+  static const double _defaultBoardTopBrightness = 1.0;
+  static const Offset3 _defaultKeyLightPosition = Offset3(5.8, 5.6, -3.8);
+  static const Offset3 _defaultFillLightPosition = Offset3(-4.8, 2.6, 3.2);
+  static const double _defaultKeyLightIntensity = 0.92;
+  static const double _defaultFillLightIntensity = 0.14;
+  static const double _defaultAmbientLightIntensity = 0.19;
+  static const double _defaultSheenLightIntensity = 0.36;
+  static const int _defaultKeyLightColor = 0xfff0d2;
+  static const int _defaultFillLightColor = 0xf4e8d8;
+  static const int _defaultAmbientLightColor = 0xffeddc;
+  static const int _defaultSheenLightColor = 0xfffaed;
 
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
@@ -58,7 +67,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   CaptureInitialMode _initialMode = CaptureInitialMode.twistCross;
   bool _isAdjusting = false;
   bool _isRecognizingScreenshot = false;
-  bool _homeTuningPanelCollapsed = true;
+  bool _homeTuningSheetVisible = false;
   double _homeBoardTopFactor = _defaultHomeBoardTopFactor;
   double _homeBoardHeightFactor = _defaultHomeBoardHeightFactor;
   double _homeBoardCanvasYOffset = _defaultHomeBoardCanvasYOffset;
@@ -68,9 +77,18 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
   double _homeCardTopFactor = _defaultHomeCardTopFactor;
   double _leafShadowOpacity = _defaultLeafShadowOpacity;
-  double _leafShadowSpeed = _defaultLeafShadowSpeed;
-  double _leafShadowSway = _defaultLeafShadowSway;
-  double _keyLightSwing = _defaultKeyLightSwing;
+  bool _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
+  double _boardTopBrightness = _defaultBoardTopBrightness;
+  Offset3 _keyLightPosition = _defaultKeyLightPosition;
+  Offset3 _fillLightPosition = _defaultFillLightPosition;
+  double _keyLightIntensity = _defaultKeyLightIntensity;
+  double _fillLightIntensity = _defaultFillLightIntensity;
+  double _ambientLightIntensity = _defaultAmbientLightIntensity;
+  double _sheenLightIntensity = _defaultSheenLightIntensity;
+  int _keyLightColor = _defaultKeyLightColor;
+  int _fillLightColor = _defaultFillLightColor;
+  int _ambientLightColor = _defaultAmbientLightColor;
+  int _sheenLightColor = _defaultSheenLightColor;
 
   @override
   void initState() {
@@ -121,9 +139,19 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         cameraDepth: _homeBoardCameraDepth,
                         targetZOffset: _homeBoardTargetZOffset,
                         leafShadowOpacity: _leafShadowOpacity,
-                        leafShadowSpeed: _leafShadowSpeed,
-                        leafShadowSway: _leafShadowSway,
-                        keyLightSwing: _keyLightSwing,
+                        stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
+                        boardTopBrightness: _boardTopBrightness,
+                        showDebugGuides: true,
+                        keyLightPosition: _keyLightPosition,
+                        fillLightPosition: _fillLightPosition,
+                        keyLightIntensity: _keyLightIntensity,
+                        fillLightIntensity: _fillLightIntensity,
+                        ambientLightIntensity: _ambientLightIntensity,
+                        sheenLightIntensity: _sheenLightIntensity,
+                        keyLightColor: _keyLightColor,
+                        fillLightColor: _fillLightColor,
+                        ambientLightColor: _ambientLightColor,
+                        sheenLightColor: _sheenLightColor,
                       ),
                     ),
                   ),
@@ -279,28 +307,57 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                 if (kIsWeb)
                   SafeArea(
                     child: Align(
-                      alignment: Alignment.topRight,
-                      child: _HomeBoardTuningPanel(
-                        collapsed: _homeTuningPanelCollapsed,
-                        shadowOpacity: _leafShadowOpacity,
-                        shadowSpeed: _leafShadowSpeed,
-                        shadowSway: _leafShadowSway,
-                        lightSwing: _keyLightSwing,
-                        onShadowOpacityChanged: (value) =>
-                            setState(() => _leafShadowOpacity = value),
-                        onShadowSpeedChanged: (value) =>
-                            setState(() => _leafShadowSpeed = value),
-                        onShadowSwayChanged: (value) =>
-                            setState(() => _leafShadowSway = value),
-                        onLightSwingChanged: (value) =>
-                            setState(() => _keyLightSwing = value),
-                        onToggleCollapsed: () => setState(
-                          () => _homeTuningPanelCollapsed =
-                              !_homeTuningPanelCollapsed,
-                        ),
-                        onReset: _resetHomeBoardTuning,
+                      alignment: Alignment.bottomRight,
+                      child: _HomeBoardTuningLauncher(
+                        onTap: () =>
+                            setState(() => _homeTuningSheetVisible = true),
                       ),
                     ),
+                  ),
+                if (kIsWeb && _homeTuningSheetVisible)
+                  _HomeBoardTuningSheet(
+                    shadowOpacity: _leafShadowOpacity,
+                    stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
+                    boardTopBrightness: _boardTopBrightness,
+                    keyLightPosition: _keyLightPosition,
+                    fillLightPosition: _fillLightPosition,
+                    keyLightIntensity: _keyLightIntensity,
+                    fillLightIntensity: _fillLightIntensity,
+                    ambientLightIntensity: _ambientLightIntensity,
+                    sheenLightIntensity: _sheenLightIntensity,
+                    keyLightColor: _keyLightColor,
+                    fillLightColor: _fillLightColor,
+                    ambientLightColor: _ambientLightColor,
+                    sheenLightColor: _sheenLightColor,
+                    onShadowOpacityChanged: (value) =>
+                        setState(() => _leafShadowOpacity = value),
+                    onStoneExtraOverlayChanged: (value) =>
+                        setState(() => _stoneExtraOverlayEnabled = value),
+                    onBoardTopBrightnessChanged: (value) =>
+                        setState(() => _boardTopBrightness = value),
+                    onKeyLightPositionChanged: (value) =>
+                        setState(() => _keyLightPosition = value),
+                    onFillLightPositionChanged: (value) =>
+                        setState(() => _fillLightPosition = value),
+                    onKeyLightIntensityChanged: (value) =>
+                        setState(() => _keyLightIntensity = value),
+                    onFillLightIntensityChanged: (value) =>
+                        setState(() => _fillLightIntensity = value),
+                    onAmbientLightIntensityChanged: (value) =>
+                        setState(() => _ambientLightIntensity = value),
+                    onSheenLightIntensityChanged: (value) =>
+                        setState(() => _sheenLightIntensity = value),
+                    onKeyLightColorChanged: (value) =>
+                        setState(() => _keyLightColor = value),
+                    onFillLightColorChanged: (value) =>
+                        setState(() => _fillLightColor = value),
+                    onAmbientLightColorChanged: (value) =>
+                        setState(() => _ambientLightColor = value),
+                    onSheenLightColorChanged: (value) =>
+                        setState(() => _sheenLightColor = value),
+                    onClose: () =>
+                        setState(() => _homeTuningSheetVisible = false),
+                    onReset: _resetHomeBoardTuning,
                   ),
               ],
             );
@@ -321,9 +378,18 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
       _homeCardTopFactor = _defaultHomeCardTopFactor;
       _leafShadowOpacity = _defaultLeafShadowOpacity;
-      _leafShadowSpeed = _defaultLeafShadowSpeed;
-      _leafShadowSway = _defaultLeafShadowSway;
-      _keyLightSwing = _defaultKeyLightSwing;
+      _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
+      _boardTopBrightness = _defaultBoardTopBrightness;
+      _keyLightPosition = _defaultKeyLightPosition;
+      _fillLightPosition = _defaultFillLightPosition;
+      _keyLightIntensity = _defaultKeyLightIntensity;
+      _fillLightIntensity = _defaultFillLightIntensity;
+      _ambientLightIntensity = _defaultAmbientLightIntensity;
+      _sheenLightIntensity = _defaultSheenLightIntensity;
+      _keyLightColor = _defaultKeyLightColor;
+      _fillLightColor = _defaultFillLightColor;
+      _ambientLightColor = _defaultAmbientLightColor;
+      _sheenLightColor = _defaultSheenLightColor;
     });
   }
 
@@ -500,141 +566,275 @@ class _ParticlePreviewCanvas extends StatelessWidget {
   }
 }
 
-class _HomeBoardTuningPanel extends StatelessWidget {
-  const _HomeBoardTuningPanel({
-    required this.collapsed,
-    required this.shadowOpacity,
-    required this.shadowSpeed,
-    required this.shadowSway,
-    required this.lightSwing,
-    required this.onShadowOpacityChanged,
-    required this.onShadowSpeedChanged,
-    required this.onShadowSwayChanged,
-    required this.onLightSwingChanged,
-    required this.onToggleCollapsed,
-    required this.onReset,
-  });
+class _HomeBoardTuningLauncher extends StatelessWidget {
+  const _HomeBoardTuningLauncher({required this.onTap});
 
-  final bool collapsed;
-  final double shadowOpacity;
-  final double shadowSpeed;
-  final double shadowSway;
-  final double lightSwing;
-  final ValueChanged<double> onShadowOpacityChanged;
-  final ValueChanged<double> onShadowSpeedChanged;
-  final ValueChanged<double> onShadowSwayChanged;
-  final ValueChanged<double> onLightSwingChanged;
-  final VoidCallback onToggleCollapsed;
-  final VoidCallback onReset;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    if (collapsed) {
-      return Container(
-        margin: const EdgeInsets.only(top: 8, right: 8),
+    return Padding(
+      padding: const EdgeInsets.only(right: 12, bottom: 18),
+      child: DecoratedBox(
         decoration: BoxDecoration(
           color: const Color(0xF7FFFDF9),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(color: const Color(0x26B68454)),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x1A000000),
+              color: Color(0x1F000000),
               blurRadius: 18,
               offset: Offset(0, 8),
             ),
           ],
         ),
         child: CupertinoButton(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           minimumSize: Size.zero,
-          onPressed: onToggleCollapsed,
-          child: const Icon(
-            CupertinoIcons.slider_horizontal_3,
-            size: 18,
-            color: Color(0xFFB68454),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      width: 248,
-      margin: const EdgeInsets.only(top: 8, right: 8),
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-      decoration: BoxDecoration(
-        color: const Color(0xF7FFFDF9),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x26B68454)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
+          onPressed: onTap,
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Expanded(
-                child: Text(
-                  '光影调试',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF3A2A1F),
-                  ),
-                ),
+              Icon(
+                CupertinoIcons.slider_horizontal_3,
+                size: 18,
+                color: Color(0xFFB68454),
               ),
-              CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: const Size(32, 24),
-                onPressed: onToggleCollapsed,
-                child: const Text(
-                  '收起',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF7E6F61)),
-                ),
-              ),
-              CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: const Size(32, 24),
-                onPressed: onReset,
-                child: const Text(
-                  'reset',
-                  style: TextStyle(fontSize: 11, color: Color(0xFFB68454)),
+              SizedBox(width: 6),
+              Text(
+                '调光',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF8A613A),
                 ),
               ),
             ],
           ),
-          _TuningSlider(
-            label: 'shadow',
-            value: shadowOpacity,
-            min: 0.04,
-            max: 0.28,
-            onChanged: onShadowOpacityChanged,
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeBoardTuningSheet extends StatelessWidget {
+  const _HomeBoardTuningSheet({
+    required this.shadowOpacity,
+    required this.stoneExtraOverlayEnabled,
+    required this.boardTopBrightness,
+    required this.keyLightPosition,
+    required this.fillLightPosition,
+    required this.keyLightIntensity,
+    required this.fillLightIntensity,
+    required this.ambientLightIntensity,
+    required this.sheenLightIntensity,
+    required this.keyLightColor,
+    required this.fillLightColor,
+    required this.ambientLightColor,
+    required this.sheenLightColor,
+    required this.onShadowOpacityChanged,
+    required this.onStoneExtraOverlayChanged,
+    required this.onBoardTopBrightnessChanged,
+    required this.onKeyLightPositionChanged,
+    required this.onFillLightPositionChanged,
+    required this.onKeyLightIntensityChanged,
+    required this.onFillLightIntensityChanged,
+    required this.onAmbientLightIntensityChanged,
+    required this.onSheenLightIntensityChanged,
+    required this.onKeyLightColorChanged,
+    required this.onFillLightColorChanged,
+    required this.onAmbientLightColorChanged,
+    required this.onSheenLightColorChanged,
+    required this.onClose,
+    required this.onReset,
+  });
+
+  final double shadowOpacity;
+  final bool stoneExtraOverlayEnabled;
+  final double boardTopBrightness;
+  final Offset3 keyLightPosition;
+  final Offset3 fillLightPosition;
+  final double keyLightIntensity;
+  final double fillLightIntensity;
+  final double ambientLightIntensity;
+  final double sheenLightIntensity;
+  final int keyLightColor;
+  final int fillLightColor;
+  final int ambientLightColor;
+  final int sheenLightColor;
+  final ValueChanged<double> onShadowOpacityChanged;
+  final ValueChanged<bool> onStoneExtraOverlayChanged;
+  final ValueChanged<double> onBoardTopBrightnessChanged;
+  final ValueChanged<Offset3> onKeyLightPositionChanged;
+  final ValueChanged<Offset3> onFillLightPositionChanged;
+  final ValueChanged<double> onKeyLightIntensityChanged;
+  final ValueChanged<double> onFillLightIntensityChanged;
+  final ValueChanged<double> onAmbientLightIntensityChanged;
+  final ValueChanged<double> onSheenLightIntensityChanged;
+  final ValueChanged<int> onKeyLightColorChanged;
+  final ValueChanged<int> onFillLightColorChanged;
+  final ValueChanged<int> onAmbientLightColorChanged;
+  final ValueChanged<int> onSheenLightColorChanged;
+  final VoidCallback onClose;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: onClose,
+            child: Container(color: const Color(0x48000000)),
           ),
-          _TuningSlider(
-            label: 'speed',
-            value: shadowSpeed,
-            min: 0.50,
-            max: 2.00,
-            onChanged: onShadowSpeedChanged,
-          ),
-          _TuningSlider(
-            label: 'sway',
-            value: shadowSway,
-            min: 0.40,
-            max: 2.20,
-            onChanged: onShadowSwayChanged,
-          ),
-          _TuningSlider(
-            label: 'angle',
-            value: lightSwing,
-            min: 0.0,
-            max: 2.0,
-            onChanged: onLightSwingChanged,
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
+              tween: Tween(begin: 1, end: 0),
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, value * 460),
+                  child: child,
+                );
+              },
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.68,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                decoration: const BoxDecoration(
+                  color: Color(0xF7FFFDF9),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x2A000000),
+                      blurRadius: 24,
+                      offset: Offset(0, -8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            '棋盘光影调试面板',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF3A2A1F),
+                            ),
+                          ),
+                        ),
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          minimumSize: const Size(44, 30),
+                          onPressed: onReset,
+                          child: const Text('重置'),
+                        ),
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          minimumSize: const Size(44, 30),
+                          onPressed: onClose,
+                          child: const Text('关闭'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: CupertinoScrollbar(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              _TuningSwitchRow(
+                                title: '棋子额外阴影叠加',
+                                value: stoneExtraOverlayEnabled,
+                                onChanged: onStoneExtraOverlayChanged,
+                              ),
+                              _TuningSlider(
+                                label: '棋盘亮度',
+                                value: boardTopBrightness,
+                                min: 0.40,
+                                max: 2.40,
+                                onChanged: onBoardTopBrightnessChanged,
+                              ),
+                              const _TuningGroupTitle('棋盘氛围'),
+                              _TuningSlider(
+                                label: '叶影强度',
+                                value: shadowOpacity,
+                                min: 0.04,
+                                max: 0.28,
+                                onChanged: onShadowOpacityChanged,
+                              ),
+                              const _TuningGroupTitle('主光 Key'),
+                              _Vector3Editor(
+                                value: keyLightPosition,
+                                onChanged: onKeyLightPositionChanged,
+                              ),
+                              _TuningSlider(
+                                label: '主光强度',
+                                value: keyLightIntensity,
+                                min: 0.0,
+                                max: 1.8,
+                                onChanged: onKeyLightIntensityChanged,
+                              ),
+                              _RgbEditor(
+                                title: '主光颜色',
+                                colorHex: keyLightColor,
+                                onChanged: onKeyLightColorChanged,
+                              ),
+                              const _TuningGroupTitle('补光 Fill'),
+                              _Vector3Editor(
+                                value: fillLightPosition,
+                                onChanged: onFillLightPositionChanged,
+                              ),
+                              _TuningSlider(
+                                label: '补光强度',
+                                value: fillLightIntensity,
+                                min: 0.0,
+                                max: 1.2,
+                                onChanged: onFillLightIntensityChanged,
+                              ),
+                              _RgbEditor(
+                                title: '补光颜色',
+                                colorHex: fillLightColor,
+                                onChanged: onFillLightColorChanged,
+                              ),
+                              const _TuningGroupTitle('环境与高光'),
+                              _TuningSlider(
+                                label: '环境光',
+                                value: ambientLightIntensity,
+                                min: 0.0,
+                                max: 0.9,
+                                onChanged: onAmbientLightIntensityChanged,
+                              ),
+                              _RgbEditor(
+                                title: '环境光颜色',
+                                colorHex: ambientLightColor,
+                                onChanged: onAmbientLightColorChanged,
+                              ),
+                              _TuningSlider(
+                                label: '高光灯',
+                                value: sheenLightIntensity,
+                                min: 0.0,
+                                max: 1.4,
+                                onChanged: onSheenLightIntensityChanged,
+                              ),
+                              _RgbEditor(
+                                title: '高光颜色',
+                                colorHex: sheenLightColor,
+                                onChanged: onSheenLightColorChanged,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -662,7 +862,7 @@ class _TuningSlider extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          width: 48,
+          width: 68,
           child: Text(
             label,
             style: const TextStyle(fontSize: 10, color: Color(0xFF7E6F61)),
@@ -686,6 +886,182 @@ class _TuningSlider extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TuningGroupTitle extends StatelessWidget {
+  const _TuningGroupTitle(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14, bottom: 6),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF6A5239),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TuningSwitchRow extends StatelessWidget {
+  const _TuningSwitchRow({
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF5E4E42),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        CupertinoSwitch(
+          value: value,
+          activeTrackColor: const Color(0xFFB68454),
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+}
+
+class _Vector3Editor extends StatelessWidget {
+  const _Vector3Editor({required this.value, required this.onChanged});
+
+  final Offset3 value;
+  final ValueChanged<Offset3> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _TuningSlider(
+          label: 'X',
+          value: value.x,
+          min: -8,
+          max: 8,
+          onChanged: (next) => onChanged(Offset3(next, value.y, value.z)),
+        ),
+        _TuningSlider(
+          label: 'Y',
+          value: value.y,
+          min: -1,
+          max: 8,
+          onChanged: (next) => onChanged(Offset3(value.x, next, value.z)),
+        ),
+        _TuningSlider(
+          label: 'Z',
+          value: value.z,
+          min: -8,
+          max: 8,
+          onChanged: (next) => onChanged(Offset3(value.x, value.y, next)),
+        ),
+      ],
+    );
+  }
+}
+
+class _RgbEditor extends StatelessWidget {
+  const _RgbEditor({
+    required this.title,
+    required this.colorHex,
+    required this.onChanged,
+  });
+
+  final String title;
+  final int colorHex;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = (colorHex >> 16) & 0xFF;
+    final g = (colorHex >> 8) & 0xFF;
+    final b = colorHex & 0xFF;
+    return Container(
+      margin: const EdgeInsets.only(top: 2, bottom: 6),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+      decoration: BoxDecoration(
+        color: const Color(0x14B68454),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF6A5645),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: Color(0xFF000000 | colorHex),
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(color: const Color(0x33000000)),
+                ),
+              ),
+            ],
+          ),
+          _TuningSlider(
+            label: 'R',
+            value: r.toDouble(),
+            min: 0,
+            max: 255,
+            onChanged: (v) {
+              onChanged(((v.round() & 0xFF) << 16) | (g << 8) | b);
+            },
+          ),
+          _TuningSlider(
+            label: 'G',
+            value: g.toDouble(),
+            min: 0,
+            max: 255,
+            onChanged: (v) {
+              onChanged((r << 16) | ((v.round() & 0xFF) << 8) | b);
+            },
+          ),
+          _TuningSlider(
+            label: 'B',
+            value: b.toDouble(),
+            min: 0,
+            max: 255,
+            onChanged: (v) {
+              onChanged((r << 16) | (g << 8) | (v.round() & 0xFF));
+            },
+          ),
+        ],
+      ),
     );
   }
 }
