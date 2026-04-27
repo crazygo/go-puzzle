@@ -65,6 +65,7 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
       _CaptureGameScreenState._defaultHomeBoardTargetZOffset;
   double _boardCinematicFov =
       _CaptureGameScreenState._defaultHomeBoardCinematicFov;
+  double _boardRotationY = _CaptureGameScreenState._defaultHomeBoardRotationY;
 
   @override
   Widget build(BuildContext context) {
@@ -86,6 +87,7 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   cameraDepth: _boardCameraDepth,
                   targetZOffset: _boardTargetZOffset,
                   cinematicFov: _boardCinematicFov,
+                  boardRotationY: _boardRotationY,
                   leafShadowOpacity: _leafShadowOpacity,
                   stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                   boardTopBrightness: _boardTopBrightness,
@@ -124,6 +126,7 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                     boardCameraDepth: _boardCameraDepth,
                     boardTargetZOffset: _boardTargetZOffset,
                     boardCinematicFov: _boardCinematicFov,
+                    boardRotationY: _boardRotationY,
                     onShadowOpacityChanged: (value) =>
                         setState(() => _leafShadowOpacity = value),
                     onStoneExtraOverlayChanged: (value) =>
@@ -166,6 +169,8 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                         setState(() => _boardTargetZOffset = value),
                     onBoardCinematicFovChanged: (value) =>
                         setState(() => _boardCinematicFov = value),
+                    onBoardRotationYChanged: (value) =>
+                        setState(() => _boardRotationY = value),
                     onClose: () => setState(() => _panelVisible = false),
                     onReset: _resetTuning,
                   )
@@ -215,6 +220,7 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
           _CaptureGameScreenState._defaultHomeBoardTargetZOffset;
       _boardCinematicFov =
           _CaptureGameScreenState._defaultHomeBoardCinematicFov;
+      _boardRotationY = _CaptureGameScreenState._defaultHomeBoardRotationY;
     });
   }
 }
@@ -233,12 +239,13 @@ Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardTopFactor = 0.12;
   static const double _defaultHomeBoardHeightFactor = 0.68;
-  static const double _defaultHomeBoardCanvasYOffset = -82.0;
-  static const double _defaultHomeBoardSceneScale = 0.28;
-  static const double _defaultHomeBoardCameraLift = 0.5;
-  static const double _defaultHomeBoardCameraDepth = 3.2;
-  static const double _defaultHomeBoardTargetZOffset = -0.28;
-  static const double _defaultHomeBoardCinematicFov = 24.3;
+  static const double _defaultHomeBoardCanvasYOffset = 0.0;
+  static const double _defaultHomeBoardSceneScale = 1.0;
+  static const double _defaultHomeBoardCameraLift = 0.01;
+  static const double _defaultHomeBoardCameraDepth = 14.0;
+  static const double _defaultHomeBoardTargetZOffset = 0.0;
+  static const double _defaultHomeBoardCinematicFov = 28.0;
+  static const double _defaultHomeBoardRotationY = -0.3;
   static const double _defaultHomeCardTopFactor = 0.44;
   static const double _defaultLeafShadowOpacity = 0.16;
   static const bool _defaultStoneExtraOverlayEnabled = true;
@@ -276,6 +283,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
   double _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
   double _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
+  double _homeBoardRotationY = _defaultHomeBoardRotationY;
   double _homeCardTopFactor = _defaultHomeCardTopFactor;
   double _leafShadowOpacity = _defaultLeafShadowOpacity;
   bool _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
@@ -334,6 +342,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   cameraDepth: _homeBoardCameraDepth,
                   targetZOffset: _homeBoardTargetZOffset,
                   cinematicFov: _homeBoardCinematicFov,
+                  boardRotationY: _homeBoardRotationY,
                   leafShadowOpacity: _leafShadowOpacity,
                   stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                   boardTopBrightness: _boardTopBrightness,
@@ -537,6 +546,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     boardCameraDepth: _homeBoardCameraDepth,
                     boardTargetZOffset: _homeBoardTargetZOffset,
                     boardCinematicFov: _homeBoardCinematicFov,
+                    boardRotationY: _homeBoardRotationY,
                     onShadowOpacityChanged: (value) =>
                         setState(() => _leafShadowOpacity = value),
                     onStoneExtraOverlayChanged: (value) =>
@@ -579,6 +589,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _homeBoardTargetZOffset = value),
                     onBoardCinematicFovChanged: (value) =>
                         setState(() => _homeBoardCinematicFov = value),
+                    onBoardRotationYChanged: (value) =>
+                        setState(() => _homeBoardRotationY = value),
                     onClose: () =>
                         setState(() => _homeTuningSheetVisible = false),
                     onReset: _resetHomeBoardTuning,
@@ -601,6 +613,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
       _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
       _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
+      _homeBoardRotationY = _defaultHomeBoardRotationY;
       _homeCardTopFactor = _defaultHomeCardTopFactor;
       _leafShadowOpacity = _defaultLeafShadowOpacity;
       _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
@@ -856,6 +869,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
     required this.cameraDepth,
     required this.targetZOffset,
     required this.cinematicFov,
+    required this.boardRotationY,
     required this.leafShadowOpacity,
     required this.stoneExtraOverlayEnabled,
     required this.boardTopBrightness,
@@ -881,6 +895,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
   final double cameraDepth;
   final double targetZOffset;
   final double cinematicFov;
+  final double boardRotationY;
   final double leafShadowOpacity;
   final bool stoneExtraOverlayEnabled;
   final double boardTopBrightness;
@@ -915,6 +930,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
             cameraDepth: cameraDepth,
             targetZOffset: targetZOffset,
             cinematicFov: cinematicFov,
+            boardRotationY: boardRotationY,
             leafShadowOpacity: leafShadowOpacity,
             stoneExtraOverlayEnabled: stoneExtraOverlayEnabled,
             boardTopBrightness: boardTopBrightness,
@@ -1010,6 +1026,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.boardCameraDepth,
     required this.boardTargetZOffset,
     required this.boardCinematicFov,
+    required this.boardRotationY,
     required this.onShadowOpacityChanged,
     required this.onStoneExtraOverlayChanged,
     required this.onBoardTopBrightnessChanged,
@@ -1031,6 +1048,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.onBoardCameraDepthChanged,
     required this.onBoardTargetZOffsetChanged,
     required this.onBoardCinematicFovChanged,
+    required this.onBoardRotationYChanged,
     required this.onClose,
     required this.onReset,
   });
@@ -1056,6 +1074,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final double boardCameraDepth;
   final double boardTargetZOffset;
   final double boardCinematicFov;
+  final double boardRotationY;
   final ValueChanged<double> onShadowOpacityChanged;
   final ValueChanged<bool> onStoneExtraOverlayChanged;
   final ValueChanged<double> onBoardTopBrightnessChanged;
@@ -1077,6 +1096,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final ValueChanged<double> onBoardCameraDepthChanged;
   final ValueChanged<double> onBoardTargetZOffsetChanged;
   final ValueChanged<double> onBoardCinematicFovChanged;
+  final ValueChanged<double> onBoardRotationYChanged;
   final VoidCallback onClose;
   final VoidCallback onReset;
 
@@ -1118,28 +1138,28 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           label: 'FOV',
           value: widget.boardCinematicFov,
           min: 18,
-          max: 36,
+          max: 100,
           onChanged: widget.onBoardCinematicFovChanged,
         ),
         _TuningSlider(
           label: '缩放',
           value: widget.boardSceneScale,
           min: 0.24,
-          max: 0.62,
+          max: 2.0,
           onChanged: widget.onBoardSceneScaleChanged,
         ),
         _TuningSlider(
           label: '相机高',
           value: widget.boardCameraLift,
-          min: 0.5,
-          max: 8.5,
+          min: 0.01,
+          max: 20,
           onChanged: widget.onBoardCameraLiftChanged,
         ),
         _TuningSlider(
           label: '相机远',
           value: widget.boardCameraDepth,
-          min: 3.2,
-          max: 7.4,
+          min: 1.0,
+          max: 30,
           onChanged: widget.onBoardCameraDepthChanged,
         ),
         _TuningSlider(
@@ -1148,6 +1168,13 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           min: -1.4,
           max: 0.6,
           onChanged: widget.onBoardTargetZOffsetChanged,
+        ),
+        _TuningSlider(
+          label: '棋盘转向',
+          value: widget.boardRotationY,
+          min: -3.14,
+          max: 3.14,
+          onChanged: widget.onBoardRotationYChanged,
         ),
         const _TuningGroupTitle('画布位置'),
         _TuningSlider(
