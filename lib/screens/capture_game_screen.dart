@@ -35,14 +35,14 @@ Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
 }
 
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
-  static const double _defaultHomeBoardTopFactor = 0.24;
-  static const double _defaultHomeBoardHeightFactor = 0.50;
-  static const double _defaultHomeBoardCanvasYOffset = -80.0;
+  static const double _defaultHomeBoardTopFactor = 0.18;
+  static const double _defaultHomeBoardHeightFactor = 0.68;
+  static const double _defaultHomeBoardCanvasYOffset = -82.0;
   static const double _defaultHomeBoardSceneScale = 0.28;
-  static const double _defaultHomeBoardCameraLift = 3.35;
+  static const double _defaultHomeBoardCameraLift = 5.5;
   static const double _defaultHomeBoardCameraDepth = 4.85;
-  static const double _defaultHomeBoardTargetZOffset = -0.15;
-  static const double _defaultHomeCardTopFactor = 0.54;
+  static const double _defaultHomeBoardTargetZOffset = 0.68;
+  static const double _defaultHomeCardTopFactor = 0.63;
 
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
@@ -97,16 +97,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
             return Stack(
               children: [
                 Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: PageHeroBanner(
-                    title: _CaptureCopy.pageTitle,
-                    subtitle: _CaptureCopy.pageSubtitle,
-                    showOrbitalArt: false,
-                  ),
-                ),
-                Positioned(
                   top: constraints.maxHeight * _homeBoardTopFactor,
                   left: 0,
                   right: 0,
@@ -124,6 +114,16 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         targetZOffset: _homeBoardTargetZOffset,
                       ),
                     ),
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: PageHeroBanner(
+                    title: _CaptureCopy.pageTitle,
+                    subtitle: _CaptureCopy.pageSubtitle,
+                    showOrbitalArt: false,
                   ),
                 ),
                 SafeArea(
@@ -626,58 +626,58 @@ class _HomeBoardTuningPanel extends StatelessWidget {
           _TuningSlider(
             label: 'boardY',
             value: boardTop,
-            min: 0.18,
-            max: 0.38,
+            min: 0.05,
+            max: 0.40,
             onChanged: onBoardTopChanged,
           ),
           _TuningSlider(
             label: 'height',
             value: boardHeight,
-            min: 0.34,
-            max: 0.68,
+            min: 0.28,
+            max: 0.90,
             onChanged: onBoardHeightChanged,
           ),
           _TuningSlider(
             label: 'canvasY',
             value: canvasY,
-            min: -180.0,
-            max: 80.0,
+            min: -240.0,
+            max: 120.0,
             fractionDigits: 0,
             onChanged: onCanvasYChanged,
           ),
           _TuningSlider(
             label: 'scale',
             value: sceneScale,
-            min: 0.28,
-            max: 0.75,
+            min: 0.10,
+            max: 1.20,
             onChanged: onSceneScaleChanged,
           ),
           _TuningSlider(
             label: 'lift',
             value: cameraLift,
             min: 0.0,
-            max: 5.5,
+            max: 8.0,
             onChanged: onCameraLiftChanged,
           ),
           _TuningSlider(
             label: 'depth',
             value: cameraDepth,
-            min: 3.0,
-            max: 8.0,
+            min: 2.0,
+            max: 10.0,
             onChanged: onCameraDepthChanged,
           ),
           _TuningSlider(
             label: 'targetZ',
             value: targetZ,
-            min: -1.4,
-            max: 1.0,
+            min: -2.0,
+            max: 2.0,
             onChanged: onTargetZChanged,
           ),
           _TuningSlider(
             label: 'cardY',
             value: cardTop,
-            min: 0.45,
-            max: 0.66,
+            min: 0.40,
+            max: 0.78,
             onChanged: onCardTopChanged,
           ),
         ],

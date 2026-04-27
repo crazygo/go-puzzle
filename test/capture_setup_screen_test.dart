@@ -58,7 +58,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     // Difficulty defaults to '中级'; tap '高级' to change it.
-    await tester.tap(find.text('高级'));
+    final advancedOption = find.text('高级');
+    await tester.dragUntilVisible(
+      advancedOption,
+      find.byType(Scrollable),
+      const Offset(0, -120),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(advancedOption);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

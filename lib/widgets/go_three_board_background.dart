@@ -96,6 +96,10 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   @override
   void initState() {
     super.initState();
+    if (_isFlutterWidgetTest) {
+      _pluginUnavailable = true;
+      return;
+    }
 
     // Install a temporary error handler to catch MissingPluginException that
     // flutter_angle throws in test environments or other platforms where the
@@ -141,6 +145,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   @override
   void didUpdateWidget(covariant GoThreeBoardBackground oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (_pluginUnavailable) return;
     if (oldWidget.boardSize != widget.boardSize ||
         !_listEquals(oldWidget.stones, widget.stones)) {
       _rebuildStones();
@@ -169,6 +174,17 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   Widget build(BuildContext context) {
     if (_pluginUnavailable) return const SizedBox.expand();
     return SizedBox.expand(child: _threeJs.build());
+  }
+
+  bool get _isFlutterWidgetTest {
+    var isTestBinding = false;
+    assert(() {
+      isTestBinding = WidgetsBinding.instance.runtimeType
+          .toString()
+          .contains('TestWidgetsFlutterBinding');
+      return true;
+    }());
+    return isTestBinding;
   }
 
   Future<void> _setup() async {
@@ -210,7 +226,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   void _setCamera(double t) {
     final drift = widget.animate ? math.sin(t * 0.32) : 0.0;
     final lift = widget.animate ? math.sin(t * 0.21 + 0.8) : 0.0;
-    final viewScale = widget.sceneScale.clamp(0.35, 1.80);
+    final viewScale = widget.sceneScale.clamp(0.10, 1.80);
     if (widget.cinematicFrame) {
       final target = three.Vector3(
         0,
