@@ -103,7 +103,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       'assets/textures/board_top_albedo_v2_1024.png';
   static const bool _enableAdditiveBoardHighlights = false;
   static const bool _enableLeafShadowCaustics = false;
-  static const double _surfaceSheenOpacity = 0.34;
+  static const double _surfaceSheenOpacity = 1.18;
   static const Offset3 _keyLightTarget = Offset3(0.9, -0.10, -0.35);
   static const Offset3 _sheenLightPosition = Offset3(6.2, 5.9, -3.9);
   static const Offset3 _sheenLightTarget = Offset3(0.4, -0.05, 0.08);
@@ -559,9 +559,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   void _buildSurfaceSheen() {
     _surfaceSheenMaterials.clear();
     const layers = [
-      (radius: 1.05, opacity: 0.045, scaleX: 2.75, scaleZ: 1.24),
-      (radius: 1.42, opacity: 0.026, scaleX: 2.70, scaleZ: 1.18),
-      (radius: 1.84, opacity: 0.014, scaleX: 2.55, scaleZ: 1.08),
+      (radius: 1.05, opacity: 0.070, scaleX: 2.75, scaleZ: 1.24),
+      (radius: 1.42, opacity: 0.040, scaleX: 2.70, scaleZ: 1.18),
+      (radius: 1.84, opacity: 0.022, scaleX: 2.55, scaleZ: 1.08),
     ];
     for (int i = 0; i < layers.length; i++) {
       final layer = layers[i];
@@ -603,10 +603,10 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     for (int i = 0; i < _surfaceSheenMaterials.length; i++) {
       final material = _surfaceSheenMaterials[i];
       final baseOpacity = i == 0
-          ? 0.045
+          ? 0.070
           : i == 1
-              ? 0.026
-              : 0.014;
+              ? 0.040
+              : 0.022;
       material.opacity =
           baseOpacity * _surfaceSheenOpacity * b.clamp(0.75, 1.2);
       material.needsUpdate = true;
