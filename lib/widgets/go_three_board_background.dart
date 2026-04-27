@@ -315,9 +315,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     });
     final topMaterial = three.MeshStandardMaterial({
       three.MaterialProperty.color: 0xdab074,
-      three.MaterialProperty.roughness: 0.36,
-      three.MaterialProperty.metalness: 0.03,
-      three.MaterialProperty.emissive: 0x2d1e10,
+      three.MaterialProperty.roughness: 0.48,
+      three.MaterialProperty.metalness: 0.0,
     });
 
     const straightWidth = _boardWidth - _cornerRadius * 2;
@@ -397,49 +396,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       }),
     )..position.setValues(0, _boardTop + 0.030, _boardWidth / 2 + 0.014);
     _root.add(frontGlow);
-
-    final reflectionMaterial = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0xfff3dd,
-      three.MaterialProperty.opacity: 0.09,
-      three.MaterialProperty.transparent: true,
-      three.MaterialProperty.blending: three.AdditiveBlending,
-      three.MaterialProperty.depthWrite: false,
-    });
-    for (int i = 0; i < 5; i++) {
-      final t = i / 4;
-      final glow = three.Mesh(
-        three.CircleGeometry(radius: 0.28 + _noise(820 + i * 17) * 0.34),
-        reflectionMaterial,
-      )
-        ..position.setValues(
-          1.50 + t * 2.05 + (_noise(830 + i * 13) - 0.5) * 0.18,
-          _boardTop + 0.046 + i * 0.0004,
-          -2.10 + t * 0.85 + (_noise(840 + i * 19) - 0.5) * 0.22,
-        )
-        ..rotation.x = -math.pi / 2
-        ..rotation.z = -0.46 + (_noise(850 + i * 23) - 0.5) * 0.22
-        ..scale.x = 2.0 + _noise(860 + i * 29) * 1.5
-        ..scale.y = 0.65 + _noise(870 + i * 31) * 0.25;
-      _root.add(glow);
-    }
-
-    final shaftMaterial = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0xfff6e5,
-      three.MaterialProperty.opacity: 0.05,
-      three.MaterialProperty.transparent: true,
-      three.MaterialProperty.blending: three.AdditiveBlending,
-      three.MaterialProperty.depthWrite: false,
-    });
-    for (int i = 0; i < 3; i++) {
-      final shaft = three.Mesh(
-        three.PlaneGeometry(0.28 + i * 0.05, 2.6 - i * 0.32),
-        shaftMaterial,
-      )
-        ..position.setValues(2.5 + i * 0.38, 0.94 + i * 0.05, -2.48 + i * 0.22)
-        ..rotation.y = -0.56
-        ..rotation.z = 0.28 + i * 0.05;
-      _root.add(shaft);
-    }
   }
 
   void _addBoardBox({
