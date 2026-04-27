@@ -43,6 +43,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardCameraDepth = 4.85;
   static const double _defaultHomeBoardTargetZOffset = -0.31;
   static const double _defaultHomeCardTopFactor = 0.44;
+  static const double _defaultLeafShadowOpacity = 0.16;
+  static const double _defaultLeafShadowSpeed = 1.05;
+  static const double _defaultLeafShadowSway = 1.0;
+  static const double _defaultKeyLightSwing = 1.0;
 
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
@@ -54,7 +58,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   CaptureInitialMode _initialMode = CaptureInitialMode.twistCross;
   bool _isAdjusting = false;
   bool _isRecognizingScreenshot = false;
-  bool _homeTuningPanelCollapsed = false;
+  bool _homeTuningPanelCollapsed = true;
   double _homeBoardTopFactor = _defaultHomeBoardTopFactor;
   double _homeBoardHeightFactor = _defaultHomeBoardHeightFactor;
   double _homeBoardCanvasYOffset = _defaultHomeBoardCanvasYOffset;
@@ -63,6 +67,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
   double _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
   double _homeCardTopFactor = _defaultHomeCardTopFactor;
+  double _leafShadowOpacity = _defaultLeafShadowOpacity;
+  double _leafShadowSpeed = _defaultLeafShadowSpeed;
+  double _leafShadowSway = _defaultLeafShadowSway;
+  double _keyLightSwing = _defaultKeyLightSwing;
 
   @override
   void initState() {
@@ -112,6 +120,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         cameraLift: _homeBoardCameraLift,
                         cameraDepth: _homeBoardCameraDepth,
                         targetZOffset: _homeBoardTargetZOffset,
+                        leafShadowOpacity: _leafShadowOpacity,
+                        leafShadowSpeed: _leafShadowSpeed,
+                        leafShadowSway: _leafShadowSway,
+                        keyLightSwing: _keyLightSwing,
                       ),
                     ),
                   ),
@@ -264,36 +276,24 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     ],
                   ),
                 ),
-                if (kIsWeb && kDebugMode)
+                if (kIsWeb)
                   SafeArea(
                     child: Align(
                       alignment: Alignment.topRight,
                       child: _HomeBoardTuningPanel(
                         collapsed: _homeTuningPanelCollapsed,
-                        boardTop: _homeBoardTopFactor,
-                        boardHeight: _homeBoardHeightFactor,
-                        canvasY: _homeBoardCanvasYOffset,
-                        sceneScale: _homeBoardSceneScale,
-                        cameraLift: _homeBoardCameraLift,
-                        cameraDepth: _homeBoardCameraDepth,
-                        targetZ: _homeBoardTargetZOffset,
-                        cardTop: _homeCardTopFactor,
-                        onBoardTopChanged: (value) =>
-                            setState(() => _homeBoardTopFactor = value),
-                        onBoardHeightChanged: (value) =>
-                            setState(() => _homeBoardHeightFactor = value),
-                        onCanvasYChanged: (value) =>
-                            setState(() => _homeBoardCanvasYOffset = value),
-                        onSceneScaleChanged: (value) =>
-                            setState(() => _homeBoardSceneScale = value),
-                        onCameraLiftChanged: (value) =>
-                            setState(() => _homeBoardCameraLift = value),
-                        onCameraDepthChanged: (value) =>
-                            setState(() => _homeBoardCameraDepth = value),
-                        onTargetZChanged: (value) =>
-                            setState(() => _homeBoardTargetZOffset = value),
-                        onCardTopChanged: (value) =>
-                            setState(() => _homeCardTopFactor = value),
+                        shadowOpacity: _leafShadowOpacity,
+                        shadowSpeed: _leafShadowSpeed,
+                        shadowSway: _leafShadowSway,
+                        lightSwing: _keyLightSwing,
+                        onShadowOpacityChanged: (value) =>
+                            setState(() => _leafShadowOpacity = value),
+                        onShadowSpeedChanged: (value) =>
+                            setState(() => _leafShadowSpeed = value),
+                        onShadowSwayChanged: (value) =>
+                            setState(() => _leafShadowSway = value),
+                        onLightSwingChanged: (value) =>
+                            setState(() => _keyLightSwing = value),
                         onToggleCollapsed: () => setState(
                           () => _homeTuningPanelCollapsed =
                               !_homeTuningPanelCollapsed,
@@ -320,6 +320,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
       _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
       _homeCardTopFactor = _defaultHomeCardTopFactor;
+      _leafShadowOpacity = _defaultLeafShadowOpacity;
+      _leafShadowSpeed = _defaultLeafShadowSpeed;
+      _leafShadowSway = _defaultLeafShadowSway;
+      _keyLightSwing = _defaultKeyLightSwing;
     });
   }
 
@@ -499,43 +503,27 @@ class _ParticlePreviewCanvas extends StatelessWidget {
 class _HomeBoardTuningPanel extends StatelessWidget {
   const _HomeBoardTuningPanel({
     required this.collapsed,
-    required this.boardTop,
-    required this.boardHeight,
-    required this.canvasY,
-    required this.sceneScale,
-    required this.cameraLift,
-    required this.cameraDepth,
-    required this.targetZ,
-    required this.cardTop,
-    required this.onBoardTopChanged,
-    required this.onBoardHeightChanged,
-    required this.onCanvasYChanged,
-    required this.onSceneScaleChanged,
-    required this.onCameraLiftChanged,
-    required this.onCameraDepthChanged,
-    required this.onTargetZChanged,
-    required this.onCardTopChanged,
+    required this.shadowOpacity,
+    required this.shadowSpeed,
+    required this.shadowSway,
+    required this.lightSwing,
+    required this.onShadowOpacityChanged,
+    required this.onShadowSpeedChanged,
+    required this.onShadowSwayChanged,
+    required this.onLightSwingChanged,
     required this.onToggleCollapsed,
     required this.onReset,
   });
 
   final bool collapsed;
-  final double boardTop;
-  final double boardHeight;
-  final double canvasY;
-  final double sceneScale;
-  final double cameraLift;
-  final double cameraDepth;
-  final double targetZ;
-  final double cardTop;
-  final ValueChanged<double> onBoardTopChanged;
-  final ValueChanged<double> onBoardHeightChanged;
-  final ValueChanged<double> onCanvasYChanged;
-  final ValueChanged<double> onSceneScaleChanged;
-  final ValueChanged<double> onCameraLiftChanged;
-  final ValueChanged<double> onCameraDepthChanged;
-  final ValueChanged<double> onTargetZChanged;
-  final ValueChanged<double> onCardTopChanged;
+  final double shadowOpacity;
+  final double shadowSpeed;
+  final double shadowSway;
+  final double lightSwing;
+  final ValueChanged<double> onShadowOpacityChanged;
+  final ValueChanged<double> onShadowSpeedChanged;
+  final ValueChanged<double> onShadowSwayChanged;
+  final ValueChanged<double> onLightSwingChanged;
   final VoidCallback onToggleCollapsed;
   final VoidCallback onReset;
 
@@ -557,16 +545,13 @@ class _HomeBoardTuningPanel extends StatelessWidget {
           ],
         ),
         child: CupertinoButton(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           minimumSize: Size.zero,
           onPressed: onToggleCollapsed,
-          child: Text(
-            '3D s=${sceneScale.toStringAsFixed(2)} y=${canvasY.toStringAsFixed(0)}',
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFFB68454),
-            ),
+          child: const Icon(
+            CupertinoIcons.slider_horizontal_3,
+            size: 18,
+            color: Color(0xFFB68454),
           ),
         ),
       );
@@ -595,7 +580,7 @@ class _HomeBoardTuningPanel extends StatelessWidget {
             children: [
               const Expanded(
                 child: Text(
-                  '3D params',
+                  '光影调试',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -624,61 +609,32 @@ class _HomeBoardTuningPanel extends StatelessWidget {
             ],
           ),
           _TuningSlider(
-            label: 'boardY',
-            value: boardTop,
-            min: 0.05,
-            max: 0.40,
-            onChanged: onBoardTopChanged,
+            label: 'shadow',
+            value: shadowOpacity,
+            min: 0.04,
+            max: 0.28,
+            onChanged: onShadowOpacityChanged,
           ),
           _TuningSlider(
-            label: 'height',
-            value: boardHeight,
-            min: 0.28,
-            max: 0.90,
-            onChanged: onBoardHeightChanged,
+            label: 'speed',
+            value: shadowSpeed,
+            min: 0.50,
+            max: 2.00,
+            onChanged: onShadowSpeedChanged,
           ),
           _TuningSlider(
-            label: 'canvasY',
-            value: canvasY,
-            min: -240.0,
-            max: 120.0,
-            fractionDigits: 0,
-            onChanged: onCanvasYChanged,
-          ),
-          _TuningSlider(
-            label: 'scale',
-            value: sceneScale,
-            min: 0.10,
-            max: 1.20,
-            onChanged: onSceneScaleChanged,
-          ),
-          _TuningSlider(
-            label: 'lift',
-            value: cameraLift,
-            min: 0.0,
-            max: 8.0,
-            onChanged: onCameraLiftChanged,
-          ),
-          _TuningSlider(
-            label: 'depth',
-            value: cameraDepth,
-            min: 2.0,
-            max: 10.0,
-            onChanged: onCameraDepthChanged,
-          ),
-          _TuningSlider(
-            label: 'targetZ',
-            value: targetZ,
-            min: -2.0,
-            max: 2.0,
-            onChanged: onTargetZChanged,
-          ),
-          _TuningSlider(
-            label: 'cardY',
-            value: cardTop,
+            label: 'sway',
+            value: shadowSway,
             min: 0.40,
-            max: 0.78,
-            onChanged: onCardTopChanged,
+            max: 2.20,
+            onChanged: onShadowSwayChanged,
+          ),
+          _TuningSlider(
+            label: 'angle',
+            value: lightSwing,
+            min: 0.0,
+            max: 2.0,
+            onChanged: onLightSwingChanged,
           ),
         ],
       ),
@@ -693,7 +649,6 @@ class _TuningSlider extends StatelessWidget {
     required this.min,
     required this.max,
     required this.onChanged,
-    this.fractionDigits = 2,
   });
 
   final String label;
@@ -701,7 +656,6 @@ class _TuningSlider extends StatelessWidget {
   final double min;
   final double max;
   final ValueChanged<double> onChanged;
-  final int fractionDigits;
 
   @override
   Widget build(BuildContext context) {
@@ -726,7 +680,7 @@ class _TuningSlider extends StatelessWidget {
         SizedBox(
           width: 42,
           child: Text(
-            value.toStringAsFixed(fractionDigits),
+            value.toStringAsFixed(2),
             textAlign: TextAlign.right,
             style: const TextStyle(fontSize: 10, color: Color(0xFF7E6F61)),
           ),
