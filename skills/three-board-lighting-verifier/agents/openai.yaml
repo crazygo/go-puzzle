@@ -1,0 +1,7 @@
+interface:
+  display_name: "3D Board Lighting Verifier"
+  short_description: "Score 3D board lighting against golden."
+  default_prompt: "Use $three-board-lighting-verifier to score a candidate 3D board screenshot against the golden and decide whether lighting must enter another controlled iteration."
+
+policy:
+  allow_implicit_invocation: true
