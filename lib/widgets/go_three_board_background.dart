@@ -559,9 +559,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   void _buildSurfaceSheen() {
     _surfaceSheenMaterials.clear();
     const layers = [
-      (radius: 1.05, opacity: 0.070, scaleX: 2.75, scaleZ: 1.24),
-      (radius: 1.42, opacity: 0.040, scaleX: 2.70, scaleZ: 1.18),
-      (radius: 1.84, opacity: 0.022, scaleX: 2.55, scaleZ: 1.08),
+      (radius: 1.12, opacity: 0.070, scaleX: 3.34, scaleZ: 1.10),
+      (radius: 1.54, opacity: 0.040, scaleX: 3.18, scaleZ: 1.06),
+      (radius: 2.04, opacity: 0.022, scaleX: 2.92, scaleZ: 1.00),
     ];
     for (int i = 0; i < layers.length; i++) {
       final layer = layers[i];
@@ -579,9 +579,12 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         material,
       )
         ..position.setValues(
-            1.72 + i * 0.16, _boardTop + 0.041 + i * 0.001, -1.16 - i * 0.10)
+          2.24 + i * 0.26,
+          _boardTop + 0.041 + i * 0.001,
+          -1.82 - i * 0.20,
+        )
         ..rotation.x = -math.pi / 2
-        ..rotation.z = -0.18
+        ..rotation.z = -0.34
         ..scale.x = layer.scaleX
         ..scale.y = layer.scaleZ;
       _root.add(sheen);
