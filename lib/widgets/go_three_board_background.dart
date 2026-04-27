@@ -841,12 +841,12 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     });
     final shadowMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x3f2815,
-      three.MaterialProperty.opacity: 0.22,
+      three.MaterialProperty.opacity: 0.30,
       three.MaterialProperty.transparent: true,
     });
     final softShadowMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x7a5a37,
-      three.MaterialProperty.opacity: 0.08,
+      three.MaterialProperty.opacity: 0.12,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.depthWrite: false,
     });
@@ -866,24 +866,24 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           shadowMaterial,
         )
           ..position.setValues(
-            x - radius * 0.10,
+            x - radius * 0.16,
             _boardTop + 0.049,
-            z + radius * 0.07,
+            z + radius * 0.11,
           )
-          ..scale.x = 1.14
-          ..scale.z = 0.88;
+          ..scale.x = 1.20
+          ..scale.z = 0.82;
         _stoneGroup.add(shadow);
         final softShadow = three.Mesh(
           three.CylinderGeometry(radius * 1.55, radius * 1.55, 0.004, 40),
           softShadowMaterial,
         )
           ..position.setValues(
-            x - radius * 0.15,
+            x - radius * 0.22,
             _boardTop + 0.046,
-            z + radius * 0.12,
+            z + radius * 0.18,
           )
-          ..scale.x = 1.18
-          ..scale.z = 0.84;
+          ..scale.x = 1.28
+          ..scale.z = 0.78;
         _stoneGroup.add(softShadow);
       }
 
