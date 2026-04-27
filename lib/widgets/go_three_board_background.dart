@@ -91,7 +91,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   final three.Group _particleGroup = three.Group();
   final three.Group _leafShadowGroup = three.Group();
   final List<_LeafShadowBlob> _leafShadowBlobs = [];
-  three.DirectionalLight? _keyLight;
+  three.SpotLight? _keyLight;
   three.Vector3? _keyLightBasePosition;
   double _elapsed = 0;
   bool _sceneInitialized = false;
@@ -207,6 +207,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   Future<void> _setup() async {
     _threeJs.scene = three.Scene();
     _sceneInitialized = true;
+    _threeJs.renderer?.shadowMap.enabled = true;
+    _threeJs.renderer?.shadowMap.type = three.PCFSoftShadowMap;
     _root
       ..position.setValues(0, widget.cinematicFrame ? -1.50 : 0, 0)
       ..rotation.y = widget.cinematicFrame ? 0.03 : 0;
@@ -281,12 +283,22 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   }
 
   void _buildLights() {
-    _threeJs.scene.add(three.AmbientLight(0xffead2, 0.16));
+    _threeJs.scene.add(three.AmbientLight(0xffead2, 0.18));
 
-    final key = three.DirectionalLight(0xffd7a4, 1.02);
-    key.position.setValues(4.8, 6.0, 4.2);
+    final key = three.SpotLight(
+      0xfffaf0,
+      1.24,
+      22,
+      math.pi / 4.8,
+      0.74,
+      1.0,
+    );
+    key.position.setValues(5.9, 6.3, -2.6);
     key.castShadow = true;
-    key.target?.position.setValues(0.8, -0.10, -0.55);
+    key.target?.position.setValues(-0.10, -0.06, 0.05);
+    key.shadow?.mapSize.width = 2048;
+    key.shadow?.mapSize.height = 2048;
+    key.shadow?.bias = -0.001;
     _threeJs.scene.add(key);
     if (key.target != null) {
       _threeJs.scene.add(key.target);
@@ -294,13 +306,13 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _keyLight = key;
     _keyLightBasePosition = key.position.clone();
 
-    final fill = three.DirectionalLight(0xf1e4d0, 0.10);
-    fill.position.setValues(-4.6, 2.8, -2.8);
+    final fill = three.DirectionalLight(0xf1e4d0, 0.14);
+    fill.position.setValues(-5.2, 3.2, 2.2);
     _threeJs.scene.add(fill);
 
-    final sheen = three.SpotLight(0xffd9a9, 0.16, 15, math.pi / 7, 0.82, 1.4);
-    sheen.position.setValues(3.0, 4.8, 2.0);
-    sheen.target?.position.setValues(0.7, -0.04, -0.3);
+    final sheen = three.SpotLight(0xffd9a9, 0.24, 15, math.pi / 7, 0.86, 1.4);
+    sheen.position.setValues(3.6, 4.9, -1.2);
+    sheen.target?.position.setValues(0.9, -0.04, 0.2);
     _threeJs.scene.add(sheen);
     if (sheen.target != null) {
       _threeJs.scene.add(sheen.target);
@@ -569,8 +581,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       three.MaterialProperty.depthWrite: false,
     });
 
-    const centerX = 1.45;
-    const centerZ = -1.35;
+    const centerX = 1.75;
+    const centerZ = -1.65;
     for (int i = 0; i < 14; i++) {
       final ring = 0.35 + _noise(210 + i * 31) * 1.85;
       final angle = -0.85 + _noise(310 + i * 19) * 1.25;
@@ -637,11 +649,11 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final base = _keyLightBasePosition;
     if (key != null && base != null) {
       key.position.setValues(
-        base.x + math.sin(t * 0.32 + 0.2) * 0.08 * swing,
-        base.y + math.sin(t * 0.27 + 0.6) * 0.06 * swing,
-        base.z + math.cos(t * 0.29 + 0.9) * 0.07 * swing,
+        base.x + math.sin(t * 0.32 + 0.2) * 0.12 * swing,
+        base.y + math.sin(t * 0.27 + 0.6) * 0.08 * swing,
+        base.z + math.cos(t * 0.29 + 0.9) * 0.10 * swing,
       );
-      key.intensity = 0.98 * intensityPulse;
+      key.intensity = 1.14 * intensityPulse;
     }
   }
 
@@ -682,12 +694,12 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         shadowMaterial,
       )
         ..position.setValues(
-          x + radius * 0.07,
+          x - radius * 0.18,
           _boardTop + 0.049,
-          z + radius * 0.10,
+          z + radius * 0.08,
         )
-        ..scale.x = 1.14
-        ..scale.z = 0.88;
+        ..scale.x = 1.20
+        ..scale.z = 0.90;
       _stoneGroup.add(shadow);
 
       final mesh = three.Mesh(
