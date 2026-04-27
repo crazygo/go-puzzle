@@ -55,11 +55,9 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.cameraDepth,
     this.targetZOffset = 0.0,
     this.leafShadowOpacity = 0.16,
-    this.leafShadowSpeed = 1.05,
-    this.leafShadowSway = 1.0,
-    this.keyLightSwing = 1.0,
     this.stoneExtraOverlayEnabled = true,
     this.boardTopBrightness = 1.0,
+    this.showDebugGuides = false,
     this.keyLightPosition = const Offset3(5.8, 5.6, -3.8),
     this.fillLightPosition = const Offset3(-4.8, 2.6, 3.2),
     this.keyLightIntensity = 0.92,
@@ -82,11 +80,9 @@ class GoThreeBoardBackground extends StatefulWidget {
   final double? cameraDepth;
   final double targetZOffset;
   final double leafShadowOpacity;
-  final double leafShadowSpeed;
-  final double leafShadowSway;
-  final double keyLightSwing;
   final bool stoneExtraOverlayEnabled;
   final double boardTopBrightness;
+  final bool showDebugGuides;
   final Offset3 keyLightPosition;
   final Offset3 fillLightPosition;
   final double keyLightIntensity;
@@ -114,12 +110,11 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   final three.Group _stoneGroup = three.Group();
   final three.Group _particleGroup = three.Group();
   final three.Group _leafShadowGroup = three.Group();
-  final List<_LeafShadowBlob> _leafShadowBlobs = [];
+  final three.Group _debugGuideGroup = three.Group();
   three.AmbientLight? _ambientLight;
   three.DirectionalLight? _keyLight;
   three.DirectionalLight? _fillLight;
   three.SpotLight? _sheenLight;
-  three.Vector3? _keyLightBasePosition;
   three.MeshStandardMaterial? _boardTopMaterial;
   three.MeshBasicMaterial? _reflectionMaterial;
   three.MeshBasicMaterial? _shaftMaterial;
@@ -201,10 +196,11 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         oldWidget.targetZOffset != widget.targetZOffset) {
       _setCamera(_elapsed);
     }
-    if (oldWidget.leafShadowOpacity != widget.leafShadowOpacity ||
-        oldWidget.leafShadowSpeed != widget.leafShadowSpeed ||
-        oldWidget.leafShadowSway != widget.leafShadowSway) {
+    if (oldWidget.leafShadowOpacity != widget.leafShadowOpacity) {
       _buildLeafShadowCaustics();
+    }
+    if (oldWidget.showDebugGuides != widget.showDebugGuides) {
+      _debugGuideGroup.visible = widget.showDebugGuides;
     }
     if (oldWidget.stoneExtraOverlayEnabled != widget.stoneExtraOverlayEnabled) {
       _rebuildStones();
@@ -273,6 +269,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _buildSideWoodDetail();
     _buildGrid();
     _buildLeafShadowCaustics();
+    _buildDebugGuides();
     _buildParticles();
     _rebuildStones();
 
@@ -281,13 +278,37 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       _elapsed += dt;
       if (widget.animate) {
         _setCamera(_elapsed);
-        _animateLeafShadowCaustics(_elapsed);
       }
       if (widget.particles) {
         _particleGroup.rotation.y += dt * 0.045;
         _particleGroup.position.y = 0.12 + math.sin(_elapsed * 0.7) * 0.025;
       }
     });
+  }
+
+  void _buildDebugGuides() {
+    _debugGuideGroup.clear();
+    _debugGuideGroup.visible = widget.showDebugGuides;
+
+    final xAxis = three.Mesh(
+      three.BoxGeometry(1.2, 0.015, 0.015),
+      three.MeshBasicMaterial({three.MaterialProperty.color: 0xff4a4a}),
+    )..position.setValues(0.6, _boardTop + 0.05, 0);
+    final yAxis = three.Mesh(
+      three.BoxGeometry(0.015, 1.2, 0.015),
+      three.MeshBasicMaterial({three.MaterialProperty.color: 0x4aff4a}),
+    )..position.setValues(0, _boardTop + 0.65, 0);
+    final zAxis = three.Mesh(
+      three.BoxGeometry(0.015, 0.015, 1.2),
+      three.MeshBasicMaterial({three.MaterialProperty.color: 0x4a6fff}),
+    )..position.setValues(0, _boardTop + 0.05, 0.6);
+    _debugGuideGroup
+      ..add(xAxis)
+      ..add(yAxis)
+      ..add(zAxis);
+
+    _root.add(_debugGuideGroup);
+    _updateDebugGuides();
   }
 
   void _setCamera(double t) {
@@ -350,7 +371,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       _threeJs.scene.add(key.target);
     }
     _keyLight = key;
-    _keyLightBasePosition = key.position.clone();
 
     final fill = three.DirectionalLight(
         widget.fillLightColor, widget.fillLightIntensity);
@@ -572,7 +592,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         widget.keyLightPosition.y,
         widget.keyLightPosition.z,
       );
-      _keyLightBasePosition = key.position.clone();
     }
     final fill = _fillLight;
     if (fill != null) {
@@ -593,6 +612,46 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         widget.keyLightPosition.y + 0.3,
         widget.keyLightPosition.z - 0.1,
       );
+    }
+    _updateDebugGuides();
+  }
+
+  void _updateDebugGuides() {
+    if (_debugGuideGroup.children.length > 3) {
+      final keep = _debugGuideGroup.children.take(3).toList();
+      _debugGuideGroup
+        ..clear()
+        ..add(keep[0])
+        ..add(keep[1])
+        ..add(keep[2]);
+    }
+
+    final lightPosition = widget.keyLightPosition;
+    const target = Offset3(0.3, -0.08, 0.05);
+    final src = three.Mesh(
+      three.SphereGeometry(0.08, 18, 10),
+      three.MeshBasicMaterial({three.MaterialProperty.color: 0xffe061}),
+    )..position.setValues(lightPosition.x, lightPosition.y, lightPosition.z);
+    final dst = three.Mesh(
+      three.SphereGeometry(0.05, 16, 10),
+      three.MeshBasicMaterial({three.MaterialProperty.color: 0x6ee8ff}),
+    )..position.setValues(target.x, target.y, target.z);
+    _debugGuideGroup
+      ..add(src)
+      ..add(dst);
+
+    const dots = 14;
+    for (int i = 1; i < dots; i++) {
+      final t = i / dots;
+      final dot = three.Mesh(
+        three.SphereGeometry(0.022, 10, 8),
+        three.MeshBasicMaterial({three.MaterialProperty.color: 0xffd27a}),
+      )..position.setValues(
+          lightPosition.x + (target.x - lightPosition.x) * t,
+          lightPosition.y + (target.y - lightPosition.y) * t,
+          lightPosition.z + (target.z - lightPosition.z) * t,
+        );
+      _debugGuideGroup.add(dot);
     }
   }
 
@@ -699,7 +758,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
   void _buildLeafShadowCaustics() {
     _leafShadowGroup.clear();
-    _leafShadowBlobs.clear();
 
     final opacity = widget.leafShadowOpacity.clamp(0.02, 0.18);
     final coreMaterial = three.MeshBasicMaterial({
@@ -723,8 +781,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       final baseX = centerX + math.cos(angle) * ring;
       final baseZ = centerZ + math.sin(angle) * ring * 0.78;
       final radius = 0.12 + _noise(410 + i * 7) * 0.14;
-      final phase = _noise(510 + i * 13) * math.pi * 2;
-      final phaseWeight = 0.010 + _noise(610 + i * 17) * 0.012;
 
       final core = three.Mesh(
         three.CircleGeometry(radius: radius, segments: 26),
@@ -745,54 +801,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       _leafShadowGroup
         ..add(penumbra)
         ..add(core);
-      _leafShadowBlobs.add(
-        _LeafShadowBlob(
-          core: core,
-          penumbra: penumbra,
-          baseX: baseX,
-          baseZ: baseZ,
-          phase: phase,
-          phaseWeight: phaseWeight,
-        ),
-      );
     }
 
     _root.add(_leafShadowGroup);
-  }
-
-  void _animateLeafShadowCaustics(double t) {
-    final swing = widget.keyLightSwing.clamp(0.0, 2.0);
-    final sway = widget.leafShadowSway.clamp(0.3, 1.8);
-    final speed = widget.leafShadowSpeed.clamp(0.4, 1.8);
-    final w = t * 0.22 * speed;
-    final driftX = math.sin(w + 0.2) * 0.042 * sway;
-    final driftZ = math.cos(w * 0.92 + 0.8) * 0.024 * sway;
-    _leafShadowGroup.position.x = driftX;
-    _leafShadowGroup.position.z = driftZ;
-    _leafShadowGroup.rotation.y = -0.06 + math.sin(w * 0.7) * 0.014 * sway;
-
-    for (final blob in _leafShadowBlobs) {
-      final local =
-          math.sin(w * 1.12 + blob.phase) * blob.phaseWeight * sway * 0.75;
-      blob.core.position.x = blob.baseX + local;
-      blob.core.position.z = blob.baseZ + local * 0.55;
-      blob.core.rotation.z += math.sin(w * 0.38 + blob.phase) * 0.00024;
-      blob.penumbra.position.x = blob.baseX + local * 0.68;
-      blob.penumbra.position.z = blob.baseZ + local * 0.42;
-      blob.penumbra.rotation.z = blob.core.rotation.z;
-    }
-
-    final intensityPulse = 0.94 + 0.045 * math.sin(t * 0.34 + 0.2);
-    final key = _keyLight;
-    final base = _keyLightBasePosition;
-    if (key != null && base != null) {
-      key.position.setValues(
-        base.x + math.sin(t * 0.32 + 0.2) * 0.08 * swing,
-        base.y + math.sin(t * 0.27 + 0.6) * 0.06 * swing,
-        base.z + math.cos(t * 0.29 + 0.9) * 0.07 * swing,
-      );
-      key.intensity = 1.02 * intensityPulse;
-    }
   }
 
   void _rebuildStones() {
@@ -922,22 +933,4 @@ int _lerpColorHex(int a, int b, double t) {
   final g = (ag + (bg - ag) * clamped).round();
   final c = (ab + (bb - ab) * clamped).round();
   return (r << 16) | (g << 8) | c;
-}
-
-class _LeafShadowBlob {
-  _LeafShadowBlob({
-    required this.core,
-    required this.penumbra,
-    required this.baseX,
-    required this.baseZ,
-    required this.phase,
-    required this.phaseWeight,
-  });
-
-  final three.Mesh core;
-  final three.Mesh penumbra;
-  final double baseX;
-  final double baseZ;
-  final double phase;
-  final double phaseWeight;
 }

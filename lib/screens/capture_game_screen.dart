@@ -44,9 +44,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardTargetZOffset = -0.31;
   static const double _defaultHomeCardTopFactor = 0.44;
   static const double _defaultLeafShadowOpacity = 0.16;
-  static const double _defaultLeafShadowSpeed = 1.05;
-  static const double _defaultLeafShadowSway = 1.0;
-  static const double _defaultKeyLightSwing = 1.0;
   static const bool _defaultStoneExtraOverlayEnabled = true;
   static const double _defaultBoardTopBrightness = 1.0;
   static const Offset3 _defaultKeyLightPosition = Offset3(5.8, 5.6, -3.8);
@@ -80,9 +77,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
   double _homeCardTopFactor = _defaultHomeCardTopFactor;
   double _leafShadowOpacity = _defaultLeafShadowOpacity;
-  double _leafShadowSpeed = _defaultLeafShadowSpeed;
-  double _leafShadowSway = _defaultLeafShadowSway;
-  double _keyLightSwing = _defaultKeyLightSwing;
   bool _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
   double _boardTopBrightness = _defaultBoardTopBrightness;
   Offset3 _keyLightPosition = _defaultKeyLightPosition;
@@ -145,11 +139,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         cameraDepth: _homeBoardCameraDepth,
                         targetZOffset: _homeBoardTargetZOffset,
                         leafShadowOpacity: _leafShadowOpacity,
-                        leafShadowSpeed: _leafShadowSpeed,
-                        leafShadowSway: _leafShadowSway,
-                        keyLightSwing: _keyLightSwing,
                         stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                         boardTopBrightness: _boardTopBrightness,
+                        showDebugGuides: true,
                         keyLightPosition: _keyLightPosition,
                         fillLightPosition: _fillLightPosition,
                         keyLightIntensity: _keyLightIntensity,
@@ -325,9 +317,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                 if (kIsWeb && _homeTuningSheetVisible)
                   _HomeBoardTuningSheet(
                     shadowOpacity: _leafShadowOpacity,
-                    shadowSpeed: _leafShadowSpeed,
-                    shadowSway: _leafShadowSway,
-                    lightSwing: _keyLightSwing,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                     boardTopBrightness: _boardTopBrightness,
                     keyLightPosition: _keyLightPosition,
@@ -342,12 +331,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     sheenLightColor: _sheenLightColor,
                     onShadowOpacityChanged: (value) =>
                         setState(() => _leafShadowOpacity = value),
-                    onShadowSpeedChanged: (value) =>
-                        setState(() => _leafShadowSpeed = value),
-                    onShadowSwayChanged: (value) =>
-                        setState(() => _leafShadowSway = value),
-                    onLightSwingChanged: (value) =>
-                        setState(() => _keyLightSwing = value),
                     onStoneExtraOverlayChanged: (value) =>
                         setState(() => _stoneExtraOverlayEnabled = value),
                     onBoardTopBrightnessChanged: (value) =>
@@ -395,9 +378,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
       _homeCardTopFactor = _defaultHomeCardTopFactor;
       _leafShadowOpacity = _defaultLeafShadowOpacity;
-      _leafShadowSpeed = _defaultLeafShadowSpeed;
-      _leafShadowSway = _defaultLeafShadowSway;
-      _keyLightSwing = _defaultKeyLightSwing;
       _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
       _boardTopBrightness = _defaultBoardTopBrightness;
       _keyLightPosition = _defaultKeyLightPosition;
@@ -640,9 +620,6 @@ class _HomeBoardTuningLauncher extends StatelessWidget {
 class _HomeBoardTuningSheet extends StatelessWidget {
   const _HomeBoardTuningSheet({
     required this.shadowOpacity,
-    required this.shadowSpeed,
-    required this.shadowSway,
-    required this.lightSwing,
     required this.stoneExtraOverlayEnabled,
     required this.boardTopBrightness,
     required this.keyLightPosition,
@@ -656,9 +633,6 @@ class _HomeBoardTuningSheet extends StatelessWidget {
     required this.ambientLightColor,
     required this.sheenLightColor,
     required this.onShadowOpacityChanged,
-    required this.onShadowSpeedChanged,
-    required this.onShadowSwayChanged,
-    required this.onLightSwingChanged,
     required this.onStoneExtraOverlayChanged,
     required this.onBoardTopBrightnessChanged,
     required this.onKeyLightPositionChanged,
@@ -676,9 +650,6 @@ class _HomeBoardTuningSheet extends StatelessWidget {
   });
 
   final double shadowOpacity;
-  final double shadowSpeed;
-  final double shadowSway;
-  final double lightSwing;
   final bool stoneExtraOverlayEnabled;
   final double boardTopBrightness;
   final Offset3 keyLightPosition;
@@ -692,9 +663,6 @@ class _HomeBoardTuningSheet extends StatelessWidget {
   final int ambientLightColor;
   final int sheenLightColor;
   final ValueChanged<double> onShadowOpacityChanged;
-  final ValueChanged<double> onShadowSpeedChanged;
-  final ValueChanged<double> onShadowSwayChanged;
-  final ValueChanged<double> onLightSwingChanged;
   final ValueChanged<bool> onStoneExtraOverlayChanged;
   final ValueChanged<double> onBoardTopBrightnessChanged;
   final ValueChanged<Offset3> onKeyLightPositionChanged;
@@ -791,34 +759,13 @@ class _HomeBoardTuningSheet extends StatelessWidget {
                                 max: 2.40,
                                 onChanged: onBoardTopBrightnessChanged,
                               ),
-                              const _TuningGroupTitle('动态氛围'),
+                              const _TuningGroupTitle('棋盘氛围'),
                               _TuningSlider(
                                 label: '叶影强度',
                                 value: shadowOpacity,
                                 min: 0.04,
                                 max: 0.28,
                                 onChanged: onShadowOpacityChanged,
-                              ),
-                              _TuningSlider(
-                                label: '叶影速度',
-                                value: shadowSpeed,
-                                min: 0.50,
-                                max: 2.00,
-                                onChanged: onShadowSpeedChanged,
-                              ),
-                              _TuningSlider(
-                                label: '叶影摇摆',
-                                value: shadowSway,
-                                min: 0.40,
-                                max: 2.20,
-                                onChanged: onShadowSwayChanged,
-                              ),
-                              _TuningSlider(
-                                label: '主光摆动',
-                                value: lightSwing,
-                                min: 0.0,
-                                max: 2.0,
-                                onChanged: onLightSwingChanged,
                               ),
                               const _TuningGroupTitle('主光 Key'),
                               _Vector3Editor(
