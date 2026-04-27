@@ -60,7 +60,7 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.showDebugGuides = false,
     this.keyLightPosition = const Offset3(7.1, 4.4, -5.2),
     this.fillLightPosition = const Offset3(-4.8, 2.6, 3.2),
-    this.keyLightIntensity = 1.18,
+    this.keyLightIntensity = 2.35,
     this.fillLightIntensity = 0.07,
     this.ambientLightIntensity = 0.12,
     this.sheenLightIntensity = 0.20,
@@ -364,9 +364,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final key = three.SpotLight(
       widget.keyLightColor,
       widget.keyLightIntensity,
-      26,
-      math.pi / 4.1,
-      0.78,
+      44,
+      math.pi / 3.25,
+      0.86,
       1.0,
     );
     key.position.setValues(
