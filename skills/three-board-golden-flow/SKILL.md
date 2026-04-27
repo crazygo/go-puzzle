@@ -35,21 +35,29 @@ Do not combine themes such as lighting plus camera plus board color in the same 
    - Use a concise commit message that names the capability.
    - Use `git rev-parse --short HEAD` for `commit_id`.
 6. Capture the screenshot after the commit.
-7. Name screenshots with timestamp and params id:
+7. Stop/kill the screenshot server after capture. Each screenshot must use a fresh Flutter web-server process; do not use hot restart for iterative captures.
+8. Name screenshots with timestamp and params id:
    - Pattern: `.cache/screenshots/YYYY-MM-DD-HH-mm-<params-id>.png`
    - Use 24-hour local time.
    - Derive `<params-id>` from route/query params, e.g. `threeBoardDebug-1`, `threeBoardDebug-1-keyIntensity-0p74`.
-8. Write a sidecar text file next to every screenshot:
+9. Write a sidecar text file next to every screenshot:
    - Same basename, `.txt`.
    - Include `commit_id`.
    - Include URL, route/query params, viewport, DPR, wait time.
+   - Include server lifecycle, e.g. `server_lifecycle=fresh_process_stopped_after_capture`.
    - Include every current 3D/debug parameter value relevant to the shot, including hidden/default values.
-9. Compare latest screenshot to the golden image using only the board region.
-10. Output a concise designer/3D-rendering delta report and one next suggested capability to adjust.
+10. Compare latest screenshot to the golden image using only the board region.
+11. Output a concise designer/3D-rendering delta report and one next suggested capability to adjust.
 
 ## Screenshot Requirements
 
 Use the existing browser screenshot skill/script when available.
+
+Every capture must be process-isolated:
+- Start a new Flutter web-server process for the screenshot.
+- Do not hot restart an existing server to get a new capture.
+- Stop/kill the web-server process immediately after screenshot capture.
+- Use a new server process for the next iteration to keep screenshots idempotent.
 
 Default mobile capture:
 
@@ -80,6 +88,7 @@ query.threeBoardDebug=1
 viewport_css=402x874
 device_scale_factor=3
 extra_wait_ms=12000
+server_lifecycle=fresh_process_stopped_after_capture
 
 changed_capability=<one capability>
 debug_page.panel_visible=false
