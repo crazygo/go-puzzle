@@ -74,7 +74,7 @@ class GoBoardPainter extends CustomPainter {
       Paint()..color = const Color(0xFFE8C98E),
     );
 
-    // Directional long grain.
+    // Directional long grain (keep subtle so it won't compete with grid lines).
     canvas.save();
     canvas.clipRRect(topRRect);
     final grainPaint = Paint()
@@ -84,7 +84,7 @@ class GoBoardPainter extends CustomPainter {
     for (int i = 0; i < grainCount; i++) {
       final t = i / grainCount;
       final y = topRect.top + t * topRect.height;
-      final wave = math.sin(i * 0.75) * size.height * 0.0018;
+      final wave = math.sin(i * 0.75) * size.height * 0.0012;
       grainPaint
         ..strokeWidth = 0.55 + 0.25 * (1.0 - t)
         ..color = Color.lerp(
@@ -92,26 +92,10 @@ class GoBoardPainter extends CustomPainter {
           const Color(0xFFC99655),
           (0.28 + 0.44 * _grainNoise(i.toDouble())).clamp(0.0, 1.0),
         )!
-            .withOpacity(0.16 + 0.10 * _grainNoise(i * 1.17));
+            .withOpacity(0.11 + 0.07 * _grainNoise(i * 1.17));
       canvas.drawLine(
         Offset(topRect.left, y + wave),
         Offset(topRect.right, y - wave * 0.3),
-        grainPaint,
-      );
-    }
-
-    // Local darker veins.
-    for (int i = 0; i < 12; i++) {
-      final t = i / 11;
-      final y = topRect.top + (0.08 + 0.84 * t) * topRect.height;
-      final span = (0.25 + 0.6 * _grainNoise(i * 2.1)) * topRect.width;
-      final startX = topRect.left + (topRect.width - span) * _grainNoise(i + 9);
-      grainPaint
-        ..strokeWidth = 0.7
-        ..color = const Color(0xFFA9783D).withOpacity(0.10);
-      canvas.drawLine(
-        Offset(startX, y),
-        Offset(startX + span, y + math.sin(i * 0.9) * 0.8),
         grainPaint,
       );
     }
