@@ -6,6 +6,12 @@
 
 #import "GeneratedPluginRegistrant.h"
 
+#if __has_include(<flutter_angle/FlutterAnglePlugin.h>)
+#import <flutter_angle/FlutterAnglePlugin.h>
+#else
+@import flutter_angle;
+#endif
+
 #if __has_include(<image_picker_ios/FLTImagePickerPlugin.h>)
 #import <image_picker_ios/FLTImagePickerPlugin.h>
 #else
@@ -18,11 +24,19 @@
 @import shared_preferences_foundation;
 #endif
 
+#if __has_include(<three_js_sensors/TJSSensorsPlugin.h>)
+#import <three_js_sensors/TJSSensorsPlugin.h>
+#else
+@import three_js_sensors;
+#endif
+
 @implementation GeneratedPluginRegistrant
 
 + (void)registerWithRegistry:(NSObject<FlutterPluginRegistry>*)registry {
+  [FlutterAnglePlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterAnglePlugin"]];
   [FLTImagePickerPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTImagePickerPlugin"]];
   [SharedPreferencesPlugin registerWithRegistrar:[registry registrarForPlugin:@"SharedPreferencesPlugin"]];
+  [TJSSensorsPlugin registerWithRegistrar:[registry registrarForPlugin:@"TJSSensorsPlugin"]];
 }
 
 @end

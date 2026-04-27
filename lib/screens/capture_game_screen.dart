@@ -13,6 +13,7 @@ import '../models/game_state.dart';
 import '../providers/capture_game_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/go_board_widget.dart';
+import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
 
 class CaptureGameScreen extends StatefulWidget {
@@ -34,6 +35,15 @@ Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
 }
 
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
+  static const double _defaultHomeBoardTopFactor = 0.12;
+  static const double _defaultHomeBoardHeightFactor = 0.68;
+  static const double _defaultHomeBoardCanvasYOffset = -82.0;
+  static const double _defaultHomeBoardSceneScale = 0.38;
+  static const double _defaultHomeBoardCameraLift = 5.5;
+  static const double _defaultHomeBoardCameraDepth = 4.85;
+  static const double _defaultHomeBoardTargetZOffset = -0.31;
+  static const double _defaultHomeCardTopFactor = 0.44;
+
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
   static const _initialModeKey = 'capture_setup.initial_mode';
@@ -44,6 +54,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   CaptureInitialMode _initialMode = CaptureInitialMode.twistCross;
   bool _isAdjusting = false;
   bool _isRecognizingScreenshot = false;
+  bool _homeTuningPanelCollapsed = false;
+  double _homeBoardTopFactor = _defaultHomeBoardTopFactor;
+  double _homeBoardHeightFactor = _defaultHomeBoardHeightFactor;
+  double _homeBoardCanvasYOffset = _defaultHomeBoardCanvasYOffset;
+  double _homeBoardSceneScale = _defaultHomeBoardSceneScale;
+  double _homeBoardCameraLift = _defaultHomeBoardCameraLift;
+  double _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
+  double _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
+  double _homeCardTopFactor = _defaultHomeCardTopFactor;
 
   @override
   void initState() {
@@ -67,158 +86,241 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       backgroundColor: kPageBackgroundColor,
       child: DecoratedBox(
         decoration: kPageBackgroundDecoration,
-        child: Stack(
-          children: [
-            // Hero as full-bleed background layer
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: PageHeroBanner(
-                title: _CaptureCopy.pageTitle,
-                subtitle: _CaptureCopy.pageSubtitle,
-              ),
-            ),
-            // Scrollable content floats over hero
-            SafeArea(
-              bottom: false,
-              child: CustomScrollView(
-                slivers: [
-                  // Transparent spacer that reveals the hero behind
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: kPageHeroContentOffset),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _SectionCard(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _PracticeHeader(
-                                  title: '下一盘',
-                                  subtitle: '先吃$_captureTarget子为胜',
-                                  isAdjusting: _isAdjusting,
-                                  onAdjustTap: () => setState(
-                                    () => _isAdjusting = !_isAdjusting,
-                                  ),
-                                ),
-                                const SizedBox(height: 18),
-                                if (_isAdjusting) ...[
-                                  const _SectionLabel(title: '棋盘'),
-                                  const SizedBox(height: 4),
-                                  _PillSegmentControl<int>(
-                                    selectedValue: _boardSize,
-                                    options: const [
-                                      _SegmentOption(value: 9, label: '9 路'),
-                                      _SegmentOption(value: 13, label: '13 路'),
-                                      _SegmentOption(value: 19, label: '19 路'),
-                                    ],
-                                    onChanged: (value) =>
-                                        _updateSelection(boardSize: value),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  const _SectionLabel(title: '难度'),
-                                  const SizedBox(height: 8),
-                                  _PillSegmentControl<DifficultyLevel>(
-                                    selectedValue: _difficulty,
-                                    options: const [
-                                      _SegmentOption(
-                                        value: DifficultyLevel.beginner,
-                                        label: '初级',
-                                      ),
-                                      _SegmentOption(
-                                        value: DifficultyLevel.intermediate,
-                                        label: '中级',
-                                      ),
-                                      _SegmentOption(
-                                        value: DifficultyLevel.advanced,
-                                        label: '高级',
-                                      ),
-                                    ],
-                                    onChanged: (value) =>
-                                        _updateSelection(difficulty: value),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  const _SectionLabel(title: '初始'),
-                                  const SizedBox(height: 8),
-                                  _PillSegmentControl<CaptureInitialMode>(
-                                    selectedValue: _initialMode,
-                                    options: const [
-                                      _SegmentOption(
-                                        value: CaptureInitialMode.twistCross,
-                                        label: '扭十字',
-                                      ),
-                                      _SegmentOption(
-                                        value: CaptureInitialMode.empty,
-                                        label: '空白',
-                                      ),
-                                      _SegmentOption(
-                                        value: CaptureInitialMode.setup,
-                                        label: '摆棋',
-                                      ),
-                                    ],
-                                    onChanged: (value) =>
-                                        _updateSelection(initialMode: value),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  const _SectionLabel(title: 'AI 风格'),
-                                  const SizedBox(height: 8),
-                                  const _AiStyleTile(),
-                                  const SizedBox(height: 24),
-                                ] else ...[
-                                  _ConfigPreview(
-                                    boardSize: _boardSize,
-                                    difficulty: _difficulty,
-                                    initialMode: _initialMode,
-                                  ),
-                                  const SizedBox(height: 24),
-                                ],
-                                if (_initialMode ==
-                                    CaptureInitialMode.setup) ...[
-                                  _PrimaryActionButton(
-                                    title: _CaptureCopy.startSetupButton,
-                                    onPressed: () => _startGame(
-                                        humanColor: StoneColor.black),
-                                  ),
-                                ] else ...[
-                                  _PrimaryActionButton(
-                                    title: _CaptureCopy.startAsBlackButton,
-                                    onPressed: () => _startGame(
-                                        humanColor: StoneColor.black),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  _SecondaryActionButton(
-                                    title: _CaptureCopy.startAsWhiteButton,
-                                    onPressed: () => _startGame(
-                                        humanColor: StoneColor.white),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          _ImportScreenshotCard(
-                            isLoading: _isRecognizingScreenshot,
-                            onTap: _isRecognizingScreenshot
-                                ? null
-                                : _importBoardFromScreenshot,
-                          ),
-                          const SizedBox(height: 14),
-                        ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final topPadding = MediaQuery.of(context).padding.top;
+            final cardTop = max(
+              0.0,
+              constraints.maxHeight * _homeCardTopFactor - topPadding,
+            );
+
+            return Stack(
+              children: [
+                Positioned(
+                  top: constraints.maxHeight * _homeBoardTopFactor,
+                  left: 0,
+                  right: 0,
+                  height: constraints.maxHeight * _homeBoardHeightFactor,
+                  child: IgnorePointer(
+                    child: Transform.translate(
+                      offset: Offset(0, _homeBoardCanvasYOffset),
+                      child: GoThreeBoardBackground(
+                        boardSize: 19,
+                        stones: kGoThreeDemoStones,
+                        particles: true,
+                        sceneScale: _homeBoardSceneScale,
+                        cameraLift: _homeBoardCameraLift,
+                        cameraDepth: _homeBoardCameraDepth,
+                        targetZOffset: _homeBoardTargetZOffset,
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ],
+                ),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: PageHeroBanner(
+                    title: _CaptureCopy.pageTitle,
+                    subtitle: _CaptureCopy.pageSubtitle,
+                    showOrbitalArt: false,
+                  ),
+                ),
+                SafeArea(
+                  bottom: false,
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: SizedBox(height: cardTop),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _SectionCard(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _PracticeHeader(
+                                      title: '下一盘',
+                                      subtitle: '先吃$_captureTarget子为胜',
+                                      isAdjusting: _isAdjusting,
+                                      onAdjustTap: () => setState(
+                                        () => _isAdjusting = !_isAdjusting,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 18),
+                                    if (_isAdjusting) ...[
+                                      const _SectionLabel(title: '棋盘'),
+                                      const SizedBox(height: 4),
+                                      _PillSegmentControl<int>(
+                                        selectedValue: _boardSize,
+                                        options: const [
+                                          _SegmentOption(
+                                              value: 9, label: '9 路'),
+                                          _SegmentOption(
+                                              value: 13, label: '13 路'),
+                                          _SegmentOption(
+                                              value: 19, label: '19 路'),
+                                        ],
+                                        onChanged: (value) =>
+                                            _updateSelection(boardSize: value),
+                                      ),
+                                      const SizedBox(height: 20),
+                                      const _SectionLabel(title: '难度'),
+                                      const SizedBox(height: 8),
+                                      _PillSegmentControl<DifficultyLevel>(
+                                        selectedValue: _difficulty,
+                                        options: const [
+                                          _SegmentOption(
+                                            value: DifficultyLevel.beginner,
+                                            label: '初级',
+                                          ),
+                                          _SegmentOption(
+                                            value: DifficultyLevel.intermediate,
+                                            label: '中级',
+                                          ),
+                                          _SegmentOption(
+                                            value: DifficultyLevel.advanced,
+                                            label: '高级',
+                                          ),
+                                        ],
+                                        onChanged: (value) =>
+                                            _updateSelection(difficulty: value),
+                                      ),
+                                      const SizedBox(height: 20),
+                                      const _SectionLabel(title: '初始'),
+                                      const SizedBox(height: 8),
+                                      _PillSegmentControl<CaptureInitialMode>(
+                                        selectedValue: _initialMode,
+                                        options: const [
+                                          _SegmentOption(
+                                            value:
+                                                CaptureInitialMode.twistCross,
+                                            label: '扭十字',
+                                          ),
+                                          _SegmentOption(
+                                            value: CaptureInitialMode.empty,
+                                            label: '空白',
+                                          ),
+                                          _SegmentOption(
+                                            value: CaptureInitialMode.setup,
+                                            label: '摆棋',
+                                          ),
+                                        ],
+                                        onChanged: (value) => _updateSelection(
+                                            initialMode: value),
+                                      ),
+                                      const SizedBox(height: 20),
+                                      const _SectionLabel(title: 'AI 风格'),
+                                      const SizedBox(height: 8),
+                                      const _AiStyleTile(),
+                                      const SizedBox(height: 24),
+                                    ] else ...[
+                                      _ConfigPreview(
+                                        boardSize: _boardSize,
+                                        difficulty: _difficulty,
+                                        initialMode: _initialMode,
+                                      ),
+                                      const SizedBox(height: 24),
+                                    ],
+                                    if (_initialMode ==
+                                        CaptureInitialMode.setup) ...[
+                                      _PrimaryActionButton(
+                                        title: _CaptureCopy.startSetupButton,
+                                        onPressed: () => _startGame(
+                                            humanColor: StoneColor.black),
+                                      ),
+                                    ] else ...[
+                                      _PrimaryActionButton(
+                                        title: _CaptureCopy.startAsBlackButton,
+                                        onPressed: () => _startGame(
+                                            humanColor: StoneColor.black),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      _SecondaryActionButton(
+                                        title: _CaptureCopy.startAsWhiteButton,
+                                        onPressed: () => _startGame(
+                                            humanColor: StoneColor.white),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              _ImportScreenshotCard(
+                                isLoading: _isRecognizingScreenshot,
+                                onTap: _isRecognizingScreenshot
+                                    ? null
+                                    : _importBoardFromScreenshot,
+                              ),
+                              const SizedBox(height: 14),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (kIsWeb && kDebugMode)
+                  SafeArea(
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: _HomeBoardTuningPanel(
+                        collapsed: _homeTuningPanelCollapsed,
+                        boardTop: _homeBoardTopFactor,
+                        boardHeight: _homeBoardHeightFactor,
+                        canvasY: _homeBoardCanvasYOffset,
+                        sceneScale: _homeBoardSceneScale,
+                        cameraLift: _homeBoardCameraLift,
+                        cameraDepth: _homeBoardCameraDepth,
+                        targetZ: _homeBoardTargetZOffset,
+                        cardTop: _homeCardTopFactor,
+                        onBoardTopChanged: (value) =>
+                            setState(() => _homeBoardTopFactor = value),
+                        onBoardHeightChanged: (value) =>
+                            setState(() => _homeBoardHeightFactor = value),
+                        onCanvasYChanged: (value) =>
+                            setState(() => _homeBoardCanvasYOffset = value),
+                        onSceneScaleChanged: (value) =>
+                            setState(() => _homeBoardSceneScale = value),
+                        onCameraLiftChanged: (value) =>
+                            setState(() => _homeBoardCameraLift = value),
+                        onCameraDepthChanged: (value) =>
+                            setState(() => _homeBoardCameraDepth = value),
+                        onTargetZChanged: (value) =>
+                            setState(() => _homeBoardTargetZOffset = value),
+                        onCardTopChanged: (value) =>
+                            setState(() => _homeCardTopFactor = value),
+                        onToggleCollapsed: () => setState(
+                          () => _homeTuningPanelCollapsed =
+                              !_homeTuningPanelCollapsed,
+                        ),
+                        onReset: _resetHomeBoardTuning,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
+  }
+
+  void _resetHomeBoardTuning() {
+    setState(() {
+      _homeBoardTopFactor = _defaultHomeBoardTopFactor;
+      _homeBoardHeightFactor = _defaultHomeBoardHeightFactor;
+      _homeBoardCanvasYOffset = _defaultHomeBoardCanvasYOffset;
+      _homeBoardSceneScale = _defaultHomeBoardSceneScale;
+      _homeBoardCameraLift = _defaultHomeBoardCameraLift;
+      _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
+      _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
+      _homeCardTopFactor = _defaultHomeCardTopFactor;
+    });
   }
 
   Future<void> _restoreSelection() async {
@@ -387,8 +489,249 @@ class _ParticlePreviewCanvas extends StatelessWidget {
         child: PageHeroBanner(
           title: _CaptureCopy.pageTitle,
           subtitle: _CaptureCopy.pageSubtitle,
+          showOrbitalArt: false,
         ),
       ),
+    );
+  }
+}
+
+class _HomeBoardTuningPanel extends StatelessWidget {
+  const _HomeBoardTuningPanel({
+    required this.collapsed,
+    required this.boardTop,
+    required this.boardHeight,
+    required this.canvasY,
+    required this.sceneScale,
+    required this.cameraLift,
+    required this.cameraDepth,
+    required this.targetZ,
+    required this.cardTop,
+    required this.onBoardTopChanged,
+    required this.onBoardHeightChanged,
+    required this.onCanvasYChanged,
+    required this.onSceneScaleChanged,
+    required this.onCameraLiftChanged,
+    required this.onCameraDepthChanged,
+    required this.onTargetZChanged,
+    required this.onCardTopChanged,
+    required this.onToggleCollapsed,
+    required this.onReset,
+  });
+
+  final bool collapsed;
+  final double boardTop;
+  final double boardHeight;
+  final double canvasY;
+  final double sceneScale;
+  final double cameraLift;
+  final double cameraDepth;
+  final double targetZ;
+  final double cardTop;
+  final ValueChanged<double> onBoardTopChanged;
+  final ValueChanged<double> onBoardHeightChanged;
+  final ValueChanged<double> onCanvasYChanged;
+  final ValueChanged<double> onSceneScaleChanged;
+  final ValueChanged<double> onCameraLiftChanged;
+  final ValueChanged<double> onCameraDepthChanged;
+  final ValueChanged<double> onTargetZChanged;
+  final ValueChanged<double> onCardTopChanged;
+  final VoidCallback onToggleCollapsed;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    if (collapsed) {
+      return Container(
+        margin: const EdgeInsets.only(top: 8, right: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xF7FFFDF9),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0x26B68454)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1A000000),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          minimumSize: Size.zero,
+          onPressed: onToggleCollapsed,
+          child: Text(
+            '3D s=${sceneScale.toStringAsFixed(2)} y=${canvasY.toStringAsFixed(0)}',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFB68454),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: 248,
+      margin: const EdgeInsets.only(top: 8, right: 8),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xF7FFFDF9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x26B68454)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '3D params',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF3A2A1F),
+                  ),
+                ),
+              ),
+              CupertinoButton(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: const Size(32, 24),
+                onPressed: onToggleCollapsed,
+                child: const Text(
+                  '收起',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF7E6F61)),
+                ),
+              ),
+              CupertinoButton(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: const Size(32, 24),
+                onPressed: onReset,
+                child: const Text(
+                  'reset',
+                  style: TextStyle(fontSize: 11, color: Color(0xFFB68454)),
+                ),
+              ),
+            ],
+          ),
+          _TuningSlider(
+            label: 'boardY',
+            value: boardTop,
+            min: 0.05,
+            max: 0.40,
+            onChanged: onBoardTopChanged,
+          ),
+          _TuningSlider(
+            label: 'height',
+            value: boardHeight,
+            min: 0.28,
+            max: 0.90,
+            onChanged: onBoardHeightChanged,
+          ),
+          _TuningSlider(
+            label: 'canvasY',
+            value: canvasY,
+            min: -240.0,
+            max: 120.0,
+            fractionDigits: 0,
+            onChanged: onCanvasYChanged,
+          ),
+          _TuningSlider(
+            label: 'scale',
+            value: sceneScale,
+            min: 0.10,
+            max: 1.20,
+            onChanged: onSceneScaleChanged,
+          ),
+          _TuningSlider(
+            label: 'lift',
+            value: cameraLift,
+            min: 0.0,
+            max: 8.0,
+            onChanged: onCameraLiftChanged,
+          ),
+          _TuningSlider(
+            label: 'depth',
+            value: cameraDepth,
+            min: 2.0,
+            max: 10.0,
+            onChanged: onCameraDepthChanged,
+          ),
+          _TuningSlider(
+            label: 'targetZ',
+            value: targetZ,
+            min: -2.0,
+            max: 2.0,
+            onChanged: onTargetZChanged,
+          ),
+          _TuningSlider(
+            label: 'cardY',
+            value: cardTop,
+            min: 0.40,
+            max: 0.78,
+            onChanged: onCardTopChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TuningSlider extends StatelessWidget {
+  const _TuningSlider({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.onChanged,
+    this.fractionDigits = 2,
+  });
+
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final ValueChanged<double> onChanged;
+  final int fractionDigits;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 48,
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 10, color: Color(0xFF7E6F61)),
+          ),
+        ),
+        Expanded(
+          child: CupertinoSlider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            onChanged: onChanged,
+            activeColor: const Color(0xFFB68454),
+          ),
+        ),
+        SizedBox(
+          width: 42,
+          child: Text(
+            value.toStringAsFixed(fractionDigits),
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 10, color: Color(0xFF7E6F61)),
+          ),
+        ),
+      ],
     );
   }
 }

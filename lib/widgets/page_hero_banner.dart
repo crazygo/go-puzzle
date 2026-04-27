@@ -17,15 +17,11 @@ const double kPageHeroContentOffset =
     kPageHeroVisibleHeight - kPageHeroCardOverlap; // 112.0
 
 // ── Shared background decoration ─────────────────────────────────────────────
-/// Fallback scaffold background colour (shown before gradient is painted).
-const Color kPageBackgroundColor = Color(0xFFF6F1E9);
+/// Shared page background colour, matching the bottom tab bar.
+const Color kPageBackgroundColor = Color(0xFFF9F4EC);
 
 const BoxDecoration kPageBackgroundDecoration = BoxDecoration(
-  gradient: LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [Color(0xFFFFFCF7), Color(0xFFF7F0E5)],
-  ),
+  color: kPageBackgroundColor,
 );
 
 /// Hero banner widget shared by all three main tab screens.
@@ -39,6 +35,7 @@ class PageHeroBanner extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.action,
+    this.showOrbitalArt = true,
   });
 
   final String title;
@@ -46,6 +43,7 @@ class PageHeroBanner extends StatelessWidget {
 
   /// Optional widget placed in the top-right of the hero (e.g. a "今天" button).
   final Widget? action;
+  final bool showOrbitalArt;
 
   @override
   Widget build(BuildContext context) {
@@ -55,11 +53,8 @@ class PageHeroBanner extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.hardEdge,
         children: [
-          Positioned.fill(
-            child: const CustomPaint(painter: _LandscapePainter()),
-          ),
           Positioned(
-            top: topPad + 12,
+            top: topPad + 32,
             left: 24,
             right: 16,
             child: Row(
@@ -103,13 +98,14 @@ class PageHeroBanner extends StatelessWidget {
               ],
             ),
           ),
-          Positioned(
-            right: 0,
-            top: topPad,
-            bottom: 0,
-            width: 160,
-            child: const _HeroOrbitalArt(),
-          ),
+          if (showOrbitalArt)
+            Positioned(
+              right: 0,
+              top: topPad,
+              bottom: 0,
+              width: 160,
+              child: const _HeroOrbitalArt(),
+            ),
         ],
       ),
     );
@@ -240,174 +236,6 @@ class _StoneDot extends StatelessWidget {
   }
 }
 
-// ── Landscape background painter ──────────────────────────────────────────────
-
-class _LandscapePainter extends CustomPainter {
-  const _LandscapePainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    _drawBirds(canvas, size);
-    _drawDistantMountains(canvas, size);
-    _drawMidMountain(canvas, size);
-    _drawForegroundHills(canvas, size);
-    _drawMist(canvas, size);
-  }
-
-  void _drawBirds(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0x40756250)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round;
-
-    final b1x = size.width * 0.62;
-    final b1y = size.height * 0.10;
-    final wing = size.width * 0.025;
-    final path1 = Path()
-      ..moveTo(b1x - wing, b1y)
-      ..quadraticBezierTo(b1x, b1y - wing * 0.6, b1x + wing, b1y);
-    canvas.drawPath(path1, paint);
-
-    final b2x = size.width * 0.72;
-    final b2y = size.height * 0.07;
-    final wing2 = size.width * 0.018;
-    final path2 = Path()
-      ..moveTo(b2x - wing2, b2y)
-      ..quadraticBezierTo(b2x, b2y - wing2 * 0.6, b2x + wing2, b2y);
-    canvas.drawPath(path2, paint);
-  }
-
-  void _drawDistantMountains(Canvas canvas, Size size) {
-    final paint = Paint()..style = PaintingStyle.fill;
-
-    paint.color = const Color(0x0C8B7A65);
-    final far1 = Path()
-      ..moveTo(size.width * 0.35, size.height)
-      ..lineTo(size.width * 0.48, size.height * 0.38)
-      ..quadraticBezierTo(size.width * 0.54, size.height * 0.30,
-          size.width * 0.62, size.height * 0.42)
-      ..lineTo(size.width * 0.78, size.height * 0.56)
-      ..quadraticBezierTo(
-          size.width * 0.88, size.height * 0.48, size.width, size.height * 0.58)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(far1, paint);
-
-    paint.color = const Color(0x129B8A72);
-    final far2 = Path()
-      ..moveTo(size.width * 0.4, size.height)
-      ..lineTo(size.width * 0.52, size.height * 0.44)
-      ..quadraticBezierTo(size.width * 0.57, size.height * 0.36,
-          size.width * 0.65, size.height * 0.50)
-      ..quadraticBezierTo(size.width * 0.75, size.height * 0.58,
-          size.width * 0.85, size.height * 0.52)
-      ..lineTo(size.width, size.height * 0.62)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(far2, paint);
-  }
-
-  void _drawMidMountain(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.fill
-      ..color = const Color(0x1A9B8A72);
-
-    final mid = Path()
-      ..moveTo(size.width * 0.3, size.height)
-      ..lineTo(size.width * 0.44, size.height * 0.52)
-      ..quadraticBezierTo(size.width * 0.50, size.height * 0.40,
-          size.width * 0.57, size.height * 0.46)
-      ..quadraticBezierTo(size.width * 0.68, size.height * 0.58,
-          size.width * 0.82, size.height * 0.62)
-      ..lineTo(size.width, size.height * 0.68)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(mid, paint);
-
-    _drawPavilion(canvas,
-        Offset(size.width * 0.50, size.height * 0.42), size.width * 0.028);
-  }
-
-  void _drawPavilion(Canvas canvas, Offset base, double scale) {
-    final paint = Paint()
-      ..color = const Color(0x28756250)
-      ..style = PaintingStyle.fill;
-
-    final roof = Path()
-      ..moveTo(base.dx - scale * 1.8, base.dy)
-      ..quadraticBezierTo(
-          base.dx, base.dy - scale * 1.5, base.dx + scale * 1.8, base.dy)
-      ..close();
-    canvas.drawPath(roof, paint);
-
-    final ridgePaint = Paint()
-      ..color = const Color(0x28756250)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8;
-    canvas.drawLine(Offset(base.dx - scale * 1.8, base.dy),
-        Offset(base.dx + scale * 1.8, base.dy), ridgePaint);
-
-    final body = Rect.fromCenter(
-      center: Offset(base.dx, base.dy + scale * 0.8),
-      width: scale * 2.2,
-      height: scale * 1.4,
-    );
-    canvas.drawRect(body, paint);
-  }
-
-  void _drawForegroundHills(Canvas canvas, Size size) {
-    final paint = Paint()..style = PaintingStyle.fill;
-
-    paint.color = const Color(0x0FAD9880);
-    final hill1 = Path()
-      ..moveTo(0, size.height)
-      ..quadraticBezierTo(size.width * 0.22, size.height * 0.72,
-          size.width * 0.5, size.height * 0.80)
-      ..quadraticBezierTo(
-          size.width * 0.7, size.height * 0.86, size.width, size.height * 0.82)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(hill1, paint);
-
-    paint.color = const Color(0x10AD9880);
-    final hill2 = Path()
-      ..moveTo(0, size.height)
-      ..quadraticBezierTo(size.width * 0.35, size.height * 0.86,
-          size.width * 0.65, size.height * 0.90)
-      ..quadraticBezierTo(size.width * 0.82, size.height * 0.87,
-          size.width, size.height * 0.92)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(hill2, paint);
-  }
-
-  void _drawMist(Canvas canvas, Size size) {
-    final mist = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(size.width * 0.25, size.height * 0.58),
-        Offset(size.width, size.height * 0.58),
-        [
-          const Color(0x00FFF8F0),
-          const Color(0x18FFF8F0),
-          const Color(0x10FFF8F0),
-          const Color(0x00FFF8F0),
-        ],
-        [0.0, 0.3, 0.7, 1.0],
-      );
-    final mistRect = Rect.fromLTWH(
-      size.width * 0.25,
-      size.height * 0.52,
-      size.width * 0.75,
-      size.height * 0.14,
-    );
-    canvas.drawRect(mistRect, mist);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 // ── Orbit painter ─────────────────────────────────────────────────────────────
 
 class _OrbitPainter extends CustomPainter {
@@ -495,16 +323,14 @@ class _OrbitPainter extends CustomPainter {
       final opacity =
           (0.028 + 0.28 * tailFade * opacityScale).clamp(0.015, 0.16);
       final radius = (0.32 + 1.1 * tailFade + flutter * 0.18) * dotScale;
-      particlePaint.color =
-          const Color(0xFFC99557).withValues(alpha: opacity);
+      particlePaint.color = const Color(0xFFC99557).withValues(alpha: opacity);
       canvas.drawCircle(offset, radius, particlePaint);
     }
 
     final stroke = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.75
-      ..color =
-          const Color(0xFFC99557).withValues(alpha: 0.038 * opacityScale);
+      ..color = const Color(0xFFC99557).withValues(alpha: 0.038 * opacityScale);
     final arcRect = Rect.fromCenter(
       center: center,
       width: radiusX * 2,

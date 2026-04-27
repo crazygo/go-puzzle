@@ -118,6 +118,7 @@ class GoParticleHeroBackground extends StatelessWidget {
     required this.preset,
     this.intensity = 1.0,
     this.blurStrength = 1.0,
+    this.paintBackdrop = true,
   });
 
   final GoScenePreset preset;
@@ -128,6 +129,9 @@ class GoParticleHeroBackground extends StatelessWidget {
   /// Depth-of-field blur multiplier.
   final double blurStrength;
 
+  /// Whether to paint the full-canvas ambient backdrop behind the board.
+  final bool paintBackdrop;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox.expand(
@@ -136,6 +140,7 @@ class GoParticleHeroBackground extends StatelessWidget {
           preset: preset,
           intensity: intensity,
           blurStrength: blurStrength,
+          paintBackdrop: paintBackdrop,
         ),
       ),
     );
@@ -158,11 +163,13 @@ class GoParticleScenePainter extends CustomPainter {
     required this.preset,
     this.intensity = 1.0,
     this.blurStrength = 1.0,
+    this.paintBackdrop = true,
   });
 
   final GoScenePreset preset;
   final double intensity;
   final double blurStrength;
+  final bool paintBackdrop;
 
   // Deterministic cheap pseudo-random noise (no dart:math Random state needed).
   static double _noise(int seed) {
@@ -177,7 +184,7 @@ class GoParticleScenePainter extends CustomPainter {
   //
   // _CamBasis is built once per paint() call and passed to every draw method.
 
-  static const _kThick = 0.046; // board thickness (world units, reduced 50%)
+  static const _kThick = 0.086; // board thickness (world units)
   static const _kCamPos = _Vec3(-0.16, -0.43, 0.64); // camera position
   static const _kCamTgt =
       _Vec3(0.48, 0.80, _kThick); // look-at target (push board down)
@@ -192,8 +199,8 @@ class GoParticleScenePainter extends CustomPainter {
   // ── 3-D Lambertian lighting ───────────────────────────────────────────────
   // Light direction (unit vector FROM surface TOWARD light): upper-left overhead.
   static const _kLx = -0.42, _kLy = -0.30, _kLz = 0.86;
-  static const _kAmbient = 0.33;
-  static const _kFillLight = 0.20;
+  static const _kAmbient = 0.45;
+  static const _kFillLight = 0.14;
 
   /// Lambertian brightness for a face with outward world-space normal (nx,ny,nz).
   static double _lit(double nx, double ny, double nz) {
@@ -222,12 +229,14 @@ class GoParticleScenePainter extends CustomPainter {
       fovY: _kFovY,
       size: size,
     );
-    _drawWarmBase(canvas, size);
-    _drawTopHaze(canvas, size);
+    if (paintBackdrop) {
+      _drawWarmBase(canvas, size);
+      _drawTopHaze(canvas, size);
+    }
     _drawBoardPlane(canvas, size, cam);
     _drawWoodParticles(canvas, size, cam);
     _drawGridLines(canvas, size, cam);
-    _drawLeafFilteredSunlight(canvas, size, cam);
+    _drawStudioSheen(canvas, size, cam);
     _drawStoneSplats(canvas, size, cam);
   }
 
@@ -285,11 +294,11 @@ class GoParticleScenePainter extends CustomPainter {
   // ── 2. Board box — real 3-D ────────────────────────────────────────────────
 
   void _drawBoardPlane(Canvas canvas, Size size, _CamBasis cam) {
-    final t = _kThick;
+    const t = _kThick;
 
     // 8 vertices of the board box in world space.
     // Indices 0-3: bottom face; 4-7: top face.
-    final v = [
+    const v = [
       _Vec3(0, 0, 0),
       _Vec3(1, 0, 0),
       _Vec3(1, 1, 0),
@@ -334,15 +343,19 @@ class GoParticleScenePainter extends CustomPainter {
     // Painter's algorithm: draw farthest faces first.
     visible.sort((a, b) => b.$3.compareTo(a.$3));
 
-    const topBase = Color(0xFFEED9B8);
-    const sideBase = Color(0xFFE0BD90);
+    const topBase = Color(0xFFF3D19B);
+    const topLight = Color(0xFFFFE3B3);
+    const sideBase = Color(0xFFE1A15D);
+    const sideDark = Color(0xFFC57A36);
 
     for (final (vi, n, _) in visible) {
       final pts = [for (final i in vi) sv[i]].whereType<Offset>().toList();
       if (pts.length < 3) continue;
 
       final path = Path()..moveTo(pts[0].dx, pts[0].dy);
-      for (final pt in pts.skip(1)) path.lineTo(pt.dx, pt.dy);
+      for (final pt in pts.skip(1)) {
+        path.lineTo(pt.dx, pt.dy);
+      }
       path.close();
 
       final bright = _lit(n.x, n.y, n.z);
@@ -356,9 +369,9 @@ class GoParticleScenePainter extends CustomPainter {
             path,
             Paint()
               ..shader = ui.Gradient.linear(pFar, pNear, [
-                _dim(topBase, bright * 0.93).withValues(alpha: intensity),
-                _dim(topBase, bright * 1.03).withValues(alpha: intensity),
-                _dim(topBase, bright * 1.06).withValues(alpha: intensity),
+                _dim(topBase, bright * 0.97).withValues(alpha: intensity),
+                _dim(topLight, bright * 1.00).withValues(alpha: intensity),
+                _dim(topBase, bright * 1.04).withValues(alpha: intensity),
               ], [
                 0.0,
                 0.52,
@@ -377,11 +390,11 @@ class GoParticleScenePainter extends CustomPainter {
           canvas.drawOval(
             Rect.fromCenter(
                 center: lp,
-                width: size.width * 0.40,
-                height: size.height * 0.08),
+                width: size.width * 0.52,
+                height: size.height * 0.12),
             Paint()
               ..shader = ui.Gradient.radial(lp, size.width * 0.23, [
-                const Color(0xFFFFF7EA).withValues(alpha: 0.16 * intensity),
+                const Color(0xFFFFF3DA).withValues(alpha: 0.10 * intensity),
                 const Color(0x00FFFFFF),
               ]),
           );
@@ -398,27 +411,36 @@ class GoParticleScenePainter extends CustomPainter {
               Offset(midX, topY),
               Offset(midX, botY),
               [
-                _dim(topBase, bright).withValues(alpha: intensity),
-                _dim(sideBase, bright * 0.70).withValues(alpha: intensity),
+                _dim(sideBase, bright * 1.03).withValues(alpha: intensity),
+                _dim(sideDark, bright * 0.80).withValues(alpha: intensity),
               ],
             ),
         );
+        _drawSideWoodGrain(canvas, path, pts, size, bright);
       }
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = n.z > 0.5 ? 0.8 : 0.6
+          ..color = const Color(0xFFB87939)
+              .withValues(alpha: (n.z > 0.5 ? 0.16 : 0.28) * intensity),
+      );
     }
   }
 
   // ── 3. Wood grain particles ────────────────────────────────────────────────
 
   void _drawWoodParticles(Canvas canvas, Size size, _CamBasis cam) {
-    const particleCount = 760;
+    const particleCount = 1200;
     // Grain is slightly lighter and darker than the top surface.
     final topBright = _lit(0, 0, 1);
-    const base = Color(0xFFE8C98E);
+    const base = Color(0xFFEFC68C);
     final woodColors = [
-      _dim(base, topBright * 1.08),
-      _dim(base, topBright * 0.95),
-      _dim(base, topBright * 1.12),
-      _dim(base, topBright * 0.88),
+      _dim(base, topBright * 1.10),
+      _dim(base, topBright * 0.98),
+      _dim(const Color(0xFFFFDDA9), topBright * 1.05),
+      _dim(const Color(0xFFDDA263), topBright * 0.88),
     ];
 
     // Reference depth at the near edge — used to normalize depthScale.
@@ -450,15 +472,15 @@ class GoParticleScenePainter extends CustomPainter {
       final depthScale = czRef / cz.clamp(0.001, double.infinity);
 
       final dof =
-          (math.max(0, ny - 0.35) * 1.25) * blurStrength * preset.depthOfField;
+          (math.max(0, ny - 0.45) * 0.65) * blurStrength * preset.depthOfField;
       final length = size.width *
-          (0.018 + 0.032 * (1.0 - ny) + 0.014 * _noise(i * 13)) *
+          (0.010 + 0.024 * (1.0 - ny) + 0.010 * _noise(i * 13)) *
           depthScale;
       final strokeWidth =
-          (0.28 + 0.7 * (1.0 - ny)).clamp(0.28, 1.0) * depthScale;
-      final alpha = (0.07 + 0.14 * (1.0 - ny)) * intensity;
+          (0.22 + 0.48 * (1.0 - ny)).clamp(0.2, 0.7) * depthScale;
+      final alpha = (0.045 + 0.095 * (1.0 - ny)) * intensity;
       // Grain runs roughly horizontal with slight perspective convergence.
-      final angle = -0.06 + 0.16 * _noise(i * 19) + 0.04 * ny;
+      final angle = -0.04 + 0.11 * _noise(i * 19) + 0.03 * ny;
       final colorIdx =
           (_noise(i * 11) * woodColors.length).floor() % woodColors.length;
 
@@ -473,7 +495,7 @@ class GoParticleScenePainter extends CustomPainter {
 
       paint
         ..color =
-            woodColors[colorIdx].withValues(alpha: alpha.clamp(0.04, 0.32))
+            woodColors[colorIdx].withValues(alpha: alpha.clamp(0.03, 0.22))
         ..strokeWidth = strokeWidth;
 
       canvas.drawLine(
@@ -486,22 +508,22 @@ class GoParticleScenePainter extends CustomPainter {
 
     // Coarse grain bands + roughness variation to avoid flat board feel.
     final bandPaint = Paint()..style = PaintingStyle.stroke;
-    for (int i = 0; i < 30; i++) {
-      final y = i / 29;
+    for (int i = 0; i < 44; i++) {
+      final y = i / 43;
       final start = _p(0.0, y, cam);
       final end = _p(1.0, y, cam);
-      final wobble = (_noise(i * 37 + 9) - 0.5) * size.height * 0.002;
+      final wobble = (_noise(i * 37 + 9) - 0.5) * size.height * 0.0014;
       bandPaint
-        ..strokeWidth = (1.0 - y) * 0.8 + 0.2
+        ..strokeWidth = ((1.0 - y) * 0.55 + 0.16) * intensity
         ..color = Color.lerp(
-          const Color(0xFFC99655),
-          const Color(0xFFF3DDB3),
+          const Color(0xFFD28E4C),
+          const Color(0xFFFFE0AE),
           _noise(i * 13 + 5),
         )!
-            .withValues(alpha: (0.045 + 0.045 * (1.0 - y)) * intensity)
+            .withValues(alpha: (0.030 + 0.040 * (1.0 - y)) * intensity)
         ..maskFilter = MaskFilter.blur(
           BlurStyle.normal,
-          0.35 + 1.2 * y * preset.depthOfField * blurStrength,
+          0.15 + 0.55 * y * preset.depthOfField * blurStrength,
         );
       canvas.drawLine(
         Offset(start.dx, start.dy + wobble),
@@ -510,6 +532,44 @@ class GoParticleScenePainter extends CustomPainter {
       );
     }
     bandPaint.maskFilter = null;
+    canvas.restore();
+  }
+
+  void _drawSideWoodGrain(
+    Canvas canvas,
+    Path facePath,
+    List<Offset> pts,
+    Size size,
+    double bright,
+  ) {
+    final minX = pts.map((p) => p.dx).reduce(math.min);
+    final maxX = pts.map((p) => p.dx).reduce(math.max);
+    final minY = pts.map((p) => p.dy).reduce(math.min);
+    final maxY = pts.map((p) => p.dy).reduce(math.max);
+    final width = (maxX - minX).abs();
+    if (width < 8 || (maxY - minY).abs() < 8) return;
+
+    canvas.save();
+    canvas.clipPath(facePath);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    for (int i = 0; i < 42; i++) {
+      final t = i / 41;
+      final y = minY + (maxY - minY) * (0.06 + t * 0.88);
+      final inset = width * (0.02 + 0.05 * _noise(i * 5 + 1));
+      final wave = (0.5 - _noise(i * 17 + 4)) * size.height * 0.002;
+      paint
+        ..strokeWidth = 0.35 + 0.35 * _noise(i * 11)
+        ..color = _dim(const Color(0xFFB86D2F), bright)
+            .withValues(alpha: (0.10 + 0.08 * _noise(i * 7)) * intensity)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.15);
+      canvas.drawLine(
+        Offset(minX + inset, y),
+        Offset(maxX - inset, y + wave),
+        paint,
+      );
+    }
     canvas.restore();
   }
 
@@ -524,22 +584,17 @@ class GoParticleScenePainter extends CustomPainter {
     // Horizontal lines — row 0 is near (bold/dark), row n-1 is far (faint).
     for (int r = 0; r < n; r++) {
       final rowFrac = r / (n - 1).toDouble();
-      final alpha = _lerpd(0.42, 0.17, rowFrac) * intensity;
-      final sw = _lerpd(1.0, 0.40, rowFrac);
+      final alpha = _lerpd(0.36, 0.24, rowFrac) * intensity;
+      final sw = _lerpd(0.72, 0.48, rowFrac);
       linePaint
-        ..color = const Color(0xFF7A5C36).withValues(alpha: alpha * 0.62)
-        ..strokeWidth = sw * 0.56
-        ..maskFilter = rowFrac > 0.5
-            ? MaskFilter.blur(
-                BlurStyle.normal,
-                (rowFrac - 0.5) * 2.4 * preset.depthOfField * blurStrength,
-              )
-            : null;
+        ..color = const Color(0xFF6F634D).withValues(alpha: alpha)
+        ..strokeWidth = sw
+        ..maskFilter = null;
       canvas.drawLine(_p(0.0, rowFrac, cam), _p(1.0, rowFrac, cam), linePaint);
       // Tiny engraved highlight on one side of each line.
       linePaint
-        ..color = const Color(0xFFF3DDB3).withValues(alpha: alpha * 0.20)
-        ..strokeWidth = sw * 0.34
+        ..color = const Color(0xFFFFE7BE).withValues(alpha: alpha * 0.18)
+        ..strokeWidth = sw * 0.42
         ..maskFilter = null;
       final s = _p(0.0, rowFrac, cam);
       final e = _p(1.0, rowFrac, cam);
@@ -555,22 +610,19 @@ class GoParticleScenePainter extends CustomPainter {
     for (int c = 0; c < n; c++) {
       final colFrac = c / (n - 1).toDouble();
       final centerBias = 1.0 - (colFrac - 0.5).abs() * 1.6;
-      final alpha = (0.19 + 0.08 * centerBias.clamp(0.0, 1.0)) * intensity;
+      final alpha = (0.26 + 0.05 * centerBias.clamp(0.0, 1.0)) * intensity;
       linePaint
-        ..color = const Color(0xFF7A5C36).withValues(alpha: alpha * 0.92)
-        ..strokeWidth = 0.42
-        ..maskFilter = MaskFilter.blur(
-          BlurStyle.normal,
-          0.24 * preset.depthOfField * blurStrength,
-        );
+        ..color = const Color(0xFF6F634D).withValues(alpha: alpha)
+        ..strokeWidth = 0.54
+        ..maskFilter = null;
       canvas.drawLine(_p(colFrac, 0.0, cam), _p(colFrac, 1.0, cam), linePaint);
     }
   }
 
   static double _lerpd(double a, double b, double t) => a + (b - a) * t;
 
-  // ── 4.5 Leaf-filtered sunlight (dappled highlights + soft occlusion) ─────
-  void _drawLeafFilteredSunlight(Canvas canvas, Size size, _CamBasis cam) {
+  // ── 4.5 Studio sheen (broad product-render highlights) ──────────────────
+  void _drawStudioSheen(Canvas canvas, Size size, _CamBasis cam) {
     final bottomLeft = _p(0.0, 1.0, cam);
     final bottomRight = _p(1.0, 1.0, cam);
     final topRight = _p(1.0, 0.0, cam);
@@ -586,16 +638,16 @@ class GoParticleScenePainter extends CustomPainter {
     canvas.save();
     canvas.clipPath(boardPath);
 
-    for (int i = 0; i < 12; i++) {
-      final cx = 0.10 + 0.84 * _noise(i * 17 + 1);
-      final cy = 0.06 + 0.82 * _noise(i * 23 + 4);
+    for (int i = 0; i < 5; i++) {
+      final cx = 0.14 + 0.72 * _noise(i * 17 + 1);
+      final cy = 0.10 + 0.72 * _noise(i * 23 + 4);
       final c = _p(cx, cy, cam);
       final nearWeight = (1.0 - cy).clamp(0.0, 1.0);
       final w = size.width *
-          (0.12 + 0.09 * _noise(i * 29 + 8)) *
+          (0.18 + 0.12 * _noise(i * 29 + 8)) *
           (0.7 + nearWeight * 0.5);
-      final h = w * (0.36 + 0.24 * _noise(i * 31 + 11));
-      final rot = -0.45 + 0.9 * _noise(i * 43 + 13);
+      final h = w * (0.22 + 0.14 * _noise(i * 31 + 11));
+      final rot = -0.18 + 0.32 * _noise(i * 43 + 13);
 
       canvas.save();
       canvas.translate(c.dx, c.dy);
@@ -608,28 +660,28 @@ class GoParticleScenePainter extends CustomPainter {
             w * 0.66,
             [
               const Color(0xFFFFF8E8).withValues(
-                alpha: (0.095 + 0.045 * nearWeight) * intensity,
+                alpha: (0.030 + 0.035 * nearWeight) * intensity,
               ),
               const Color(0x00FFF8E8),
             ],
           )
           ..maskFilter = MaskFilter.blur(
             BlurStyle.normal,
-            2.4 + 3.2 * preset.depthOfField * blurStrength,
+            3.0 + 2.2 * preset.depthOfField * blurStrength,
           ),
       );
       canvas.restore();
     }
 
-    // Large soft occlusion to emulate leaf shadows.
-    for (int i = 0; i < 5; i++) {
+    // Mild contact-style board shadowing, not decorative leaf patterns.
+    for (int i = 0; i < 3; i++) {
       final c = _p(
-        0.12 + 0.75 * _noise(i * 19 + 6),
-        0.14 + 0.78 * _noise(i * 41 + 10),
+        0.20 + 0.64 * _noise(i * 19 + 6),
+        0.18 + 0.70 * _noise(i * 41 + 10),
         cam,
       );
-      final w = size.width * (0.22 + 0.08 * _noise(i * 37 + 2));
-      final h = w * (0.50 + 0.26 * _noise(i * 17 + 12));
+      final w = size.width * (0.18 + 0.06 * _noise(i * 37 + 2));
+      final h = w * (0.36 + 0.18 * _noise(i * 17 + 12));
       canvas.drawOval(
         Rect.fromCenter(center: c, width: w, height: h),
         Paint()
@@ -637,7 +689,7 @@ class GoParticleScenePainter extends CustomPainter {
             c,
             w * 0.72,
             [
-              const Color(0xFF6C5A42).withValues(alpha: 0.042 * intensity),
+              const Color(0xFF8F6B42).withValues(alpha: 0.018 * intensity),
               const Color(0x006C5A42),
             ],
           )
@@ -655,8 +707,8 @@ class GoParticleScenePainter extends CustomPainter {
     if (n < 2) return;
 
     // World-space radii. Go stone ≈ oblate ellipsoid (biconvex lens).
-    final Rxy = 0.43 / (n - 1); // horizontal radius
-    final Rz = Rxy * 0.50; // vertical radius (stronger biconvex profile)
+    final Rxy = 0.46 / (n - 1); // horizontal radius
+    final Rz = Rxy * 0.42; // low rounded shell profile
 
     // Painter's algorithm: far stones first.
     final stones = [...preset.stones];
@@ -741,7 +793,9 @@ class GoParticleScenePainter extends CustomPainter {
       }
     } else {
       outline.moveTo(eqPts[0].dx, eqPts[0].dy);
-      for (final p in eqPts.skip(1)) outline.lineTo(p.dx, p.dy);
+      for (final p in eqPts.skip(1)) {
+        outline.lineTo(p.dx, p.dy);
+      }
     }
     outline.close();
 
@@ -790,7 +844,7 @@ class GoParticleScenePainter extends CustomPainter {
           shadowPath,
           Paint()
             ..color =
-                const Color(0xFF000000).withValues(alpha: 0.28 * intensity)
+                const Color(0xFF000000).withValues(alpha: 0.22 * intensity)
             ..maskFilter = MaskFilter.blur(
               BlurStyle.normal,
               penumbraSigma.clamp(0.9, 5.2),
@@ -800,7 +854,7 @@ class GoParticleScenePainter extends CustomPainter {
           shadowPath,
           Paint()
             ..color =
-                const Color(0xFF000000).withValues(alpha: 0.20 * intensity)
+                const Color(0xFF000000).withValues(alpha: 0.13 * intensity)
             ..maskFilter = MaskFilter.blur(
               BlurStyle.normal,
               (penumbraSigma * 0.55).clamp(0.6, 3.0),
@@ -841,18 +895,18 @@ class GoParticleScenePainter extends CustomPainter {
         maxR * 2.1, // extends beyond edge → rim stays dark
         isBlack
             ? const [
-                Color(0xFF8B8077), // lit dome
-                Color(0xFF2F2924), // diffuse charcoal
-                Color(0xFF110F0E), // dark rim
+                Color(0xFF9C958B), // lit satin dome
+                Color(0xFF443B32), // warm charcoal
+                Color(0xFF191511), // dark rim
               ]
             : const [
-                Color(0xFFFFF8EA), // warm white highlight
-                Color(0xFFE6DCCB), // ivory diffuse
-                Color(0xFFA89F90), // shadowed rim
+                Color(0xFFFFFFFF), // clean ceramic highlight
+                Color(0xFFF3E8D6), // warm ivory diffuse
+                Color(0xFFC4B8A6), // soft shadowed rim
               ],
-        [0.0, 0.32, 1.0],
+        [0.0, 0.42, 1.0],
       );
-    final focus = 0.28;
+    const focus = 0.28;
     final dof = math.max(0.0, center.y - focus) *
         9.0 *
         preset.depthOfField *
@@ -864,13 +918,13 @@ class GoParticleScenePainter extends CustomPainter {
 
     // ── Specular highlight — crisp Phong hot-spot ────────────────────────────
     if (specScreen != null) {
-      final hlR = maxR * (isBlack ? 0.26 : 0.38);
+      final hlR = maxR * (isBlack ? 0.22 : 0.34);
       canvas.drawOval(
         Rect.fromCenter(
             center: specScreen, width: hlR * 2.0, height: hlR * 1.55),
         Paint()
           ..shader = ui.Gradient.radial(specScreen, hlR, [
-            isBlack ? const Color(0x46FFF8ED) : const Color(0x99FFFDF8),
+            isBlack ? const Color(0x38FFF8ED) : const Color(0x80FFFDF8),
             const Color(0x00FFFFFF),
           ])
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, isBlack ? 1.0 : 0.7),
@@ -893,7 +947,8 @@ class GoParticleScenePainter extends CustomPainter {
   bool shouldRepaint(covariant GoParticleScenePainter oldDelegate) {
     return oldDelegate.preset != preset ||
         oldDelegate.intensity != intensity ||
-        oldDelegate.blurStrength != blurStrength;
+        oldDelegate.blurStrength != blurStrength ||
+        oldDelegate.paintBackdrop != paintBackdrop;
   }
 }
 
