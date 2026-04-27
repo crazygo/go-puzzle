@@ -47,7 +47,7 @@ class GoThreeBoardBackground extends StatefulWidget {
     super.key,
     this.boardSize = 19,
     this.stones = const [],
-    this.animate = true,
+    this.animate = false,
     this.particles = true,
     this.cinematicFrame = true,
     this.cinematicFov = 26,
@@ -55,6 +55,7 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.cameraLift = 0.0,
     this.cameraDepth,
     this.targetZOffset = 0.0,
+    this.boardRotationY = 0.03,
     this.leafShadowOpacity = 0.16,
     this.stoneExtraOverlayEnabled = true,
     this.boardTopBrightness = 1.0,
@@ -81,6 +82,7 @@ class GoThreeBoardBackground extends StatefulWidget {
   final double cameraLift;
   final double? cameraDepth;
   final double targetZOffset;
+  final double boardRotationY;
   final double leafShadowOpacity;
   final bool stoneExtraOverlayEnabled;
   final double boardTopBrightness;
@@ -109,6 +111,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   static const Offset3 _keyLightTarget = Offset3(0.9, -0.10, -0.35);
   static const Offset3 _sheenLightPosition = Offset3(6.2, 5.9, -3.9);
   static const Offset3 _sheenLightTarget = Offset3(0.4, -0.05, 0.08);
+  static const double _cinematicViewZOffset = 1.32;
   static const double _boardWidth = 8.0;
   static const double _boardTop = 0.0;
   static const double _boardThickness = 0.51;
@@ -207,6 +210,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         oldWidget.targetZOffset != widget.targetZOffset) {
       _setCamera(_elapsed);
     }
+    if (oldWidget.boardRotationY != widget.boardRotationY) {
+      _root.rotation.y = widget.boardRotationY;
+    }
     if (oldWidget.cinematicFov != widget.cinematicFov) {
       _threeJs.camera.fov = widget.cinematicFrame ? widget.cinematicFov : 28;
       _threeJs.camera.updateProjectionMatrix();
@@ -291,7 +297,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _sceneInitialized = true;
     _root
       ..position.setValues(0, widget.cinematicFrame ? -1.50 : 0, 0)
-      ..rotation.y = widget.cinematicFrame ? 0.03 : 0;
+      ..rotation.y = widget.boardRotationY;
     _threeJs.camera = three.PerspectiveCamera(
       widget.cinematicFrame ? widget.cinematicFov : 28,
       _threeJs.width / _threeJs.height,
@@ -358,32 +364,48 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         _root.position.y + _boardTop + 0.02,
         widget.targetZOffset,
       );
-      final basePosition = three.Vector3(
-        -3.45 + drift * 0.10,
-        _root.position.y + 2.20 + widget.cameraLift + lift * 0.045,
-        (widget.cameraDepth ?? 6.55) + drift * 0.06,
-      );
-      _threeJs.camera.position.setValues(
-        target.x + (basePosition.x - target.x) / viewScale,
-        target.y + (basePosition.y - target.y) / viewScale,
-        target.z + (basePosition.z - target.z) / viewScale,
+      _setCameraPositionAlongView(
+        target: target,
+        offsetX: -3.45 + drift * 0.10,
+        offsetY: 2.18 + widget.cameraLift + lift * 0.045,
+        offsetZ: _cinematicViewZOffset + drift * 0.06,
+        distance: widget.cameraDepth ?? 6.55,
+        viewScale: viewScale,
       );
       _threeJs.camera.lookAt(target);
     } else {
       final target =
           three.Vector3(0, _root.position.y + _boardTop, widget.targetZOffset);
-      final basePosition = three.Vector3(
-        -5.35 + drift * 0.16,
-        _root.position.y + 3.85 + widget.cameraLift + lift * 0.07,
-        (widget.cameraDepth ?? 7.15) + drift * 0.10,
-      );
-      _threeJs.camera.position.setValues(
-        target.x + (basePosition.x - target.x) / viewScale,
-        target.y + (basePosition.y - target.y) / viewScale,
-        target.z + (basePosition.z - target.z) / viewScale,
+      _setCameraPositionAlongView(
+        target: target,
+        offsetX: -5.35 + drift * 0.16,
+        offsetY: 3.85 + widget.cameraLift + lift * 0.07,
+        offsetZ: 7.15 + drift * 0.10,
+        distance: widget.cameraDepth ?? 9.66,
+        viewScale: viewScale,
       );
       _threeJs.camera.lookAt(target);
     }
+  }
+
+  void _setCameraPositionAlongView({
+    required three.Vector3 target,
+    required double offsetX,
+    required double offsetY,
+    required double offsetZ,
+    required double distance,
+    required double viewScale,
+  }) {
+    final vectorLength = math.sqrt(
+      offsetX * offsetX + offsetY * offsetY + offsetZ * offsetZ,
+    );
+    if (vectorLength <= 0) return;
+    final scaledDistance = distance / viewScale;
+    _threeJs.camera.position.setValues(
+      target.x + offsetX / vectorLength * scaledDistance,
+      target.y + offsetY / vectorLength * scaledDistance,
+      target.z + offsetZ / vectorLength * scaledDistance,
+    );
   }
 
   void _buildLights() {
@@ -801,18 +823,18 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final step = _gridSpan / (n - 1);
     const start = -_gridSpan / 2;
     final lineMaterial = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0x4b3724,
-      three.MaterialProperty.opacity: 0.36,
+      three.MaterialProperty.color: 0x000000,
+      three.MaterialProperty.opacity: 0.55,
       three.MaterialProperty.transparent: true,
     });
     for (int i = 0; i < n; i++) {
       final p = start + i * step;
       final horizontal = three.Mesh(
-        three.BoxGeometry(_gridSpan, 0.010, 0.010),
+        three.BoxGeometry(_gridSpan, 0.010, 0.020),
         lineMaterial,
       )..position.setValues(0, _boardTop + 0.034, p);
       final vertical = three.Mesh(
-        three.BoxGeometry(0.010, 0.010, _gridSpan),
+        three.BoxGeometry(0.020, 0.010, _gridSpan),
         lineMaterial,
       )..position.setValues(p, _boardTop + 0.035, 0);
       _root
@@ -907,8 +929,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final step = _gridSpan / (n - 1);
     const start = -_gridSpan / 2;
     final blackMaterial = three.MeshStandardMaterial({
-      three.MaterialProperty.color: 0x17110f,
-      three.MaterialProperty.roughness: 0.34,
+      three.MaterialProperty.color: 0x050403,
+      three.MaterialProperty.roughness: 0.22,
       three.MaterialProperty.metalness: 0.02,
     });
     final whiteMaterial = three.MeshStandardMaterial({
