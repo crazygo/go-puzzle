@@ -127,13 +127,11 @@ class GoBoardPainter extends CustomPainter {
         canvas,
         Offset(x, origin),
         Offset(x, origin + boardAreaSize),
-        const Offset(0.33, 0),
       );
       _drawGrooveLine(
         canvas,
         Offset(origin, y),
         Offset(origin + boardAreaSize, y),
-        const Offset(0, -0.33),
       );
     }
   }
@@ -142,25 +140,12 @@ class GoBoardPainter extends CustomPainter {
     Canvas canvas,
     Offset a,
     Offset b,
-    Offset embossOffset,
   ) {
     final core = Paint()
       ..color = const Color(0xFF7A5C36).withOpacity(0.56)
       ..strokeWidth = 0.72
       ..style = PaintingStyle.stroke;
     canvas.drawLine(a, b, core);
-
-    final highlight = Paint()
-      ..color = const Color(0xFFF6E7CA).withOpacity(0.24)
-      ..strokeWidth = 0.42
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(a - embossOffset, b - embossOffset, highlight);
-
-    final shadow = Paint()
-      ..color = const Color(0xFF5A3F24).withOpacity(0.18)
-      ..strokeWidth = 0.4
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(a + embossOffset, b + embossOffset, shadow);
   }
 
   void _drawStarPoints(Canvas canvas, double origin, int n, double cellSize) {
