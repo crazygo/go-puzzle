@@ -58,13 +58,13 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.stoneExtraOverlayEnabled = true,
     this.boardTopBrightness = 1.0,
     this.showDebugGuides = false,
-    this.keyLightPosition = const Offset3(5.8, 5.6, -3.8),
+    this.keyLightPosition = const Offset3(7.1, 4.4, -5.2),
     this.fillLightPosition = const Offset3(-4.8, 2.6, 3.2),
-    this.keyLightIntensity = 0.92,
+    this.keyLightIntensity = 1.18,
     this.fillLightIntensity = 0.14,
     this.ambientLightIntensity = 0.19,
     this.sheenLightIntensity = 0.20,
-    this.keyLightColor = 0xfff0d2,
+    this.keyLightColor = 0xffdfb8,
     this.fillLightColor = 0xf4e8d8,
     this.ambientLightColor = 0xffeddc,
     this.sheenLightColor = 0xfffaed,
@@ -103,6 +103,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       'assets/textures/board_top_albedo_v2_1024.png';
   static const bool _enableAdditiveBoardHighlights = false;
   static const bool _enableLeafShadowCaustics = false;
+  static const Offset3 _keyLightTarget = Offset3(0.9, -0.10, -0.35);
+  static const Offset3 _sheenLightPosition = Offset3(6.2, 5.9, -3.9);
+  static const Offset3 _sheenLightTarget = Offset3(0.4, -0.05, 0.08);
   static const double _boardWidth = 8.0;
   static const double _boardTop = 0.0;
   static const double _boardThickness = 1.02;
@@ -366,7 +369,11 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       widget.keyLightPosition.z,
     );
     key.castShadow = true;
-    key.target?.position.setValues(0.3, -0.08, 0.05);
+    key.target?.position.setValues(
+      _keyLightTarget.x,
+      _keyLightTarget.y,
+      _keyLightTarget.z,
+    );
     key.shadow?.mapSize.width = 2048;
     key.shadow?.mapSize.height = 2048;
     key.shadow?.bias = -0.0008;
@@ -395,12 +402,16 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       1.18,
     );
     sheen.position.setValues(
-      widget.keyLightPosition.x + 0.4,
-      widget.keyLightPosition.y + 0.3,
-      widget.keyLightPosition.z - 0.1,
+      _sheenLightPosition.x,
+      _sheenLightPosition.y,
+      _sheenLightPosition.z,
     );
     sheen.castShadow = true;
-    sheen.target?.position.setValues(0.4, -0.05, 0.08);
+    sheen.target?.position.setValues(
+      _sheenLightTarget.x,
+      _sheenLightTarget.y,
+      _sheenLightTarget.z,
+    );
     sheen.shadow?.mapSize.width = 2048;
     sheen.shadow?.mapSize.height = 2048;
     sheen.shadow?.bias = -0.0009;
@@ -586,6 +597,11 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         widget.keyLightPosition.y,
         widget.keyLightPosition.z,
       );
+      key.target?.position.setValues(
+        _keyLightTarget.x,
+        _keyLightTarget.y,
+        _keyLightTarget.z,
+      );
     }
     final fill = _fillLight;
     if (fill != null) {
@@ -602,9 +618,14 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       sheen.color?.setFromHex32(widget.sheenLightColor);
       sheen.intensity = widget.sheenLightIntensity;
       sheen.position.setValues(
-        widget.keyLightPosition.x + 0.4,
-        widget.keyLightPosition.y + 0.3,
-        widget.keyLightPosition.z - 0.1,
+        _sheenLightPosition.x,
+        _sheenLightPosition.y,
+        _sheenLightPosition.z,
+      );
+      sheen.target?.position.setValues(
+        _sheenLightTarget.x,
+        _sheenLightTarget.y,
+        _sheenLightTarget.z,
       );
     }
     _updateDebugGuides();
@@ -621,7 +642,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     }
 
     final lightPosition = widget.keyLightPosition;
-    const target = Offset3(0.3, -0.08, 0.05);
+    const target = _keyLightTarget;
     final src = three.Mesh(
       three.SphereGeometry(0.08, 18, 10),
       three.MeshBasicMaterial({three.MaterialProperty.color: 0xffe061}),
