@@ -4,7 +4,7 @@ set -euo pipefail
 # Flutter/Dart bootstrap for container init.
 # - Installs Flutter SDK to ~/.local/tools/flutter
 # - Links flutter/dart into ~/.local/bin
-# - Runs pub get + compile checks
+# - Runs pub get (analyze checks are opt-in via --analyze)
 #
 # Usage:
 #   bash scripts/init-dev.sh
@@ -47,7 +47,8 @@ Usage:
   bash scripts/init-dev.sh [--analyze]
 
 Options:
-  --analyze   Run flutter/dart analyze checks after bootstrap.
+  --analyze       Run flutter/dart analyze checks after bootstrap.
+  -h, --help      Show this help message and exit.
 EOF
         exit 0
         ;;
@@ -178,7 +179,11 @@ main() {
   ensure_path
   warmup
   run_checks
-  log "Environment is ready and checks passed."
+  if [[ "${RUN_ANALYZE}" == "1" ]]; then
+    log "Environment is ready and checks passed."
+  else
+    log "Environment is ready (analyze skipped; pass --analyze to run checks)."
+  fi
 }
 
 main "$@"
