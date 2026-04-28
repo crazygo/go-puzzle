@@ -9,9 +9,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../game/board_image_recognizer.dart';
 import '../game/capture_ai.dart';
 import '../models/board_position.dart';
+import '../models/game_record.dart';
 import '../models/game_state.dart';
 import '../providers/capture_game_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/game_history_repository.dart';
 import '../widgets/go_board_widget.dart';
 import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
@@ -68,6 +70,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   bool _isAdjusting = false;
   bool _isRecognizingScreenshot = false;
   bool _homeTuningSheetVisible = false;
+
+  final _historyRepo = GameHistoryRepository();
+  List<GameRecord> _history = const [];
   double _homeBoardTopFactor = _defaultHomeBoardTopFactor;
   double _homeBoardHeightFactor = _defaultHomeBoardHeightFactor;
   double _homeBoardCanvasYOffset = _defaultHomeBoardCanvasYOffset;
@@ -94,6 +99,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   void initState() {
     super.initState();
     _restoreSelection();
+    _loadHistory();
   }
 
   @override
@@ -297,6 +303,13 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                     : _importBoardFromScreenshot,
                               ),
                               const SizedBox(height: 14),
+                              if (_history.isNotEmpty) ...[
+                                _HistorySectionCard(
+                                  history: _history,
+                                  onReplay: _startGameFromRecord,
+                                ),
+                                const SizedBox(height: 14),
+                              ],
                             ],
                           ),
                         ),
@@ -436,6 +449,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     await prefs.setString(_initialModeKey, _initialMode.name);
   }
 
+  Future<void> _loadHistory() async {
+    final records = await _historyRepo.loadAll();
+    if (!mounted) return;
+    setState(() => _history = records);
+  }
+
   Future<void> _importBoardFromScreenshot() async {
     try {
       final picker = ImagePicker();
@@ -541,10 +560,58 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
             captureTarget: _captureTarget,
             humanColor: humanColor,
             initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
+            initialBoardOverride: initialBoard,
           ),
         ),
       ),
-    );
+    ).then((_) => _loadHistory());
+  }
+
+  /// Starts a new game seeded from a [GameRecord] (the "重下这一手" flow).
+  void _startGameFromRecord(
+    GameRecord record,
+    DifficultyLevel difficulty,
+    CaptureInitialMode mode,
+  ) {
+    final useOriginalBoard =
+        mode == CaptureInitialMode.setup && record.initialBoardCells != null;
+    final initialBoard = useOriginalBoard
+        ? record.initialBoardCells!
+            .map((row) => row
+                .map((i) => StoneColor.values[i.clamp(0, StoneColor.values.length - 1)])
+                .toList())
+            .toList()
+        : null;
+    final humanColor = record.humanColor;
+
+    setState(() {
+      _difficulty = difficulty;
+      _boardSize = record.boardSize;
+      _initialMode = mode;
+    });
+    _saveSelection();
+
+    Navigator.of(context, rootNavigator: true).push(
+      CupertinoPageRoute(
+        builder: (_) => ChangeNotifierProvider(
+          create: (_) => CaptureGameProvider(
+            boardSize: record.boardSize,
+            captureTarget: record.captureTarget,
+            difficulty: difficulty,
+            humanColor: humanColor,
+            initialMode: mode,
+            initialBoardOverride: initialBoard,
+          ),
+          child: CaptureGamePlayScreen(
+            difficulty: difficulty,
+            captureTarget: record.captureTarget,
+            humanColor: humanColor,
+            initialMode: mode,
+            initialBoardOverride: initialBoard,
+          ),
+        ),
+      ),
+    ).then((_) => _loadHistory());
   }
 }
 
@@ -1916,12 +1983,16 @@ class CaptureGamePlayScreen extends StatefulWidget {
     required this.captureTarget,
     this.humanColor = StoneColor.black,
     this.initialMode = CaptureInitialMode.twistCross,
+    this.initialBoardOverride,
   });
 
   final DifficultyLevel difficulty;
   final int captureTarget;
   final StoneColor humanColor;
   final CaptureInitialMode initialMode;
+
+  /// The initial board passed to the provider (needed to persist the record).
+  final List<List<StoneColor>>? initialBoardOverride;
 
   @override
   State<CaptureGamePlayScreen> createState() => _CaptureGamePlayScreenState();
@@ -1930,132 +2001,194 @@ class CaptureGamePlayScreen extends StatefulWidget {
 class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   List<_HintMark> _hintMarks = const [];
   bool _isLoadingHints = false;
+  bool _gameSaved = false;
+
+  final _historyRepo = GameHistoryRepository();
+
+  /// Converts a board of [StoneColor] to a list of int indices.
+  static List<List<int>> _boardToInts(List<List<StoneColor>> board) =>
+      board.map((row) => row.map((c) => c.index).toList()).toList();
+
+  Future<void> _saveGame(CaptureGameProvider provider) async {
+    if (_gameSaved) return;
+    if (provider.moveLog.isEmpty) return; // nothing to save
+    _gameSaved = true;
+
+    final outcome = switch (provider.result) {
+      CaptureGameResult.blackWins =>
+        widget.humanColor == StoneColor.black
+            ? GameOutcome.humanWins
+            : GameOutcome.aiWins,
+      CaptureGameResult.whiteWins =>
+        widget.humanColor == StoneColor.white
+            ? GameOutcome.humanWins
+            : GameOutcome.aiWins,
+      CaptureGameResult.none => GameOutcome.abandoned,
+    };
+
+    final initialBoardCells = widget.initialBoardOverride != null
+        ? _boardToInts(widget.initialBoardOverride!)
+        : null;
+
+    final now = DateTime.now();
+    final record = GameRecord(
+      id: now.toIso8601String(),
+      playedAt: now,
+      boardSize: provider.boardSize,
+      captureTarget: provider.captureTarget,
+      difficulty: provider.difficulty.name,
+      humanColorIndex: widget.humanColor.index,
+      initialMode: widget.initialMode.name,
+      initialBoardCells: initialBoardCells,
+      moves: List<List<int>>.from(
+        provider.moveLog.map((m) => List<int>.from(m)),
+      ),
+      outcome: outcome,
+      finalBoard: _boardToInts(provider.gameState.board),
+    );
+    await _historyRepo.save(record);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CaptureGameProvider>(
-      builder: (context, provider, _) {
-        final rates = provider.winRateEstimate;
-        final blackRate = (rates[StoneColor.black]! * 100).toStringAsFixed(0);
-        final whiteRate = (rates[StoneColor.white]! * 100).toStringAsFixed(0);
-        final blackCaptured = provider.gameState.capturedByBlack.length;
-        final whiteCaptured = provider.gameState.capturedByWhite.length;
-        final aiThinking = provider.isAiThinking;
-        final isFinished = provider.result != CaptureGameResult.none;
-        final settings = context.watch<SettingsProvider?>();
-        final showCaptureWarning = settings?.showCaptureWarning ?? true;
+    return PopScope(
+      onPopInvokedWithResult: (_, __) {
+        final provider = context.read<CaptureGameProvider>();
+        _saveGame(provider);
+      },
+      child: Consumer<CaptureGameProvider>(
+        builder: (context, provider, _) {
+          // Auto-save when game finishes.
+          if (provider.result != CaptureGameResult.none && !_gameSaved) {
+            Future.microtask(() => _saveGame(provider));
+          }
 
-        return CupertinoPageScaffold(
-          backgroundColor: const Color(0xFFF3F0ED),
-          navigationBar: CupertinoNavigationBar(
+          final rates = provider.winRateEstimate;
+          final blackRate =
+              (rates[StoneColor.black]! * 100).toStringAsFixed(0);
+          final whiteRate =
+              (rates[StoneColor.white]! * 100).toStringAsFixed(0);
+          final blackCaptured = provider.gameState.capturedByBlack.length;
+          final whiteCaptured = provider.gameState.capturedByWhite.length;
+          final aiThinking = provider.isAiThinking;
+          final isFinished = provider.result != CaptureGameResult.none;
+          final settings = context.watch<SettingsProvider?>();
+          final showCaptureWarning = settings?.showCaptureWarning ?? true;
+
+          return CupertinoPageScaffold(
             backgroundColor: const Color(0xFFF3F0ED),
-            border: null,
-            previousPageTitle: _CaptureCopy.pageTitle,
-            middle: Text(
-              '${_initialModeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${widget.difficulty.displayName}',
-            ),
-            trailing: CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: () => _showGameConfigDialog(
-                context: context,
-                provider: provider,
-                settings: settings,
+            navigationBar: CupertinoNavigationBar(
+              backgroundColor: const Color(0xFFF3F0ED),
+              border: null,
+              previousPageTitle: _CaptureCopy.pageTitle,
+              middle: Text(
+                '${_initialModeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${widget.difficulty.displayName}',
               ),
-              child: const Icon(
-                CupertinoIcons.slider_horizontal_3,
-                color: Color(0xFFC3996E),
-                size: 20,
-              ),
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: _PlayerSummaryRow(
-                    captureTarget: widget.captureTarget,
-                    blackCaptured: blackCaptured,
-                    whiteCaptured: whiteCaptured,
-                    result: provider.result,
-                    currentPlayer: provider.gameState.currentPlayer,
-                    isSetupMode: provider.isPlacementMode,
-                    humanColor: widget.humanColor,
-                    isAiThinking: aiThinking,
-                  ),
+              trailing: CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => _showGameConfigDialog(
+                  context: context,
+                  provider: provider,
+                  settings: settings,
                 ),
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0DFC9),
-                          borderRadius: BorderRadius.circular(26),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x14000000),
-                              blurRadius: 12,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: _TapBoard(
-                            gameState: provider.gameState,
-                            enabled: !aiThinking && !isFinished,
-                            hintMarks: _hintMarks,
-                            showCaptureWarning: showCaptureWarning,
-                            onTap: (row, col) => _handleBoardTap(
-                              provider: provider,
-                              row: row,
-                              col: col,
+                child: const Icon(
+                  CupertinoIcons.slider_horizontal_3,
+                  color: Color(0xFFC3996E),
+                  size: 20,
+                ),
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: _PlayerSummaryRow(
+                      captureTarget: widget.captureTarget,
+                      blackCaptured: blackCaptured,
+                      whiteCaptured: whiteCaptured,
+                      result: provider.result,
+                      currentPlayer: provider.gameState.currentPlayer,
+                      isSetupMode: provider.isPlacementMode,
+                      humanColor: widget.humanColor,
+                      isAiThinking: aiThinking,
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0DFC9),
+                            borderRadius: BorderRadius.circular(26),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x14000000),
+                                blurRadius: 12,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: _TapBoard(
+                              gameState: provider.gameState,
+                              enabled: !aiThinking && !isFinished,
+                              hintMarks: _hintMarks,
+                              showCaptureWarning: showCaptureWarning,
+                              onTap: (row, col) => _handleBoardTap(
+                                provider: provider,
+                                row: row,
+                                col: col,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                  child: _BottomInfoCard(
-                    infoText: _buildInfoText(provider, widget.humanColor),
-                    blackRate: blackRate,
-                    whiteRate: whiteRate,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    child: _BottomInfoCard(
+                      infoText: _buildInfoText(provider, widget.humanColor),
+                      blackRate: blackRate,
+                      whiteRate: whiteRate,
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 22),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _DecoratedActionButton(
-                          text: '后退一手',
-                          filled: false,
-                          onPressed:
-                              provider.canUndo ? provider.undoMove : null,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 22),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _DecoratedActionButton(
+                            text: '后退一手',
+                            filled: false,
+                            onPressed:
+                                provider.canUndo ? provider.undoMove : null,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _DecoratedActionButton(
-                          text: '提示一手',
-                          filled: true,
-                          onPressed: _isLoadingHints
-                              ? null
-                              : () => _showHintsOnBoard(provider),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _DecoratedActionButton(
+                            text: isFinished ? '重下这一手' : '提示一手',
+                            filled: true,
+                            onPressed: isFinished
+                                ? () => _showReplayDialog(context, provider)
+                                : (_isLoadingHints
+                                    ? null
+                                    : () => _showHintsOnBoard(provider)),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -2106,6 +2239,66 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
         });
       }
     }
+  }
+
+  void _showReplayDialog(
+    BuildContext context,
+    CaptureGameProvider provider,
+  ) {
+    // Capture the root navigator before any pop operations.
+    final rootNav = Navigator.of(context, rootNavigator: true);
+
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogContext) => _ReplaySetupDialog(
+        defaultDifficulty: provider.difficulty,
+        defaultInitialMode: widget.initialMode,
+        hasInitialBoard: widget.initialBoardOverride != null,
+        onConfirm: (difficulty, mode) {
+          Navigator.of(dialogContext).pop();
+
+          final initialBoardCells = widget.initialBoardOverride != null
+              ? widget.initialBoardOverride!
+                  .map((row) => row.map((c) => c.index).toList())
+                  .toList()
+              : null;
+
+          List<List<StoneColor>>? boardOverride;
+          if (mode == CaptureInitialMode.setup && initialBoardCells != null) {
+            boardOverride = initialBoardCells
+                .map((row) => row
+                    .map((i) => StoneColor.values[
+                        i.clamp(0, StoneColor.values.length - 1)])
+                    .toList())
+                .toList();
+          }
+
+          // Pop the current play screen, then push the new game.
+          rootNav.pop();
+          rootNav.push(
+            CupertinoPageRoute(
+              builder: (_) => ChangeNotifierProvider(
+                create: (_) => CaptureGameProvider(
+                  boardSize: provider.boardSize,
+                  captureTarget: provider.captureTarget,
+                  difficulty: difficulty,
+                  humanColor: widget.humanColor,
+                  initialMode: mode,
+                  initialBoardOverride: boardOverride,
+                ),
+                child: CaptureGamePlayScreen(
+                  difficulty: difficulty,
+                  captureTarget: provider.captureTarget,
+                  humanColor: widget.humanColor,
+                  initialMode: mode,
+                  initialBoardOverride: boardOverride,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _showStylePicker(BuildContext context, CaptureGameProvider provider) {
@@ -2617,5 +2810,601 @@ class _TapBoard extends StatelessWidget {
     if (row >= 0 && row < n && col >= 0 && col < n) {
       onTap(row, col);
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// History section
+// ---------------------------------------------------------------------------
+
+/// Section card shown on the home screen listing recent games.
+class _HistorySectionCard extends StatelessWidget {
+  const _HistorySectionCard({
+    required this.history,
+    required this.onReplay,
+  });
+
+  final List<GameRecord> history;
+
+  /// Called when the user confirms replay from the detail sheet.
+  /// Args: (record, difficulty, mode)
+  final void Function(
+    GameRecord record,
+    DifficultyLevel difficulty,
+    CaptureInitialMode mode,
+  ) onReplay;
+
+  static const _maxVisible = 5;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = history.take(_maxVisible).toList();
+    return _SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '历史对局',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF3A2A1F),
+                  ),
+                ),
+              ),
+              if (history.length > _maxVisible)
+                CupertinoButton(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  minimumSize: Size.zero,
+                  onPressed: () => _showAllHistory(context),
+                  child: const Text(
+                    '全部 ›',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFFB68454),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...visible.map(
+            (r) => _HistoryRow(
+              record: r,
+              onTap: () => _showDetailSheet(context, r),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDetailSheet(BuildContext context, GameRecord record) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (ctx) => _HistoryDetailSheet(
+        record: record,
+        onReplay: (difficulty, mode) {
+          Navigator.of(ctx).pop();
+          onReplay(record, difficulty, mode);
+        },
+      ),
+    );
+  }
+
+  void _showAllHistory(BuildContext context) {
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (_) => _FullHistoryScreen(
+          history: history,
+          onReplay: onReplay,
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryRow extends StatelessWidget {
+  const _HistoryRow({
+    required this.record,
+    required this.onTap,
+  });
+
+  final GameRecord record;
+  final VoidCallback onTap;
+
+  static const _outcomeColors = {
+    GameOutcome.humanWins: Color(0xFF4A7C59),
+    GameOutcome.aiWins: Color(0xFF8B3A3A),
+    GameOutcome.abandoned: Color(0xFF8C7966),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final date = _formatDate(record.playedAt);
+    final boardLabel = '${record.boardSize} 路';
+    final diffLabel = record.difficultyLevel.displayName;
+    final outcomeLabel = record.outcome.displayName;
+    final outcomeColor =
+        _outcomeColors[record.outcome] ?? const Color(0xFF8C7966);
+
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      minimumSize: Size.zero,
+      onPressed: onTap,
+      child: Row(
+        children: [
+          _StoneCircle(isBlack: record.humanColorIndex == StoneColor.black.index),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$boardLabel · $diffLabel · ${record.totalMoves} 手',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF3A2A1F),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  date,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF897564),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: outcomeColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              outcomeLabel,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: outcomeColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(
+            CupertinoIcons.chevron_right,
+            color: Color(0xFFCBAF8C),
+            size: 14,
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatDate(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inDays == 0) return '今天 ${_pad(dt.hour)}:${_pad(dt.minute)}';
+    if (diff.inDays == 1) return '昨天 ${_pad(dt.hour)}:${_pad(dt.minute)}';
+    return '${dt.month}/${dt.day} ${_pad(dt.hour)}:${_pad(dt.minute)}';
+  }
+
+  static String _pad(int n) => n.toString().padLeft(2, '0');
+}
+
+class _StoneCircle extends StatelessWidget {
+  const _StoneCircle({required this.isBlack});
+
+  final bool isBlack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isBlack ? const Color(0xFF1A1A1A) : const Color(0xFFF5F0E8),
+        border: Border.all(
+          color: isBlack ? const Color(0xFF3A3A3A) : const Color(0xFFBCA88A),
+          width: 1.2,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// History detail sheet
+// ---------------------------------------------------------------------------
+
+class _HistoryDetailSheet extends StatelessWidget {
+  const _HistoryDetailSheet({
+    required this.record,
+    required this.onReplay,
+  });
+
+  final GameRecord record;
+  final void Function(DifficultyLevel difficulty, CaptureInitialMode mode)
+      onReplay;
+
+  @override
+  Widget build(BuildContext context) {
+    final boardState = _buildFinalBoardState(record);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFFF9F4EC),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0x33B68454),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${record.boardSize} 路 · 吃${record.captureTarget}子 · ${record.difficultyLevel.displayName}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF3A2A1F),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatFullDate(record.playedAt),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF8C7966),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _OutcomeBadge(outcome: record.outcome),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (boardState != null) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0DFC9),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: GoBoardWidget(
+                        gameState: boardState,
+                        onTap: null,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '共 ${record.totalMoves} 手',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF8C7966),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: _PrimaryActionButton(
+                title: '重下这一手',
+                onPressed: () => _promptReplay(context),
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _promptReplay(BuildContext context) {
+    // Show the replay dialog on top of the sheet; then close both when confirmed.
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (ctx) => _ReplaySetupDialog(
+        defaultDifficulty: record.difficultyLevel,
+        defaultInitialMode: CaptureInitialMode.values.firstWhere(
+          (m) => m.name == record.initialMode,
+          orElse: () => CaptureInitialMode.twistCross,
+        ),
+        hasInitialBoard: record.initialBoardCells != null,
+        onConfirm: (difficulty, mode) {
+          Navigator.of(ctx).pop(); // close the dialog
+          Navigator.of(context).pop(); // close the detail sheet
+          onReplay(difficulty, mode);
+        },
+      ),
+    );
+  }
+
+  static String _formatFullDate(DateTime dt) {
+    return '${dt.year}/${dt.month.toString().padLeft(2, '0')}/${dt.day.toString().padLeft(2, '0')} '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  static GameState? _buildFinalBoardState(GameRecord record) {
+    final fb = record.finalBoard;
+    if (fb == null) return null;
+    try {
+      final board = fb
+          .map((row) => row
+              .map((i) =>
+                  StoneColor.values[i.clamp(0, StoneColor.values.length - 1)])
+              .toList())
+          .toList();
+      return GameState(
+        boardSize: record.boardSize,
+        board: board,
+        currentPlayer: StoneColor.black,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class _OutcomeBadge extends StatelessWidget {
+  const _OutcomeBadge({required this.outcome});
+
+  final GameOutcome outcome;
+
+  static const _bgColors = {
+    GameOutcome.humanWins: Color(0xFFE6F4EC),
+    GameOutcome.aiWins: Color(0xFFF9E6E6),
+    GameOutcome.abandoned: Color(0xFFF0EAE2),
+  };
+
+  static const _fgColors = {
+    GameOutcome.humanWins: Color(0xFF3D7A56),
+    GameOutcome.aiWins: Color(0xFF8B3A3A),
+    GameOutcome.abandoned: Color(0xFF7A6A5A),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: _bgColors[outcome],
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        outcome.displayName,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: _fgColors[outcome],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Full history screen
+// ---------------------------------------------------------------------------
+
+class _FullHistoryScreen extends StatelessWidget {
+  const _FullHistoryScreen({
+    required this.history,
+    required this.onReplay,
+  });
+
+  final List<GameRecord> history;
+  final void Function(
+    GameRecord record,
+    DifficultyLevel difficulty,
+    CaptureInitialMode mode,
+  ) onReplay;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      backgroundColor: kPageBackgroundColor,
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('历史对局'),
+        previousPageTitle: '小闲围棋',
+      ),
+      child: SafeArea(
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          itemCount: history.length,
+          separatorBuilder: (_, __) => Container(
+            height: 0.5,
+            color: const Color(0x26D8C1A4),
+          ),
+          itemBuilder: (ctx, i) {
+            final r = history[i];
+            return _HistoryRow(
+              record: r,
+              onTap: () => showCupertinoModalPopup<void>(
+                context: ctx,
+                builder: (_) => _HistoryDetailSheet(
+                  record: r,
+                  onReplay: (difficulty, mode) {
+                    // The detail sheet has already been popped by _promptReplay.
+                    Navigator.of(ctx).pop(); // close the full history screen
+                    onReplay(r, difficulty, mode);
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Replay setup dialog
+// ---------------------------------------------------------------------------
+
+/// A dialog that lets the user choose difficulty and initial mode before
+/// replaying a recorded game.
+class _ReplaySetupDialog extends StatefulWidget {
+  const _ReplaySetupDialog({
+    required this.defaultDifficulty,
+    required this.defaultInitialMode,
+    required this.hasInitialBoard,
+    required this.onConfirm,
+  });
+
+  final DifficultyLevel defaultDifficulty;
+  final CaptureInitialMode defaultInitialMode;
+
+  /// Whether the original record had an `initialBoardOverride`.
+  final bool hasInitialBoard;
+
+  final void Function(DifficultyLevel difficulty, CaptureInitialMode mode)
+      onConfirm;
+
+  @override
+  State<_ReplaySetupDialog> createState() => _ReplaySetupDialogState();
+}
+
+class _ReplaySetupDialogState extends State<_ReplaySetupDialog> {
+  late DifficultyLevel _difficulty;
+  late bool _usePlacementMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _difficulty = widget.defaultDifficulty;
+    _usePlacementMode =
+        widget.defaultInitialMode == CaptureInitialMode.setup;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoAlertDialog(
+      title: const Text('重下这一手'),
+      content: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'AI 难度',
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF8E7157),
+              ),
+            ),
+            const SizedBox(height: 8),
+            CupertinoSlidingSegmentedControl<DifficultyLevel>(
+              groupValue: _difficulty,
+              children: {
+                for (final d in DifficultyLevel.values)
+                  d: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 3),
+                    child: Text(
+                      d.displayName,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+              },
+              onValueChanged: (v) {
+                if (v != null) setState(() => _difficulty = v);
+              },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '摆棋模式',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Color(0xFF2E2620),
+                    ),
+                  ),
+                ),
+                CupertinoSwitch(
+                  value: _usePlacementMode,
+                  activeTrackColor: const Color(0xFFB68454),
+                  onChanged: (v) => setState(() => _usePlacementMode = v),
+                ),
+              ],
+            ),
+            if (_usePlacementMode && widget.hasInitialBoard)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text(
+                  '将使用原始棋盘布局进入摆棋模式',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF8C7A6A)),
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        CupertinoDialogAction(
+          onPressed: () => Navigator.of(context).pop(),
+          isDestructiveAction: true,
+          child: const Text('取消'),
+        ),
+        CupertinoDialogAction(
+          isDefaultAction: true,
+          onPressed: () {
+            final mode = _usePlacementMode
+                ? CaptureInitialMode.setup
+                : (widget.defaultInitialMode == CaptureInitialMode.setup
+                    ? CaptureInitialMode.twistCross
+                    : widget.defaultInitialMode);
+            widget.onConfirm(_difficulty, mode);
+          },
+          child: const Text('开始'),
+        ),
+      ],
+    );
   }
 }
