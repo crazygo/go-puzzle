@@ -176,7 +176,7 @@ class CaptureGameProvider extends ChangeNotifier {
 
   void undoMove() {
     if (!canUndo) return;
-    final prevStackSize = _undoStack.length;
+    final stackSizeBefore = _undoStack.length;
     if (isPlacementMode) {
       // Setup mode: undo one move at a time
       _gameState = _undoStack.removeLast();
@@ -187,9 +187,9 @@ class CaptureGameProvider extends ChangeNotifier {
         _gameState = _undoStack.removeLast();
       }
     }
-    final removed = prevStackSize - _undoStack.length;
-    if (_moveLog.length >= removed) {
-      _moveLog.removeRange(_moveLog.length - removed, _moveLog.length);
+    final movesRemoved = stackSizeBefore - _undoStack.length;
+    if (_moveLog.length >= movesRemoved) {
+      _moveLog.removeRange(_moveLog.length - movesRemoved, _moveLog.length);
     }
     _result = CaptureGameResult.none;
     notifyListeners();

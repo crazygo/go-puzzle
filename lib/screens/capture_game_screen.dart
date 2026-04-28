@@ -2257,21 +2257,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
         onConfirm: (difficulty, mode) {
           Navigator.of(dialogContext).pop();
 
-          final initialBoardCells = widget.initialBoardOverride != null
-              ? widget.initialBoardOverride!
-                  .map((row) => row.map((c) => c.index).toList())
-                  .toList()
-              : null;
-
-          List<List<StoneColor>>? boardOverride;
-          if (mode == CaptureInitialMode.setup && initialBoardCells != null) {
-            boardOverride = initialBoardCells
-                .map((row) => row
-                    .map((i) => StoneColor.values[
-                        i.clamp(0, StoneColor.values.length - 1)])
-                    .toList())
-                .toList();
-          }
+          final boardOverride =
+              mode == CaptureInitialMode.setup ? widget.initialBoardOverride : null;
 
           // Pop the current play screen, then push the new game.
           rootNav.pop();
