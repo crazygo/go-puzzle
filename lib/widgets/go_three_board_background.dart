@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:image/image.dart' as img;
 import 'package:three_js/three_js.dart' as three;
 
 enum GoThreeStoneColor { black, white }
@@ -48,7 +49,7 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.boardSize = 19,
     this.stones = const [],
     this.animate = false,
-    this.particles = true,
+    this.particles = false,
     this.cinematicFrame = true,
     this.cinematicFov = 26,
     this.sceneScale = 1.0,
@@ -107,10 +108,10 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       'assets/textures/board_top_albedo_v2_1024.png';
   static const bool _enableAdditiveBoardHighlights = false;
   static const bool _enableLeafShadowCaustics = false;
-  static const double _surfaceSheenOpacity = 1.18;
-  static const Offset3 _keyLightTarget = Offset3(0.9, -0.10, -0.35);
-  static const Offset3 _sheenLightPosition = Offset3(6.2, 5.9, -3.9);
-  static const Offset3 _sheenLightTarget = Offset3(0.4, -0.05, 0.08);
+  static const double _surfaceSheenOpacity = 0.18;
+  static const Offset3 _keyLightTarget = Offset3(0.20, -0.10, 0.12);
+  static const Offset3 _sheenLightPosition = Offset3(6.8, 6.8, 6.2);
+  static const Offset3 _sheenLightTarget = Offset3(0.15, -0.05, 0.08);
   static const double _cinematicViewZOffset = 1.32;
   static const double _boardWidth = 8.0;
   static const double _boardTop = 0.0;
@@ -127,7 +128,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   three.AmbientLight? _ambientLight;
   three.DirectionalLight? _keyLight;
   three.DirectionalLight? _fillLight;
-  three.SpotLight? _sheenLight;
+  three.RectAreaLight? _sheenLight;
   three.MeshStandardMaterial? _boardTopMaterial;
   final List<three.MeshBasicMaterial> _surfaceSheenMaterials = [];
   three.MeshBasicMaterial? _reflectionMaterial;
@@ -167,7 +168,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         clearAlpha: 0,
         clearColor: 0x000000,
         screenResolution: 2.0,
-        toneMappingExposure: 0.50,
+        toneMappingExposure: 0.44,
       ),
       onSetupComplete: () {
         // Scene initialized successfully – restore the original handler.
@@ -429,6 +430,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     key.shadow?.mapSize.width = 2048;
     key.shadow?.mapSize.height = 2048;
     key.shadow?.bias = -0.0008;
+    key.shadow?.radius = 8;
+    key.shadow?.blurSamples = 18;
     _threeJs.scene.add(key);
     if (key.target != null) {
       _threeJs.scene.add(key.target);
@@ -445,59 +448,60 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _threeJs.scene.add(fill);
     _fillLight = fill;
 
-    final sheen = three.SpotLight(
+    final sheen = three.RectAreaLight(
       widget.sheenLightColor,
       widget.sheenLightIntensity,
-      20,
-      math.pi / 5,
-      0.82,
-      1.18,
+      8.0,
+      5.0,
     );
     sheen.position.setValues(
       _sheenLightPosition.x,
       _sheenLightPosition.y,
       _sheenLightPosition.z,
     );
-    sheen.castShadow = true;
-    sheen.target?.position.setValues(
+    sheen.lookAt(three.Vector3(
       _sheenLightTarget.x,
       _sheenLightTarget.y,
       _sheenLightTarget.z,
-    );
-    sheen.shadow?.mapSize.width = 2048;
-    sheen.shadow?.mapSize.height = 2048;
-    sheen.shadow?.bias = -0.0009;
+    ));
     _threeJs.scene.add(sheen);
-    if (sheen.target != null) {
-      _threeJs.scene.add(sheen.target);
-    }
     _sheenLight = sheen;
   }
 
   Future<void> _buildBoard() async {
     final sideMaterial = three.MeshStandardMaterial({
-      three.MaterialProperty.color: 0xa06a35,
-      three.MaterialProperty.roughness: 0.78,
+      three.MaterialProperty.color: 0xc6965e,
+      three.MaterialProperty.roughness: 0.84,
       three.MaterialProperty.metalness: 0.0,
     });
-    final boardTopAlbedoPath =
-        kIsWeb ? 'assets/$_boardTopAlbedoAsset' : _boardTopAlbedoAsset;
-    final boardTopAlbedo =
-        await three.TextureLoader(flipY: false).fromAsset(boardTopAlbedoPath);
-    if (boardTopAlbedo != null) {
-      boardTopAlbedo
+    three.Texture? boardTopAppearance = await _buildBoardTopAppearanceMap();
+    if (boardTopAppearance == null) {
+      const boardTopAlbedoPath =
+          kIsWeb ? 'assets/$_boardTopAlbedoAsset' : _boardTopAlbedoAsset;
+      boardTopAppearance =
+          await three.TextureLoader(flipY: false).fromAsset(boardTopAlbedoPath);
+    }
+    if (boardTopAppearance != null) {
+      boardTopAppearance
         ..colorSpace = three.SRGBColorSpace
         ..wrapS = three.ClampToEdgeWrapping
         ..wrapT = three.ClampToEdgeWrapping
         ..needsUpdate = true;
     }
-    final topMaterial = three.MeshStandardMaterial({
-      three.MaterialProperty.color: 0xdab074,
-      if (boardTopAlbedo != null) three.MaterialProperty.map: boardTopAlbedo,
-      three.MaterialProperty.roughness: 0.36,
-      three.MaterialProperty.metalness: 0.03,
+    final topMaterial = three.MeshPhysicalMaterial({
+      three.MaterialProperty.color: 0xfffcf5,
+      if (boardTopAppearance != null)
+        three.MaterialProperty.map: boardTopAppearance,
+      three.MaterialProperty.roughness: 0.68,
+      three.MaterialProperty.metalness: 0.0,
+      three.MaterialProperty.clearcoat: 0.16,
+      three.MaterialProperty.clearcoatRoughness: 0.82,
       three.MaterialProperty.emissive: 0x000000,
     });
+    topMaterial
+      ..lightMap = _buildBoardTopIrradianceMap()
+      ..lightMapIntensity = 2.85
+      ..needsUpdate = true;
     _boardTopMaterial = topMaterial;
 
     const straightWidth = _boardWidth - _cornerRadius * 2;
@@ -543,7 +547,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       ..scale.setValues(_boardWidth, _boardWidth, 1)
       ..receiveShadow = true;
     _root.add(topSkin);
-    _buildSurfaceSheen();
+    if (_enableAdditiveBoardHighlights) {
+      _buildSurfaceSheen();
+    }
 
     if (!_enableAdditiveBoardHighlights) {
       _updateBoardBrightness();
@@ -631,9 +637,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         material,
       )
         ..position.setValues(
-          2.24 + i * 0.26,
+          2.08 + i * 0.22,
           _boardTop + 0.041 + i * 0.001,
-          -1.82 - i * 0.20,
+          1.42 + i * 0.16,
         )
         ..rotation.x = -math.pi / 2
         ..rotation.z = -0.34
@@ -648,11 +654,12 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final top = _boardTopMaterial;
     if (top != null) {
       top.color.setFromHex32(_lerpColorHex(
-        0xffffff,
+        0xfffcf5,
         0xfff2cb,
         (b - 1.0).clamp(0.0, 1.0),
       ));
       top.emissive?.setFromHex32(0x000000);
+      top.emissiveIntensity = 1.0;
       top.needsUpdate = true;
     }
     for (int i = 0; i < _surfaceSheenMaterials.length; i++) {
@@ -723,11 +730,11 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         _sheenLightPosition.y,
         _sheenLightPosition.z,
       );
-      sheen.target?.position.setValues(
+      sheen.lookAt(three.Vector3(
         _sheenLightTarget.x,
         _sheenLightTarget.y,
         _sheenLightTarget.z,
-      );
+      ));
     }
     _updateDebugGuides();
   }
@@ -789,8 +796,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
   void _buildSideWoodDetail() {
     final material = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0x704019,
-      three.MaterialProperty.opacity: 0.24,
+      three.MaterialProperty.color: 0xb98a52,
+      three.MaterialProperty.opacity: 0.055,
       three.MaterialProperty.transparent: true,
     });
     const frontZ = _boardWidth / 2 + 0.016;
@@ -808,8 +815,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     }
 
     final edgeMaterial = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0xffd08b,
-      three.MaterialProperty.opacity: 0.26,
+      three.MaterialProperty.color: 0xffe2ad,
+      three.MaterialProperty.opacity: 0.12,
       three.MaterialProperty.transparent: true,
     });
     final frontEdge = three.Mesh(
@@ -824,24 +831,33 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     if (n < 2) return;
     final step = _gridSpan / (n - 1);
     const start = -_gridSpan / 2;
-    final lineMaterial = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0x000000,
-      three.MaterialProperty.opacity: 0.55,
-      three.MaterialProperty.transparent: true,
-    });
+    const segments = 18;
+    const baseOpacity = 0.62;
+    const segmentLength = _gridSpan / segments;
     for (int i = 0; i < n; i++) {
       final p = start + i * step;
-      final horizontal = three.Mesh(
-        three.BoxGeometry(_gridSpan, 0.010, 0.020),
-        lineMaterial,
-      )..position.setValues(0, _boardTop + 0.034, p);
-      final vertical = three.Mesh(
-        three.BoxGeometry(0.020, 0.010, _gridSpan),
-        lineMaterial,
-      )..position.setValues(p, _boardTop + 0.035, 0);
-      _root
-        ..add(horizontal)
-        ..add(vertical);
+      for (int segment = 0; segment < segments; segment++) {
+        final center = start + segmentLength * (segment + 0.5);
+        final horizontalLight = _windowIrradiance(
+          _boardCoordToUv(center),
+          _boardCoordToUv(p),
+        );
+        final verticalLight = _windowIrradiance(
+          _boardCoordToUv(p),
+          _boardCoordToUv(center),
+        );
+        final horizontal = three.Mesh(
+          three.BoxGeometry(segmentLength, 0.008, 0.020),
+          _buildGridMaterial(horizontalLight, baseOpacity),
+        )..position.setValues(center, _boardTop + 0.034, p);
+        final vertical = three.Mesh(
+          three.BoxGeometry(0.020, 0.008, segmentLength),
+          _buildGridMaterial(verticalLight, baseOpacity),
+        )..position.setValues(p, _boardTop + 0.035, center);
+        _root
+          ..add(horizontal)
+          ..add(vertical);
+      }
     }
   }
 
@@ -1033,7 +1049,138 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       ..quadraticCurveTo(0, 1, 0, 1 - r)
       ..lineTo(0, r)
       ..quadraticCurveTo(0, 0, r, 0);
-    return three.ShapeGeometry([shape], curveSegments: 12);
+    final geometry = three.ShapeGeometry([shape], curveSegments: 12);
+    final uv = geometry.getAttributeFromString('uv');
+    if (uv != null) {
+      geometry.setAttributeFromString('uv2', uv.clone());
+    }
+    return geometry;
+  }
+
+  three.DataTexture _buildBoardTopIrradianceMap() {
+    const size = 96;
+    final data = three.Uint8Array(size * size * 4);
+    for (int y = 0; y < size; y++) {
+      final v = y / (size - 1);
+      for (int x = 0; x < size; x++) {
+        final u = x / (size - 1);
+        final window = _windowIrradiance(u, v);
+        final illumination = (0.08 + window * 0.92).clamp(0.0, 1.0);
+
+        final index = (y * size + x) * 4;
+        data[index] = (255 * illumination).round();
+        data[index + 1] = (255 * illumination).round();
+        data[index + 2] = (252 * illumination).round();
+        data[index + 3] = 255;
+      }
+    }
+
+    return three.DataTexture(
+      data,
+      size,
+      size,
+      three.RGBAFormat,
+      three.UnsignedByteType,
+      null,
+      three.ClampToEdgeWrapping,
+      three.ClampToEdgeWrapping,
+      three.LinearFilter,
+      three.LinearFilter,
+      1,
+      three.SRGBColorSpace,
+    )..needsUpdate = true;
+  }
+
+  Future<three.DataTexture?> _buildBoardTopAppearanceMap() async {
+    final Uint8List bytes;
+    try {
+      final data = await rootBundle.load(_boardTopAlbedoAsset);
+      bytes = data.buffer.asUint8List();
+    } catch (_) {
+      return null;
+    }
+
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) return null;
+
+    const size = 512;
+    final source = decoded.width == size && decoded.height == size
+        ? decoded
+        : img.copyResize(
+            decoded,
+            width: size,
+            height: size,
+            interpolation: img.Interpolation.average,
+          );
+    final data = three.Uint8Array(source.width * source.height * 4);
+
+    const washStrength = 0.36;
+    const washPower = 0.70;
+    const creamR = 252.0;
+    const creamG = 247.0;
+    const creamB = 231.0;
+
+    for (int y = 0; y < source.height; y++) {
+      final v = y / (source.height - 1);
+      for (int x = 0; x < source.width; x++) {
+        final u = x / (source.width - 1);
+        final window = _windowIrradiance(u, v);
+        final wash = washStrength * math.pow(window, washPower).toDouble();
+        final pixel = source.getPixel(x, y);
+        final index = (y * source.width + x) * 4;
+        data[index] = _lerpDouble(pixel.r.toDouble(), creamR, wash).round();
+        data[index + 1] = _lerpDouble(pixel.g.toDouble(), creamG, wash).round();
+        data[index + 2] = _lerpDouble(pixel.b.toDouble(), creamB, wash).round();
+        data[index + 3] = pixel.a.round();
+      }
+    }
+
+    return three.DataTexture(
+      data,
+      source.width,
+      source.height,
+      three.RGBAFormat,
+      three.UnsignedByteType,
+      null,
+      three.ClampToEdgeWrapping,
+      three.ClampToEdgeWrapping,
+      three.LinearFilter,
+      three.LinearFilter,
+      1,
+      three.SRGBColorSpace,
+    )..needsUpdate = true;
+  }
+
+  static double _windowIrradiance(double u, double v) {
+    final broadWindow = math.exp(
+      -((u - 1.02) * (u - 1.02) / 3.45 + (v + 0.16) * (v + 0.16) / 2.50),
+    );
+    final diagonalWash =
+        ((u * 0.86 + (1.0 - v) * 0.72 - 0.08) / 1.72).clamp(0.0, 1.0);
+    final middleLift = math.pow(diagonalWash, 0.46).toDouble();
+    final upperRightLift = math.exp(
+      -((u - 1.18) * (u - 1.18) / 1.70 + (v + 0.10) * (v + 0.10) / 1.30),
+    );
+    return (broadWindow * middleLift * 0.90 + upperRightLift * 0.08)
+        .clamp(0.0, 1.0);
+  }
+
+  static double _boardCoordToUv(double value) {
+    return (0.5 + value / _boardWidth).clamp(0.0, 1.0);
+  }
+
+  static three.MeshBasicMaterial _buildGridMaterial(
+    double window,
+    double baseOpacity,
+  ) {
+    final gridLight = math.pow(window, 0.66).toDouble();
+    final fade = (1.0 - gridLight * 0.78).clamp(0.16, 0.88);
+    return three.MeshBasicMaterial({
+      three.MaterialProperty.color:
+          _lerpColorHex(0x5c4d3a, 0xb8ab94, gridLight),
+      three.MaterialProperty.opacity: baseOpacity * fade,
+      three.MaterialProperty.transparent: true,
+    });
   }
 }
 
@@ -1065,4 +1212,9 @@ int _lerpColorHex(int a, int b, double t) {
   final g = (ag + (bg - ag) * clamped).round();
   final c = (ab + (bb - ab) * clamped).round();
   return (r << 16) | (g << 8) | c;
+}
+
+double _lerpDouble(double a, double b, double t) {
+  final clamped = t.clamp(0.0, 1.0);
+  return a + (b - a) * clamped;
 }

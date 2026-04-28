@@ -37,6 +37,13 @@ For Flutter Web, the expected lifecycle is:
 4. Stop the Flutter process with `q` in the PTY, or kill the exact process if it does not exit.
 5. Use a new process for the next shot, even when only params changed.
 
+If repeated screenshot attempts stall before serving at `Resolving dependencies...`
+or `Downloading packages...`, do not keep retrying the default launch. Once
+dependencies are already present, start the screenshot server with
+`flutter run --no-pub -d web-server --web-hostname 127.0.0.1 --web-port <port>`.
+This keeps the fresh-process rule while avoiding nondeterministic package
+resolution during visual iteration.
+
 The skill expects a local Playwright dependency to already exist. It does not rely on a network install during execution.
 
 Supported resolution order for the Playwright module:

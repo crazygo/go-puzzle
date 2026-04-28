@@ -37,6 +37,8 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
   double _leafShadowOpacity = _CaptureGameScreenState._defaultLeafShadowOpacity;
   bool _stoneExtraOverlayEnabled =
       _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
+  bool _floatingParticlesEnabled =
+      _CaptureGameScreenState._defaultFloatingParticlesEnabled;
   double _boardTopBrightness =
       _CaptureGameScreenState._defaultBoardTopBrightness;
   Offset3 _keyLightPosition = _CaptureGameScreenState._defaultKeyLightPosition;
@@ -90,6 +92,7 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   boardRotationY: _boardRotationY,
                   leafShadowOpacity: _leafShadowOpacity,
                   stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
+                  floatingParticlesEnabled: _floatingParticlesEnabled,
                   boardTopBrightness: _boardTopBrightness,
                   keyLightPosition: _keyLightPosition,
                   fillLightPosition: _fillLightPosition,
@@ -107,6 +110,7 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   _HomeBoardTuningSheet(
                     shadowOpacity: _leafShadowOpacity,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
+                    floatingParticlesEnabled: _floatingParticlesEnabled,
                     boardTopBrightness: _boardTopBrightness,
                     keyLightPosition: _keyLightPosition,
                     fillLightPosition: _fillLightPosition,
@@ -131,6 +135,8 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                         setState(() => _leafShadowOpacity = value),
                     onStoneExtraOverlayChanged: (value) =>
                         setState(() => _stoneExtraOverlayEnabled = value),
+                    onFloatingParticlesChanged: (value) =>
+                        setState(() => _floatingParticlesEnabled = value),
                     onBoardTopBrightnessChanged: (value) =>
                         setState(() => _boardTopBrightness = value),
                     onKeyLightPositionChanged: (value) =>
@@ -237,25 +243,26 @@ Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
 }
 
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
-  static const double _defaultHomeBoardTopFactor = 0.12;
-  static const double _defaultHomeBoardHeightFactor = 0.68;
-  static const double _defaultHomeBoardCanvasYOffset = -84.04;
-  static const double _defaultHomeBoardSceneScale = 1.0;
+  static const double _defaultHomeBoardTopFactor = 0.06;
+  static const double _defaultHomeBoardHeightFactor = 0.62;
+  static const double _defaultHomeBoardCanvasYOffset = -34.0;
+  static const double _defaultHomeBoardSceneScale = 0.88;
   static const double _defaultHomeBoardCameraLift = 0.01;
-  static const double _defaultHomeBoardCameraDepth = 16.16;
+  static const double _defaultHomeBoardCameraDepth = 17.2;
   static const double _defaultHomeBoardTargetZOffset = 0.0;
   static const double _defaultHomeBoardCinematicFov = 28.0;
   static const double _defaultHomeBoardRotationY = -0.36;
   static const double _defaultHomeCardTopFactor = 0.44;
   static const double _defaultLeafShadowOpacity = 0.16;
   static const bool _defaultStoneExtraOverlayEnabled = true;
+  static const bool _defaultFloatingParticlesEnabled = false;
   static const double _defaultBoardTopBrightness = 1.0;
-  static const Offset3 _defaultKeyLightPosition = Offset3(5.8, 5.6, -3.8);
-  static const Offset3 _defaultFillLightPosition = Offset3(-4.8, 2.6, 3.2);
-  static const double _defaultKeyLightIntensity = 0.92;
-  static const double _defaultFillLightIntensity = 0.14;
-  static const double _defaultAmbientLightIntensity = 0.19;
-  static const double _defaultSheenLightIntensity = 0.20;
+  static const Offset3 _defaultKeyLightPosition = Offset3(6.4, 6.2, 5.8);
+  static const Offset3 _defaultFillLightPosition = Offset3(-4.8, 2.2, 3.2);
+  static const double _defaultKeyLightIntensity = 0.88;
+  static const double _defaultFillLightIntensity = 0.09;
+  static const double _defaultAmbientLightIntensity = 0.15;
+  static const double _defaultSheenLightIntensity = 0.14;
   static const int _defaultKeyLightColor = 0xfff0d2;
   static const int _defaultFillLightColor = 0xf4e8d8;
   static const int _defaultAmbientLightColor = 0xffeddc;
@@ -287,6 +294,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeCardTopFactor = _defaultHomeCardTopFactor;
   double _leafShadowOpacity = _defaultLeafShadowOpacity;
   bool _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
+  bool _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
   double _boardTopBrightness = _defaultBoardTopBrightness;
   Offset3 _keyLightPosition = _defaultKeyLightPosition;
   Offset3 _fillLightPosition = _defaultFillLightPosition;
@@ -345,6 +353,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   boardRotationY: _homeBoardRotationY,
                   leafShadowOpacity: _leafShadowOpacity,
                   stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
+                  floatingParticlesEnabled: _floatingParticlesEnabled,
                   boardTopBrightness: _boardTopBrightness,
                   keyLightPosition: _keyLightPosition,
                   fillLightPosition: _fillLightPosition,
@@ -527,6 +536,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   _HomeBoardTuningSheet(
                     shadowOpacity: _leafShadowOpacity,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
+                    floatingParticlesEnabled: _floatingParticlesEnabled,
                     boardTopBrightness: _boardTopBrightness,
                     keyLightPosition: _keyLightPosition,
                     fillLightPosition: _fillLightPosition,
@@ -551,6 +561,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _leafShadowOpacity = value),
                     onStoneExtraOverlayChanged: (value) =>
                         setState(() => _stoneExtraOverlayEnabled = value),
+                    onFloatingParticlesChanged: (value) =>
+                        setState(() => _floatingParticlesEnabled = value),
                     onBoardTopBrightnessChanged: (value) =>
                         setState(() => _boardTopBrightness = value),
                     onKeyLightPositionChanged: (value) =>
@@ -617,6 +629,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _homeCardTopFactor = _defaultHomeCardTopFactor;
       _leafShadowOpacity = _defaultLeafShadowOpacity;
       _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
+      _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
       _boardTopBrightness = _defaultBoardTopBrightness;
       _keyLightPosition = _defaultKeyLightPosition;
       _fillLightPosition = _defaultFillLightPosition;
@@ -872,6 +885,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
     required this.boardRotationY,
     required this.leafShadowOpacity,
     required this.stoneExtraOverlayEnabled,
+    required this.floatingParticlesEnabled,
     required this.boardTopBrightness,
     required this.keyLightPosition,
     required this.fillLightPosition,
@@ -898,6 +912,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
   final double boardRotationY;
   final double leafShadowOpacity;
   final bool stoneExtraOverlayEnabled;
+  final bool floatingParticlesEnabled;
   final double boardTopBrightness;
   final Offset3 keyLightPosition;
   final Offset3 fillLightPosition;
@@ -924,7 +939,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
           child: GoThreeBoardBackground(
             boardSize: 19,
             stones: kGoThreeDemoStones,
-            particles: true,
+            particles: floatingParticlesEnabled,
             sceneScale: sceneScale,
             cameraLift: cameraLift,
             cameraDepth: cameraDepth,
@@ -1007,6 +1022,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   const _HomeBoardTuningSheet({
     required this.shadowOpacity,
     required this.stoneExtraOverlayEnabled,
+    required this.floatingParticlesEnabled,
     required this.boardTopBrightness,
     required this.keyLightPosition,
     required this.fillLightPosition,
@@ -1029,6 +1045,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.boardRotationY,
     required this.onShadowOpacityChanged,
     required this.onStoneExtraOverlayChanged,
+    required this.onFloatingParticlesChanged,
     required this.onBoardTopBrightnessChanged,
     required this.onKeyLightPositionChanged,
     required this.onFillLightPositionChanged,
@@ -1055,6 +1072,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
 
   final double shadowOpacity;
   final bool stoneExtraOverlayEnabled;
+  final bool floatingParticlesEnabled;
   final double boardTopBrightness;
   final Offset3 keyLightPosition;
   final Offset3 fillLightPosition;
@@ -1077,6 +1095,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final double boardRotationY;
   final ValueChanged<double> onShadowOpacityChanged;
   final ValueChanged<bool> onStoneExtraOverlayChanged;
+  final ValueChanged<bool> onFloatingParticlesChanged;
   final ValueChanged<double> onBoardTopBrightnessChanged;
   final ValueChanged<Offset3> onKeyLightPositionChanged;
   final ValueChanged<Offset3> onFillLightPositionChanged;
@@ -1116,6 +1135,11 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           title: '棋子额外阴影叠加',
           value: widget.stoneExtraOverlayEnabled,
           onChanged: widget.onStoneExtraOverlayChanged,
+        ),
+        _TuningSwitchRow(
+          title: '漂浮粒子',
+          value: widget.floatingParticlesEnabled,
+          onChanged: widget.onFloatingParticlesChanged,
         ),
         _TuningSlider(
           label: '棋盘亮度',
@@ -1266,10 +1290,6 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
     return Positioned.fill(
       child: Stack(
         children: [
-          GestureDetector(
-            onTap: widget.onClose,
-            child: Container(color: const Color(0x48000000)),
-          ),
           Align(
             alignment: Alignment.bottomCenter,
             child: TweenAnimationBuilder<double>(

@@ -1,0 +1,7 @@
+interface:
+  display_name: "3D Board Window Verifier"
+  short_description: "Score board-top window light and grid response."
+  default_prompt: "Use $three-board-window-irradiance-verifier to score a candidate 3D board screenshot against the golden for upper-right window irradiance, left/right brightness relationship, and grid response."
+
+policy:
+  allow_implicit_invocation: true
