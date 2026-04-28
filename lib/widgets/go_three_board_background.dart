@@ -166,7 +166,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         antialias: true,
         clearAlpha: 0,
         clearColor: 0x000000,
-        screenResolution: 1.0,
+        screenResolution: 2.0,
         toneMappingExposure: 0.50,
       ),
       onSetupComplete: () {
