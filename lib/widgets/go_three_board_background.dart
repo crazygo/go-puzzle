@@ -480,8 +480,10 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       three.MaterialProperty.roughness: 0.78,
       three.MaterialProperty.metalness: 0.0,
     });
+    final boardTopAlbedoPath =
+        kIsWeb ? 'assets/$_boardTopAlbedoAsset' : _boardTopAlbedoAsset;
     final boardTopAlbedo =
-        await three.TextureLoader(flipY: false).fromAsset(_boardTopAlbedoAsset);
+        await three.TextureLoader(flipY: false).fromAsset(boardTopAlbedoPath);
     if (boardTopAlbedo != null) {
       boardTopAlbedo
         ..colorSpace = three.SRGBColorSpace
