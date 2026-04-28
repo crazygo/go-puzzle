@@ -186,6 +186,21 @@ try {
     deviceScaleFactor,
   });
   const page = await context.newPage();
+  const diagnostics = [];
+
+  page.on('console', (message) => {
+    diagnostics.push(`[console:${message.type()}] ${message.text()}`);
+    logStep(`console:${message.type()} ${message.text()}`);
+  });
+  page.on('pageerror', (error) => {
+    diagnostics.push(`[pageerror] ${error.stack || error.message}`);
+    logStep(`pageerror ${error.message}`);
+  });
+  page.on('requestfailed', (request) => {
+    const line = `[requestfailed] ${request.url()} ${request.failure()?.errorText ?? ''}`;
+    diagnostics.push(line);
+    logStep(line);
+  });
 
   try {
     logStep('goto networkidle');
@@ -201,19 +216,6 @@ try {
   let acceptedBuffer = null;
   let lastBuffer = null;
   let lastMetrics = null;
-  const diagnostics = [];
-
-  page.on('console', (message) => {
-    diagnostics.push(`[console:${message.type()}] ${message.text()}`);
-  });
-  page.on('pageerror', (error) => {
-    diagnostics.push(`[pageerror] ${error.stack || error.message}`);
-  });
-  page.on('requestfailed', (request) => {
-    diagnostics.push(
-      `[requestfailed] ${request.url()} ${request.failure()?.errorText ?? ''}`,
-    );
-  });
 
   while (Date.now() <= deadline) {
     await page.waitForTimeout(700);
