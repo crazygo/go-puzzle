@@ -7,7 +7,8 @@ import 'app_theme.dart';
 extension AppThemeContext on BuildContext {
   AppThemePalette get appPalette {
     try {
-      return watch<SettingsProvider>().appTheme.palette;
+      return select<SettingsProvider, AppThemePalette>(
+          (s) => s.appTheme.palette);
     } on ProviderNotFoundException {
       return AppThemePalette.agarwood;
     }

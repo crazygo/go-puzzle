@@ -24,10 +24,10 @@ class GoBoardPainter extends CustomPainter {
 
   GoBoardPainter({
     required this.gameState,
+    required this.palette,
     this.hintPosition,
     this.showMoveNumbers = false,
     this.showCaptureWarning = true,
-    this.palette = AppThemePalette.agarwood,
   });
 
   @override

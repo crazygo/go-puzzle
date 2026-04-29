@@ -3442,6 +3442,7 @@ class _TapBoard extends StatelessWidget {
                 CustomPaint(
                   painter: GoBoardPainter(
                     gameState: gameState,
+                    palette: context.appPalette,
                     showCaptureWarning: showCaptureWarning,
                   ),
                 ),

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/capture_game_screen.dart';
 import 'screens/main_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,9 +28,9 @@ class GoPuzzleApp extends StatelessWidget {
 
     return ChangeNotifierProvider(
       create: (_) => SettingsProvider(),
-      child: Consumer<SettingsProvider>(
-        builder: (context, settings, _) {
-          final palette = settings.appTheme.palette;
+      child: Selector<SettingsProvider, AppThemePalette>(
+        selector: (_, settings) => settings.appTheme.palette,
+        builder: (context, palette, _) {
           return CupertinoApp(
             title: '小闲围棋',
             theme: CupertinoThemeData(
