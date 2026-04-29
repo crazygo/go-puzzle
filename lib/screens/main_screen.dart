@@ -4,6 +4,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/settings_provider.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_context.dart';
 import '../widgets/go_three_board_background.dart';
 import 'capture_game_screen.dart';
 import 'daily_puzzle_screen.dart';
@@ -15,10 +17,15 @@ class MainScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => SettingsProvider(),
-      child: const _MainTabScaffold(),
-    );
+    try {
+      context.read<SettingsProvider>();
+      return const _MainTabScaffold();
+    } on ProviderNotFoundException {
+      return ChangeNotifierProvider(
+        create: (_) => SettingsProvider(),
+        child: const _MainTabScaffold(),
+      );
+    }
   }
 }
 
@@ -32,23 +39,28 @@ class _MainTabScaffold extends StatefulWidget {
 class _MainTabScaffoldState extends State<_MainTabScaffold> {
   int _selectedIndex = 0;
 
-  static const _inactiveColor = Color(0xFFAF9C86);
-  static const _activeColor = Color(0xFFB9783A);
-
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final showSharedBoard =
+        context.select<SettingsProvider, bool>((s) => s.appTheme.showsSharedBoard);
+    final tabBarBottomInset = MediaQuery.paddingOf(context).bottom + 50.0;
+
     return DecoratedBox(
-      decoration: const BoxDecoration(color: Color(0xFFF9F4EC)),
+      decoration: BoxDecoration(color: palette.pageBackground),
       child: Stack(
         children: [
-          const _SharedHeroBoardBackground(),
-          IndexedStack(
-            index: _selectedIndex,
-            children: const [
-              CaptureGameScreen(),
-              DailyPuzzleScreen(),
-              SettingsScreen(),
-            ],
+          if (showSharedBoard) const _SharedHeroBoardBackground(),
+          Padding(
+            padding: EdgeInsets.only(bottom: tabBarBottomInset),
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: const [
+                CaptureGameScreen(),
+                DailyPuzzleScreen(),
+                SettingsScreen(),
+              ],
+            ),
           ),
           Positioned(
             left: 0,
@@ -57,12 +69,12 @@ class _MainTabScaffoldState extends State<_MainTabScaffold> {
             child: CupertinoTabBar(
               currentIndex: _selectedIndex,
               onTap: (index) => setState(() => _selectedIndex = index),
-              backgroundColor: const Color(0xFFF9F4EC),
-              activeColor: _activeColor,
-              inactiveColor: _inactiveColor,
-              border: const Border(
+              backgroundColor: palette.pageBackground,
+              activeColor: palette.primary,
+              inactiveColor: palette.tabInactive,
+              border: Border(
                 top: BorderSide(
-                  color: Color(0x1AC19567),
+                  color: palette.primary.withValues(alpha: 0.16),
                   width: 0.6,
                 ),
               ),
@@ -174,7 +186,8 @@ class _TabGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? const Color(0xFFB9783A) : const Color(0xFFAF9C86);
+    final palette = context.appPalette;
+    final color = active ? palette.primary : palette.tabInactive;
     return SizedBox(
       width: 19,
       height: 19,

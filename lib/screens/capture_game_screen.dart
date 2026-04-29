@@ -12,6 +12,7 @@ import '../models/board_position.dart';
 import '../models/game_state.dart';
 import '../providers/capture_game_provider.dart';
 import '../providers/settings_provider.dart';
+import '../theme/theme_context.dart';
 import '../widgets/go_board_widget.dart';
 import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
@@ -354,7 +355,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardTargetZOffset = 0.0;
   static const double _defaultHomeBoardCinematicFov = 28.0;
   static const double _defaultHomeBoardRotationY = -0.62;
-  static const double _defaultHomeCardTopFactor = 0.44;
   static const double _defaultLeafShadowOpacity = 0.16;
   static const bool _defaultStoneExtraOverlayEnabled = true;
   static const bool _defaultFloatingParticlesEnabled = false;
@@ -408,7 +408,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
   double _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
   double _homeBoardRotationY = _defaultHomeBoardRotationY;
-  double _homeCardTopFactor = _defaultHomeCardTopFactor;
   double _leafShadowOpacity = _defaultLeafShadowOpacity;
   bool _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
   bool _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
@@ -464,11 +463,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         decoration: const BoxDecoration(),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final topPadding = MediaQuery.of(context).padding.top;
-            final cardTop = max(
-              0.0,
-              constraints.maxHeight * _homeCardTopFactor - topPadding,
-            );
+            const cardTop = kPageHeroContentOffset + 8;
 
             return Stack(
               children: [
@@ -773,7 +768,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
       _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
       _homeBoardRotationY = _defaultHomeBoardRotationY;
-      _homeCardTopFactor = _defaultHomeCardTopFactor;
       _leafShadowOpacity = _defaultLeafShadowOpacity;
       _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
       _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
@@ -2060,19 +2054,23 @@ class _PrimaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final primaryEnd =
+        Color.lerp(palette.primary, CupertinoColors.black, 0.20)!;
+
     return SizedBox(
       width: double.infinity,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFC89257), Color(0xFFA86930)],
+            colors: [palette.primary, primaryEnd],
           ),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Color(0x33A56730),
+              color: palette.primary.withValues(alpha: 0.24),
               blurRadius: 18,
               offset: Offset(0, 8),
             ),
@@ -2088,7 +2086,6 @@ class _PrimaryActionButton extends StatelessWidget {
               fontSize: 17,
               fontWeight: FontWeight.w700,
               color: CupertinoColors.white,
-              letterSpacing: 1.2,
             ),
           ),
         ),
@@ -2105,19 +2102,21 @@ class _SecondaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
+
     return SizedBox(
       width: double.infinity,
       child: CupertinoButton(
         padding: const EdgeInsets.symmetric(vertical: 12),
         borderRadius: BorderRadius.circular(14),
-        color: const Color(0x14A86930),
+        color: palette.primary.withValues(alpha: 0.10),
         onPressed: onPressed,
         child: Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF915C2F),
+            color: Color.lerp(palette.primary, CupertinoColors.black, 0.18),
           ),
         ),
       ),
@@ -3443,6 +3442,7 @@ class _TapBoard extends StatelessWidget {
                 CustomPaint(
                   painter: GoBoardPainter(
                     gameState: gameState,
+                    palette: context.appPalette,
                     showCaptureWarning: showCaptureWarning,
                   ),
                 ),
