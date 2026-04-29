@@ -1245,7 +1245,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   }
 
   three.BufferGeometry _buildRaisedEdgeStoneGeometry(double radius) {
-    final height = radius * 0.58;
+    final height = radius;
     final rimY = height * 0.40;
     final points = [
       three.Vector2(radius * 0.02, 0),
