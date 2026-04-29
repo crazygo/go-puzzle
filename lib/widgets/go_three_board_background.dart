@@ -64,7 +64,7 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.boardWoodColor = 0xd0b39c,
     this.toneMappingExposure = 0.44,
     this.showDebugGuides = false,
-    this.showCornerLabels = true,
+    this.showCornerLabels = false,
     this.keyLightPosition = const Offset3(5.5, 5.5, 5.5),
     this.fillLightPosition = const Offset3(-4.8, 2.6, 3.2),
     this.keyLightIntensity = 1.44,
@@ -942,28 +942,82 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     const thickness = 0.026;
     const axisY = _boardTop + 0.12;
 
+    final xMaterial = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0xff3b30,
+      three.MaterialProperty.depthWrite: false,
+    });
+    final yMaterial = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0x34c759,
+      three.MaterialProperty.depthWrite: false,
+    });
+    final zMaterial = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0x007aff,
+      three.MaterialProperty.depthWrite: false,
+    });
     final xAxis = three.Mesh(
       three.BoxGeometry(length, thickness, thickness),
-      three.MeshBasicMaterial({three.MaterialProperty.color: 0xff3b30}),
+      xMaterial,
     )..position.setValues(length / 2, axisY, 0);
     final yAxis = three.Mesh(
       three.BoxGeometry(thickness, length, thickness),
-      three.MeshBasicMaterial({three.MaterialProperty.color: 0x34c759}),
+      yMaterial,
     )..position.setValues(0, axisY + length / 2, 0);
     final zAxis = three.Mesh(
       three.BoxGeometry(thickness, thickness, length),
-      three.MeshBasicMaterial({three.MaterialProperty.color: 0x007aff}),
+      zMaterial,
     )..position.setValues(0, axisY, length / 2);
     final origin = three.Mesh(
       three.SphereGeometry(0.045, 14, 8),
       three.MeshBasicMaterial({three.MaterialProperty.color: 0xffffff}),
     )..position.setValues(0, axisY, 0);
+    final xLabel = _buildDebugAxisLabel(
+      letter: 'X',
+      x: length + 0.18,
+      y: axisY,
+      z: 0,
+      material: xMaterial,
+    );
+    final yLabel = _buildDebugAxisLabel(
+      letter: 'Y',
+      x: 0,
+      y: axisY + length + 0.18,
+      z: 0,
+      material: yMaterial,
+    );
+    final zLabel = _buildDebugAxisLabel(
+      letter: 'Z',
+      x: 0,
+      y: axisY,
+      z: length + 0.18,
+      material: zMaterial,
+    );
 
     _debugGuideGroup
       ..add(xAxis)
       ..add(yAxis)
       ..add(zAxis)
-      ..add(origin);
+      ..add(origin)
+      ..add(xLabel)
+      ..add(yLabel)
+      ..add(zLabel);
+  }
+
+  three.Group _buildDebugAxisLabel({
+    required String letter,
+    required double x,
+    required double y,
+    required double z,
+    required three.Material material,
+  }) {
+    return _buildCornerLabel(
+      letter: letter,
+      x: x,
+      y: y,
+      z: z,
+      scale: 0.24,
+      stroke: 0.060,
+      material: material,
+    );
   }
 
   void _addBoardBox({
@@ -1371,8 +1425,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final lineStepV = -_gridSpan / ((n - 1) * _boardWidth);
     final lineEndV =
         lineStartV + (n - 1) * lineStepV; // = lineStartU (near edge)
-    // Half-width in UV: 2 texture pixels gives a ~4px-wide rendered line.
-    const halfWidthUV = 2.0 / size;
+    // Half-width in UV: 1 texture pixel gives a ~2px-wide rendered line.
+    const halfWidthUV = 1.0 / size;
     const gridDarkR = 0x5c;
     const gridDarkG = 0x4d;
     const gridDarkB = 0x3a;

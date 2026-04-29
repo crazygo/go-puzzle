@@ -356,7 +356,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultLeafShadowOpacity = 0.16;
   static const bool _defaultStoneExtraOverlayEnabled = true;
   static const bool _defaultFloatingParticlesEnabled = false;
-  static const bool _defaultCornerLabelsEnabled = true;
+  static const bool _defaultCornerLabelsEnabled = false;
   static const double _defaultBoardTopBrightness = 1.0;
   static const int _defaultBoardWoodColor = 0xd0b39c;
   static const double _defaultToneMappingExposure = 0.44;
@@ -484,7 +484,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   leafShadowOpacity: _leafShadowOpacity,
                   stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                   floatingParticlesEnabled: _floatingParticlesEnabled,
-                  cornerLabelsEnabled: _cornerLabelsEnabled,
+                  cornerLabelsEnabled:
+                      _homeTuningSheetVisible && _cornerLabelsEnabled,
                   boardTopBrightness: _boardTopBrightness,
                   boardWoodColor: _boardWoodColor,
                   toneMappingExposure: _toneMappingExposure,
@@ -676,7 +677,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     shadowOpacity: _leafShadowOpacity,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                     floatingParticlesEnabled: _floatingParticlesEnabled,
-                    cornerLabelsEnabled: _cornerLabelsEnabled,
+                    cornerLabelsEnabled:
+                        _homeTuningSheetVisible && _cornerLabelsEnabled,
                     boardTopBrightness: _boardTopBrightness,
                     boardWoodColor: _boardWoodColor,
                     toneMappingExposure: _toneMappingExposure,
@@ -1737,9 +1739,6 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        const _AxisLegend(),
-                        const SizedBox(width: 8),
                         CupertinoButton(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           minimumSize: const Size(42, 30),
@@ -1771,53 +1770,6 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _AxisLegend extends StatelessWidget {
-  const _AxisLegend();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _AxisLegendItem(label: 'X', color: Color(0xFFFF3B30)),
-        SizedBox(width: 5),
-        _AxisLegendItem(label: 'Y', color: Color(0xFF34C759)),
-        SizedBox(width: 5),
-        _AxisLegendItem(label: 'Z', color: Color(0xFF007AFF)),
-      ],
-    );
-  }
-}
-
-class _AxisLegendItem extends StatelessWidget {
-  const _AxisLegendItem({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          child: const SizedBox(width: 7, height: 7),
-        ),
-        const SizedBox(width: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF6A5239),
-          ),
-        ),
-      ],
     );
   }
 }
