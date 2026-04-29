@@ -56,7 +56,7 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.cameraLift = 0.0,
     this.cameraDepth,
     this.targetZOffset = 0.0,
-    this.boardRotationY = 0.03,
+    this.boardRotationY = -0.62,
     this.leafShadowOpacity = 0.16,
     this.stoneExtraOverlayEnabled = true,
     this.boardTopBrightness = 1.0,
@@ -381,7 +381,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       widget.cinematicFrame ? widget.cinematicFov : 28,
       _threeJs.width / _threeJs.height,
       0.1,
-      100,
+      13.28,
     );
     _setCamera(0);
 
