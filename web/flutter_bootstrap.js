@@ -6,7 +6,9 @@ _flutter.loader.load({
     serviceWorkerVersion: {{flutter_service_worker_version}},
   },
   onEntrypointLoaded: async function(engineInitializer) {
-    const appRunner = await engineInitializer.initializeEngine();
+    const appRunner = await engineInitializer.initializeEngine({
+      canvasKitBaseUrl: "canvaskit/",
+    });
     await appRunner.runApp();
   },
 });
