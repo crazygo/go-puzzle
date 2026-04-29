@@ -60,7 +60,9 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.leafShadowOpacity = 0.16,
     this.stoneExtraOverlayEnabled = true,
     this.boardTopBrightness = 1.0,
+    this.toneMappingExposure = 0.44,
     this.showDebugGuides = false,
+    this.showCornerLabels = true,
     this.keyLightPosition = const Offset3(7.1, 4.4, -5.2),
     this.fillLightPosition = const Offset3(-4.8, 2.6, 3.2),
     this.keyLightIntensity = 1.18,
@@ -71,6 +73,14 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.fillLightColor = 0xf4e8d8,
     this.ambientLightColor = 0xffeddc,
     this.sheenLightColor = 0xfffaed,
+    this.windowCenterU = 0.88,
+    this.windowCenterV = 0.05,
+    this.windowSpreadU = 1.80,
+    this.windowSpreadV = 1.60,
+    this.gridBaseOpacity = 0.62,
+    this.gridFadeMult = 0.78,
+    this.gridFadePower = 0.66,
+    this.gridFadeMin = 0.16,
   });
 
   final int boardSize;
@@ -87,7 +97,9 @@ class GoThreeBoardBackground extends StatefulWidget {
   final double leafShadowOpacity;
   final bool stoneExtraOverlayEnabled;
   final double boardTopBrightness;
+  final double toneMappingExposure;
   final bool showDebugGuides;
+  final bool showCornerLabels;
   final Offset3 keyLightPosition;
   final Offset3 fillLightPosition;
   final double keyLightIntensity;
@@ -98,6 +110,16 @@ class GoThreeBoardBackground extends StatefulWidget {
   final int fillLightColor;
   final int ambientLightColor;
   final int sheenLightColor;
+  // Window irradiance Gaussian controls (rebuild textures + grid on change).
+  final double windowCenterU;
+  final double windowCenterV;
+  final double windowSpreadU;
+  final double windowSpreadV;
+  // Grid dissolution controls (rebuild grid only on change).
+  final double gridBaseOpacity;
+  final double gridFadeMult;
+  final double gridFadePower;
+  final double gridFadeMin;
 
   @override
   State<GoThreeBoardBackground> createState() => _GoThreeBoardBackgroundState();
@@ -125,6 +147,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   final three.Group _particleGroup = three.Group();
   final three.Group _leafShadowGroup = three.Group();
   final three.Group _debugGuideGroup = three.Group();
+  final three.Group _cornerLabelGroup = three.Group();
+  final three.Group _gridGroup = three.Group();
   three.AmbientLight? _ambientLight;
   three.DirectionalLight? _keyLight;
   three.DirectionalLight? _fillLight;
@@ -168,7 +192,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         clearAlpha: 0,
         clearColor: 0x000000,
         screenResolution: 2.0,
-        toneMappingExposure: 0.44,
+        toneMappingExposure: widget.toneMappingExposure,
       ),
       onSetupComplete: () {
         // Scene initialized successfully – restore the original handler.
@@ -224,11 +248,17 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     if (oldWidget.showDebugGuides != widget.showDebugGuides) {
       _debugGuideGroup.visible = widget.showDebugGuides;
     }
+    if (oldWidget.showCornerLabels != widget.showCornerLabels) {
+      _cornerLabelGroup.visible = widget.showCornerLabels;
+    }
     if (oldWidget.stoneExtraOverlayEnabled != widget.stoneExtraOverlayEnabled) {
       _rebuildStones();
     }
     if (oldWidget.boardTopBrightness != widget.boardTopBrightness) {
       _updateBoardBrightness();
+    }
+    if (oldWidget.toneMappingExposure != widget.toneMappingExposure) {
+      _updateToneMappingExposure();
     }
     if (oldWidget.keyLightPosition != widget.keyLightPosition ||
         oldWidget.fillLightPosition != widget.fillLightPosition ||
@@ -242,7 +272,48 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         oldWidget.sheenLightColor != widget.sheenLightColor) {
       _updateLightsFromWidget();
     }
+    if (oldWidget.windowCenterU != widget.windowCenterU ||
+        oldWidget.windowCenterV != widget.windowCenterV ||
+        oldWidget.windowSpreadU != widget.windowSpreadU ||
+        oldWidget.windowSpreadV != widget.windowSpreadV) {
+      unawaited(_rebuildBoardTextures());
+      _rebuildGrid();
+    }
+    if (oldWidget.gridBaseOpacity != widget.gridBaseOpacity ||
+        oldWidget.gridFadeMult != widget.gridFadeMult ||
+        oldWidget.gridFadePower != widget.gridFadePower ||
+        oldWidget.gridFadeMin != widget.gridFadeMin) {
+      _rebuildGrid();
+    }
     _particleGroup.visible = widget.particles;
+  }
+
+  void _updateToneMappingExposure() {
+    _threeJs.renderer?.toneMappingExposure = widget.toneMappingExposure;
+  }
+
+  void _rebuildGrid() {
+    _gridGroup.clear();
+    _buildGrid();
+  }
+
+  Future<void> _rebuildBoardTextures() async {
+    final mat = _boardTopMaterial;
+    if (mat == null) return;
+    mat
+      ..lightMap = _buildBoardTopIrradianceMap()
+      ..needsUpdate = true;
+    final newMap = await _buildBoardTopAppearanceMap();
+    if (newMap != null) {
+      newMap
+        ..colorSpace = three.SRGBColorSpace
+        ..wrapS = three.ClampToEdgeWrapping
+        ..wrapT = three.ClampToEdgeWrapping
+        ..needsUpdate = true;
+      mat
+        ..map = newMap
+        ..needsUpdate = true;
+    }
   }
 
   @override
@@ -311,7 +382,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _buildLights();
     await _buildBoard();
     _buildSideWoodDetail();
+    _root.add(_gridGroup);
     _buildGrid();
+    _buildCornerLabels();
     _buildLeafShadowCaustics();
     _buildDebugGuides();
     _buildParticles();
@@ -334,25 +407,92 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _debugGuideGroup.clear();
     _debugGuideGroup.visible = widget.showDebugGuides;
 
-    final xAxis = three.Mesh(
-      three.BoxGeometry(1.2, 0.015, 0.015),
-      three.MeshBasicMaterial({three.MaterialProperty.color: 0xff4a4a}),
-    )..position.setValues(0.6, _boardTop + 0.05, 0);
-    final yAxis = three.Mesh(
-      three.BoxGeometry(0.015, 1.2, 0.015),
-      three.MeshBasicMaterial({three.MaterialProperty.color: 0x4aff4a}),
-    )..position.setValues(0, _boardTop + 0.65, 0);
-    final zAxis = three.Mesh(
-      three.BoxGeometry(0.015, 0.015, 1.2),
-      three.MeshBasicMaterial({three.MaterialProperty.color: 0x4a6fff}),
-    )..position.setValues(0, _boardTop + 0.05, 0.6);
-    _debugGuideGroup
-      ..add(xAxis)
-      ..add(yAxis)
-      ..add(zAxis);
-
     _root.add(_debugGuideGroup);
     _updateDebugGuides();
+  }
+
+  void _buildCornerLabels() {
+    _cornerLabelGroup.clear();
+    _cornerLabelGroup.visible = widget.showCornerLabels;
+
+    const inset = 0.36;
+    const half = _boardWidth / 2 - inset;
+    const labelY = _boardTop + 0.074;
+    const scale = 0.34;
+    const stroke = 0.045;
+    final material = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0x2f2118,
+      three.MaterialProperty.opacity: 0.78,
+      three.MaterialProperty.transparent: true,
+      three.MaterialProperty.depthWrite: false,
+    });
+
+    final labels = [
+      ('A', -half, -half),
+      ('B', half, -half),
+      ('C', half, half),
+      ('D', -half, half),
+    ];
+    for (final (letter, x, z) in labels) {
+      _cornerLabelGroup.add(_buildCornerLabel(
+        letter: letter,
+        x: x,
+        z: z,
+        y: labelY,
+        scale: scale,
+        stroke: stroke,
+        material: material,
+      ));
+    }
+
+    _root.add(_cornerLabelGroup);
+  }
+
+  three.Group _buildCornerLabel({
+    required String letter,
+    required double x,
+    required double z,
+    required double y,
+    required double scale,
+    required double stroke,
+    required three.Material material,
+  }) {
+    final group = three.Group()..position.setValues(x, y, z);
+    void addStroke(double cx, double cz, double width, double depth) {
+      group.add(three.Mesh(
+        three.BoxGeometry(width * scale, 0.010, depth * scale),
+        material,
+      )..position.setValues(cx * scale, 0, cz * scale));
+    }
+
+    switch (letter) {
+      case 'A':
+        addStroke(-0.38, 0.0, stroke, 1.0);
+        addStroke(0.38, 0.0, stroke, 1.0);
+        addStroke(0.0, -0.48, 0.80, stroke);
+        addStroke(0.0, 0.0, 0.70, stroke);
+        break;
+      case 'B':
+        addStroke(-0.38, 0.0, stroke, 1.0);
+        addStroke(0.02, -0.48, 0.78, stroke);
+        addStroke(0.02, 0.0, 0.72, stroke);
+        addStroke(0.02, 0.48, 0.78, stroke);
+        addStroke(0.38, -0.24, stroke, 0.44);
+        addStroke(0.38, 0.24, stroke, 0.44);
+        break;
+      case 'C':
+        addStroke(0.0, -0.48, 0.82, stroke);
+        addStroke(-0.38, 0.0, stroke, 1.0);
+        addStroke(0.0, 0.48, 0.82, stroke);
+        break;
+      case 'D':
+        addStroke(-0.38, 0.0, stroke, 1.0);
+        addStroke(0.0, -0.48, 0.74, stroke);
+        addStroke(0.0, 0.48, 0.74, stroke);
+        addStroke(0.38, 0.0, stroke, 0.92);
+        break;
+    }
+    return group;
   }
 
   void _setCamera(double t) {
@@ -740,14 +880,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   }
 
   void _updateDebugGuides() {
-    if (_debugGuideGroup.children.length > 3) {
-      final keep = _debugGuideGroup.children.take(3).toList();
-      _debugGuideGroup
-        ..clear()
-        ..add(keep[0])
-        ..add(keep[1])
-        ..add(keep[2]);
-    }
+    _debugGuideGroup.clear();
 
     final lightPosition = widget.keyLightPosition;
     const target = _keyLightTarget;
@@ -832,33 +965,53 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final step = _gridSpan / (n - 1);
     const start = -_gridSpan / 2;
     const segments = 18;
-    const baseOpacity = 0.62;
     const segmentLength = _gridSpan / segments;
+    final baseOpacity = widget.gridBaseOpacity;
+    final horizontal = _GridMeshBuilder(y: _boardTop + 0.037);
+    final vertical = _GridMeshBuilder(y: _boardTop + 0.038);
+
     for (int i = 0; i < n; i++) {
       final p = start + i * step;
       for (int segment = 0; segment < segments; segment++) {
         final center = start + segmentLength * (segment + 0.5);
         final horizontalLight = _windowIrradiance(
           _boardCoordToUv(center),
-          _boardCoordToUv(p),
+          _boardZToUv(p),
         );
         final verticalLight = _windowIrradiance(
           _boardCoordToUv(p),
-          _boardCoordToUv(center),
+          _boardZToUv(center),
         );
-        final horizontal = three.Mesh(
-          three.BoxGeometry(segmentLength, 0.008, 0.020),
-          _buildGridMaterial(horizontalLight, baseOpacity),
-        )..position.setValues(center, _boardTop + 0.034, p);
-        final vertical = three.Mesh(
-          three.BoxGeometry(0.020, 0.008, segmentLength),
-          _buildGridMaterial(verticalLight, baseOpacity),
-        )..position.setValues(p, _boardTop + 0.035, center);
-        _root
-          ..add(horizontal)
-          ..add(vertical);
+        horizontal.addRect(
+          x0: center - segmentLength / 2,
+          z0: p - 0.010,
+          x1: center + segmentLength / 2,
+          z1: p + 0.010,
+          color: _buildGridVertexColor(
+            horizontalLight, baseOpacity,
+            fadePower: widget.gridFadePower,
+            fadeMult: widget.gridFadeMult,
+            fadeMin: widget.gridFadeMin,
+          ),
+        );
+        vertical.addRect(
+          x0: p - 0.010,
+          z0: center - segmentLength / 2,
+          x1: p + 0.010,
+          z1: center + segmentLength / 2,
+          color: _buildGridVertexColor(
+            verticalLight, baseOpacity,
+            fadePower: widget.gridFadePower,
+            fadeMult: widget.gridFadeMult,
+            fadeMin: widget.gridFadeMin,
+          ),
+        );
       }
     }
+
+    _gridGroup
+      ..add(horizontal.build())
+      ..add(vertical.build());
   }
 
   void _buildParticles() {
@@ -968,6 +1121,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       three.MaterialProperty.depthWrite: false,
     });
     final radius = step * 0.46;
+    const stoneHeightScale = 0.48;
 
     for (final stone in widget.stones) {
       final row = stone.row.clamp(0, n - 1);
@@ -1010,10 +1164,10 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       )
         ..position.setValues(
           x,
-          _boardTop + radius * 0.34,
+          _boardTop + radius * stoneHeightScale,
           z,
         )
-        ..scale.y = 0.36
+        ..scale.y = stoneHeightScale
         ..castShadow = true
         ..receiveShadow = true;
       _stoneGroup.add(mesh);
@@ -1115,7 +1269,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     final data = three.Uint8Array(source.width * source.height * 4);
 
     const washStrength = 0.36;
-    const washPower = 0.70;
+    const washPower = 0.82;
+    const washStart = 0.30;
     const creamR = 252.0;
     const creamG = 247.0;
     const creamB = 231.0;
@@ -1125,7 +1280,10 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       for (int x = 0; x < source.width; x++) {
         final u = x / (source.width - 1);
         final window = _windowIrradiance(u, v);
-        final wash = washStrength * math.pow(window, washPower).toDouble();
+        final directionalWindow =
+            ((window - washStart) / (1.0 - washStart)).clamp(0.0, 1.0);
+        final wash =
+            washStrength * math.pow(directionalWindow, washPower).toDouble();
         final pixel = source.getPixel(x, y);
         final index = (y * source.width + x) * 4;
         data[index] = _lerpDouble(pixel.r.toDouble(), creamR, wash).round();
@@ -1151,17 +1309,25 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     )..needsUpdate = true;
   }
 
-  static double _windowIrradiance(double u, double v) {
+  double _windowIrradiance(double u, double v) {
+    // UV (1,0) = near-right corner = screen lower-right = target window-light region.
+    // broadWindow and upperRightLift centres sit just inside that corner.
+    final cu = widget.windowCenterU;
+    final cv = widget.windowCenterV;
+    final su = widget.windowSpreadU;
+    final sv = widget.windowSpreadV;
     final broadWindow = math.exp(
-      -((u - 1.02) * (u - 1.02) / 3.45 + (v + 0.16) * (v + 0.16) / 2.50),
+      -((u - cu) * (u - cu) / su + (v - cv) * (v - cv) / sv),
     );
+    // diagonalWash uses (1-v) so that high-u / low-v (near-right, C corner) gets the
+    // strongest lift; far-left (A corner) falls to zero.
     final diagonalWash =
-        ((u * 0.86 + (1.0 - v) * 0.72 - 0.08) / 1.72).clamp(0.0, 1.0);
-    final middleLift = math.pow(diagonalWash, 0.46).toDouble();
+        ((u * 0.96 + (1.0 - v) * 0.68 - 0.18) / 1.58).clamp(0.0, 1.0);
+    final middleLift = math.pow(diagonalWash, 0.58).toDouble();
     final upperRightLift = math.exp(
-      -((u - 1.18) * (u - 1.18) / 1.70 + (v + 0.10) * (v + 0.10) / 1.30),
+      -((u - 0.94) * (u - 0.94) / 0.65 + (v - 0.04) * (v - 0.04) / 0.50),
     );
-    return (broadWindow * middleLift * 0.90 + upperRightLift * 0.08)
+    return (broadWindow * middleLift * 0.92 + upperRightLift * 0.08)
         .clamp(0.0, 1.0);
   }
 
@@ -1169,18 +1335,93 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     return (0.5 + value / _boardWidth).clamp(0.0, 1.0);
   }
 
-  static three.MeshBasicMaterial _buildGridMaterial(
+  // Z world → texture v: board geometry uses v = 0.5 - z/width (opposite sign to x→u).
+  static double _boardZToUv(double z) {
+    return (0.5 - z / _boardWidth).clamp(0.0, 1.0);
+  }
+
+  static int _buildGridVertexColor(
     double window,
-    double baseOpacity,
-  ) {
-    final gridLight = math.pow(window, 0.66).toDouble();
-    final fade = (1.0 - gridLight * 0.78).clamp(0.16, 0.88);
-    return three.MeshBasicMaterial({
-      three.MaterialProperty.color:
-          _lerpColorHex(0x5c4d3a, 0xb8ab94, gridLight),
-      three.MaterialProperty.opacity: baseOpacity * fade,
-      three.MaterialProperty.transparent: true,
+    double baseOpacity, {
+    double fadePower = 0.66,
+    double fadeMult = 0.78,
+    double fadeMin = 0.16,
+  }) {
+    final gridLight = math.pow(window, fadePower).toDouble();
+    final fade = (1.0 - gridLight * fadeMult).clamp(fadeMin, 0.88);
+    final gridColor = _lerpColorHex(0x5c4d3a, 0xb8ab94, gridLight);
+    const washStart = 0.30;
+    final directionalWindow =
+        ((window - washStart) / (1.0 - washStart)).clamp(0.0, 1.0);
+    final wash = 0.36 * math.pow(directionalWindow, 0.82).toDouble();
+    final boardColor = _lerpColorHex(0xc89458, 0xfcf7e7, wash);
+    return _lerpColorHex(boardColor, gridColor, baseOpacity * fade);
+  }
+}
+
+class _GridMeshBuilder {
+  _GridMeshBuilder({required this.y});
+
+  final double y;
+  final List<double> _positions = [];
+  final List<double> _colors = [];
+  final List<int> _indices = [];
+
+  void addRect({
+    required double x0,
+    required double z0,
+    required double x1,
+    required double z1,
+    required int color,
+  }) {
+    final vertexOffset = _positions.length ~/ 3;
+    _positions.addAll([
+      x0,
+      y,
+      z0,
+      x1,
+      y,
+      z0,
+      x1,
+      y,
+      z1,
+      x0,
+      y,
+      z1,
+    ]);
+    final r = ((color >> 16) & 0xFF) / 255;
+    final g = ((color >> 8) & 0xFF) / 255;
+    final b = (color & 0xFF) / 255;
+    for (int i = 0; i < 4; i++) {
+      _colors.addAll([r, g, b]);
+    }
+    _indices.addAll([
+      vertexOffset,
+      vertexOffset + 1,
+      vertexOffset + 2,
+      vertexOffset,
+      vertexOffset + 2,
+      vertexOffset + 3,
+    ]);
+  }
+
+  three.Mesh build() {
+    final geometry = three.BufferGeometry()
+      ..setIndex(_indices)
+      ..setAttributeFromString(
+        'position',
+        three.Float32BufferAttribute.fromList(_positions, 3, false),
+      )
+      ..setAttributeFromString(
+        'color',
+        three.Float32BufferAttribute.fromList(_colors, 3, false),
+      );
+    final material = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0xffffff,
+      three.MaterialProperty.vertexColors: true,
+      three.MaterialProperty.side: three.DoubleSide,
     });
+    return three.Mesh(geometry, material);
   }
 }
 
