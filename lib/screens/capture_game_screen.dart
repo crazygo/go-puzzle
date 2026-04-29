@@ -2907,7 +2907,6 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   Future<void> _saveGame(CaptureGameProvider provider) async {
     if (_gameSaved) return;
     if (provider.moveLog.isEmpty) return; // nothing to save
-    _gameSaved = true;
 
     final outcome = switch (provider.result) {
       CaptureGameResult.blackWins =>
@@ -2941,7 +2940,12 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
       outcome: outcome,
       finalBoard: _boardToInts(provider.gameState.board),
     );
-    await _historyRepo.save(record);
+    try {
+      await _historyRepo.save(record);
+      _gameSaved = true;
+    } catch (_) {
+      // Save failed; _gameSaved stays false so a retry is possible.
+    }
   }
 
   @override

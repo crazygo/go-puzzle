@@ -172,6 +172,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   three.MeshBasicMaterial? _frontGlowMaterial;
   double _elapsed = 0;
   bool _sceneInitialized = false;
+  int _boardTextureGeneration = 0;
 
   /// Set to true when the OpenGL/flutter_angle plugin is not available on this
   /// platform (e.g. headless test environments). The widget then renders as an
@@ -312,11 +313,13 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   Future<void> _rebuildBoardTextures() async {
     final mat = _boardTopMaterial;
     if (mat == null) return;
+    final generation = ++_boardTextureGeneration;
     mat
       ..lightMap = _buildBoardTopIrradianceMap()
       ..lightMapIntensity = widget.lightMapIntensity
       ..needsUpdate = true;
     final newMap = await _buildBoardTopAppearanceMap();
+    if (!mounted || generation != _boardTextureGeneration) return;
     if (newMap != null) {
       newMap
         ..colorSpace = three.SRGBColorSpace
@@ -358,7 +361,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
         return ClipRect(
           child: MediaQuery(
-            data: MediaQuery.of(context).copyWith(size: viewSize),
+            data: (MediaQuery.maybeOf(context) ?? const MediaQueryData())
+                .copyWith(size: viewSize),
             child: SizedBox.expand(child: _threeJs.build()),
           ),
         );
@@ -627,10 +631,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     });
     three.Texture? boardTopAppearance = await _buildBoardTopAppearanceMap();
     if (boardTopAppearance == null) {
-      const boardTopAlbedoPath =
-          kIsWeb ? 'assets/$_boardTopAlbedoAsset' : _boardTopAlbedoAsset;
+      // _boardTopAlbedoAsset already includes the 'assets/' prefix, so use it directly.
       boardTopAppearance =
-          await three.TextureLoader(flipY: false).fromAsset(boardTopAlbedoPath);
+          await three.TextureLoader(flipY: false).fromAsset(_boardTopAlbedoAsset);
     }
     if (boardTopAppearance != null) {
       boardTopAppearance

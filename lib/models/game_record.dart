@@ -113,17 +113,18 @@ class GameRecord {
     List<List<int>>? parseBoard(dynamic raw) {
       if (raw == null) return null;
       return (raw as List)
-          .map<List<int>>((row) => (row as List).map<int>((v) => v as int).toList())
+          .map<List<int>>(
+              (row) => (row as List).map<int>((v) => (v as num).toInt()).toList())
           .toList();
     }
 
     return GameRecord(
       id: json['id'] as String,
       playedAt: DateTime.parse(json['playedAt'] as String),
-      boardSize: json['boardSize'] as int,
-      captureTarget: json['captureTarget'] as int,
+      boardSize: (json['boardSize'] as num).toInt(),
+      captureTarget: (json['captureTarget'] as num).toInt(),
       difficulty: json['difficulty'] as String,
-      humanColorIndex: json['humanColorIndex'] as int,
+      humanColorIndex: (json['humanColorIndex'] as num).toInt(),
       initialMode: json['initialMode'] as String,
       initialBoardCells: parseBoard(json['initialBoardCells']),
       moves: parseBoard(json['moves']) ?? const [],
