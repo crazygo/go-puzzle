@@ -681,10 +681,45 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
             -_boardThickness / 2,
             zSign * (_boardWidth / 2 - _cornerRadius),
           )
+          ..castShadow = true
           ..receiveShadow = true;
         _root.add(corner);
       }
     }
+
+    // Fake board ground shadow: ellipse below board in key-light direction (-X,-Z)
+    const groundY = -_boardThickness - 0.012;
+    const shadowW = _boardWidth * 0.96;
+    final boardShadowMaterial = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0x1a0e04,
+      three.MaterialProperty.opacity: 0.28,
+      three.MaterialProperty.transparent: true,
+      three.MaterialProperty.depthWrite: false,
+    });
+    // Soft outer halo
+    final groundShadowOuter = three.Mesh(
+      three.CylinderGeometry(
+          shadowW * 0.72, shadowW * 0.72, 0.004, 64),
+      three.MeshBasicMaterial({
+        three.MaterialProperty.color: 0x2c1a08,
+        three.MaterialProperty.opacity: 0.15,
+        three.MaterialProperty.transparent: true,
+        three.MaterialProperty.depthWrite: false,
+      }),
+    )
+      ..position.setValues(-_boardWidth * 0.14, groundY, _boardWidth * 0.10)
+      ..scale.x = 1.40
+      ..scale.z = 0.88;
+    _root.add(groundShadowOuter);
+    // Hard inner shadow
+    final groundShadowInner = three.Mesh(
+      three.CylinderGeometry(shadowW * 0.52, shadowW * 0.52, 0.005, 64),
+      boardShadowMaterial,
+    )
+      ..position.setValues(-_boardWidth * 0.08, groundY + 0.003, _boardWidth * 0.06)
+      ..scale.x = 1.26
+      ..scale.z = 0.84;
+    _root.add(groundShadowInner);
 
     final topSkin = three.Mesh(_buildRoundedBoardTopGeometry(), topMaterial)
       ..position.setValues(-_boardWidth / 2, _boardTop + 0.034, _boardWidth / 2)
@@ -928,6 +963,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       material,
     )
       ..position.setValues(0, y, 0)
+      ..castShadow = true
       ..receiveShadow = true;
     _root.add(mesh);
   }
@@ -1089,31 +1125,33 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       final x = start + col * step;
       final z = start + row * step;
       if (widget.stoneExtraOverlayEnabled) {
-        // Hard shadow disk hidden under stone footprint
+        // Contact shadow: fully under stone footprint, no bright-side leak
         final shadow = three.Mesh(
-          three.CylinderGeometry(radius * 0.95, radius * 0.95, 0.006, 40),
+          three.CylinderGeometry(radius * 0.90, radius * 0.90, 0.006, 40),
           shadowMaterial,
         )
           ..position.setValues(
-            x - radius * 0.14,
+            x - radius * 0.12,
             _boardTop + 0.049,
-            z - radius * 0.10,
+            z - radius * 0.09,
           )
-          ..scale.x = 1.20
-          ..scale.z = 0.82;
+          ..scale.x = 1.18
+          ..scale.z = 0.84;
         _stoneGroup.add(shadow);
-        // Soft penumbra halo extends beyond stone
+        // Directional soft penumbra: center offset large enough so bright
+        // side of disk is hidden under stone sphere projection (≤ radius r).
+        // dx_bright_edge = -0.80r + 1.20r = +0.40r ≤ r  ✓
         final softShadow = three.Mesh(
-          three.CylinderGeometry(radius * 1.80, radius * 1.80, 0.004, 40),
+          three.CylinderGeometry(radius * 1.20, radius * 1.20, 0.004, 40),
           softShadowMaterial,
         )
           ..position.setValues(
-            x - radius * 0.26,
+            x - radius * 0.80,
             _boardTop + 0.046,
-            z - radius * 0.22,
+            z - radius * 0.65,
           )
-          ..scale.x = 1.32
-          ..scale.z = 0.76;
+          ..scale.x = 1.10
+          ..scale.z = 0.85;
         _stoneGroup.add(softShadow);
       }
 
