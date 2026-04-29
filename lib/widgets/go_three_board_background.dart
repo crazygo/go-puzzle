@@ -381,7 +381,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       widget.cinematicFrame ? widget.cinematicFov : 28,
       _threeJs.width / _threeJs.height,
       0.1,
-      13.28,
+      30,
     );
     _setCamera(0);
 
