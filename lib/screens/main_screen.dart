@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/settings_provider.dart';
+import '../widgets/go_three_board_background.dart';
 import 'capture_game_screen.dart';
 import 'daily_puzzle_screen.dart';
 import 'settings_screen.dart';
@@ -21,63 +22,141 @@ class MainScreen extends StatelessWidget {
   }
 }
 
-class _MainTabScaffold extends StatelessWidget {
+class _MainTabScaffold extends StatefulWidget {
   const _MainTabScaffold();
+
+  @override
+  State<_MainTabScaffold> createState() => _MainTabScaffoldState();
+}
+
+class _MainTabScaffoldState extends State<_MainTabScaffold> {
+  int _selectedIndex = 0;
 
   static const _inactiveColor = Color(0xFFAF9C86);
   static const _activeColor = Color(0xFFB9783A);
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoTabScaffold(
-      tabBar: CupertinoTabBar(
-        backgroundColor: const Color(0xFFF9F4EC),
-        activeColor: _activeColor,
-        inactiveColor: _inactiveColor,
-        border: const Border(
-          top: BorderSide(
-            color: Color(0x1AC19567),
-            width: 0.6,
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: Color(0xFFF9F4EC)),
+      child: Stack(
+        children: [
+          const _SharedHeroBoardBackground(),
+          IndexedStack(
+            index: _selectedIndex,
+            children: const [
+              CaptureGameScreen(),
+              DailyPuzzleScreen(),
+              SettingsScreen(),
+            ],
           ),
-        ),
-        items: const [
-          BottomNavigationBarItem(
-            icon: _TabGlyph(kind: _TabGlyphKind.home),
-            activeIcon: _TabGlyph(kind: _TabGlyphKind.home, active: true),
-            label: '下棋',
-          ),
-          BottomNavigationBarItem(
-            icon: _TabGlyph(kind: _TabGlyphKind.match),
-            activeIcon: _TabGlyph(kind: _TabGlyphKind.match, active: true),
-            label: '谜题',
-          ),
-          BottomNavigationBarItem(
-            icon: _TabGlyph(kind: _TabGlyphKind.settings),
-            activeIcon: _TabGlyph(kind: _TabGlyphKind.settings, active: true),
-            label: '设置',
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: CupertinoTabBar(
+              currentIndex: _selectedIndex,
+              onTap: (index) => setState(() => _selectedIndex = index),
+              backgroundColor: const Color(0xFFF9F4EC),
+              activeColor: _activeColor,
+              inactiveColor: _inactiveColor,
+              border: const Border(
+                top: BorderSide(
+                  color: Color(0x1AC19567),
+                  width: 0.6,
+                ),
+              ),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: _TabGlyph(kind: _TabGlyphKind.home),
+                  activeIcon: _TabGlyph(kind: _TabGlyphKind.home, active: true),
+                  label: '下棋',
+                ),
+                BottomNavigationBarItem(
+                  icon: _TabGlyph(kind: _TabGlyphKind.match),
+                  activeIcon:
+                      _TabGlyph(kind: _TabGlyphKind.match, active: true),
+                  label: '谜题',
+                ),
+                BottomNavigationBarItem(
+                  icon: _TabGlyph(kind: _TabGlyphKind.settings),
+                  activeIcon:
+                      _TabGlyph(kind: _TabGlyphKind.settings, active: true),
+                  label: '设置',
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      tabBuilder: (context, index) {
-        switch (index) {
-          case 0:
-            return CupertinoTabView(
-              builder: (_) => const CaptureGameScreen(),
-            );
-          case 1:
-            return CupertinoTabView(
-              builder: (_) => const DailyPuzzleScreen(),
-            );
-          case 2:
-            return CupertinoTabView(
-              builder: (_) => const SettingsScreen(),
-            );
-          default:
-            return CupertinoTabView(
-              builder: (_) => const CaptureGameScreen(),
-            );
-        }
-      },
+    );
+  }
+}
+
+class _SharedHeroBoardBackground extends StatelessWidget {
+  const _SharedHeroBoardBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            children: [
+              Positioned(
+                top: constraints.maxHeight * 0.06,
+                left: 0,
+                right: 0,
+                height: constraints.maxHeight * 0.62,
+                child: IgnorePointer(
+                  child: Transform.translate(
+                    offset: const Offset(0, -128),
+                    child: const GoThreeBoardBackground(
+                      boardSize: 19,
+                      stones: kGoThreeDemoStones,
+                      particles: false,
+                      sceneScale: 0.88,
+                      cameraLift: 0.01,
+                      cameraDepth: 17.2,
+                      targetZOffset: 0.0,
+                      cinematicFov: 28.0,
+                      boardRotationY: -0.62,
+                      leafShadowOpacity: 0.16,
+                      stoneExtraOverlayEnabled: true,
+                      boardTopBrightness: 1.0,
+                      boardWoodColor: 0xd0b39c,
+                      toneMappingExposure: 0.44,
+                      keyLightPosition: Offset3(5.5, 5.5, 5.5),
+                      fillLightPosition: Offset3(-4.8, 2.2, 3.2),
+                      keyLightIntensity: 1.44,
+                      fillLightIntensity: 0.09,
+                      ambientLightIntensity: 0.15,
+                      sheenLightIntensity: 0.14,
+                      keyLightColor: 0xfff0d2,
+                      fillLightColor: 0xf4e8d8,
+                      ambientLightColor: 0xffeddc,
+                      sheenLightColor: 0xfffaed,
+                      windowCenterU: 0.89,
+                      windowCenterV: 0.43,
+                      windowSpreadU: 1.17,
+                      windowSpreadV: 3.64,
+                      windowPlateau: 0.73,
+                      windowFalloff: 0.97,
+                      windowRotation: 0.39,
+                      gridBaseOpacity: 0.78,
+                      gridFadeMult: 0.00,
+                      gridFadePower: 0.66,
+                      gridFadeMin: 0.20,
+                      lightMapFloor: 0.12,
+                      lightMapIntensity: 1.49,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

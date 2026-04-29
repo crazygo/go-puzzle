@@ -12,9 +12,9 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      backgroundColor: kPageBackgroundColor,
+      backgroundColor: CupertinoColors.transparent,
       child: DecoratedBox(
-        decoration: kPageBackgroundDecoration,
+        decoration: const BoxDecoration(),
         child: Stack(
           children: [
             // Hero as full-bleed background layer
@@ -22,7 +22,7 @@ class SettingsScreen extends StatelessWidget {
               top: 0,
               left: 0,
               right: 0,
-              child: PageHeroBanner(title: '设置'),
+              child: PageHeroBanner(title: '设置', showOrbitalArt: false),
             ),
             // Scrollable content floats over hero
             SafeArea(

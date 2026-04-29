@@ -76,6 +76,9 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
   double _windowCenterV = _CaptureGameScreenState._defaultWindowCenterV;
   double _windowSpreadU = _CaptureGameScreenState._defaultWindowSpreadU;
   double _windowSpreadV = _CaptureGameScreenState._defaultWindowSpreadV;
+  double _windowPlateau = _CaptureGameScreenState._defaultWindowPlateau;
+  double _windowFalloff = _CaptureGameScreenState._defaultWindowFalloff;
+  double _windowRotation = _CaptureGameScreenState._defaultWindowRotation;
   // Grid dissolution controls
   double _gridBaseOpacity = _CaptureGameScreenState._defaultGridBaseOpacity;
   double _gridFadeMult = _CaptureGameScreenState._defaultGridFadeMult;
@@ -127,6 +130,9 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   windowCenterV: _windowCenterV,
                   windowSpreadU: _windowSpreadU,
                   windowSpreadV: _windowSpreadV,
+                  windowPlateau: _windowPlateau,
+                  windowFalloff: _windowFalloff,
+                  windowRotation: _windowRotation,
                   gridBaseOpacity: _gridBaseOpacity,
                   gridFadeMult: _gridFadeMult,
                   gridFadePower: _gridFadePower,
@@ -218,6 +224,9 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                     windowCenterV: _windowCenterV,
                     windowSpreadU: _windowSpreadU,
                     windowSpreadV: _windowSpreadV,
+                    windowPlateau: _windowPlateau,
+                    windowFalloff: _windowFalloff,
+                    windowRotation: _windowRotation,
                     gridBaseOpacity: _gridBaseOpacity,
                     gridFadeMult: _gridFadeMult,
                     gridFadePower: _gridFadePower,
@@ -232,6 +241,12 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                         setState(() => _windowSpreadU = v),
                     onWindowSpreadVChanged: (v) =>
                         setState(() => _windowSpreadV = v),
+                    onWindowPlateauChanged: (v) =>
+                        setState(() => _windowPlateau = v),
+                    onWindowFalloffChanged: (v) =>
+                        setState(() => _windowFalloff = v),
+                    onWindowRotationChanged: (v) =>
+                        setState(() => _windowRotation = v),
                     onGridBaseOpacityChanged: (v) =>
                         setState(() => _gridBaseOpacity = v),
                     onGridFadeMultChanged: (v) =>
@@ -305,6 +320,9 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
       _windowCenterV = _CaptureGameScreenState._defaultWindowCenterV;
       _windowSpreadU = _CaptureGameScreenState._defaultWindowSpreadU;
       _windowSpreadV = _CaptureGameScreenState._defaultWindowSpreadV;
+      _windowPlateau = _CaptureGameScreenState._defaultWindowPlateau;
+      _windowFalloff = _CaptureGameScreenState._defaultWindowFalloff;
+      _windowRotation = _CaptureGameScreenState._defaultWindowRotation;
       _gridBaseOpacity = _CaptureGameScreenState._defaultGridBaseOpacity;
       _gridFadeMult = _CaptureGameScreenState._defaultGridFadeMult;
       _gridFadePower = _CaptureGameScreenState._defaultGridFadePower;
@@ -329,7 +347,7 @@ Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardTopFactor = 0.06;
   static const double _defaultHomeBoardHeightFactor = 0.62;
-  static const double _defaultHomeBoardCanvasYOffset = -34.0;
+  static const double _defaultHomeBoardCanvasYOffset = -128.0;
   static const double _defaultHomeBoardSceneScale = 0.88;
   static const double _defaultHomeBoardCameraLift = 0.01;
   static const double _defaultHomeBoardCameraDepth = 17.2;
@@ -355,17 +373,20 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const int _defaultAmbientLightColor = 0xffeddc;
   static const int _defaultSheenLightColor = 0xfffaed;
   // Window irradiance defaults
-  static const double _defaultWindowCenterU = 0.88;
-  static const double _defaultWindowCenterV = 0.05;
-  static const double _defaultWindowSpreadU = 1.80;
-  static const double _defaultWindowSpreadV = 1.60;
+  static const double _defaultWindowCenterU = 0.89;
+  static const double _defaultWindowCenterV = 0.43;
+  static const double _defaultWindowSpreadU = 1.17;
+  static const double _defaultWindowSpreadV = 3.64;
+  static const double _defaultWindowPlateau = 0.73;
+  static const double _defaultWindowFalloff = 0.97;
+  static const double _defaultWindowRotation = 0.39;
   // Grid dissolution defaults
   static const double _defaultGridBaseOpacity = 0.78;
   static const double _defaultGridFadeMult = 0.00;
   static const double _defaultGridFadePower = 0.66;
   static const double _defaultGridFadeMin = 0.20;
   static const double _defaultLightMapFloor = 0.12;
-  static const double _defaultLightMapIntensity = 0.64;
+  static const double _defaultLightMapIntensity = 1.49;
 
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
@@ -409,6 +430,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _windowCenterV = _defaultWindowCenterV;
   double _windowSpreadU = _defaultWindowSpreadU;
   double _windowSpreadV = _defaultWindowSpreadV;
+  double _windowPlateau = _defaultWindowPlateau;
+  double _windowFalloff = _defaultWindowFalloff;
+  double _windowRotation = _defaultWindowRotation;
   double _gridBaseOpacity = _defaultGridBaseOpacity;
   double _gridFadeMult = _defaultGridFadeMult;
   double _gridFadePower = _defaultGridFadePower;
@@ -435,9 +459,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     }
 
     return CupertinoPageScaffold(
-      backgroundColor: kPageBackgroundColor,
+      backgroundColor: CupertinoColors.transparent,
       child: DecoratedBox(
-        decoration: kPageBackgroundDecoration,
+        decoration: const BoxDecoration(),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final topPadding = MediaQuery.of(context).padding.top;
@@ -448,47 +472,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
             return Stack(
               children: [
-                _HomeThreeBoardPreview(
-                  constraints: constraints,
-                  topFactor: _homeBoardTopFactor,
-                  heightFactor: _homeBoardHeightFactor,
-                  canvasYOffset: _homeBoardCanvasYOffset,
-                  sceneScale: _homeBoardSceneScale,
-                  cameraLift: _homeBoardCameraLift,
-                  cameraDepth: _homeBoardCameraDepth,
-                  targetZOffset: _homeBoardTargetZOffset,
-                  cinematicFov: _homeBoardCinematicFov,
-                  boardRotationY: _homeBoardRotationY,
-                  leafShadowOpacity: _leafShadowOpacity,
-                  stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
-                  floatingParticlesEnabled: _floatingParticlesEnabled,
-                  cornerLabelsEnabled:
-                      _homeTuningSheetVisible && _cornerLabelsEnabled,
-                  boardTopBrightness: _boardTopBrightness,
-                  boardWoodColor: _boardWoodColor,
-                  toneMappingExposure: _toneMappingExposure,
-                  keyLightPosition: _keyLightPosition,
-                  fillLightPosition: _fillLightPosition,
-                  keyLightIntensity: _keyLightIntensity,
-                  fillLightIntensity: _fillLightIntensity,
-                  ambientLightIntensity: _ambientLightIntensity,
-                  sheenLightIntensity: _sheenLightIntensity,
-                  keyLightColor: _keyLightColor,
-                  fillLightColor: _fillLightColor,
-                  ambientLightColor: _ambientLightColor,
-                  sheenLightColor: _sheenLightColor,
-                  showDebugGuides: _homeTuningSheetVisible,
-                  windowCenterU: _windowCenterU,
-                  windowCenterV: _windowCenterV,
-                  windowSpreadU: _windowSpreadU,
-                  windowSpreadV: _windowSpreadV,
-                  gridBaseOpacity: _gridBaseOpacity,
-                  gridFadeMult: _gridFadeMult,
-                  gridFadePower: _gridFadePower,
-                  gridFadeMin: _gridFadeMin,
-                  lightMapFloor: _lightMapFloor,
-                  lightMapIntensity: _lightMapIntensity,
-                ),
                 Positioned(
                   top: 0,
                   left: 0,
@@ -732,6 +715,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     windowCenterV: _windowCenterV,
                     windowSpreadU: _windowSpreadU,
                     windowSpreadV: _windowSpreadV,
+                    windowPlateau: _windowPlateau,
+                    windowFalloff: _windowFalloff,
+                    windowRotation: _windowRotation,
                     gridBaseOpacity: _gridBaseOpacity,
                     gridFadeMult: _gridFadeMult,
                     gridFadePower: _gridFadePower,
@@ -746,6 +732,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _windowSpreadU = v),
                     onWindowSpreadVChanged: (v) =>
                         setState(() => _windowSpreadV = v),
+                    onWindowPlateauChanged: (v) =>
+                        setState(() => _windowPlateau = v),
+                    onWindowFalloffChanged: (v) =>
+                        setState(() => _windowFalloff = v),
+                    onWindowRotationChanged: (v) =>
+                        setState(() => _windowRotation = v),
                     onGridBaseOpacityChanged: (v) =>
                         setState(() => _gridBaseOpacity = v),
                     onGridFadeMultChanged: (v) =>
@@ -803,6 +795,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _windowCenterV = _defaultWindowCenterV;
       _windowSpreadU = _defaultWindowSpreadU;
       _windowSpreadV = _defaultWindowSpreadV;
+      _windowPlateau = _defaultWindowPlateau;
+      _windowFalloff = _defaultWindowFalloff;
+      _windowRotation = _defaultWindowRotation;
       _gridBaseOpacity = _defaultGridBaseOpacity;
       _gridFadeMult = _defaultGridFadeMult;
       _gridFadePower = _defaultGridFadePower;
@@ -1019,6 +1014,9 @@ class _HomeThreeBoardPreview extends StatelessWidget {
     required this.windowCenterV,
     required this.windowSpreadU,
     required this.windowSpreadV,
+    required this.windowPlateau,
+    required this.windowFalloff,
+    required this.windowRotation,
     required this.gridBaseOpacity,
     required this.gridFadeMult,
     required this.gridFadePower,
@@ -1059,6 +1057,9 @@ class _HomeThreeBoardPreview extends StatelessWidget {
   final double windowCenterV;
   final double windowSpreadU;
   final double windowSpreadV;
+  final double windowPlateau;
+  final double windowFalloff;
+  final double windowRotation;
   final double gridBaseOpacity;
   final double gridFadeMult;
   final double gridFadePower;
@@ -1107,6 +1108,9 @@ class _HomeThreeBoardPreview extends StatelessWidget {
             windowCenterV: windowCenterV,
             windowSpreadU: windowSpreadU,
             windowSpreadV: windowSpreadV,
+            windowPlateau: windowPlateau,
+            windowFalloff: windowFalloff,
+            windowRotation: windowRotation,
             gridBaseOpacity: gridBaseOpacity,
             gridFadeMult: gridFadeMult,
             gridFadePower: gridFadePower,
@@ -1231,6 +1235,9 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.windowCenterV,
     required this.windowSpreadU,
     required this.windowSpreadV,
+    required this.windowPlateau,
+    required this.windowFalloff,
+    required this.windowRotation,
     required this.gridBaseOpacity,
     required this.gridFadeMult,
     required this.gridFadePower,
@@ -1241,6 +1248,9 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.onWindowCenterVChanged,
     required this.onWindowSpreadUChanged,
     required this.onWindowSpreadVChanged,
+    required this.onWindowPlateauChanged,
+    required this.onWindowFalloffChanged,
+    required this.onWindowRotationChanged,
     required this.onGridBaseOpacityChanged,
     required this.onGridFadeMultChanged,
     required this.onGridFadePowerChanged,
@@ -1307,6 +1317,9 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final double windowCenterV;
   final double windowSpreadU;
   final double windowSpreadV;
+  final double windowPlateau;
+  final double windowFalloff;
+  final double windowRotation;
   final double gridBaseOpacity;
   final double gridFadeMult;
   final double gridFadePower;
@@ -1317,6 +1330,9 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final ValueChanged<double> onWindowCenterVChanged;
   final ValueChanged<double> onWindowSpreadUChanged;
   final ValueChanged<double> onWindowSpreadVChanged;
+  final ValueChanged<double> onWindowPlateauChanged;
+  final ValueChanged<double> onWindowFalloffChanged;
+  final ValueChanged<double> onWindowRotationChanged;
   final ValueChanged<double> onGridBaseOpacityChanged;
   final ValueChanged<double> onGridFadeMultChanged;
   final ValueChanged<double> onGridFadePowerChanged;
@@ -1557,6 +1573,27 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           min: 0.50,
           max: 4.00,
           onChanged: widget.onWindowSpreadVChanged,
+        ),
+        _TuningSlider(
+          label: '窗光平台',
+          value: widget.windowPlateau,
+          min: 0.00,
+          max: 0.95,
+          onChanged: widget.onWindowPlateauChanged,
+        ),
+        _TuningSlider(
+          label: '窗光衰减',
+          value: widget.windowFalloff,
+          min: 0.05,
+          max: 1.50,
+          onChanged: widget.onWindowFalloffChanged,
+        ),
+        _TuningSlider(
+          label: '窗光旋转',
+          value: widget.windowRotation,
+          min: -3.14,
+          max: 3.14,
+          onChanged: widget.onWindowRotationChanged,
         ),
         _TuningSlider(
           label: '格子基础透明度',
