@@ -325,7 +325,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const bool _defaultCornerLabelsEnabled = true;
   static const double _defaultBoardTopBrightness = 1.0;
   static const double _defaultToneMappingExposure = 0.44;
-  static const Offset3 _defaultKeyLightPosition = Offset3(6.4, 6.2, 5.8);
+  static const Offset3 _defaultKeyLightPosition = Offset3(0.0, 8.0, 0.5);
   static const Offset3 _defaultFillLightPosition = Offset3(-4.8, 2.2, 3.2);
   static const double _defaultKeyLightIntensity = 0.88;
   static const double _defaultFillLightIntensity = 0.09;
