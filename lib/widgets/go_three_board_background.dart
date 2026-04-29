@@ -1056,7 +1056,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     });
     final whiteMaterial = three.MeshStandardMaterial({
       three.MaterialProperty.color: 0xf7efe2,
-      three.MaterialProperty.roughness: 0.54,
+      three.MaterialProperty.roughness: 0.28,
       three.MaterialProperty.metalness: 0.02,
     });
     final shadowMaterial = three.MeshBasicMaterial({
@@ -1089,7 +1089,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           ..position.setValues(
             x - radius * 0.16,
             _boardTop + 0.049,
-            z + radius * 0.11,
+            z - radius * 0.11,
           )
           ..scale.x = 1.20
           ..scale.z = 0.82;
@@ -1101,7 +1101,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           ..position.setValues(
             x - radius * 0.22,
             _boardTop + 0.046,
-            z + radius * 0.18,
+            z - radius * 0.18,
           )
           ..scale.x = 1.28
           ..scale.z = 0.78;
@@ -1118,7 +1118,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           z,
         )
         ..scale.y = stoneHeightScale
-        ..castShadow = true
+        ..castShadow = false
         ..receiveShadow = true;
       _stoneGroup.add(mesh);
     }
