@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:image/image.dart' as img;
 import 'package:three_js/three_js.dart' as three;
+import 'package:three_js_core/three_js_core.dart' show ShadowMaterial;
 
 enum GoThreeStoneColor { black, white }
 
@@ -65,7 +66,7 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.showCornerLabels = true,
     this.keyLightPosition = const Offset3(5.5, 5.5, 5.5),
     this.fillLightPosition = const Offset3(-4.8, 2.6, 3.2),
-    this.keyLightIntensity = 1.18,
+    this.keyLightIntensity = 1.44,
     this.fillLightIntensity = 0.07,
     this.ambientLightIntensity = 0.12,
     this.sheenLightIntensity = 0.20,
@@ -81,11 +82,11 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.gridFadeMult = 0.80,
     this.gridFadePower = 0.66,
     this.gridFadeMin = 0.20,
-    this.washStrength = 0.60,
+    this.washStrength = 0.40,
     this.washStart = 0.40,
-    this.washPower = 1.50,
+    this.washPower = 0.50,
     this.lightMapFloor = 0.55,
-    this.lightMapIntensity = 1.80,
+    this.lightMapIntensity = 1.28,
   });
 
   final int boardSize;
@@ -687,39 +688,18 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       }
     }
 
-    // Fake board ground shadow: ellipse below board in key-light direction (-X,-Z)
-    const groundY = -_boardThickness - 0.012;
-    const shadowW = _boardWidth * 0.96;
-    final boardShadowMaterial = three.MeshBasicMaterial({
-      three.MaterialProperty.color: 0x1a0e04,
-      three.MaterialProperty.opacity: 0.28,
-      three.MaterialProperty.transparent: true,
-      three.MaterialProperty.depthWrite: false,
-    });
-    // Soft outer halo
-    final groundShadowOuter = three.Mesh(
-      three.CylinderGeometry(
-          shadowW * 0.72, shadowW * 0.72, 0.004, 64),
-      three.MeshBasicMaterial({
-        three.MaterialProperty.color: 0x2c1a08,
-        three.MaterialProperty.opacity: 0.15,
-        three.MaterialProperty.transparent: true,
-        three.MaterialProperty.depthWrite: false,
-      }),
+    // Real floor plane: receives actual shadow cast by board from the key light.
+    // Positioned just below board bottom, large enough to show the full shadow.
+    const floorY = -_boardThickness - 0.008;
+    final floorMaterial = ShadowMaterial()..opacity = 0.32;
+    final floor = three.Mesh(
+      three.PlaneGeometry(_boardWidth * 3.5, _boardWidth * 3.5),
+      floorMaterial,
     )
-      ..position.setValues(-_boardWidth * 0.14, groundY, _boardWidth * 0.10)
-      ..scale.x = 1.40
-      ..scale.z = 0.88;
-    _root.add(groundShadowOuter);
-    // Hard inner shadow
-    final groundShadowInner = three.Mesh(
-      three.CylinderGeometry(shadowW * 0.52, shadowW * 0.52, 0.005, 64),
-      boardShadowMaterial,
-    )
-      ..position.setValues(-_boardWidth * 0.08, groundY + 0.003, _boardWidth * 0.06)
-      ..scale.x = 1.26
-      ..scale.z = 0.84;
-    _root.add(groundShadowInner);
+      ..rotation.x = -math.pi / 2
+      ..position.setValues(0, floorY, 0)
+      ..receiveShadow = true;
+    _root.add(floor);
 
     final topSkin = three.Mesh(_buildRoundedBoardTopGeometry(), topMaterial)
       ..position.setValues(-_boardWidth / 2, _boardTop + 0.034, _boardWidth / 2)
@@ -921,6 +901,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
   void _updateDebugGuides() {
     _debugGuideGroup.clear();
+    _addDebugAxes();
 
     final lightPosition = widget.keyLightPosition;
     const target = _keyLightTarget;
@@ -949,6 +930,35 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         );
       _debugGuideGroup.add(dot);
     }
+  }
+
+  void _addDebugAxes() {
+    const length = 1.25;
+    const thickness = 0.026;
+    const axisY = _boardTop + 0.12;
+
+    final xAxis = three.Mesh(
+      three.BoxGeometry(length, thickness, thickness),
+      three.MeshBasicMaterial({three.MaterialProperty.color: 0xff3b30}),
+    )..position.setValues(length / 2, axisY, 0);
+    final yAxis = three.Mesh(
+      three.BoxGeometry(thickness, length, thickness),
+      three.MeshBasicMaterial({three.MaterialProperty.color: 0x34c759}),
+    )..position.setValues(0, axisY + length / 2, 0);
+    final zAxis = three.Mesh(
+      three.BoxGeometry(thickness, thickness, length),
+      three.MeshBasicMaterial({three.MaterialProperty.color: 0x007aff}),
+    )..position.setValues(0, axisY, length / 2);
+    final origin = three.Mesh(
+      three.SphereGeometry(0.045, 14, 8),
+      three.MeshBasicMaterial({three.MaterialProperty.color: 0xffffff}),
+    )..position.setValues(0, axisY, 0);
+
+    _debugGuideGroup
+      ..add(xAxis)
+      ..add(yAxis)
+      ..add(zAxis)
+      ..add(origin);
   }
 
   void _addBoardBox({
@@ -1281,7 +1291,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     // v = 0.5 - z/width  →  first z line (most negative z) maps to highest v.
     final lineStartV = 0.5 + _gridSpan / (2 * _boardWidth);
     final lineStepV = -_gridSpan / ((n - 1) * _boardWidth);
-    final lineEndV = lineStartV + (n - 1) * lineStepV; // = lineStartU (near edge)
+    final lineEndV =
+        lineStartV + (n - 1) * lineStepV; // = lineStartU (near edge)
     // Half-width in UV: 2 texture pixels gives a ~4px-wide rendered line.
     const halfWidthUV = 2.0 / size;
     const gridDarkR = 0x5c;
@@ -1334,18 +1345,16 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         double finalB = boardB;
         if (gridCoverage > 0.0) {
           // Line color fades dark→tan as window irradiance rises (same as mesh grid).
-          final gridLight =
-              math.pow(window, widget.gridFadePower).toDouble();
-          final fade =
-              (1.0 - gridLight * widget.gridFadeMult)
-                  .clamp(widget.gridFadeMin, 0.88);
+          final gridLight = math.pow(window, widget.gridFadePower).toDouble();
+          final fade = (1.0 - gridLight * widget.gridFadeMult)
+              .clamp(widget.gridFadeMin, 0.88);
           final lineBlend = widget.gridBaseOpacity * fade * gridCoverage;
-          final lineR = _lerpDouble(
-              gridDarkR.toDouble(), gridTanR.toDouble(), gridLight);
-          final lineG = _lerpDouble(
-              gridDarkG.toDouble(), gridTanG.toDouble(), gridLight);
-          final lineB = _lerpDouble(
-              gridDarkB.toDouble(), gridTanB.toDouble(), gridLight);
+          final lineR =
+              _lerpDouble(gridDarkR.toDouble(), gridTanR.toDouble(), gridLight);
+          final lineG =
+              _lerpDouble(gridDarkG.toDouble(), gridTanG.toDouble(), gridLight);
+          final lineB =
+              _lerpDouble(gridDarkB.toDouble(), gridTanB.toDouble(), gridLight);
           finalR = _lerpDouble(boardR, lineR, lineBlend);
           finalG = _lerpDouble(boardG, lineG, lineBlend);
           finalB = _lerpDouble(boardB, lineB, lineBlend);
@@ -1405,7 +1414,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     return (broadWindow * middleLift * 0.92 + upperRightLift * 0.08)
         .clamp(0.0, 1.0);
   }
-
 }
 
 class Offset3 {
