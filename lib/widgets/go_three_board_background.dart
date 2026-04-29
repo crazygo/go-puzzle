@@ -61,6 +61,7 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.leafShadowOpacity = 0.16,
     this.stoneExtraOverlayEnabled = true,
     this.boardTopBrightness = 1.0,
+    this.boardWoodColor = 0xd0b39c,
     this.toneMappingExposure = 0.44,
     this.showDebugGuides = false,
     this.showCornerLabels = true,
@@ -82,11 +83,11 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.gridFadeMult = 0.80,
     this.gridFadePower = 0.66,
     this.gridFadeMin = 0.20,
-    this.washStrength = 0.40,
+    this.washStrength = 0.10,
     this.washStart = 0.40,
     this.washPower = 0.50,
-    this.lightMapFloor = 0.55,
-    this.lightMapIntensity = 1.28,
+    this.lightMapFloor = 0.12,
+    this.lightMapIntensity = 0.64,
   });
 
   final int boardSize;
@@ -103,6 +104,7 @@ class GoThreeBoardBackground extends StatefulWidget {
   final double leafShadowOpacity;
   final bool stoneExtraOverlayEnabled;
   final double boardTopBrightness;
+  final int boardWoodColor;
   final double toneMappingExposure;
   final bool showDebugGuides;
   final bool showCornerLabels;
@@ -266,6 +268,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     }
     if (oldWidget.boardTopBrightness != widget.boardTopBrightness) {
       _updateBoardBrightness();
+    }
+    if (oldWidget.boardWoodColor != widget.boardWoodColor) {
+      unawaited(_rebuildBoardTextures());
     }
     if (oldWidget.toneMappingExposure != widget.toneMappingExposure) {
       _updateToneMappingExposure();
@@ -1123,7 +1128,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       three.MaterialProperty.depthWrite: false,
     });
     final radius = step * 0.46;
-    const stoneHeightScale = 0.48;
+    final stoneGeometry = _buildRaisedEdgeStoneGeometry(radius);
+    const stoneBaseY = _boardTop + 0.052;
 
     for (final stone in widget.stones) {
       final row = stone.row.clamp(0, n - 1);
@@ -1137,44 +1143,43 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       if (widget.stoneExtraOverlayEnabled) {
         // Contact shadow: fully under stone footprint, no bright-side leak
         final shadow = three.Mesh(
-          three.CylinderGeometry(radius * 0.90, radius * 0.90, 0.006, 40),
+          three.CylinderGeometry(radius * 0.68, radius * 0.68, 0.005, 40),
           shadowMaterial,
         )
           ..position.setValues(
-            x - radius * 0.12,
-            _boardTop + 0.049,
-            z - radius * 0.09,
+            x - radius * 0.08,
+            _boardTop + 0.048,
+            z - radius * 0.06,
           )
-          ..scale.x = 1.18
-          ..scale.z = 0.84;
+          ..scale.x = 1.08
+          ..scale.z = 0.78;
         _stoneGroup.add(shadow);
         // Directional soft penumbra: center offset large enough so bright
         // side of disk is hidden under stone sphere projection (≤ radius r).
         // dx_bright_edge = -0.80r + 1.20r = +0.40r ≤ r  ✓
         final softShadow = three.Mesh(
-          three.CylinderGeometry(radius * 1.20, radius * 1.20, 0.004, 40),
+          three.CylinderGeometry(radius * 0.98, radius * 0.98, 0.004, 40),
           softShadowMaterial,
         )
           ..position.setValues(
-            x - radius * 0.80,
-            _boardTop + 0.046,
-            z - radius * 0.65,
+            x - radius * 0.62,
+            _boardTop + 0.045,
+            z - radius * 0.50,
           )
-          ..scale.x = 1.10
-          ..scale.z = 0.85;
+          ..scale.x = 1.02
+          ..scale.z = 0.80;
         _stoneGroup.add(softShadow);
       }
 
       final mesh = three.Mesh(
-        three.SphereGeometry(radius, 48, 18),
+        stoneGeometry,
         material,
       )
         ..position.setValues(
           x,
-          _boardTop + radius * stoneHeightScale,
+          stoneBaseY,
           z,
         )
-        ..scale.y = stoneHeightScale
         ..castShadow = false
         ..receiveShadow = true;
       _stoneGroup.add(mesh);
@@ -1183,6 +1188,79 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     if (_stoneGroup.parent == null) {
       _root.add(_stoneGroup);
     }
+  }
+
+  three.BufferGeometry _buildRaisedEdgeStoneGeometry(double radius) {
+    final height = radius * 0.58;
+    final rimY = height * 0.40;
+    final points = [
+      three.Vector2(radius * 0.02, 0),
+      three.Vector2(radius * 0.28, height * 0.04),
+      three.Vector2(radius * 0.58, height * 0.14),
+      three.Vector2(radius * 0.86, height * 0.28),
+      three.Vector2(radius * 1.00, rimY),
+      three.Vector2(radius * 0.93, height * 0.60),
+      three.Vector2(radius * 0.68, height * 0.82),
+      three.Vector2(radius * 0.34, height * 0.96),
+      three.Vector2(radius * 0.04, height),
+    ];
+    return _buildLatheGeometry(points, segments: 56);
+  }
+
+  three.BufferGeometry _buildLatheGeometry(
+    List<three.Vector2> points, {
+    required int segments,
+  }) {
+    final vertices = <double>[];
+    final normals = <double>[];
+    final uvs = <double>[];
+    final indices = <int>[];
+
+    for (int i = 0; i <= segments; i++) {
+      final phi = i / segments * math.pi * 2;
+      final sinPhi = math.sin(phi);
+      final cosPhi = math.cos(phi);
+
+      for (int j = 0; j < points.length; j++) {
+        final point = points[j];
+        vertices.addAll([point.x * sinPhi, point.y, point.x * cosPhi]);
+        uvs.addAll([i / segments, j / (points.length - 1)]);
+
+        final prev = points[math.max(0, j - 1)];
+        final next = points[math.min(points.length - 1, j + 1)];
+        final dr = next.x - prev.x;
+        final dy = next.y - prev.y;
+        final normalScale = math.sqrt(dy * dy + dr * dr);
+        final nx = normalScale == 0 ? 1.0 : dy / normalScale;
+        final ny = normalScale == 0 ? 0.0 : -dr / normalScale;
+        normals.addAll([nx * sinPhi, ny, nx * cosPhi]);
+      }
+    }
+
+    for (int i = 0; i < segments; i++) {
+      for (int j = 0; j < points.length - 1; j++) {
+        final a = j + i * points.length;
+        final b = a + points.length;
+        final c = b + 1;
+        final d = a + 1;
+        indices.addAll([a, b, d, c, d, b]);
+      }
+    }
+
+    return three.BufferGeometry()
+      ..setIndex(indices)
+      ..setAttribute(
+        three.Attribute.position,
+        three.Float32BufferAttribute.fromList(vertices, 3, false),
+      )
+      ..setAttribute(
+        three.Attribute.normal,
+        three.Float32BufferAttribute.fromList(normals, 3, false),
+      )
+      ..setAttribute(
+        three.Attribute.uv,
+        three.Float32BufferAttribute.fromList(uvs, 2, false),
+      );
   }
 
   static double _noise(int seed) {
@@ -1313,11 +1391,17 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
             washStrength * math.pow(directionalWindow, washPower).toDouble();
         final pixel = source.getPixel(x, y);
         final index = (y * source.width + x) * 4;
+        final woodTone = _tintWoodPixel(
+          pixel.r.toDouble(),
+          pixel.g.toDouble(),
+          pixel.b.toDouble(),
+          widget.boardWoodColor,
+        );
 
         // Board surface with cream wash.
-        final boardR = _lerpDouble(pixel.r.toDouble(), creamR, wash);
-        final boardG = _lerpDouble(pixel.g.toDouble(), creamG, wash);
-        final boardB = _lerpDouble(pixel.b.toDouble(), creamB, wash);
+        final boardR = _lerpDouble(woodTone.$1, creamR, wash);
+        final boardG = _lerpDouble(woodTone.$2, creamG, wash);
+        final boardB = _lerpDouble(woodTone.$3, creamB, wash);
 
         // Grid line coverage: max of vertical-line and horizontal-line proximity.
         double gridCoverage = 0.0;
@@ -1413,6 +1497,33 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     );
     return (broadWindow * middleLift * 0.92 + upperRightLift * 0.08)
         .clamp(0.0, 1.0);
+  }
+
+  static (double, double, double) _tintWoodPixel(
+    double r,
+    double g,
+    double b,
+    int tintHex,
+  ) {
+    final tintR = ((tintHex >> 16) & 0xFF).toDouble();
+    final tintG = ((tintHex >> 8) & 0xFF).toDouble();
+    final tintB = (tintHex & 0xFF).toDouble();
+    final sourceLuma = _luma(r, g, b);
+    final tintLuma = math.max(_luma(tintR, tintG, tintB), 1.0);
+    final ratio = (sourceLuma / tintLuma).clamp(0.55, 1.45);
+    final targetR = (tintR * ratio).clamp(0.0, 255.0);
+    final targetG = (tintG * ratio).clamp(0.0, 255.0);
+    final targetB = (tintB * ratio).clamp(0.0, 255.0);
+    const tintStrength = 0.72;
+    return (
+      _lerpDouble(r, targetR, tintStrength),
+      _lerpDouble(g, targetG, tintStrength),
+      _lerpDouble(b, targetB, tintStrength),
+    );
+  }
+
+  static double _luma(double r, double g, double b) {
+    return r * 0.2126 + g * 0.7152 + b * 0.0722;
   }
 }
 

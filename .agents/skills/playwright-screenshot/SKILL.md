@@ -33,9 +33,10 @@ For Flutter Web, the expected lifecycle is:
 
 1. Start a new `flutter run -d web-server --web-hostname 127.0.0.1 --web-port <port>` process.
 2. Wait until `lib/main.dart is being served at ...`.
-3. Run `scripts/browser_screenshot.sh`.
-4. Stop the Flutter process with `q` in the PTY, or kill the exact process if it does not exit.
-5. Use a new process for the next shot, even when only params changed.
+3. Add a cache-busting query value to the URL, such as `&shot=YYYY-MM-DD-HH-mm-SS`, when comparing iterative visual changes.
+4. Run `scripts/browser_screenshot.sh`.
+5. Stop the Flutter process with `q` in the PTY, or kill the exact process if it does not exit.
+6. Use a new process for the next shot, even when only params changed.
 
 If repeated screenshot attempts stall before serving at `Resolving dependencies...`
 or `Downloading packages...`, do not keep retrying the default launch. Once
@@ -43,6 +44,45 @@ dependencies are already present, start the screenshot server with
 `flutter run --no-pub -d web-server --web-hostname 127.0.0.1 --web-port <port>`.
 This keeps the fresh-process rule while avoiding nondeterministic package
 resolution during visual iteration.
+
+Flutter Web can still be blank after browser `networkidle` or `domcontentloaded`.
+This is normal for CanvasKit/WebGL pages: Dart, WebGL, and platform-view setup
+may continue after the page itself is loaded. Do not capture on page-load alone.
+Use a large enough wait budget for heavy WebGL pages, for example `45000`, and
+let the bundled script accept the first visually ready frame.
+
+If a shot times out as not ready, inspect the generated
+`<output>.notready.txt` before changing rendering code. Important fields:
+
+- `counts.flutter-view` / `counts.canvas`: if both are `0`, Flutter did not
+  finish bootstrapping; this is a page/runtime readiness issue, not a visual
+  rendering result.
+- `[events]`: look for early `console`, `pageerror`, and `requestfailed` lines.
+  These listeners must be installed before navigation so bootstrap failures are
+  not missed.
+- `dominantRatio=1.000`, `luminanceStdDev=0.000`, `edgeDensity=0.000` usually
+  means the screenshot is still a blank background.
+
+Known stable local command shape for this repo:
+
+```bash
+flutter run --no-pub -d web-server \
+  --web-hostname 127.0.0.1 \
+  --web-port <port>
+
+# Wait for:
+# lib/main.dart is being served at http://127.0.0.1:<port>
+
+ts=$(date '+%Y-%m-%d-%H-%M-%S')
+bash .agents/skills/playwright-screenshot/scripts/browser_screenshot.sh \
+  "http://127.0.0.1:<port>/?threeBoardDebug=1&shot=${ts}" \
+  ".cache/screenshots/${ts}-threeBoardDebug-1-wide.png" \
+  900 874 2 45000
+```
+
+For 3D board inspection, prefer a wider viewport such as `900x874` with DPR `2`
+when the goal is board lighting/material comparison. Use the mobile preset only
+when validating final mobile composition.
 
 The skill expects a local Playwright dependency to already exist. It does not rely on a network install during execution.
 
