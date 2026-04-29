@@ -325,7 +325,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const bool _defaultCornerLabelsEnabled = true;
   static const double _defaultBoardTopBrightness = 1.0;
   static const double _defaultToneMappingExposure = 0.44;
-  static const Offset3 _defaultKeyLightPosition = Offset3(0.0, 8.0, 0.5);
+  static const Offset3 _defaultKeyLightPosition = Offset3(5.5, 5.5, 5.5);
   static const Offset3 _defaultFillLightPosition = Offset3(-4.8, 2.2, 3.2);
   static const double _defaultKeyLightIntensity = 0.88;
   static const double _defaultFillLightIntensity = 0.09;
@@ -342,9 +342,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultWindowSpreadV = 1.60;
   // Grid dissolution defaults
   static const double _defaultGridBaseOpacity = 0.62;
-  static const double _defaultGridFadeMult = 0.78;
+  static const double _defaultGridFadeMult = 0.95;
   static const double _defaultGridFadePower = 0.66;
-  static const double _defaultGridFadeMin = 0.16;
+  static const double _defaultGridFadeMin = 0.00;
 
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';

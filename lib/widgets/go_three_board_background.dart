@@ -63,7 +63,7 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.toneMappingExposure = 0.44,
     this.showDebugGuides = false,
     this.showCornerLabels = true,
-    this.keyLightPosition = const Offset3(0.0, 8.0, 0.5),
+    this.keyLightPosition = const Offset3(5.5, 5.5, 5.5),
     this.fillLightPosition = const Offset3(-4.8, 2.6, 3.2),
     this.keyLightIntensity = 1.18,
     this.fillLightIntensity = 0.07,
@@ -78,9 +78,9 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.windowSpreadU = 1.80,
     this.windowSpreadV = 1.60,
     this.gridBaseOpacity = 0.62,
-    this.gridFadeMult = 0.78,
+    this.gridFadeMult = 0.95,
     this.gridFadePower = 0.66,
-    this.gridFadeMin = 0.16,
+    this.gridFadeMin = 0.00,
   });
 
   final int boardSize;
