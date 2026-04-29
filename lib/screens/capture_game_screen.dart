@@ -43,6 +43,7 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
       _CaptureGameScreenState._defaultCornerLabelsEnabled;
   double _boardTopBrightness =
       _CaptureGameScreenState._defaultBoardTopBrightness;
+  int _boardWoodColor = _CaptureGameScreenState._defaultBoardWoodColor;
   double _toneMappingExposure =
       _CaptureGameScreenState._defaultToneMappingExposure;
   Offset3 _keyLightPosition = _CaptureGameScreenState._defaultKeyLightPosition;
@@ -114,6 +115,7 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   floatingParticlesEnabled: _floatingParticlesEnabled,
                   cornerLabelsEnabled: _cornerLabelsEnabled,
                   boardTopBrightness: _boardTopBrightness,
+                  boardWoodColor: _boardWoodColor,
                   toneMappingExposure: _toneMappingExposure,
                   keyLightPosition: _keyLightPosition,
                   fillLightPosition: _fillLightPosition,
@@ -125,7 +127,7 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   fillLightColor: _fillLightColor,
                   ambientLightColor: _ambientLightColor,
                   sheenLightColor: _sheenLightColor,
-                  showDebugGuides: false,
+                  showDebugGuides: _panelVisible,
                   windowCenterU: _windowCenterU,
                   windowCenterV: _windowCenterV,
                   windowSpreadU: _windowSpreadU,
@@ -147,6 +149,7 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                     floatingParticlesEnabled: _floatingParticlesEnabled,
                     cornerLabelsEnabled: _cornerLabelsEnabled,
                     boardTopBrightness: _boardTopBrightness,
+                    boardWoodColor: _boardWoodColor,
                     toneMappingExposure: _toneMappingExposure,
                     keyLightPosition: _keyLightPosition,
                     fillLightPosition: _fillLightPosition,
@@ -177,6 +180,8 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                         setState(() => _cornerLabelsEnabled = value),
                     onBoardTopBrightnessChanged: (value) =>
                         setState(() => _boardTopBrightness = value),
+                    onBoardWoodColorChanged: (value) =>
+                        setState(() => _boardWoodColor = value),
                     onToneMappingExposureChanged: (value) =>
                         setState(() => _toneMappingExposure = value),
                     onKeyLightPositionChanged: (value) =>
@@ -248,10 +253,8 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                         setState(() => _gridFadeMin = v),
                     onWashStrengthChanged: (v) =>
                         setState(() => _washStrength = v),
-                    onWashStartChanged: (v) =>
-                        setState(() => _washStart = v),
-                    onWashPowerChanged: (v) =>
-                        setState(() => _washPower = v),
+                    onWashStartChanged: (v) => setState(() => _washStart = v),
+                    onWashPowerChanged: (v) => setState(() => _washPower = v),
                     onLightMapFloorChanged: (v) =>
                         setState(() => _lightMapFloor = v),
                     onLightMapIntensityChanged: (v) =>
@@ -286,6 +289,7 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
       _cornerLabelsEnabled =
           _CaptureGameScreenState._defaultCornerLabelsEnabled;
       _boardTopBrightness = _CaptureGameScreenState._defaultBoardTopBrightness;
+      _boardWoodColor = _CaptureGameScreenState._defaultBoardWoodColor;
       _toneMappingExposure =
           _CaptureGameScreenState._defaultToneMappingExposure;
       _keyLightPosition = _CaptureGameScreenState._defaultKeyLightPosition;
@@ -356,10 +360,11 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const bool _defaultFloatingParticlesEnabled = false;
   static const bool _defaultCornerLabelsEnabled = true;
   static const double _defaultBoardTopBrightness = 1.0;
+  static const int _defaultBoardWoodColor = 0xd0b39c;
   static const double _defaultToneMappingExposure = 0.44;
   static const Offset3 _defaultKeyLightPosition = Offset3(5.5, 5.5, 5.5);
   static const Offset3 _defaultFillLightPosition = Offset3(-4.8, 2.2, 3.2);
-  static const double _defaultKeyLightIntensity = 0.88;
+  static const double _defaultKeyLightIntensity = 1.44;
   static const double _defaultFillLightIntensity = 0.09;
   static const double _defaultAmbientLightIntensity = 0.15;
   static const double _defaultSheenLightIntensity = 0.14;
@@ -377,11 +382,11 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultGridFadeMult = 0.80;
   static const double _defaultGridFadePower = 0.66;
   static const double _defaultGridFadeMin = 0.20;
-  static const double _defaultWashStrength = 0.60;
+  static const double _defaultWashStrength = 0.10;
   static const double _defaultWashStart = 0.40;
-  static const double _defaultWashPower = 1.50;
-  static const double _defaultLightMapFloor = 0.55;
-  static const double _defaultLightMapIntensity = 1.80;
+  static const double _defaultWashPower = 0.50;
+  static const double _defaultLightMapFloor = 0.12;
+  static const double _defaultLightMapIntensity = 0.64;
 
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
@@ -412,6 +417,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   bool _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
   bool _cornerLabelsEnabled = _defaultCornerLabelsEnabled;
   double _boardTopBrightness = _defaultBoardTopBrightness;
+  int _boardWoodColor = _defaultBoardWoodColor;
   double _toneMappingExposure = _defaultToneMappingExposure;
   Offset3 _keyLightPosition = _defaultKeyLightPosition;
   Offset3 _fillLightPosition = _defaultFillLightPosition;
@@ -486,6 +492,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   floatingParticlesEnabled: _floatingParticlesEnabled,
                   cornerLabelsEnabled: _cornerLabelsEnabled,
                   boardTopBrightness: _boardTopBrightness,
+                  boardWoodColor: _boardWoodColor,
                   toneMappingExposure: _toneMappingExposure,
                   keyLightPosition: _keyLightPosition,
                   fillLightPosition: _fillLightPosition,
@@ -497,7 +504,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   fillLightColor: _fillLightColor,
                   ambientLightColor: _ambientLightColor,
                   sheenLightColor: _sheenLightColor,
-                  showDebugGuides: true,
+                  showDebugGuides: _homeTuningSheetVisible,
                   windowCenterU: _windowCenterU,
                   windowCenterV: _windowCenterV,
                   windowSpreadU: _windowSpreadU,
@@ -684,6 +691,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     floatingParticlesEnabled: _floatingParticlesEnabled,
                     cornerLabelsEnabled: _cornerLabelsEnabled,
                     boardTopBrightness: _boardTopBrightness,
+                    boardWoodColor: _boardWoodColor,
                     toneMappingExposure: _toneMappingExposure,
                     keyLightPosition: _keyLightPosition,
                     fillLightPosition: _fillLightPosition,
@@ -714,6 +722,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _cornerLabelsEnabled = value),
                     onBoardTopBrightnessChanged: (value) =>
                         setState(() => _boardTopBrightness = value),
+                    onBoardWoodColorChanged: (value) =>
+                        setState(() => _boardWoodColor = value),
                     onToneMappingExposureChanged: (value) =>
                         setState(() => _toneMappingExposure = value),
                     onKeyLightPositionChanged: (value) =>
@@ -785,10 +795,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _gridFadeMin = v),
                     onWashStrengthChanged: (v) =>
                         setState(() => _washStrength = v),
-                    onWashStartChanged: (v) =>
-                        setState(() => _washStart = v),
-                    onWashPowerChanged: (v) =>
-                        setState(() => _washPower = v),
+                    onWashStartChanged: (v) => setState(() => _washStart = v),
+                    onWashPowerChanged: (v) => setState(() => _washPower = v),
                     onLightMapFloorChanged: (v) =>
                         setState(() => _lightMapFloor = v),
                     onLightMapIntensityChanged: (v) =>
@@ -822,6 +830,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
       _cornerLabelsEnabled = _defaultCornerLabelsEnabled;
       _boardTopBrightness = _defaultBoardTopBrightness;
+      _boardWoodColor = _defaultBoardWoodColor;
       _toneMappingExposure = _defaultToneMappingExposure;
       _keyLightPosition = _defaultKeyLightPosition;
       _fillLightPosition = _defaultFillLightPosition;
@@ -1093,6 +1102,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
     required this.floatingParticlesEnabled,
     required this.cornerLabelsEnabled,
     required this.boardTopBrightness,
+    required this.boardWoodColor,
     required this.toneMappingExposure,
     required this.keyLightPosition,
     required this.fillLightPosition,
@@ -1135,6 +1145,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
   final bool floatingParticlesEnabled;
   final bool cornerLabelsEnabled;
   final double boardTopBrightness;
+  final int boardWoodColor;
   final double toneMappingExposure;
   final Offset3 keyLightPosition;
   final Offset3 fillLightPosition;
@@ -1185,6 +1196,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
             leafShadowOpacity: leafShadowOpacity,
             stoneExtraOverlayEnabled: stoneExtraOverlayEnabled,
             boardTopBrightness: boardTopBrightness,
+            boardWoodColor: boardWoodColor,
             toneMappingExposure: toneMappingExposure,
             showDebugGuides: showDebugGuides,
             keyLightPosition: keyLightPosition,
@@ -1275,6 +1287,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.floatingParticlesEnabled,
     required this.cornerLabelsEnabled,
     required this.boardTopBrightness,
+    required this.boardWoodColor,
     required this.toneMappingExposure,
     required this.keyLightPosition,
     required this.fillLightPosition,
@@ -1300,6 +1313,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.onFloatingParticlesChanged,
     required this.onCornerLabelsChanged,
     required this.onBoardTopBrightnessChanged,
+    required this.onBoardWoodColorChanged,
     required this.onToneMappingExposureChanged,
     required this.onKeyLightPositionChanged,
     required this.onFillLightPositionChanged,
@@ -1355,6 +1369,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final bool floatingParticlesEnabled;
   final bool cornerLabelsEnabled;
   final double boardTopBrightness;
+  final int boardWoodColor;
   final double toneMappingExposure;
   final Offset3 keyLightPosition;
   final Offset3 fillLightPosition;
@@ -1380,6 +1395,7 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final ValueChanged<bool> onFloatingParticlesChanged;
   final ValueChanged<bool> onCornerLabelsChanged;
   final ValueChanged<double> onBoardTopBrightnessChanged;
+  final ValueChanged<int> onBoardWoodColorChanged;
   final ValueChanged<double> onToneMappingExposureChanged;
   final ValueChanged<Offset3> onKeyLightPositionChanged;
   final ValueChanged<Offset3> onFillLightPositionChanged;
@@ -1462,6 +1478,11 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           min: 0.40,
           max: 2.40,
           onChanged: widget.onBoardTopBrightnessChanged,
+        ),
+        _RgbEditor(
+          title: '棋盘本色',
+          colorHex: widget.boardWoodColor,
+          onChanged: widget.onBoardWoodColorChanged,
         ),
         _TuningSlider(
           label: '曝光',
@@ -1784,6 +1805,8 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
                           ),
                         ),
                         const SizedBox(width: 8),
+                        const _AxisLegend(),
+                        const SizedBox(width: 8),
                         CupertinoButton(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           minimumSize: const Size(42, 30),
@@ -1815,6 +1838,53 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AxisLegend extends StatelessWidget {
+  const _AxisLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _AxisLegendItem(label: 'X', color: Color(0xFFFF3B30)),
+        SizedBox(width: 5),
+        _AxisLegendItem(label: 'Y', color: Color(0xFF34C759)),
+        SizedBox(width: 5),
+        _AxisLegendItem(label: 'Z', color: Color(0xFF007AFF)),
+      ],
+    );
+  }
+}
+
+class _AxisLegendItem extends StatelessWidget {
+  const _AxisLegendItem({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          child: const SizedBox(width: 7, height: 7),
+        ),
+        const SizedBox(width: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF6A5239),
+          ),
+        ),
+      ],
     );
   }
 }
