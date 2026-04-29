@@ -83,9 +83,6 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.gridFadeMult = 0.00,
     this.gridFadePower = 0.66,
     this.gridFadeMin = 0.20,
-    this.washStrength = 0.26,
-    this.washStart = 0.28,
-    this.washPower = 0.50,
     this.lightMapFloor = 0.12,
     this.lightMapIntensity = 0.64,
   });
@@ -128,9 +125,6 @@ class GoThreeBoardBackground extends StatefulWidget {
   final double gridFadeMult;
   final double gridFadePower;
   final double gridFadeMin;
-  final double washStrength;
-  final double washStart;
-  final double washPower;
   final double lightMapFloor;
   final double lightMapIntensity;
 
@@ -295,9 +289,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         oldWidget.gridFadeMult != widget.gridFadeMult ||
         oldWidget.gridFadePower != widget.gridFadePower ||
         oldWidget.gridFadeMin != widget.gridFadeMin ||
-        oldWidget.washStrength != widget.washStrength ||
-        oldWidget.washStart != widget.washStart ||
-        oldWidget.washPower != widget.washPower ||
         oldWidget.lightMapFloor != widget.lightMapFloor ||
         oldWidget.lightMapIntensity != widget.lightMapIntensity) {
       unawaited(_rebuildBoardTextures());
@@ -1408,13 +1399,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           );
     final data = three.Uint8Array(source.width * source.height * 4);
 
-    final washStrength = widget.washStrength;
-    final washPower = widget.washPower;
-    final washStart = widget.washStart;
-    const creamR = 255.0;
-    const creamG = 254.0;
-    const creamB = 250.0;
-
     // Grid line UV geometry (same world coords as mesh grid).
     final n = widget.boardSize;
     final lineStartU = 0.5 - _gridSpan / (2 * _boardWidth);
@@ -1439,10 +1423,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       for (int x = 0; x < source.width; x++) {
         final u = x / (source.width - 1);
         final window = _windowIrradiance(u, v);
-        final directionalWindow =
-            ((window - washStart) / (1.0 - washStart)).clamp(0.0, 1.0);
-        final wash =
-            washStrength * math.pow(directionalWindow, washPower).toDouble();
         final pixel = source.getPixel(x, y);
         final index = (y * source.width + x) * 4;
         final woodTone = _tintWoodPixel(
@@ -1452,10 +1432,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           widget.boardWoodColor,
         );
 
-        // Board surface with cream wash.
-        final boardR = _lerpDouble(woodTone.$1, creamR, wash);
-        final boardG = _lerpDouble(woodTone.$2, creamG, wash);
-        final boardB = _lerpDouble(woodTone.$3, creamB, wash);
+        final boardR = woodTone.$1;
+        final boardG = woodTone.$2;
+        final boardB = woodTone.$3;
 
         // Grid line coverage: max of vertical-line and horizontal-line proximity.
         double gridCoverage = 0.0;
