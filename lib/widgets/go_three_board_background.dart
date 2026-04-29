@@ -81,6 +81,11 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.gridFadeMult = 0.80,
     this.gridFadePower = 0.66,
     this.gridFadeMin = 0.20,
+    this.washStrength = 0.60,
+    this.washStart = 0.40,
+    this.washPower = 1.50,
+    this.lightMapFloor = 0.55,
+    this.lightMapIntensity = 1.80,
   });
 
   final int boardSize;
@@ -120,6 +125,11 @@ class GoThreeBoardBackground extends StatefulWidget {
   final double gridFadeMult;
   final double gridFadePower;
   final double gridFadeMin;
+  final double washStrength;
+  final double washStart;
+  final double washPower;
+  final double lightMapFloor;
+  final double lightMapIntensity;
 
   @override
   State<GoThreeBoardBackground> createState() => _GoThreeBoardBackgroundState();
@@ -278,7 +288,12 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         oldWidget.gridBaseOpacity != widget.gridBaseOpacity ||
         oldWidget.gridFadeMult != widget.gridFadeMult ||
         oldWidget.gridFadePower != widget.gridFadePower ||
-        oldWidget.gridFadeMin != widget.gridFadeMin) {
+        oldWidget.gridFadeMin != widget.gridFadeMin ||
+        oldWidget.washStrength != widget.washStrength ||
+        oldWidget.washStart != widget.washStart ||
+        oldWidget.washPower != widget.washPower ||
+        oldWidget.lightMapFloor != widget.lightMapFloor ||
+        oldWidget.lightMapIntensity != widget.lightMapIntensity) {
       unawaited(_rebuildBoardTextures());
     }
     _particleGroup.visible = widget.particles;
@@ -293,6 +308,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     if (mat == null) return;
     mat
       ..lightMap = _buildBoardTopIrradianceMap()
+      ..lightMapIntensity = widget.lightMapIntensity
       ..needsUpdate = true;
     final newMap = await _buildBoardTopAppearanceMap();
     if (newMap != null) {
@@ -629,7 +645,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     });
     topMaterial
       ..lightMap = _buildBoardTopIrradianceMap()
-      ..lightMapIntensity = 1.80
+      ..lightMapIntensity = widget.lightMapIntensity
       ..needsUpdate = true;
     _boardTopMaterial = topMaterial;
 
@@ -1153,7 +1169,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       for (int x = 0; x < size; x++) {
         final u = x / (size - 1);
         final window = _windowIrradiance(u, v);
-        final illumination = (0.55 + window * 0.45).clamp(0.0, 1.0);
+        final floor = widget.lightMapFloor;
+        final illumination = (floor + window * (1.0 - floor)).clamp(0.0, 1.0);
 
         final index = (y * size + x) * 4;
         data[index] = (255 * illumination).round();
@@ -1202,9 +1219,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           );
     final data = three.Uint8Array(source.width * source.height * 4);
 
-    const washStrength = 0.50;
-    const washPower = 0.70;
-    const washStart = 0.05;
+    final washStrength = widget.washStrength;
+    final washPower = widget.washPower;
+    final washStart = widget.washStart;
     const creamR = 255.0;
     const creamG = 254.0;
     const creamB = 250.0;

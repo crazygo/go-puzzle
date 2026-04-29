@@ -80,6 +80,11 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
   double _gridFadeMult = _CaptureGameScreenState._defaultGridFadeMult;
   double _gridFadePower = _CaptureGameScreenState._defaultGridFadePower;
   double _gridFadeMin = _CaptureGameScreenState._defaultGridFadeMin;
+  double _washStrength = _CaptureGameScreenState._defaultWashStrength;
+  double _washStart = _CaptureGameScreenState._defaultWashStart;
+  double _washPower = _CaptureGameScreenState._defaultWashPower;
+  double _lightMapFloor = _CaptureGameScreenState._defaultLightMapFloor;
+  double _lightMapIntensity = _CaptureGameScreenState._defaultLightMapIntensity;
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +132,11 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   gridFadeMult: _gridFadeMult,
                   gridFadePower: _gridFadePower,
                   gridFadeMin: _gridFadeMin,
+                  washStrength: _washStrength,
+                  washStart: _washStart,
+                  washPower: _washPower,
+                  lightMapFloor: _lightMapFloor,
+                  lightMapIntensity: _lightMapIntensity,
                 ),
                 if (_panelVisible)
                   _HomeBoardTuningSheet(
@@ -213,6 +223,11 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                     gridFadeMult: _gridFadeMult,
                     gridFadePower: _gridFadePower,
                     gridFadeMin: _gridFadeMin,
+                    washStrength: _washStrength,
+                    washStart: _washStart,
+                    washPower: _washPower,
+                    lightMapFloor: _lightMapFloor,
+                    lightMapIntensity: _lightMapIntensity,
                     onWindowCenterUChanged: (v) =>
                         setState(() => _windowCenterU = v),
                     onWindowCenterVChanged: (v) =>
@@ -229,6 +244,16 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                         setState(() => _gridFadePower = v),
                     onGridFadeMinChanged: (v) =>
                         setState(() => _gridFadeMin = v),
+                    onWashStrengthChanged: (v) =>
+                        setState(() => _washStrength = v),
+                    onWashStartChanged: (v) =>
+                        setState(() => _washStart = v),
+                    onWashPowerChanged: (v) =>
+                        setState(() => _washPower = v),
+                    onLightMapFloorChanged: (v) =>
+                        setState(() => _lightMapFloor = v),
+                    onLightMapIntensityChanged: (v) =>
+                        setState(() => _lightMapIntensity = v),
                     onClose: () => setState(() => _panelVisible = false),
                     onReset: _resetTuning,
                   )
@@ -293,6 +318,11 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
       _gridFadeMult = _CaptureGameScreenState._defaultGridFadeMult;
       _gridFadePower = _CaptureGameScreenState._defaultGridFadePower;
       _gridFadeMin = _CaptureGameScreenState._defaultGridFadeMin;
+      _washStrength = _CaptureGameScreenState._defaultWashStrength;
+      _washStart = _CaptureGameScreenState._defaultWashStart;
+      _washPower = _CaptureGameScreenState._defaultWashPower;
+      _lightMapFloor = _CaptureGameScreenState._defaultLightMapFloor;
+      _lightMapIntensity = _CaptureGameScreenState._defaultLightMapIntensity;
     });
   }
 }
@@ -345,6 +375,11 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultGridFadeMult = 0.80;
   static const double _defaultGridFadePower = 0.66;
   static const double _defaultGridFadeMin = 0.20;
+  static const double _defaultWashStrength = 0.60;
+  static const double _defaultWashStart = 0.40;
+  static const double _defaultWashPower = 1.50;
+  static const double _defaultLightMapFloor = 0.55;
+  static const double _defaultLightMapIntensity = 1.80;
 
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
@@ -391,6 +426,11 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _gridFadeMult = _defaultGridFadeMult;
   double _gridFadePower = _defaultGridFadePower;
   double _gridFadeMin = _defaultGridFadeMin;
+  double _washStrength = _defaultWashStrength;
+  double _washStart = _defaultWashStart;
+  double _washPower = _defaultWashPower;
+  double _lightMapFloor = _defaultLightMapFloor;
+  double _lightMapIntensity = _defaultLightMapIntensity;
 
   @override
   void initState() {
@@ -460,6 +500,11 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   gridFadeMult: _gridFadeMult,
                   gridFadePower: _gridFadePower,
                   gridFadeMin: _gridFadeMin,
+                  washStrength: _washStrength,
+                  washStart: _washStart,
+                  washPower: _washPower,
+                  lightMapFloor: _lightMapFloor,
+                  lightMapIntensity: _lightMapIntensity,
                 ),
                 Positioned(
                   top: 0,
@@ -704,6 +749,11 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     gridFadeMult: _gridFadeMult,
                     gridFadePower: _gridFadePower,
                     gridFadeMin: _gridFadeMin,
+                    washStrength: _washStrength,
+                    washStart: _washStart,
+                    washPower: _washPower,
+                    lightMapFloor: _lightMapFloor,
+                    lightMapIntensity: _lightMapIntensity,
                     onWindowCenterUChanged: (v) =>
                         setState(() => _windowCenterU = v),
                     onWindowCenterVChanged: (v) =>
@@ -720,6 +770,16 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _gridFadePower = v),
                     onGridFadeMinChanged: (v) =>
                         setState(() => _gridFadeMin = v),
+                    onWashStrengthChanged: (v) =>
+                        setState(() => _washStrength = v),
+                    onWashStartChanged: (v) =>
+                        setState(() => _washStart = v),
+                    onWashPowerChanged: (v) =>
+                        setState(() => _washPower = v),
+                    onLightMapFloorChanged: (v) =>
+                        setState(() => _lightMapFloor = v),
+                    onLightMapIntensityChanged: (v) =>
+                        setState(() => _lightMapIntensity = v),
                     onClose: () =>
                         setState(() => _homeTuningSheetVisible = false),
                     onReset: _resetHomeBoardTuning,
@@ -768,6 +828,11 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _gridFadeMult = _defaultGridFadeMult;
       _gridFadePower = _defaultGridFadePower;
       _gridFadeMin = _defaultGridFadeMin;
+      _washStrength = _defaultWashStrength;
+      _washStart = _defaultWashStart;
+      _washPower = _defaultWashPower;
+      _lightMapFloor = _defaultLightMapFloor;
+      _lightMapIntensity = _defaultLightMapIntensity;
     });
   }
 
@@ -981,6 +1046,11 @@ class _HomeThreeBoardPreview extends StatelessWidget {
     required this.gridFadeMult,
     required this.gridFadePower,
     required this.gridFadeMin,
+    required this.washStrength,
+    required this.washStart,
+    required this.washPower,
+    required this.lightMapFloor,
+    required this.lightMapIntensity,
   });
 
   final BoxConstraints constraints;
@@ -1018,6 +1088,11 @@ class _HomeThreeBoardPreview extends StatelessWidget {
   final double gridFadeMult;
   final double gridFadePower;
   final double gridFadeMin;
+  final double washStrength;
+  final double washStart;
+  final double washPower;
+  final double lightMapFloor;
+  final double lightMapIntensity;
 
   @override
   Widget build(BuildContext context) {
@@ -1063,6 +1138,11 @@ class _HomeThreeBoardPreview extends StatelessWidget {
             gridFadeMult: gridFadeMult,
             gridFadePower: gridFadePower,
             gridFadeMin: gridFadeMin,
+            washStrength: washStrength,
+            washStart: washStart,
+            washPower: washPower,
+            lightMapFloor: lightMapFloor,
+            lightMapIntensity: lightMapIntensity,
           ),
         ),
       ),
@@ -1183,6 +1263,11 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.gridFadeMult,
     required this.gridFadePower,
     required this.gridFadeMin,
+    required this.washStrength,
+    required this.washStart,
+    required this.washPower,
+    required this.lightMapFloor,
+    required this.lightMapIntensity,
     required this.onWindowCenterUChanged,
     required this.onWindowCenterVChanged,
     required this.onWindowSpreadUChanged,
@@ -1191,6 +1276,11 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.onGridFadeMultChanged,
     required this.onGridFadePowerChanged,
     required this.onGridFadeMinChanged,
+    required this.onWashStrengthChanged,
+    required this.onWashStartChanged,
+    required this.onWashPowerChanged,
+    required this.onLightMapFloorChanged,
+    required this.onLightMapIntensityChanged,
   });
 
   final double shadowOpacity;
@@ -1253,6 +1343,11 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final double gridFadeMult;
   final double gridFadePower;
   final double gridFadeMin;
+  final double washStrength;
+  final double washStart;
+  final double washPower;
+  final double lightMapFloor;
+  final double lightMapIntensity;
   final ValueChanged<double> onWindowCenterUChanged;
   final ValueChanged<double> onWindowCenterVChanged;
   final ValueChanged<double> onWindowSpreadUChanged;
@@ -1261,6 +1356,11 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final ValueChanged<double> onGridFadeMultChanged;
   final ValueChanged<double> onGridFadePowerChanged;
   final ValueChanged<double> onGridFadeMinChanged;
+  final ValueChanged<double> onWashStrengthChanged;
+  final ValueChanged<double> onWashStartChanged;
+  final ValueChanged<double> onWashPowerChanged;
+  final ValueChanged<double> onLightMapFloorChanged;
+  final ValueChanged<double> onLightMapIntensityChanged;
 
   @override
   State<_HomeBoardTuningSheet> createState() => _HomeBoardTuningSheetState();
@@ -1518,6 +1618,41 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           min: 0.00,
           max: 0.50,
           onChanged: widget.onGridFadeMinChanged,
+        ),
+        _TuningSlider(
+          label: '奶白覆盖强度',
+          value: widget.washStrength,
+          min: 0.00,
+          max: 1.00,
+          onChanged: widget.onWashStrengthChanged,
+        ),
+        _TuningSlider(
+          label: '奶白起始位置',
+          value: widget.washStart,
+          min: 0.00,
+          max: 0.90,
+          onChanged: widget.onWashStartChanged,
+        ),
+        _TuningSlider(
+          label: '奶白渐变曲线',
+          value: widget.washPower,
+          min: 0.20,
+          max: 3.00,
+          onChanged: widget.onWashPowerChanged,
+        ),
+        _TuningSlider(
+          label: 'lightMap 地板',
+          value: widget.lightMapFloor,
+          min: 0.00,
+          max: 0.90,
+          onChanged: widget.onLightMapFloorChanged,
+        ),
+        _TuningSlider(
+          label: 'lightMap 强度',
+          value: widget.lightMapIntensity,
+          min: 0.50,
+          max: 4.00,
+          onChanged: widget.onLightMapIntensityChanged,
         ),
       ],
     ];
