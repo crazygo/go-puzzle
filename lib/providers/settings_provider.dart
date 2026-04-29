@@ -1,4 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../theme/app_theme.dart';
 
 enum BoardSizeOption {
   nine(9, '9路吃子'),
@@ -11,6 +14,9 @@ enum BoardSizeOption {
 }
 
 class SettingsProvider extends ChangeNotifier {
+  static const _appThemeKey = 'settings.app_theme';
+
+  AppVisualTheme _appTheme = AppVisualTheme.agarwood;
   BoardSizeOption _boardSize = BoardSizeOption.nine;
   bool _showHints = true;
   bool _showMoveNumbers = false;
@@ -18,12 +24,40 @@ class SettingsProvider extends ChangeNotifier {
   bool _soundEnabled = true;
   bool _hapticEnabled = true;
 
+  AppVisualTheme get appTheme => _appTheme;
   BoardSizeOption get boardSize => _boardSize;
   bool get showHints => _showHints;
   bool get showMoveNumbers => _showMoveNumbers;
   bool get showCaptureWarning => _showCaptureWarning;
   bool get soundEnabled => _soundEnabled;
   bool get hapticEnabled => _hapticEnabled;
+
+  SettingsProvider() {
+    _restorePreferences();
+  }
+
+  Future<void> _restorePreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedTheme = prefs.getString(_appThemeKey);
+    final restoredTheme = AppVisualTheme.values.firstWhere(
+      (theme) => theme.name == savedTheme,
+      orElse: () => _appTheme,
+    );
+    if (restoredTheme == _appTheme) return;
+
+    _appTheme = restoredTheme;
+    notifyListeners();
+  }
+
+  Future<void> setAppTheme(AppVisualTheme theme) async {
+    if (_appTheme == theme) return;
+
+    _appTheme = theme;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_appThemeKey, theme.name);
+  }
 
   void setBoardSize(BoardSizeOption size) {
     _boardSize = size;
