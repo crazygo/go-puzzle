@@ -77,10 +77,10 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.windowCenterV = 0.05,
     this.windowSpreadU = 1.80,
     this.windowSpreadV = 1.60,
-    this.gridBaseOpacity = 0.62,
-    this.gridFadeMult = 0.95,
+    this.gridBaseOpacity = 0.78,
+    this.gridFadeMult = 0.80,
     this.gridFadePower = 0.66,
-    this.gridFadeMin = 0.00,
+    this.gridFadeMin = 0.20,
   });
 
   final int boardSize;
@@ -1202,12 +1202,12 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           );
     final data = three.Uint8Array(source.width * source.height * 4);
 
-    const washStrength = 0.22;
-    const washPower = 0.82;
-    const washStart = 0.15;
-    const creamR = 252.0;
-    const creamG = 247.0;
-    const creamB = 231.0;
+    const washStrength = 0.50;
+    const washPower = 0.70;
+    const washStart = 0.05;
+    const creamR = 255.0;
+    const creamG = 254.0;
+    const creamB = 250.0;
 
     // Grid line UV geometry (same world coords as mesh grid).
     final n = widget.boardSize;
