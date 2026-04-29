@@ -1055,9 +1055,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       three.MaterialProperty.metalness: 0.02,
     });
     final whiteMaterial = three.MeshStandardMaterial({
-      three.MaterialProperty.color: 0xf7efe2,
-      three.MaterialProperty.roughness: 0.28,
-      three.MaterialProperty.metalness: 0.02,
+      three.MaterialProperty.color: 0xfbfaf8,
+      three.MaterialProperty.roughness: 0.10,
+      three.MaterialProperty.metalness: 0.04,
     });
     final shadowMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x2e1c0a,
