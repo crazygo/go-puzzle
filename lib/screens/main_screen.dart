@@ -43,7 +43,7 @@ class _MainTabScaffoldState extends State<_MainTabScaffold> {
   Widget build(BuildContext context) {
     final palette = context.appPalette;
     final showSharedBoard =
-        context.select<SettingsProvider, bool>((s) => s.appTheme == AppVisualTheme.agarwood);
+        context.select<SettingsProvider, bool>((s) => s.appTheme.showsSharedBoard);
     final tabBarBottomInset = MediaQuery.paddingOf(context).bottom + 50.0;
 
     return DecoratedBox(

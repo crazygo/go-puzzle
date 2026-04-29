@@ -16,6 +16,9 @@ enum AppVisualTheme {
         return AppThemePalette.classic;
     }
   }
+
+  /// Whether this theme shows the shared 3D hero board background.
+  bool get showsSharedBoard => this == AppVisualTheme.agarwood;
 }
 
 class AppThemePalette {
