@@ -629,7 +629,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     });
     topMaterial
       ..lightMap = _buildBoardTopIrradianceMap()
-      ..lightMapIntensity = 2.85
+      ..lightMapIntensity = 1.80
       ..needsUpdate = true;
     _boardTopMaterial = topMaterial;
 
@@ -1153,7 +1153,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       for (int x = 0; x < size; x++) {
         final u = x / (size - 1);
         final window = _windowIrradiance(u, v);
-        final illumination = (0.08 + window * 0.92).clamp(0.0, 1.0);
+        final illumination = (0.55 + window * 0.45).clamp(0.0, 1.0);
 
         final index = (y * size + x) * 4;
         data[index] = (255 * illumination).round();
@@ -1202,9 +1202,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           );
     final data = three.Uint8Array(source.width * source.height * 4);
 
-    const washStrength = 0.36;
+    const washStrength = 0.22;
     const washPower = 0.82;
-    const washStart = 0.30;
+    const washStart = 0.15;
     const creamR = 252.0;
     const creamG = 247.0;
     const creamB = 231.0;
