@@ -16,6 +16,10 @@ wait_ms="${6:-12000}"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+log_step() {
+  printf '[screenshot] %s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*" >&2
+}
+
 archive_existing() {
   local current="$1"
   if [ ! -e "${current}" ]; then
@@ -67,31 +71,26 @@ resolve_browser() {
     fi
   done
 
-  for candidate in \
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-    "/Applications/Chromium.app/Contents/MacOS/Chromium"
-  do
-    if [ -x "${candidate}" ]; then
-      printf '%s\n' "${candidate}"
-      return 0
-    fi
-  done
-
   return 1
 }
 
 mkdir -p "$(dirname "${output_path}")"
 archive_existing "${output_path}"
 
-if browser_bin="$(resolve_browser 2>/dev/null)"; then
-  export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="${browser_bin}"
+if [ -z "${PLAYWRIGHT_CDP_URL:-}" ]; then
+  if browser_bin="$(resolve_browser 2>/dev/null)"; then
+    log_step "browser=${browser_bin}"
+    export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="${browser_bin}"
+  else
+    log_step "browser=playwright-registry"
+  fi
 else
-  echo "error: no Chrome/Chromium browser found." >&2
-  echo "  Set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH or CHROME_BIN to a browser executable," >&2
-  echo "  or install Chrome/Chromium and ensure it is on PATH." >&2
-  echo "  Alternatively, run 'npx playwright install chromium' to install a bundled browser." >&2
-  exit 1
+  log_step "browser=cdp ${PLAYWRIGHT_CDP_URL}"
 fi
+
+log_step "url=${url}"
+log_step "output=${output_path}"
+log_step "viewport=${width}x${height} dpr=${device_scale_factor} wait_ms=${wait_ms}"
 
 node "${script_dir}/playwright_screenshot.mjs" \
   "${url}" \
