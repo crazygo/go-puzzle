@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/settings_provider.dart';
-import '../theme/app_theme.dart';
 import '../theme/theme_context.dart';
 import '../widgets/go_three_board_background.dart';
 import 'capture_game_screen.dart';
