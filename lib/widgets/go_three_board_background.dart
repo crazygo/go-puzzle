@@ -1064,9 +1064,15 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       three.MaterialProperty.opacity: 0.48,
       three.MaterialProperty.transparent: true,
     });
-    final softShadowMaterial = three.MeshBasicMaterial({
+    final softShadowMaterialBlack = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x6b4a28,
       three.MaterialProperty.opacity: 0.24,
+      three.MaterialProperty.transparent: true,
+      three.MaterialProperty.depthWrite: false,
+    });
+    final softShadowMaterialWhite = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0x8a6a40,
+      three.MaterialProperty.opacity: 0.18,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.depthWrite: false,
     });
@@ -1076,24 +1082,27 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     for (final stone in widget.stones) {
       final row = stone.row.clamp(0, n - 1);
       final col = stone.col.clamp(0, n - 1);
-      final material = stone.color == GoThreeStoneColor.black
-          ? blackMaterial
-          : whiteMaterial;
+      final isBlack = stone.color == GoThreeStoneColor.black;
+      final material = isBlack ? blackMaterial : whiteMaterial;
+      final softShadowMaterial =
+          isBlack ? softShadowMaterialBlack : softShadowMaterialWhite;
       final x = start + col * step;
       final z = start + row * step;
       if (widget.stoneExtraOverlayEnabled) {
+        // Hard shadow disk hidden under stone footprint
         final shadow = three.Mesh(
-          three.CylinderGeometry(radius * 1.08, radius * 1.08, 0.006, 40),
+          three.CylinderGeometry(radius * 0.95, radius * 0.95, 0.006, 40),
           shadowMaterial,
         )
           ..position.setValues(
-            x - radius * 0.16,
+            x - radius * 0.14,
             _boardTop + 0.049,
-            z - radius * 0.11,
+            z - radius * 0.10,
           )
           ..scale.x = 1.20
           ..scale.z = 0.82;
         _stoneGroup.add(shadow);
+        // Soft penumbra halo extends beyond stone
         final softShadow = three.Mesh(
           three.CylinderGeometry(radius * 1.80, radius * 1.80, 0.004, 40),
           softShadowMaterial,
