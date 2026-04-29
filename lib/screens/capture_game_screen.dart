@@ -37,8 +37,12 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
       _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
   bool _floatingParticlesEnabled =
       _CaptureGameScreenState._defaultFloatingParticlesEnabled;
+  bool _cornerLabelsEnabled =
+      _CaptureGameScreenState._defaultCornerLabelsEnabled;
   double _boardTopBrightness =
       _CaptureGameScreenState._defaultBoardTopBrightness;
+  double _toneMappingExposure =
+      _CaptureGameScreenState._defaultToneMappingExposure;
   Offset3 _keyLightPosition = _CaptureGameScreenState._defaultKeyLightPosition;
   Offset3 _fillLightPosition =
       _CaptureGameScreenState._defaultFillLightPosition;
@@ -66,6 +70,16 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
   double _boardCinematicFov =
       _CaptureGameScreenState._defaultHomeBoardCinematicFov;
   double _boardRotationY = _CaptureGameScreenState._defaultHomeBoardRotationY;
+  // Window irradiance controls
+  double _windowCenterU = _CaptureGameScreenState._defaultWindowCenterU;
+  double _windowCenterV = _CaptureGameScreenState._defaultWindowCenterV;
+  double _windowSpreadU = _CaptureGameScreenState._defaultWindowSpreadU;
+  double _windowSpreadV = _CaptureGameScreenState._defaultWindowSpreadV;
+  // Grid dissolution controls
+  double _gridBaseOpacity = _CaptureGameScreenState._defaultGridBaseOpacity;
+  double _gridFadeMult = _CaptureGameScreenState._defaultGridFadeMult;
+  double _gridFadePower = _CaptureGameScreenState._defaultGridFadePower;
+  double _gridFadeMin = _CaptureGameScreenState._defaultGridFadeMin;
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +105,9 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   leafShadowOpacity: _leafShadowOpacity,
                   stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                   floatingParticlesEnabled: _floatingParticlesEnabled,
+                  cornerLabelsEnabled: _cornerLabelsEnabled,
                   boardTopBrightness: _boardTopBrightness,
+                  toneMappingExposure: _toneMappingExposure,
                   keyLightPosition: _keyLightPosition,
                   fillLightPosition: _fillLightPosition,
                   keyLightIntensity: _keyLightIntensity,
@@ -103,13 +119,23 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   ambientLightColor: _ambientLightColor,
                   sheenLightColor: _sheenLightColor,
                   showDebugGuides: false,
+                  windowCenterU: _windowCenterU,
+                  windowCenterV: _windowCenterV,
+                  windowSpreadU: _windowSpreadU,
+                  windowSpreadV: _windowSpreadV,
+                  gridBaseOpacity: _gridBaseOpacity,
+                  gridFadeMult: _gridFadeMult,
+                  gridFadePower: _gridFadePower,
+                  gridFadeMin: _gridFadeMin,
                 ),
                 if (_panelVisible)
                   _HomeBoardTuningSheet(
                     shadowOpacity: _leafShadowOpacity,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                     floatingParticlesEnabled: _floatingParticlesEnabled,
+                    cornerLabelsEnabled: _cornerLabelsEnabled,
                     boardTopBrightness: _boardTopBrightness,
+                    toneMappingExposure: _toneMappingExposure,
                     keyLightPosition: _keyLightPosition,
                     fillLightPosition: _fillLightPosition,
                     keyLightIntensity: _keyLightIntensity,
@@ -135,8 +161,12 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                         setState(() => _stoneExtraOverlayEnabled = value),
                     onFloatingParticlesChanged: (value) =>
                         setState(() => _floatingParticlesEnabled = value),
+                    onCornerLabelsChanged: (value) =>
+                        setState(() => _cornerLabelsEnabled = value),
                     onBoardTopBrightnessChanged: (value) =>
                         setState(() => _boardTopBrightness = value),
+                    onToneMappingExposureChanged: (value) =>
+                        setState(() => _toneMappingExposure = value),
                     onKeyLightPositionChanged: (value) =>
                         setState(() => _keyLightPosition = value),
                     onFillLightPositionChanged: (value) =>
@@ -175,6 +205,30 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                         setState(() => _boardCinematicFov = value),
                     onBoardRotationYChanged: (value) =>
                         setState(() => _boardRotationY = value),
+                    windowCenterU: _windowCenterU,
+                    windowCenterV: _windowCenterV,
+                    windowSpreadU: _windowSpreadU,
+                    windowSpreadV: _windowSpreadV,
+                    gridBaseOpacity: _gridBaseOpacity,
+                    gridFadeMult: _gridFadeMult,
+                    gridFadePower: _gridFadePower,
+                    gridFadeMin: _gridFadeMin,
+                    onWindowCenterUChanged: (v) =>
+                        setState(() => _windowCenterU = v),
+                    onWindowCenterVChanged: (v) =>
+                        setState(() => _windowCenterV = v),
+                    onWindowSpreadUChanged: (v) =>
+                        setState(() => _windowSpreadU = v),
+                    onWindowSpreadVChanged: (v) =>
+                        setState(() => _windowSpreadV = v),
+                    onGridBaseOpacityChanged: (v) =>
+                        setState(() => _gridBaseOpacity = v),
+                    onGridFadeMultChanged: (v) =>
+                        setState(() => _gridFadeMult = v),
+                    onGridFadePowerChanged: (v) =>
+                        setState(() => _gridFadePower = v),
+                    onGridFadeMinChanged: (v) =>
+                        setState(() => _gridFadeMin = v),
                     onClose: () => setState(() => _panelVisible = false),
                     onReset: _resetTuning,
                   )
@@ -200,7 +254,13 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
       _leafShadowOpacity = _CaptureGameScreenState._defaultLeafShadowOpacity;
       _stoneExtraOverlayEnabled =
           _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
+      _floatingParticlesEnabled =
+          _CaptureGameScreenState._defaultFloatingParticlesEnabled;
+      _cornerLabelsEnabled =
+          _CaptureGameScreenState._defaultCornerLabelsEnabled;
       _boardTopBrightness = _CaptureGameScreenState._defaultBoardTopBrightness;
+      _toneMappingExposure =
+          _CaptureGameScreenState._defaultToneMappingExposure;
       _keyLightPosition = _CaptureGameScreenState._defaultKeyLightPosition;
       _fillLightPosition = _CaptureGameScreenState._defaultFillLightPosition;
       _keyLightIntensity = _CaptureGameScreenState._defaultKeyLightIntensity;
@@ -225,6 +285,14 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
       _boardCinematicFov =
           _CaptureGameScreenState._defaultHomeBoardCinematicFov;
       _boardRotationY = _CaptureGameScreenState._defaultHomeBoardRotationY;
+      _windowCenterU = _CaptureGameScreenState._defaultWindowCenterU;
+      _windowCenterV = _CaptureGameScreenState._defaultWindowCenterV;
+      _windowSpreadU = _CaptureGameScreenState._defaultWindowSpreadU;
+      _windowSpreadV = _CaptureGameScreenState._defaultWindowSpreadV;
+      _gridBaseOpacity = _CaptureGameScreenState._defaultGridBaseOpacity;
+      _gridFadeMult = _CaptureGameScreenState._defaultGridFadeMult;
+      _gridFadePower = _CaptureGameScreenState._defaultGridFadePower;
+      _gridFadeMin = _CaptureGameScreenState._defaultGridFadeMin;
     });
   }
 }
@@ -254,7 +322,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultLeafShadowOpacity = 0.16;
   static const bool _defaultStoneExtraOverlayEnabled = true;
   static const bool _defaultFloatingParticlesEnabled = false;
+  static const bool _defaultCornerLabelsEnabled = true;
   static const double _defaultBoardTopBrightness = 1.0;
+  static const double _defaultToneMappingExposure = 0.44;
   static const Offset3 _defaultKeyLightPosition = Offset3(6.4, 6.2, 5.8);
   static const Offset3 _defaultFillLightPosition = Offset3(-4.8, 2.2, 3.2);
   static const double _defaultKeyLightIntensity = 0.88;
@@ -265,6 +335,16 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const int _defaultFillLightColor = 0xf4e8d8;
   static const int _defaultAmbientLightColor = 0xffeddc;
   static const int _defaultSheenLightColor = 0xfffaed;
+  // Window irradiance defaults
+  static const double _defaultWindowCenterU = 0.88;
+  static const double _defaultWindowCenterV = 0.05;
+  static const double _defaultWindowSpreadU = 1.80;
+  static const double _defaultWindowSpreadV = 1.60;
+  // Grid dissolution defaults
+  static const double _defaultGridBaseOpacity = 0.62;
+  static const double _defaultGridFadeMult = 0.78;
+  static const double _defaultGridFadePower = 0.66;
+  static const double _defaultGridFadeMin = 0.16;
 
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
@@ -290,7 +370,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _leafShadowOpacity = _defaultLeafShadowOpacity;
   bool _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
   bool _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
+  bool _cornerLabelsEnabled = _defaultCornerLabelsEnabled;
   double _boardTopBrightness = _defaultBoardTopBrightness;
+  double _toneMappingExposure = _defaultToneMappingExposure;
   Offset3 _keyLightPosition = _defaultKeyLightPosition;
   Offset3 _fillLightPosition = _defaultFillLightPosition;
   double _keyLightIntensity = _defaultKeyLightIntensity;
@@ -301,6 +383,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   int _fillLightColor = _defaultFillLightColor;
   int _ambientLightColor = _defaultAmbientLightColor;
   int _sheenLightColor = _defaultSheenLightColor;
+  double _windowCenterU = _defaultWindowCenterU;
+  double _windowCenterV = _defaultWindowCenterV;
+  double _windowSpreadU = _defaultWindowSpreadU;
+  double _windowSpreadV = _defaultWindowSpreadV;
+  double _gridBaseOpacity = _defaultGridBaseOpacity;
+  double _gridFadeMult = _defaultGridFadeMult;
+  double _gridFadePower = _defaultGridFadePower;
+  double _gridFadeMin = _defaultGridFadeMin;
 
   @override
   void initState() {
@@ -348,7 +438,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   leafShadowOpacity: _leafShadowOpacity,
                   stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                   floatingParticlesEnabled: _floatingParticlesEnabled,
+                  cornerLabelsEnabled: _cornerLabelsEnabled,
                   boardTopBrightness: _boardTopBrightness,
+                  toneMappingExposure: _toneMappingExposure,
                   keyLightPosition: _keyLightPosition,
                   fillLightPosition: _fillLightPosition,
                   keyLightIntensity: _keyLightIntensity,
@@ -360,6 +452,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   ambientLightColor: _ambientLightColor,
                   sheenLightColor: _sheenLightColor,
                   showDebugGuides: true,
+                  windowCenterU: _windowCenterU,
+                  windowCenterV: _windowCenterV,
+                  windowSpreadU: _windowSpreadU,
+                  windowSpreadV: _windowSpreadV,
+                  gridBaseOpacity: _gridBaseOpacity,
+                  gridFadeMult: _gridFadeMult,
+                  gridFadePower: _gridFadePower,
+                  gridFadeMin: _gridFadeMin,
                 ),
                 Positioned(
                   top: 0,
@@ -524,7 +624,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     shadowOpacity: _leafShadowOpacity,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                     floatingParticlesEnabled: _floatingParticlesEnabled,
+                    cornerLabelsEnabled: _cornerLabelsEnabled,
                     boardTopBrightness: _boardTopBrightness,
+                    toneMappingExposure: _toneMappingExposure,
                     keyLightPosition: _keyLightPosition,
                     fillLightPosition: _fillLightPosition,
                     keyLightIntensity: _keyLightIntensity,
@@ -550,8 +652,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _stoneExtraOverlayEnabled = value),
                     onFloatingParticlesChanged: (value) =>
                         setState(() => _floatingParticlesEnabled = value),
+                    onCornerLabelsChanged: (value) =>
+                        setState(() => _cornerLabelsEnabled = value),
                     onBoardTopBrightnessChanged: (value) =>
                         setState(() => _boardTopBrightness = value),
+                    onToneMappingExposureChanged: (value) =>
+                        setState(() => _toneMappingExposure = value),
                     onKeyLightPositionChanged: (value) =>
                         setState(() => _keyLightPosition = value),
                     onFillLightPositionChanged: (value) =>
@@ -590,6 +696,30 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _homeBoardCinematicFov = value),
                     onBoardRotationYChanged: (value) =>
                         setState(() => _homeBoardRotationY = value),
+                    windowCenterU: _windowCenterU,
+                    windowCenterV: _windowCenterV,
+                    windowSpreadU: _windowSpreadU,
+                    windowSpreadV: _windowSpreadV,
+                    gridBaseOpacity: _gridBaseOpacity,
+                    gridFadeMult: _gridFadeMult,
+                    gridFadePower: _gridFadePower,
+                    gridFadeMin: _gridFadeMin,
+                    onWindowCenterUChanged: (v) =>
+                        setState(() => _windowCenterU = v),
+                    onWindowCenterVChanged: (v) =>
+                        setState(() => _windowCenterV = v),
+                    onWindowSpreadUChanged: (v) =>
+                        setState(() => _windowSpreadU = v),
+                    onWindowSpreadVChanged: (v) =>
+                        setState(() => _windowSpreadV = v),
+                    onGridBaseOpacityChanged: (v) =>
+                        setState(() => _gridBaseOpacity = v),
+                    onGridFadeMultChanged: (v) =>
+                        setState(() => _gridFadeMult = v),
+                    onGridFadePowerChanged: (v) =>
+                        setState(() => _gridFadePower = v),
+                    onGridFadeMinChanged: (v) =>
+                        setState(() => _gridFadeMin = v),
                     onClose: () =>
                         setState(() => _homeTuningSheetVisible = false),
                     onReset: _resetHomeBoardTuning,
@@ -617,7 +747,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _leafShadowOpacity = _defaultLeafShadowOpacity;
       _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
       _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
+      _cornerLabelsEnabled = _defaultCornerLabelsEnabled;
       _boardTopBrightness = _defaultBoardTopBrightness;
+      _toneMappingExposure = _defaultToneMappingExposure;
       _keyLightPosition = _defaultKeyLightPosition;
       _fillLightPosition = _defaultFillLightPosition;
       _keyLightIntensity = _defaultKeyLightIntensity;
@@ -628,6 +760,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _fillLightColor = _defaultFillLightColor;
       _ambientLightColor = _defaultAmbientLightColor;
       _sheenLightColor = _defaultSheenLightColor;
+      _windowCenterU = _defaultWindowCenterU;
+      _windowCenterV = _defaultWindowCenterV;
+      _windowSpreadU = _defaultWindowSpreadU;
+      _windowSpreadV = _defaultWindowSpreadV;
+      _gridBaseOpacity = _defaultGridBaseOpacity;
+      _gridFadeMult = _defaultGridFadeMult;
+      _gridFadePower = _defaultGridFadePower;
+      _gridFadeMin = _defaultGridFadeMin;
     });
   }
 
@@ -819,7 +959,9 @@ class _HomeThreeBoardPreview extends StatelessWidget {
     required this.leafShadowOpacity,
     required this.stoneExtraOverlayEnabled,
     required this.floatingParticlesEnabled,
+    required this.cornerLabelsEnabled,
     required this.boardTopBrightness,
+    required this.toneMappingExposure,
     required this.keyLightPosition,
     required this.fillLightPosition,
     required this.keyLightIntensity,
@@ -831,6 +973,14 @@ class _HomeThreeBoardPreview extends StatelessWidget {
     required this.ambientLightColor,
     required this.sheenLightColor,
     required this.showDebugGuides,
+    required this.windowCenterU,
+    required this.windowCenterV,
+    required this.windowSpreadU,
+    required this.windowSpreadV,
+    required this.gridBaseOpacity,
+    required this.gridFadeMult,
+    required this.gridFadePower,
+    required this.gridFadeMin,
   });
 
   final BoxConstraints constraints;
@@ -846,7 +996,9 @@ class _HomeThreeBoardPreview extends StatelessWidget {
   final double leafShadowOpacity;
   final bool stoneExtraOverlayEnabled;
   final bool floatingParticlesEnabled;
+  final bool cornerLabelsEnabled;
   final double boardTopBrightness;
+  final double toneMappingExposure;
   final Offset3 keyLightPosition;
   final Offset3 fillLightPosition;
   final double keyLightIntensity;
@@ -858,6 +1010,14 @@ class _HomeThreeBoardPreview extends StatelessWidget {
   final int ambientLightColor;
   final int sheenLightColor;
   final bool showDebugGuides;
+  final double windowCenterU;
+  final double windowCenterV;
+  final double windowSpreadU;
+  final double windowSpreadV;
+  final double gridBaseOpacity;
+  final double gridFadeMult;
+  final double gridFadePower;
+  final double gridFadeMin;
 
   @override
   Widget build(BuildContext context) {
@@ -873,6 +1033,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
             boardSize: 19,
             stones: kGoThreeDemoStones,
             particles: floatingParticlesEnabled,
+            showCornerLabels: cornerLabelsEnabled,
             sceneScale: sceneScale,
             cameraLift: cameraLift,
             cameraDepth: cameraDepth,
@@ -882,6 +1043,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
             leafShadowOpacity: leafShadowOpacity,
             stoneExtraOverlayEnabled: stoneExtraOverlayEnabled,
             boardTopBrightness: boardTopBrightness,
+            toneMappingExposure: toneMappingExposure,
             showDebugGuides: showDebugGuides,
             keyLightPosition: keyLightPosition,
             fillLightPosition: fillLightPosition,
@@ -893,6 +1055,14 @@ class _HomeThreeBoardPreview extends StatelessWidget {
             fillLightColor: fillLightColor,
             ambientLightColor: ambientLightColor,
             sheenLightColor: sheenLightColor,
+            windowCenterU: windowCenterU,
+            windowCenterV: windowCenterV,
+            windowSpreadU: windowSpreadU,
+            windowSpreadV: windowSpreadV,
+            gridBaseOpacity: gridBaseOpacity,
+            gridFadeMult: gridFadeMult,
+            gridFadePower: gridFadePower,
+            gridFadeMin: gridFadeMin,
           ),
         ),
       ),
@@ -956,7 +1126,9 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.shadowOpacity,
     required this.stoneExtraOverlayEnabled,
     required this.floatingParticlesEnabled,
+    required this.cornerLabelsEnabled,
     required this.boardTopBrightness,
+    required this.toneMappingExposure,
     required this.keyLightPosition,
     required this.fillLightPosition,
     required this.keyLightIntensity,
@@ -979,7 +1151,9 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.onShadowOpacityChanged,
     required this.onStoneExtraOverlayChanged,
     required this.onFloatingParticlesChanged,
+    required this.onCornerLabelsChanged,
     required this.onBoardTopBrightnessChanged,
+    required this.onToneMappingExposureChanged,
     required this.onKeyLightPositionChanged,
     required this.onFillLightPositionChanged,
     required this.onKeyLightIntensityChanged,
@@ -1001,12 +1175,30 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.onBoardRotationYChanged,
     required this.onClose,
     required this.onReset,
+    required this.windowCenterU,
+    required this.windowCenterV,
+    required this.windowSpreadU,
+    required this.windowSpreadV,
+    required this.gridBaseOpacity,
+    required this.gridFadeMult,
+    required this.gridFadePower,
+    required this.gridFadeMin,
+    required this.onWindowCenterUChanged,
+    required this.onWindowCenterVChanged,
+    required this.onWindowSpreadUChanged,
+    required this.onWindowSpreadVChanged,
+    required this.onGridBaseOpacityChanged,
+    required this.onGridFadeMultChanged,
+    required this.onGridFadePowerChanged,
+    required this.onGridFadeMinChanged,
   });
 
   final double shadowOpacity;
   final bool stoneExtraOverlayEnabled;
   final bool floatingParticlesEnabled;
+  final bool cornerLabelsEnabled;
   final double boardTopBrightness;
+  final double toneMappingExposure;
   final Offset3 keyLightPosition;
   final Offset3 fillLightPosition;
   final double keyLightIntensity;
@@ -1029,7 +1221,9 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final ValueChanged<double> onShadowOpacityChanged;
   final ValueChanged<bool> onStoneExtraOverlayChanged;
   final ValueChanged<bool> onFloatingParticlesChanged;
+  final ValueChanged<bool> onCornerLabelsChanged;
   final ValueChanged<double> onBoardTopBrightnessChanged;
+  final ValueChanged<double> onToneMappingExposureChanged;
   final ValueChanged<Offset3> onKeyLightPositionChanged;
   final ValueChanged<Offset3> onFillLightPositionChanged;
   final ValueChanged<double> onKeyLightIntensityChanged;
@@ -1051,13 +1245,29 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final ValueChanged<double> onBoardRotationYChanged;
   final VoidCallback onClose;
   final VoidCallback onReset;
+  final double windowCenterU;
+  final double windowCenterV;
+  final double windowSpreadU;
+  final double windowSpreadV;
+  final double gridBaseOpacity;
+  final double gridFadeMult;
+  final double gridFadePower;
+  final double gridFadeMin;
+  final ValueChanged<double> onWindowCenterUChanged;
+  final ValueChanged<double> onWindowCenterVChanged;
+  final ValueChanged<double> onWindowSpreadUChanged;
+  final ValueChanged<double> onWindowSpreadVChanged;
+  final ValueChanged<double> onGridBaseOpacityChanged;
+  final ValueChanged<double> onGridFadeMultChanged;
+  final ValueChanged<double> onGridFadePowerChanged;
+  final ValueChanged<double> onGridFadeMinChanged;
 
   @override
   State<_HomeBoardTuningSheet> createState() => _HomeBoardTuningSheetState();
 }
 
 class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
-  static const List<String> _tabTitles = ['基础', '构图', '主光', '补光', '环境'];
+  static const List<String> _tabTitles = ['基础', '构图', '主光', '补光', '环境', '格子'];
   int _selectedTab = 0;
 
   @override
@@ -1074,12 +1284,45 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           value: widget.floatingParticlesEnabled,
           onChanged: widget.onFloatingParticlesChanged,
         ),
+        _TuningSwitchRow(
+          title: '角标 ABCD',
+          value: widget.cornerLabelsEnabled,
+          onChanged: widget.onCornerLabelsChanged,
+        ),
         _TuningSlider(
           label: '棋盘亮度',
           value: widget.boardTopBrightness,
           min: 0.40,
           max: 2.40,
           onChanged: widget.onBoardTopBrightnessChanged,
+        ),
+        _TuningSlider(
+          label: '曝光',
+          value: widget.toneMappingExposure,
+          min: 0.10,
+          max: 1.20,
+          onChanged: widget.onToneMappingExposureChanged,
+        ),
+        _TuningSlider(
+          label: '主光强度',
+          value: widget.keyLightIntensity,
+          min: 0.0,
+          max: 1.8,
+          onChanged: widget.onKeyLightIntensityChanged,
+        ),
+        _TuningSlider(
+          label: '补光强度',
+          value: widget.fillLightIntensity,
+          min: 0.0,
+          max: 1.2,
+          onChanged: widget.onFillLightIntensityChanged,
+        ),
+        _TuningSlider(
+          label: '环境光',
+          value: widget.ambientLightIntensity,
+          min: 0.0,
+          max: 0.9,
+          onChanged: widget.onAmbientLightIntensityChanged,
         ),
         const _TuningGroupTitle('棋盘氛围'),
         _TuningSlider(
@@ -1216,6 +1459,65 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           title: '高光颜色',
           colorHex: widget.sheenLightColor,
           onChanged: widget.onSheenLightColorChanged,
+        ),
+      ],
+      // 格子 tab
+      [
+        _TuningSlider(
+          label: '窗光中心 U',
+          value: widget.windowCenterU,
+          min: 0.50,
+          max: 1.00,
+          onChanged: widget.onWindowCenterUChanged,
+        ),
+        _TuningSlider(
+          label: '窗光中心 V',
+          value: widget.windowCenterV,
+          min: 0.00,
+          max: 0.50,
+          onChanged: widget.onWindowCenterVChanged,
+        ),
+        _TuningSlider(
+          label: '窗光扩散 U',
+          value: widget.windowSpreadU,
+          min: 0.50,
+          max: 4.00,
+          onChanged: widget.onWindowSpreadUChanged,
+        ),
+        _TuningSlider(
+          label: '窗光扩散 V',
+          value: widget.windowSpreadV,
+          min: 0.50,
+          max: 4.00,
+          onChanged: widget.onWindowSpreadVChanged,
+        ),
+        _TuningSlider(
+          label: '格子基础透明度',
+          value: widget.gridBaseOpacity,
+          min: 0.10,
+          max: 1.00,
+          onChanged: widget.onGridBaseOpacityChanged,
+        ),
+        _TuningSlider(
+          label: '格子淡化强度',
+          value: widget.gridFadeMult,
+          min: 0.00,
+          max: 1.20,
+          onChanged: widget.onGridFadeMultChanged,
+        ),
+        _TuningSlider(
+          label: '格子淡化曲线',
+          value: widget.gridFadePower,
+          min: 0.20,
+          max: 2.00,
+          onChanged: widget.onGridFadePowerChanged,
+        ),
+        _TuningSlider(
+          label: '格子最低不透明',
+          value: widget.gridFadeMin,
+          min: 0.00,
+          max: 0.50,
+          onChanged: widget.onGridFadeMinChanged,
         ),
       ],
     ];
