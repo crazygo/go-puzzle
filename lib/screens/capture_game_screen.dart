@@ -343,10 +343,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultWindowSpreadU = 1.80;
   static const double _defaultWindowSpreadV = 1.60;
   // Grid dissolution defaults
-  static const double _defaultGridBaseOpacity = 0.62;
-  static const double _defaultGridFadeMult = 0.95;
+  static const double _defaultGridBaseOpacity = 0.78;
+  static const double _defaultGridFadeMult = 0.80;
   static const double _defaultGridFadePower = 0.66;
-  static const double _defaultGridFadeMin = 0.00;
+  static const double _defaultGridFadeMin = 0.20;
 
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
