@@ -66,3 +66,6 @@ ios/Flutter/ephemeral/
 
 # Vercel
 .vercel/
+
+# Node.js dependencies
+node_modules/
