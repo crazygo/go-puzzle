@@ -5,6 +5,8 @@ import 'difficulty_level.dart';
 import 'mcts_engine.dart';
 
 enum CaptureAiStyle {
+  /// Balanced, no tactical bias — maximises raw strength at equal playouts.
+  adaptive,
   hunter,
   trapper,
   switcher,
@@ -16,6 +18,8 @@ extension CaptureAiStyleExt on CaptureAiStyle {
 
   String get label {
     switch (this) {
+      case CaptureAiStyle.adaptive:
+        return '随机';
       case CaptureAiStyle.hunter:
         return '猎杀';
       case CaptureAiStyle.trapper:
@@ -29,6 +33,8 @@ extension CaptureAiStyleExt on CaptureAiStyle {
 
   String get summary {
     switch (this) {
+      case CaptureAiStyle.adaptive:
+        return '均衡应变，不拘一格';
       case CaptureAiStyle.hunter:
         return '优先打吃和直接提子';
       case CaptureAiStyle.trapper:
@@ -531,6 +537,18 @@ class _CaptureAiProfile {
     };
 
     return switch (style) {
+      CaptureAiStyle.adaptive => _CaptureAiProfile(
+          // Averaged weights across all four named styles, giving the
+          // highest unconstrained strength at equal playouts.
+          immediateCaptureWeight: 6.975,
+          opponentAtariWeight: 3.8,
+          ownRescueWeight: 2.025,
+          selfAtariPenalty: 5.85,
+          centerWeight: 0.625,
+          contactWeight: 2.05,
+          libertyWeight: 1.5,
+          playouts: playouts,
+        ),
       CaptureAiStyle.hunter => _CaptureAiProfile(
           immediateCaptureWeight: 9.0,
           opponentAtariWeight: 4.2,

@@ -26,16 +26,17 @@ void main() {
     expect(find.text(subtitle), findsOneWidget);
     expect(find.text('下一盘'), findsOneWidget);
     expect(find.text('先吃5子为胜'), findsOneWidget);
-    expect(find.text(CaptureAiStyle.hunter.label), findsOneWidget);
+    // Default AI style is now 'adaptive' (随机).
+    expect(find.text(CaptureAiStyle.adaptive.label), findsOneWidget);
     expect(find.text('中级 · 9 路 · 吃5子'), findsNothing);
 
     final startButton = find.widgetWithText(CupertinoButton, '执黑先行');
     expect(startButton, findsOneWidget);
   });
 
-  testWidgets('capture setup restores saved selection', (tester) async {
+  testWidgets('capture setup restores board size from saved selection',
+      (tester) async {
     SharedPreferences.setMockInitialValues({
-      'capture_setup.difficulty': 'advanced',
       'capture_setup.board_size': 13,
     });
 
@@ -43,12 +44,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('高级'), findsOneWidget);
+    // Board size should be restored.
     expect(find.text('13 路'), findsWidgets);
     expect(find.text('先吃5子为胜'), findsOneWidget);
   });
 
-  testWidgets('segment control updates selected option on tap', (tester) async {
+  testWidgets('difficulty mode segment control updates on tap', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -57,15 +58,15 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Difficulty defaults to '中级'; tap '高级' to change it.
-    final advancedOption = find.text('高级');
+    // Default is '不分伯仲'; tap '指定等级' to change it.
+    final manualOption = find.text('指定等级');
     await tester.dragUntilVisible(
-      advancedOption,
+      manualOption,
       find.byType(Scrollable),
       const Offset(0, -120),
     );
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(advancedOption);
+    await tester.tap(manualOption);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -73,8 +74,8 @@ void main() {
       return tester.widget<Text>(find.text(label));
     }
 
-    expect(textWidget('高级').style?.color, const Color(0xFF8A5A2B));
-    expect(textWidget('中级').style?.color, const Color(0xFF5A4B3F));
+    expect(textWidget('指定等级').style?.color, const Color(0xFF8A5A2B));
+    expect(textWidget('不分伯仲').style?.color, const Color(0xFF5A4B3F));
   });
 
   testWidgets('capture game uses Cupertino back affordance', (tester) async {

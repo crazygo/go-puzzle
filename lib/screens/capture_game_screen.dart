@@ -8,10 +8,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../game/board_image_recognizer.dart';
 import '../game/capture_ai.dart';
+import '../game/ai_rank_level.dart';
 import '../models/board_position.dart';
+import '../models/game_record.dart';
 import '../models/game_state.dart';
 import '../providers/capture_game_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/game_history_repository.dart';
+import '../services/player_rank_repository.dart';
 import '../widgets/go_board_widget.dart';
 import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
@@ -57,12 +61,29 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const int _defaultAmbientLightColor = 0xffeddc;
   static const int _defaultSheenLightColor = 0xfffaed;
 
-  static const _difficultyKey = 'capture_setup.difficulty';
+  // ── SharedPreferences keys ──────────────────────────────────────────────────
+  // Legacy key (read once for migration, then ignored).
+  static const _legacyDifficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
   static const _initialModeKey = 'capture_setup.initial_mode';
+  // New difficulty keys.
+  static const _difficultyModeKey = 'capture_setup.difficulty_mode';
+  static const _manualRankKey = 'capture_setup.manual_rank';
+  static const _aiStyleKey = 'capture_setup.ai_style';
+  // ─────────────────────────────────────────────────────────────────────────────
   static const _captureTarget = 5;
 
-  DifficultyLevel _difficulty = DifficultyLevel.intermediate;
+  /// 'auto' = system matches rank from history; 'manual' = player picks rank.
+  String _difficultyMode = 'auto';
+
+  /// Selected rank when [_difficultyMode] == 'manual'.
+  int _manualRank = AiRankLevel.defaultRank;
+
+  /// AI style choice: one of the [CaptureAiStyle.name] values.
+  String _aiStyleChoice = CaptureAiStyle.adaptive.name;
+
+  /// Rank computed from recent history; refreshed on [_restoreSelection].
+  int _computedRank = AiRankLevel.defaultRank;
   int _boardSize = 9;
   CaptureInitialMode _initialMode = CaptureInitialMode.twistCross;
   bool _isAdjusting = false;
@@ -211,25 +232,31 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       const SizedBox(height: 20),
                                       const _SectionLabel(title: '难度'),
                                       const SizedBox(height: 8),
-                                      _PillSegmentControl<DifficultyLevel>(
-                                        selectedValue: _difficulty,
+                                      _PillSegmentControl<String>(
+                                        selectedValue: _difficultyMode,
                                         options: const [
                                           _SegmentOption(
-                                            value: DifficultyLevel.beginner,
-                                            label: '初级',
+                                            value: 'auto',
+                                            label: '不分伯仲',
                                           ),
                                           _SegmentOption(
-                                            value: DifficultyLevel.intermediate,
-                                            label: '中级',
-                                          ),
-                                          _SegmentOption(
-                                            value: DifficultyLevel.advanced,
-                                            label: '高级',
+                                            value: 'manual',
+                                            label: '指定等级',
                                           ),
                                         ],
                                         onChanged: (value) =>
-                                            _updateSelection(difficulty: value),
+                                            _updateSelection(
+                                                difficultyMode: value),
                                       ),
+                                      if (_difficultyMode == 'manual') ...[
+                                        const SizedBox(height: 8),
+                                        _RankPicker(
+                                          selectedRank: _manualRank,
+                                          onChanged: (rank) =>
+                                              _updateSelection(
+                                                  manualRank: rank),
+                                        ),
+                                      ],
                                       const SizedBox(height: 20),
                                       const _SectionLabel(title: '初始'),
                                       const SizedBox(height: 8),
@@ -256,12 +283,20 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       const SizedBox(height: 20),
                                       const _SectionLabel(title: 'AI 风格'),
                                       const SizedBox(height: 8),
-                                      const _AiStyleTile(),
+                                      _AiStyleTile(
+                                        selectedStyleName: _aiStyleChoice,
+                                        onChanged: (name) =>
+                                            _updateSelection(
+                                                aiStyleChoice: name),
+                                      ),
                                       const SizedBox(height: 24),
                                     ] else ...[
                                       _ConfigPreview(
                                         boardSize: _boardSize,
-                                        difficulty: _difficulty,
+                                        difficultyMode: _difficultyMode,
+                                        manualRank: _manualRank,
+                                        computedRank: _computedRank,
+                                        aiStyleChoice: _aiStyleChoice,
                                         initialMode: _initialMode,
                                       ),
                                       const SizedBox(height: 24),
@@ -397,15 +432,44 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
 
-    final savedDifficulty = prefs.getString(_difficultyKey);
     final savedBoardSize = prefs.getInt(_boardSizeKey);
     final savedInitialMode = prefs.getString(_initialModeKey);
 
+    // Read new difficulty keys.
+    String difficultyMode = prefs.getString(_difficultyModeKey) ?? 'auto';
+    int manualRank = prefs.getInt(_manualRankKey) ?? AiRankLevel.defaultRank;
+
+    // Migrate from legacy difficulty key if new keys haven't been set yet.
+    if (!prefs.containsKey(_difficultyModeKey)) {
+      final legacy = prefs.getString(_legacyDifficultyKey);
+      if (legacy != null) {
+        difficultyMode = 'manual';
+        manualRank = switch (legacy) {
+          'beginner' => 4,
+          'advanced' => 20,
+          _ => 12, // intermediate
+        };
+      }
+    }
+
+    // Clamp manual rank to valid range.
+    manualRank = manualRank.clamp(AiRankLevel.min, AiRankLevel.max);
+
+    final savedAiStyle = prefs.getString(_aiStyleKey);
+
+    // Compute rank from history for 'auto' mode.
+    final history = await GameHistoryRepository().loadAll();
+    final computedRank = PlayerRankRepository.computeCurrentRank(history);
+
+    if (!mounted) return;
     setState(() {
-      _difficulty = DifficultyLevel.values.firstWhere(
-        (v) => v.name == savedDifficulty,
-        orElse: () => _difficulty,
-      );
+      _difficultyMode = difficultyMode;
+      _manualRank = manualRank;
+      _computedRank = computedRank;
+      if (savedAiStyle != null &&
+          CaptureAiStyle.values.any((s) => s.name == savedAiStyle)) {
+        _aiStyleChoice = savedAiStyle;
+      }
       _initialMode = CaptureInitialMode.values.firstWhere(
         (v) => v.name == savedInitialMode,
         orElse: () => _initialMode,
@@ -417,12 +481,16 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }
 
   void _updateSelection({
-    DifficultyLevel? difficulty,
+    String? difficultyMode,
+    int? manualRank,
+    String? aiStyleChoice,
     int? boardSize,
     CaptureInitialMode? initialMode,
   }) {
     setState(() {
-      _difficulty = difficulty ?? _difficulty;
+      if (difficultyMode != null) _difficultyMode = difficultyMode;
+      if (manualRank != null) _manualRank = manualRank;
+      if (aiStyleChoice != null) _aiStyleChoice = aiStyleChoice;
       _boardSize = boardSize ?? _boardSize;
       _initialMode = initialMode ?? _initialMode;
     });
@@ -431,9 +499,13 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
   Future<void> _saveSelection() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_difficultyKey, _difficulty.name);
-    await prefs.setInt(_boardSizeKey, _boardSize);
-    await prefs.setString(_initialModeKey, _initialMode.name);
+    await Future.wait([
+      prefs.setString(_difficultyModeKey, _difficultyMode),
+      prefs.setInt(_manualRankKey, _manualRank),
+      prefs.setString(_aiStyleKey, _aiStyleChoice),
+      prefs.setInt(_boardSizeKey, _boardSize),
+      prefs.setString(_initialModeKey, _initialMode.name),
+    ]);
   }
 
   Future<void> _importBoardFromScreenshot() async {
@@ -525,19 +597,44 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     List<List<StoneColor>>? initialBoard,
   }) {
     _saveSelection();
+
+    final effectiveRank = _difficultyMode == 'auto' ? _computedRank : _manualRank;
+    final effectiveDifficulty = DifficultyLevel.values.firstWhere(
+      (v) => v.name == AiRankLevel.difficultyZone(effectiveRank),
+      orElse: () => DifficultyLevel.intermediate,
+    );
+
+    final historyRepo = GameHistoryRepository();
+
     Navigator.of(context, rootNavigator: true).push(
       CupertinoPageRoute(
         builder: (_) => ChangeNotifierProvider(
           create: (_) => CaptureGameProvider(
             boardSize: _boardSize,
             captureTarget: _captureTarget,
-            difficulty: _difficulty,
+            difficulty: effectiveDifficulty,
             humanColor: humanColor,
             initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
             initialBoardOverride: initialBoard,
-          ),
+            aiRank: effectiveRank,
+            onGameFinished: (playerWon) {
+              historyRepo.add(GameRecord(
+                timestamp: DateTime.now(),
+                boardSize: _boardSize,
+                captureTarget: _captureTarget,
+                playerWon: playerWon,
+                aiRank: effectiveRank,
+                aiStyleName: _aiStyleChoice,
+              ));
+            },
+          )..setAiStyle(
+              CaptureAiStyle.values.firstWhere(
+                (s) => s.name == _aiStyleChoice,
+                orElse: () => CaptureAiStyle.adaptive,
+              ),
+            ),
           child: CaptureGamePlayScreen(
-            difficulty: _difficulty,
+            aiRank: effectiveRank,
             captureTarget: _captureTarget,
             humanColor: humanColor,
             initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
@@ -1385,13 +1482,35 @@ class _PracticeHeader extends StatelessWidget {
 class _ConfigPreview extends StatelessWidget {
   const _ConfigPreview({
     required this.boardSize,
-    required this.difficulty,
+    required this.difficultyMode,
+    required this.manualRank,
+    required this.computedRank,
+    required this.aiStyleChoice,
     required this.initialMode,
   });
 
   final int boardSize;
-  final DifficultyLevel difficulty;
+  final String difficultyMode;
+  final int manualRank;
+  final int computedRank;
+  final String aiStyleChoice;
   final CaptureInitialMode initialMode;
+
+  String get _difficultyLabel {
+    if (difficultyMode == 'manual') {
+      return '指定·${AiRankLevel.displayName(manualRank)}';
+    }
+    return '不分伯仲·约${AiRankLevel.displayName(computedRank)}';
+  }
+
+  String get _aiStyleLabel {
+    return CaptureAiStyle.values
+        .firstWhere(
+          (s) => s.name == aiStyleChoice,
+          orElse: () => CaptureAiStyle.adaptive,
+        )
+        .label;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1414,7 +1533,7 @@ class _ConfigPreview extends StatelessWidget {
           Expanded(
             child: _ConfigPreviewItem(
               icon: CupertinoIcons.triangle_fill,
-              label: difficulty.displayName,
+              label: _difficultyLabel,
             ),
           ),
           const _ConfigPreviewDivider(),
@@ -1428,7 +1547,7 @@ class _ConfigPreview extends StatelessWidget {
           Expanded(
             child: _ConfigPreviewItem(
               icon: CupertinoIcons.star_fill,
-              label: CaptureAiStyle.hunter.label,
+              label: _aiStyleLabel,
             ),
           ),
         ],
@@ -1559,61 +1678,151 @@ class _PillSegmentControl<T> extends StatelessWidget {
 }
 
 class _AiStyleTile extends StatelessWidget {
-  const _AiStyleTile();
+  const _AiStyleTile({
+    required this.selectedStyleName,
+    required this.onChanged,
+  });
+
+  final String selectedStyleName;
+  final ValueChanged<String> onChanged;
+
+  CaptureAiStyle get _selectedStyle => CaptureAiStyle.values.firstWhere(
+        (s) => s.name == selectedStyleName,
+        orElse: () => CaptureAiStyle.adaptive,
+      );
+
+  void _showPicker(BuildContext context) {
+    final style = _selectedStyle;
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('选择 AI 风格'),
+        message: Text('${style.label}：${style.summary}'),
+        actions: [
+          for (final s in CaptureAiStyle.values)
+            CupertinoActionSheetAction(
+              onPressed: () {
+                onChanged(s.name);
+                Navigator.of(ctx).pop();
+              },
+              child: Text(
+                s == style
+                    ? '${s.label} · 当前'
+                    : '${s.label}  ${s.summary}',
+              ),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _selectedStyle;
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      onPressed: () => _showPicker(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFFFF),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0x33D2B28E)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7EFE3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const CustomPaint(painter: _LotusPainter()),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    style.label,
+                    style: const TextStyle(
+                      fontSize: 16.5,
+                      height: 1.05,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF36271E),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    style.summary,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF8A7A6B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Text(
+              '›',
+              style: TextStyle(
+                fontSize: 18,
+                height: 1,
+                color: Color(0xFFB68454),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A compact inline rank picker showing all 28 ranks as a drum-roll picker.
+class _RankPicker extends StatelessWidget {
+  const _RankPicker({
+    required this.selectedRank,
+    required this.onChanged,
+  });
+
+  final int selectedRank;
+  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      height: 120,
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x33D2B28E)),
+        color: const Color(0xFFFAF4EC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x22D2B28E)),
       ),
-      child: Row(
+      child: CupertinoPicker(
+        scrollController: FixedExtentScrollController(
+          initialItem: selectedRank - AiRankLevel.min,
+        ),
+        itemExtent: 36,
+        onSelectedItemChanged: (index) {
+          onChanged(AiRankLevel.min + index);
+        },
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF7EFE3),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const CustomPaint(painter: _LotusPainter()),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '均衡雅致',
-                  style: TextStyle(
-                    fontSize: 16.5,
-                    height: 1.05,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF36271E),
-                  ),
+          for (int rank = AiRankLevel.min; rank <= AiRankLevel.max; rank++)
+            Center(
+              child: Text(
+                AiRankLevel.displayName(rank),
+                style: const TextStyle(
+                  fontSize: 17,
+                  color: Color(0xFF36271E),
                 ),
-                SizedBox(height: 2),
-                Text(
-                  '攻守兼备，着法稳健均衡',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: Color(0xFF8A7A6B),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-          const Text(
-            '›',
-            style: TextStyle(
-              fontSize: 18,
-              height: 1,
-              color: Color(0xFFB68454),
-            ),
-          ),
         ],
       ),
     );
@@ -1912,13 +2121,13 @@ class _ImportPreviewScreenState extends State<_ImportPreviewScreen> {
 class CaptureGamePlayScreen extends StatefulWidget {
   const CaptureGamePlayScreen({
     super.key,
-    required this.difficulty,
+    required this.aiRank,
     required this.captureTarget,
     this.humanColor = StoneColor.black,
     this.initialMode = CaptureInitialMode.twistCross,
   });
 
-  final DifficultyLevel difficulty;
+  final int aiRank;
   final int captureTarget;
   final StoneColor humanColor;
   final CaptureInitialMode initialMode;
@@ -1952,7 +2161,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
             border: null,
             previousPageTitle: _CaptureCopy.pageTitle,
             middle: Text(
-              '${_initialModeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${widget.difficulty.displayName}',
+              '${_initialModeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${AiRankLevel.displayName(widget.aiRank)}',
             ),
             trailing: CupertinoButton(
               padding: EdgeInsets.zero,

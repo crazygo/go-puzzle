@@ -169,41 +169,44 @@ blunderRate(level) = 0.0                                  for level >= 9
 
 > **设计思路**：玩家水平不通过 Elo 公式反推，而是像围棋道场升降班一样，用"最近 3 局 2 胜/2 负"规则直接升降机器人等级。28 个机器人即 28 个"班级"，玩家通过连续胜利逐级升班，连续失败降班。机制直观、对 K12 用户友好，升级感强。
 
-#### D1 — 玩家等级状态持久化
+> **⚠️ 修订（2026-04-30）**：根据后续讨论，`PlayerRankState.currentRank` **不单独持久化**；只存对局历史，`computeCurrentRank()` 纯函数重算。删除"晋级后清空 recentResults"的描述，改为：回放整条历史时，遇到升降级事件自动重置窗口计数器——历史是完整的，只是计算时会模拟窗口重置。
 
-1. 新增 `PlayerRankState`（`lib/models/player_rank_state.dart`）：
-   - `currentRank`（int，1–28，默认值 3）：玩家当前对战的机器人等级。新用户从 rank 3 出发，先赢几局再晋级，建立信心。
-   - `recentResults`（`List<bool>`，最多保留最近 10 局胜负）：每次游戏结束后追加。
+#### D1 — 玩家等级状态
 
-2. 在 `GameHistoryRepository`（或新增 `PlayerRankRepository`）中持久化 `PlayerRankState`，存储在 SharedPreferences（key: `'player_rank_v1'`）。
+1. **不持久化 `currentRank`**：`rank` 是临时计算值，因为我们会改算法（比如按风格分算 rank，或新风格取平均 rank 等）。
+
+2. 在 `GameHistoryRepository`（SharedPreferences `game_history_v1`）中，每条 `GameRecord` 已有 `aiRank`（本局 AI 等级快照，int）和胜负结果 `playerWon`。
+
+3. `PlayerRankRepository.computeCurrentRank(records)` 从完整历史（chronological list of `GameRecord`）中，按道场晋级规则回放所有局，得出当前 rank。这是纯函数，算法变了直接换实现，历史数据不变。
 
 #### D2 — 晋级/降级规则（"3 局 2 胜/2 负"判定）
 
-每局结束后执行以下判定：
+每回放一条记录时：
 
 ```
-取最近 3 局结果（不足 3 局时只取已有局数）：
-  若胜局数 >= 2  →  currentRank = min(currentRank + 1, 28)  // 晋级
-  若负局数 >= 2  →  currentRank = max(currentRank - 1, 1)   // 降级
-  否则           →  保持不变
+sliding window（最近 3 局）：
+  若胜局数 >= 2  →  rank + 1（最大 28），window.clear()
+  若负局数 >= 2  →  rank - 1（最小 1），window.clear()
+  否则           →  保持不变，window 继续滑动
 ```
 
 **注意事项**：
-- 判定窗口严格取"最近 3 局"（含本局），不跨等级累计（升级后 recentResults 清空，重新计数）。
+- 回放整条历史，遇到晋降事件时 window 清空，不跨等级累计。
 - rank 1 不再降级；rank 28 不再晋级。
-- 连续晋级/降级不做限制（玩家快速进步时应快速提升，避免卡关感）。
+- `aiRank == null` 的旧记录跳过，不参与判定。
 
 #### D3 — 机器人选取
 
-1. 新建游戏时，直接以 `PlayerRankState.currentRank` 对应的机器人作为对手，无需概率抽取。
-2. 若玩家指定风格（`CaptureAiStyle`），则在该风格 × `currentRank` 的机器人上选取；若风格不限，随机选 4 种风格之一。
+1. 新建游戏时，直接以 `computeCurrentRank(history)` 对应的机器人作为对手，无需概率抽取。
+2. 若玩家指定风格（`CaptureAiStyle`），则在该风格 × `currentRank` 的机器人上选取；若选 `adaptive`，使用均衡权重配置。
 3. 在 `GameRecord` 中记录本局使用的 `aiRank`（int）和 `aiStyleName`（String）。
 
 #### D4 — GameRecord 扩展
 
-在 `GameRecord`（`lib/models/game_record.dart`）中增加：
+在 `GameRecord`（`lib/models/game_record.dart`）中包含：
 - `aiStyleName`（对战 AI 风格，String，可为 null 兼容旧记录）
 - `aiRank`（对战 AI 等级，int 1–28，可为 null 兼容旧记录）
+- `playerWon`（bool，本局玩家是否获胜）
 
 旧记录读取时 `aiRank` 为 null，不参与晋降判定。
 

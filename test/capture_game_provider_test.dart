@@ -52,7 +52,7 @@ void main() {
         difficulty: DifficultyLevel.beginner,
       );
 
-      expect(provider.aiStyle, CaptureAiStyle.hunter);
+      expect(provider.aiStyle, CaptureAiStyle.adaptive);
 
       provider.setAiStyle(CaptureAiStyle.counter);
       expect(provider.aiStyle, CaptureAiStyle.counter);

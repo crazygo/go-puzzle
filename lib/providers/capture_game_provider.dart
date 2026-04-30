@@ -66,6 +66,8 @@ class CaptureGameProvider extends ChangeNotifier {
     this.initialMode = CaptureInitialMode.twistCross,
     this.initialBoardOverride,
     this.initialPlayerOverride,
+    this.aiRank,
+    this.onGameFinished,
   })  : assert(
           boardSize == 9 || boardSize == 13 || boardSize == 19,
           'boardSize must be 9, 13, or 19.',
@@ -98,12 +100,21 @@ class CaptureGameProvider extends ChangeNotifier {
   final List<List<StoneColor>>? initialBoardOverride;
   final StoneColor? initialPlayerOverride;
 
+  /// The AI rank (1–28) used for this game, stored in [GameRecord] when the
+  /// game finishes.  Null when the game was started without a rank context.
+  final int? aiRank;
+
+  /// Called once when the game finishes (result becomes non-none).
+  ///
+  /// Receives [playerWon] = true when the human player won.
+  final void Function(bool playerWon)? onGameFinished;
+
   static bool _isValidBoardShape(List<List<StoneColor>>? board, int size) {
     if (board == null) return true;
     return board.length == size && board.every((row) => row.length == size);
   }
 
-  CaptureAiStyle _aiStyle = CaptureAiStyle.hunter;
+  CaptureAiStyle _aiStyle = CaptureAiStyle.adaptive;
   CaptureAiAgent? _cachedAgent;
 
   late GameState _gameState;
@@ -287,6 +298,7 @@ class CaptureGameProvider extends ChangeNotifier {
     _result = CaptureGameResult.none;
     _isAiThinking = false;
     _undoStack.clear();
+    _finishCallbackFired = false;
     notifyListeners();
   }
 
@@ -317,8 +329,21 @@ class CaptureGameProvider extends ChangeNotifier {
   void _checkWinCondition() {
     if (_gameState.capturedByBlack.length >= captureTarget) {
       _result = CaptureGameResult.blackWins;
+      _notifyGameFinished();
     } else if (_gameState.capturedByWhite.length >= captureTarget) {
       _result = CaptureGameResult.whiteWins;
+      _notifyGameFinished();
     }
+  }
+
+  bool _finishCallbackFired = false;
+
+  void _notifyGameFinished() {
+    if (_finishCallbackFired) return;
+    _finishCallbackFired = true;
+    final playerWon = _result == CaptureGameResult.blackWins
+        ? humanColor == StoneColor.black
+        : humanColor == StoneColor.white;
+    onGameFinished?.call(playerWon);
   }
 }
