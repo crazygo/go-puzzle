@@ -3,7 +3,7 @@ name: draft-issue
 description: Use when drafting a GitHub issue. Guides agents to write a concise issue focused on Context, Problem, Goals, and Acceptance Criteria. Does not require an Implementation Plan or Validation Commands.
 ---
 
-# 起草 Issue
+# Draft Issue
 
 Use this skill when the user asks you to draft, write, or revise a GitHub issue.
 
