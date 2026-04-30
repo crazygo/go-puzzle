@@ -21,10 +21,10 @@ import 'ai_arena_artifact_writer.dart';
 ///   --board-size <n>       Board size (default: 9)
 ///   --capture-target <n>   Capture target (default: 5)
 ///   --max-moves <n>        Max playout moves per game (default: 512)
-///   --output-log <path>    Path for local matches JSONL (default: build/ai_arena/matches.jsonl)
-///   --output-ladder <path> Path for latest ladder JSON (default: docs/ai_arena/latest_ladder.json)
+///   --output-log <path>    Path for local matches JSONL (default: build/ai_arena/matches.b<board-size>.jsonl)
+///   --output-ladder <path> Path for latest ladder JSON (default: docs/ai_arena/latest_ladder.b<board-size>.json)
 ///   --no-log               Skip local JSONL match log output and resume
-///   --manifest <path>      Path for run manifest JSON (default: build/ai_arena/manifest.json)
+///   --manifest <path>      Path for run manifest JSON (default: build/ai_arena/manifest.b<board-size>.json)
 ///   --output <path>        Deprecated alias for --output-log
 ///   --snapshot <path>      Deprecated alias for --output-ladder
 ///   --force                Discard any prior results and start fresh
@@ -38,14 +38,6 @@ void main(List<String> args) {
     print('DEPRECATED: --snapshot is now --output-ladder.');
   }
 
-  final outputLogPath = opts['output-log'] as String? ??
-      opts['output'] as String? ??
-      'build/ai_arena/matches.jsonl';
-  final outputLadderPath = opts['output-ladder'] as String? ??
-      opts['snapshot'] as String? ??
-      'docs/ai_arena/latest_ladder.json';
-  final manifestPath =
-      opts['manifest'] as String? ?? 'build/ai_arena/manifest.json';
   final rounds = int.tryParse(opts['rounds'] as String? ?? '10') ?? 10;
   final promotionThreshold =
       int.tryParse(opts['promotion-threshold'] as String? ?? '7') ?? 7;
@@ -53,6 +45,14 @@ void main(List<String> args) {
   final captureTarget =
       int.tryParse(opts['capture-target'] as String? ?? '5') ?? 5;
   final maxMoves = int.tryParse(opts['max-moves'] as String? ?? '512') ?? 512;
+  final outputLogPath = opts['output-log'] as String? ??
+      opts['output'] as String? ??
+      _defaultLogPath(boardSize);
+  final outputLadderPath = opts['output-ladder'] as String? ??
+      opts['snapshot'] as String? ??
+      _defaultLadderPath(boardSize);
+  final manifestPath =
+      opts['manifest'] as String? ?? _defaultManifestPath(boardSize);
   if (maxMoves < 1) {
     stderr.writeln('ERROR: --max-moves must be >= 1 (got $maxMoves).');
     exitCode = 1;
@@ -272,7 +272,7 @@ void main(List<String> args) {
   final snapshotContent = artifacts.ladderFile.readAsStringSync();
 
   if (artifacts.writesMatchLog && matchesContent.trim().isEmpty) {
-    print('ERROR: matches.jsonl is empty!');
+    print('ERROR: match log is empty!');
     exitCode = 1;
   } else if (snapshotContent.trim().isEmpty) {
     print('ERROR: latest ladder JSON is empty!');
@@ -329,3 +329,12 @@ Map<String, Object?> _parseArgs(List<String> args) {
   }
   return opts;
 }
+
+String _defaultLadderPath(int boardSize) =>
+    'docs/ai_arena/latest_ladder.b$boardSize.json';
+
+String _defaultLogPath(int boardSize) =>
+    'build/ai_arena/matches.b$boardSize.jsonl';
+
+String _defaultManifestPath(int boardSize) =>
+    'build/ai_arena/manifest.b$boardSize.json';

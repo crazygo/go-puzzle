@@ -15,48 +15,56 @@ This document defines the AI arena run terms and the expected local workflow.
 
 ## Artifact Policy
 
-The repository tracks only the latest compact ladder snapshot:
+The repository tracks compact ladder snapshots by board size:
 
 ```bash
-docs/ai_arena/latest_ladder.json
+docs/ai_arena/latest_ladder.b9.json
+docs/ai_arena/latest_ladder.b13.json
+docs/ai_arena/latest_ladder.b19.json
 ```
 
 Detailed per-match logs are local artifacts under `build/ai_arena/` and are not
 committed to Git. The default log path is:
 
 ```bash
-build/ai_arena/matches.jsonl
+build/ai_arena/matches.b<board-size>.jsonl
 ```
 
 Each JSONL line is appended after a match completes. This is the fastest useful
 checkpoint frequency in the current architecture: moves and games do not update
 the ladder by themselves, while each completed match can update both the local
-log and `latest_ladder.json`.
+log and the board-size-specific latest ladder snapshot.
 
 To watch progress during a run:
 
 ```bash
-tail -f build/ai_arena/matches.jsonl
+tail -f build/ai_arena/matches.b9.jsonl
 ```
 
 ## Common Commands
 
-Run the default 9x9 pass and update the tracked latest ladder:
+Run the default 9x9 pass and update `latest_ladder.b9.json`:
 
 ```bash
 dart run tool/capture_ai_arena_runner.dart --force
 ```
 
-Run 13x13 and keep a separate local log:
+Run 13x13 and update `latest_ladder.b13.json`:
 
 ```bash
-dart run tool/capture_ai_arena_runner.dart --force --board-size 13 --output-log build/ai_arena/matches.b13.jsonl
+dart run tool/capture_ai_arena_runner.dart --force --board-size 13
+```
+
+Run 19x19 and update `latest_ladder.b19.json`:
+
+```bash
+dart run tool/capture_ai_arena_runner.dart --force --board-size 19
 ```
 
 Run a capped 19x19 smoke pass:
 
 ```bash
-dart run tool/capture_ai_arena_runner.dart --smoke --force --board-size 19 --max-moves 128 --output-log build/ai_arena/matches.b19.smoke.jsonl
+dart run tool/capture_ai_arena_runner.dart --smoke --force --board-size 19 --max-moves 128
 ```
 
 Skip detailed logs when only the latest ladder snapshot is needed:
@@ -69,8 +77,8 @@ dart run tool/capture_ai_arena_runner.dart --force --no-log
 
 When logging is enabled, resume uses:
 
-- `build/ai_arena/manifest.json`
-- `build/ai_arena/matches.jsonl`
+- `build/ai_arena/manifest.b<board-size>.json`
+- `build/ai_arena/matches.b<board-size>.jsonl`
 
 The runner checks the manifest config hash before reusing prior local logs. The
 hash includes board size, capture target, rounds, promotion threshold, base seed,
