@@ -12,8 +12,8 @@ Use this skill when the user wants a real browser screenshot instead of a framew
 1. Decide the target URL, output path, and viewport.
 2. Prefer repo-relative output paths such as `.cache/screenshots/page.png`.
 3. Use the bundled script instead of rewriting Playwright launch code.
-4. For Flutter Web verification, always start a fresh `flutter run -d web-server` process for the shot. Do not reuse a previous server and do not rely on hot restart; hot restart is not deterministic enough for screenshot comparison.
-5. After the screenshot is captured, stop/kill the Flutter web-server process before taking the next screenshot. A fresh process per shot keeps the flow idempotent.
+4. For Flutter Web verification in this repo, prefer a release static web build served by Python: `flutter build web --no-pub --release`, then `python3 -m http.server --directory build/web`.
+5. After the screenshot is captured, stop/kill the Python static server before taking the next screenshot. A fresh host process per shot keeps the flow idempotent.
 6. If the output file already exists, keep the history by renaming the old file to `name vN.ext` before writing the new file.
 7. Report the exact viewport, DPR, URL, and server lifecycle used in the final response.
 
@@ -29,21 +29,20 @@ Run `scripts/browser_screenshot.sh`. It:
 - waits for visual stability instead of capturing the first rendered frame
 - uses a fixed viewport and device scale factor for repeatable comparison
 
-For Flutter Web, the expected lifecycle is:
+For Flutter Web in this repo, the expected lifecycle is:
 
-1. Start a new `flutter run -d web-server --web-hostname 127.0.0.1 --web-port <port>` process.
-2. Wait until `lib/main.dart is being served at ...`.
+1. Build static web once for the current code: `flutter build web --no-pub --release`.
+2. Start a new Python static server for `build/web`: `python3 -m http.server <port> --bind 127.0.0.1 --directory build/web`.
 3. Add a cache-busting query value to the URL, such as `&shot=YYYY-MM-DD-HH-mm-SS`, when comparing iterative visual changes.
 4. Run `scripts/browser_screenshot.sh`.
-5. Stop the Flutter process with `q` in the PTY, or kill the exact process if it does not exit.
-6. Use a new process for the next shot, even when only params changed.
+5. Stop the Python server with `Ctrl-C` in the PTY, or kill the exact process if it does not exit.
+6. Use a new Python process for the next shot. Rebuild `build/web` whenever source code or assets changed.
 
-If repeated screenshot attempts stall before serving at `Resolving dependencies...`
-or `Downloading packages...`, do not keep retrying the default launch. Once
-dependencies are already present, start the screenshot server with
-`flutter run --no-pub -d web-server --web-hostname 127.0.0.1 --web-port <port>`.
-This keeps the fresh-process rule while avoiding nondeterministic package
-resolution during visual iteration.
+Do not use `flutter run -d web-server` as the default screenshot path here. It
+can block on debug service/DDC/hot restart behavior and has proven less
+deterministic than serving a compiled static release build. Keep the old
+`flutter run` path only as a last-resort diagnostic when release build output is
+not suitable for the specific question.
 
 Flutter Web can still be blank after browser `networkidle` or `domcontentloaded`.
 This is normal for CanvasKit/WebGL pages: Dart, WebGL, and platform-view setup
@@ -66,19 +65,25 @@ If a shot times out as not ready, inspect the generated
 Known stable local command shape for this repo:
 
 ```bash
-flutter run --no-pub -d web-server \
-  --web-hostname 127.0.0.1 \
-  --web-port <port>
+flutter build web --no-pub --release
 
-# Wait for:
-# lib/main.dart is being served at http://127.0.0.1:<port>
+python3 -m http.server <port> \
+  --bind 127.0.0.1 \
+  --directory build/web
 
 ts=$(date '+%Y-%m-%d-%H-%M-%S')
 bash .agents/skills/playwright-screenshot/scripts/browser_screenshot.sh \
   "http://127.0.0.1:<port>/?threeBoardDebug=1&shot=${ts}" \
-  ".cache/screenshots/${ts}-threeBoardDebug-1-wide.png" \
+  ".cache/screenshots/${ts}-threeBoardDebug-release-web-wide.png" \
   900 874 2 45000
+
+# Stop the Python server after capture.
 ```
+
+Verified on 2026-04-29 with port `8177`; the release build served static assets
+successfully, including `assets/assets/textures/board_top_albedo_v2_1024.png`,
+and produced a visually ready screenshot with `900x874`, DPR `2`, wait budget
+`45000`.
 
 For 3D board inspection, prefer a wider viewport such as `900x874` with DPR `2`
 when the goal is board lighting/material comparison. Use the mobile preset only

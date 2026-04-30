@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 
+import '../theme/theme_context.dart';
+
 // ── Hero layout constants (shared across all main tab screens) ───────────────
 /// Visible hero height below the status bar.
 const double kPageHeroVisibleHeight = 136.0;
@@ -48,6 +50,7 @@ class PageHeroBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
+    final palette = context.appPalette;
     return SizedBox(
       height: topPad + kPageHeroVisibleHeight,
       child: Stack(
@@ -69,21 +72,19 @@ class PageHeroBanner extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF201712),
-                            letterSpacing: 0.8,
+                            color: palette.heroTitle,
                           ),
                         ),
                         if (subtitle != null) ...[
                           const SizedBox(height: 6),
                           Text(
                             subtitle!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: Color(0xFF8E7C6C),
-                              letterSpacing: 0.4,
+                              color: palette.heroSubtitle,
                             ),
                           ),
                         ],
