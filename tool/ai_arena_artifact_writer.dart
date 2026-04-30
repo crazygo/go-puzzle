@@ -83,11 +83,18 @@ class AiArenaArtifactWriter {
   }) {
     if (events.isEmpty) return;
 
-    var shouldAppend = append;
+    final file = logFile;
+    if (file == null) return;
+
+    final buffer = StringBuffer();
     for (final event in events) {
-      writeMatchLogLine(event, append: shouldAppend);
-      shouldAppend = true;
+      buffer.writeln(event.toJsonLine());
     }
+
+    file.writeAsStringSync(
+      buffer.toString(),
+      mode: append ? FileMode.append : FileMode.write,
+    );
   }
 
   void clearMatchLog() {
