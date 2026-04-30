@@ -1,5 +1,5 @@
 // ignore_for_file: avoid_print
-import 'dart:convert' show JsonEncoder;
+import 'dart:convert' show JsonEncoder, jsonDecode;
 import 'dart:io';
 
 import 'package:go_puzzle/game/ai_arena_ladder.dart';
@@ -22,6 +22,8 @@ import 'package:go_puzzle/game/difficulty_level.dart';
 ///   --output <path>        Path for matches JSONL (default: build/ai_arena/matches.jsonl)
 ///   --snapshot <path>      Path for ladder snapshot JSON (default: build/ai_arena/ladder.json)
 ///   --max-moves <n>        Max playout moves per game (default: 512)
+///   --manifest <path>      Path for run manifest JSON (default: build/ai_arena/manifest.json)
+///   --force                Discard any prior results and start fresh
 void main(List<String> args) {
   final opts = _parseArgs(args);
 
@@ -29,6 +31,8 @@ void main(List<String> args) {
       opts['output'] as String? ?? 'build/ai_arena/matches.jsonl';
   final snapshotPath =
       opts['snapshot'] as String? ?? 'build/ai_arena/ladder.json';
+  final manifestPath =
+      opts['manifest'] as String? ?? 'build/ai_arena/manifest.json';
   final rounds = int.tryParse(opts['rounds'] as String? ?? '10') ?? 10;
   final promotionThreshold =
       int.tryParse(opts['promotion-threshold'] as String? ?? '7') ?? 7;
@@ -38,9 +42,88 @@ void main(List<String> args) {
       int.tryParse(opts['capture-target'] as String? ?? '5') ?? 5;
   final maxMoves = int.tryParse(opts['max-moves'] as String? ?? '512') ?? 512;
   final isSmoke = opts['smoke'] as bool? ?? false;
+  final force = opts['force'] as bool? ?? false;
+  const baseSeed = 20260430;
 
   final candidates = isSmoke ? _smokeCandidates() : _defaultCandidates();
+  final sortedIds = (candidates.map((c) => c.id).toList()..sort());
 
+  final currentManifest = AiArenaRunManifest(
+    candidateIds: sortedIds,
+    boardSize: boardSize,
+    captureTarget: captureTarget,
+    rounds: rounds,
+    promotionThreshold: promotionThreshold,
+    baseSeed: baseSeed,
+  );
+
+  print('=== AI Arena Ladder Runner ===');
+  print('Candidates: ${candidates.map((c) => c.id).join(', ')}');
+  print('Rounds per match: $rounds');
+  print('Promotion threshold: $promotionThreshold');
+  print('Board: ${boardSize}x$boardSize, capture target: $captureTarget, max moves: $maxMoves');
+  print('Config hash: ${currentManifest.configHash}');
+  print('');
+
+  // --- Ensure output directories exist ---
+  _ensureDir(outputPath);
+  _ensureDir(snapshotPath);
+  _ensureDir(manifestPath);
+
+  // --- Resume detection ---
+  final manifestFile = File(manifestPath);
+  final outputFile = File(outputPath);
+
+  int priorMatchCount = 0;
+  AiLadderSnapshot? resumedLadder;
+
+  if (!force && manifestFile.existsSync() && outputFile.existsSync()) {
+    final savedManifestJson =
+        jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
+    final savedManifest = AiArenaRunManifest.fromJson(savedManifestJson);
+
+    if (!currentManifest.isCompatibleWith(savedManifest)) {
+      print('ERROR: Saved manifest (${savedManifest.configHash}) does not '
+          'match current config (${currentManifest.configHash}).');
+      print('       Use --force to discard prior results and start fresh.');
+      exitCode = 1;
+      return;
+    }
+
+    // Config matches — attempt to resume.
+    final savedJsonl = outputFile.readAsStringSync();
+    try {
+      final resumeState = buildResumeState(
+        currentManifest: currentManifest,
+        savedManifest: savedManifest,
+        savedJsonl: savedJsonl,
+        initialLadderIds: sortedIds,
+      );
+
+      if (!resumeState.isEmpty) {
+        priorMatchCount = resumeState.matchCounterOffset;
+        resumedLadder = resumeState.reconstructedLadder;
+        print(
+          'Resuming from prior run: '
+          '${priorMatchCount} match(es) already completed.',
+        );
+        print('Reconstructed ladder: ${resumedLadder.ids.join(' > ')}');
+        print('');
+      }
+    } on AiArenaConfigMismatchException catch (e) {
+      // Should not happen since we checked above, but be safe.
+      print('ERROR: $e');
+      exitCode = 1;
+      return;
+    }
+  }
+
+  // Write (or overwrite) manifest for this run.
+  if (force || !manifestFile.existsSync()) {
+    manifestFile.writeAsStringSync(_prettyJson(currentManifest.toJson()));
+  }
+
+  // --- Build executor and scheduler ---
   final executor = AiArenaExecutor(
     boardSize: boardSize,
     captureTarget: captureTarget,
@@ -52,32 +135,40 @@ void main(List<String> args) {
     candidates: candidates,
     executor: executor,
     promotionThreshold: promotionThreshold,
-    baseSeed: 20260430,
+    baseSeed: baseSeed,
+    matchCounterOffset: priorMatchCount,
   );
+
+  // If resuming, restore the scheduler's ladder to the reconstructed state.
+  if (resumedLadder != null) {
+    scheduler.restoreLadder(resumedLadder);
+  }
 
   final initialLadder = scheduler.ladder.copy();
 
-  print('=== AI Arena Ladder Runner ===');
-  print('Candidates: ${candidates.map((c) => c.id).join(', ')}');
-  print('Rounds per match: $rounds');
-  print('Promotion threshold: $promotionThreshold');
-  print('Board: ${boardSize}x$boardSize, capture target: $captureTarget, max moves: $maxMoves');
   print('Initial ladder: ${initialLadder.ids.join(' > ')}');
   print('');
 
-  // Run all adjacent pairs once (from index 0 to end).
-  final events = <AiLadderEvent>[];
-  final currentIds = List<String>.from(scheduler.ladder.ids);
+  // --- Run all adjacent pairs once (from index 0 to end) ---
+  final newEvents = <AiLadderEvent>[];
+  final allPairs = <(String, String)>[];
+  final currentIds = List<String>.from(sortedIds);
 
   for (var i = 0; i < currentIds.length - 1; i++) {
-    final higherId = currentIds[i];
-    final lowerId = currentIds[i + 1];
+    allPairs.add((currentIds[i], currentIds[i + 1]));
+  }
+
+  // Skip the first [priorMatchCount] pairs — they are already persisted.
+  final remainingPairs = allPairs.skip(priorMatchCount).toList();
+
+  for (final (higherId, lowerId) in remainingPairs) {
     final configA = candidates.firstWhere((c) => c.id == lowerId);
     final configB = candidates.firstWhere((c) => c.id == higherId);
     final event = scheduler.runMatch(configA, configB);
-    events.add(event);
+    newEvents.add(event);
     print(
-      'Match ${events.length}: ${configA.id} vs ${configB.id} → '
+      'Match ${priorMatchCount + newEvents.length}: '
+      '${configA.id} vs ${configB.id} → '
       '${event.schedulerDecision.decision} '
       '(a:${event.rawResult.aWins} b:${event.rawResult.bWins} '
       'd:${event.rawResult.draws})',
@@ -89,37 +180,48 @@ void main(List<String> args) {
   print('');
   print('Final ladder: ${finalLadder.ids.join(' > ')}');
   print('Final ladder hash: ${finalLadder.hash}');
-  print('Total matches: ${events.length}');
+  print(
+    'Total matches: ${priorMatchCount + newEvents.length} '
+    '(${priorMatchCount} prior + ${newEvents.length} new)',
+  );
 
-  // --- Persistence ---
-  _ensureDir(outputPath);
-  _ensureDir(snapshotPath);
-
-  // Write matches JSONL (synchronous).
-  final jsonlBuffer = StringBuffer();
-  for (final event in events) {
-    jsonlBuffer.writeln(event.toJsonLine());
+  // --- Append new events to JSONL (preserve prior results on resume) ---
+  if (newEvents.isNotEmpty) {
+    // When resuming, append to the existing log.
+    // When starting fresh (force or first run), overwrite so old results
+    // from an incompatible run are not mixed in.
+    final mode =
+        priorMatchCount > 0 ? FileMode.append : FileMode.write;
+    final sink = outputFile.openWrite(mode: mode);
+    for (final event in newEvents) {
+      sink.writeln(event.toJsonLine());
+    }
+    sink.closeSync();
+  } else if (force) {
+    // force flag with no new events → truncate to empty.
+    outputFile.writeAsStringSync('');
   }
-  File(outputPath).writeAsStringSync(jsonlBuffer.toString());
 
-  // Write ladder snapshot (synchronous).
+  // Write ladder snapshot (always overwrite with final state).
   File(snapshotPath).writeAsStringSync(_prettyJson(finalLadder.toJson()));
 
   print('');
   print('Output: $outputPath');
   print('Snapshot: $snapshotPath');
+  print('Manifest: $manifestPath');
 
-  // --- Decision replay verification ---
+  // --- Decision replay verification (all events, including prior) ---
+  final allEvents = parseJsonlEvents(outputFile.readAsStringSync());
+  final replayInitialLadder = AiLadderSnapshot(sortedIds);
   final replayResult = AiArenaReplayer.replay(
-    initialLadder: initialLadder,
-    events: events,
+    initialLadder: replayInitialLadder,
+    events: allEvents,
     promotionThreshold: promotionThreshold,
   );
 
   print('');
   if (replayResult.passed) {
-    final hashMatch =
-        replayResult.finalLadder.hash == finalLadder.hash;
+    final hashMatch = replayResult.finalLadder.hash == finalLadder.hash;
     print(
       'Decision replay: PASSED ✓  '
       '(hash match: $hashMatch)',
@@ -133,7 +235,7 @@ void main(List<String> args) {
   }
 
   // Verify outputs are non-empty.
-  final matchesContent = File(outputPath).readAsStringSync();
+  final matchesContent = outputFile.readAsStringSync();
   final snapshotContent = File(snapshotPath).readAsStringSync();
 
   if (matchesContent.trim().isEmpty) {
@@ -197,8 +299,8 @@ Map<String, Object?> _parseArgs(List<String> args) {
   final opts = <String, Object?>{};
   for (var i = 0; i < args.length; i++) {
     final arg = args[i];
-    if (arg == '--smoke') {
-      opts['smoke'] = true;
+    if (arg == '--smoke' || arg == '--force') {
+      opts[arg.substring(2)] = true;
     } else if (arg.startsWith('--') && i + 1 < args.length) {
       opts[arg.substring(2)] = args[i + 1];
       i++;
