@@ -5,6 +5,174 @@ import 'ai_arena_executor.dart';
 
 const String _schedulerVersion = 'ai_arena_scheduler_v1';
 
+// ---------------------------------------------------------------------------
+// Run manifest — configuration fingerprint for resume / change detection
+// ---------------------------------------------------------------------------
+
+/// Stable fingerprint of an arena run configuration.
+///
+/// The [configHash] captures the full set of parameters that determine which
+/// matches will be run and how they will be scored.  Two manifests with the
+/// same [configHash] represent identical experiments; different hashes mean
+/// the configuration has changed and prior results must not be reused.
+///
+/// Store the manifest next to the JSONL output so that the runner can detect
+/// whether a saved run is compatible with the current invocation.
+class AiArenaRunManifest {
+  const AiArenaRunManifest({
+    required this.candidateIds,
+    required this.boardSize,
+    required this.captureTarget,
+    required this.rounds,
+    required this.promotionThreshold,
+    required this.baseSeed,
+    this.schemaVersion = 1,
+  });
+
+  /// Schema version for forward-compatible evolution.
+  final int schemaVersion;
+
+  /// Sorted list of all participant IDs (lexical order, stable).
+  final List<String> candidateIds;
+
+  final int boardSize;
+  final int captureTarget;
+  final int rounds;
+  final int promotionThreshold;
+  final int baseSeed;
+
+  /// Stable hash over all configuration fields.
+  String get configHash {
+    final repr = _canonicalJson({
+      'schemaVersion': schemaVersion,
+      'candidateIds': candidateIds,
+      'boardSize': boardSize,
+      'captureTarget': captureTarget,
+      'rounds': rounds,
+      'promotionThreshold': promotionThreshold,
+      'baseSeed': baseSeed,
+    });
+    final bytes = utf8.encode(repr);
+    return 'djb2:${_stableDjb2Hex(bytes)}';
+  }
+
+  /// Returns true when [other] has the same configuration, meaning prior
+  /// results from [other]'s run can safely be reused.
+  bool isCompatibleWith(AiArenaRunManifest other) =>
+      configHash == other.configHash;
+
+  Map<String, dynamic> toJson() => {
+        'schemaVersion': schemaVersion,
+        'candidateIds': candidateIds,
+        'boardSize': boardSize,
+        'captureTarget': captureTarget,
+        'rounds': rounds,
+        'promotionThreshold': promotionThreshold,
+        'baseSeed': baseSeed,
+        'configHash': configHash,
+      };
+
+  factory AiArenaRunManifest.fromJson(Map<String, dynamic> json) {
+    return AiArenaRunManifest(
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
+      candidateIds: List<String>.from(json['candidateIds'] as List<dynamic>),
+      boardSize: json['boardSize'] as int,
+      captureTarget: json['captureTarget'] as int,
+      rounds: json['rounds'] as int,
+      promotionThreshold: json['promotionThreshold'] as int,
+      baseSeed: json['baseSeed'] as int,
+    );
+  }
+}
+
+/// Outcome of loading a previous run for resume.
+class AiArenaResumeState {
+  const AiArenaResumeState({
+    required this.loadedEvents,
+    required this.reconstructedLadder,
+    required this.matchCounterOffset,
+  });
+
+  /// Events already persisted from prior (partial) run.
+  final List<AiLadderEvent> loadedEvents;
+
+  /// Ladder state after replaying [loadedEvents].
+  final AiLadderSnapshot reconstructedLadder;
+
+  /// Number of matches already completed — used to seed the match counter so
+  /// that new seeds stay deterministic relative to their position.
+  final int matchCounterOffset;
+
+  bool get isEmpty => loadedEvents.isEmpty;
+}
+
+/// Parses a JSONL string and returns all valid [AiLadderEvent] lines.
+List<AiLadderEvent> parseJsonlEvents(String jsonl) {
+  final events = <AiLadderEvent>[];
+  for (final line in jsonl.split('\n')) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty) continue;
+    events.add(AiLadderEvent.fromJsonLine(trimmed));
+  }
+  return events;
+}
+
+/// Reconstructs the [AiArenaResumeState] from previously persisted JSONL and
+/// an initial ladder (derived from the manifest's candidate list).
+///
+/// Throws [AiArenaConfigMismatchException] if [savedManifest] is incompatible
+/// with [currentManifest].
+AiArenaResumeState buildResumeState({
+  required AiArenaRunManifest currentManifest,
+  required AiArenaRunManifest savedManifest,
+  required String savedJsonl,
+  required List<String> initialLadderIds,
+}) {
+  if (!currentManifest.isCompatibleWith(savedManifest)) {
+    throw AiArenaConfigMismatchException(
+      currentHash: currentManifest.configHash,
+      savedHash: savedManifest.configHash,
+    );
+  }
+
+  final events = parseJsonlEvents(savedJsonl);
+  final initialLadder = AiLadderSnapshot(initialLadderIds);
+  final replayResult = AiArenaReplayer.replay(
+    initialLadder: initialLadder,
+    events: events,
+    promotionThreshold: currentManifest.promotionThreshold,
+  );
+
+  return AiArenaResumeState(
+    loadedEvents: events,
+    reconstructedLadder: replayResult.finalLadder,
+    matchCounterOffset: events.length,
+  );
+}
+
+/// Thrown when the saved manifest's [configHash] differs from the current
+/// manifest, indicating an incompatible configuration change.
+class AiArenaConfigMismatchException implements Exception {
+  const AiArenaConfigMismatchException({
+    required this.currentHash,
+    required this.savedHash,
+  });
+
+  final String currentHash;
+  final String savedHash;
+
+  @override
+  String toString() =>
+      'AiArenaConfigMismatchException: '
+      'saved configHash=$savedHash does not match '
+      'current configHash=$currentHash. '
+      'Use --force to discard prior results and start fresh.';
+}
+
+// ---------------------------------------------------------------------------
+// Ladder hash helpers
+// ---------------------------------------------------------------------------
+
 /// Computes a canonical ladder hash from an ordered list of config IDs.
 ///
 /// Canonicalization: UTF-8 JSON with sorted object keys, stable array order,
@@ -123,8 +291,10 @@ class AiArenaScheduler {
     AiArenaExecutor? executor,
     this.promotionThreshold = 7,
     int? baseSeed,
+    int matchCounterOffset = 0,
   })  : _executor = executor ?? const AiArenaExecutor(),
-        _baseSeed = baseSeed ?? 123456 {
+        _baseSeed = baseSeed ?? 123456,
+        _matchCounter = matchCounterOffset {
     // Register candidates in registration order, falling back to id lexical.
     final sorted = List<AiBattleConfig>.from(candidates)
       ..sort((a, b) => a.id.compareTo(b.id));
@@ -142,7 +312,7 @@ class AiArenaScheduler {
   final int promotionThreshold;
 
   String? _lastMatchId;
-  int _matchCounter = 0;
+  int _matchCounter;
 
   final List<AiLadderEvent> _events = [];
 
@@ -153,6 +323,15 @@ class AiArenaScheduler {
 
   /// All events logged so far.
   List<AiLadderEvent> get events => List.unmodifiable(_events);
+
+  /// Replaces the current ladder with [snapshot].
+  ///
+  /// Used when resuming from a persisted run: the caller supplies the ladder
+  /// state reconstructed by [AiArenaReplayer] from the saved JSONL, so that
+  /// new matches continue from exactly the same state as the interrupted run.
+  void restoreLadder(AiLadderSnapshot snapshot) {
+    _ladder = snapshot.copy();
+  }
 
   /// Runs a single head-to-head match between [configA] and [configB],
   /// applies the ladder rules, and appends an [AiLadderEvent].
