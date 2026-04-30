@@ -615,12 +615,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                     : _importBoardFromScreenshot,
                               ),
                               const SizedBox(height: 14),
-                              if (_history.isNotEmpty) ...[
-                                _HistorySectionCard(
-                                  history: _history,
-                                ),
-                                const SizedBox(height: 14),
-                              ],
+                              _HistorySectionCard(
+                                history: _history,
+                              ),
+                              const SizedBox(height: 14),
                             ],
                           ),
                         ),
@@ -3613,12 +3611,15 @@ class _HistorySectionCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          ...visible.map(
-            (r) => _HistoryRow(
-              record: r,
-              onTap: () => _showDetailSheet(context, r),
+          if (history.isEmpty)
+            const _HistoryEmptyState()
+          else
+            ...visible.map(
+              (r) => _HistoryRow(
+                record: r,
+                onTap: () => _showDetailSheet(context, r),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -3638,6 +3639,101 @@ class _HistorySectionCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Empty-state placeholder shown inside [_HistorySectionCard] before the user
+/// has played any games.  Uses a vector Go-board illustration to communicate
+/// context without relying on raster assets.
+class _HistoryEmptyState extends StatelessWidget {
+  const _HistoryEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          CustomPaint(
+            size: const Size(44, 44),
+            painter: _GoBoardIconPainter(),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Text(
+              '完成第一盘棋后，\n对局记录将显示在这里',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.55,
+                color: Color(0xFF9E8A77),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A compact, vector-drawn Go board icon: grid lines + one black stone + one
+/// white stone.  Everything is drawn with [Canvas] primitives so the icon
+/// scales perfectly at any density.
+class _GoBoardIconPainter extends CustomPainter {
+  const _GoBoardIconPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double s = size.width;
+
+    // Board background
+    final bgPaint = Paint()..color = const Color(0xFFE8C97A);
+    final bgRRect =
+        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(6));
+    canvas.drawRRect(bgRRect, bgPaint);
+
+    // Board edge / border
+    final borderPaint = Paint()
+      ..color = const Color(0xFFC4A55A)
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+    canvas.drawRRect(bgRRect, borderPaint);
+
+    // Grid lines (4×4 inner grid → 3 lines each axis)
+    const int lines = 4; // number of intersections per axis
+    final gridPaint = Paint()
+      ..color = const Color(0xFF7A5C2A)
+      ..strokeWidth = 0.7
+      ..strokeCap = StrokeCap.round;
+    final double margin = s * 0.15;
+    final double span = s - margin * 2;
+    final double step = span / (lines - 1);
+
+    for (int i = 0; i < lines; i++) {
+      final double pos = margin + i * step;
+      // vertical
+      canvas.drawLine(Offset(pos, margin), Offset(pos, s - margin), gridPaint);
+      // horizontal
+      canvas.drawLine(Offset(margin, pos), Offset(s - margin, pos), gridPaint);
+    }
+
+    // Black stone (top-left intersection)
+    final double r = s * 0.12;
+    final blackPaint = Paint()..color = const Color(0xFF1A1008);
+    canvas.drawCircle(Offset(margin + step, margin + step), r, blackPaint);
+
+    // White stone outline + fill (bottom-right intersection)
+    final whiteFillPaint = Paint()..color = const Color(0xFFF5EFE3);
+    final whiteBorderPaint = Paint()
+      ..color = const Color(0xFF8C7450)
+      ..strokeWidth = 0.9
+      ..style = PaintingStyle.stroke;
+    final Offset wCenter = Offset(margin + step * 2, margin + step * 2);
+    canvas.drawCircle(wCenter, r, whiteFillPaint);
+    canvas.drawCircle(wCenter, r, whiteBorderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _HistoryRow extends StatelessWidget {
