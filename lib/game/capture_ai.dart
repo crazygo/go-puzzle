@@ -63,15 +63,250 @@ abstract class CaptureAiAgent {
   CaptureAiMove? chooseMove(SimBoard board);
 }
 
+enum CaptureAiEngine {
+  heuristic,
+  hybridMcts,
+  mcts,
+}
+
+class CaptureAiRobotConfig {
+  const CaptureAiRobotConfig({
+    required this.style,
+    required this.difficulty,
+    required this.engine,
+    required this.heuristicPlayouts,
+    required this.mctsPlayouts,
+    required this.mctsRolloutDepth,
+    required this.mctsCandidateLimit,
+    required this.mctsExploration,
+    required this.rolloutTemperature,
+    required this.seed,
+  });
+
+  final CaptureAiStyle style;
+  final DifficultyLevel difficulty;
+  final CaptureAiEngine engine;
+  final int heuristicPlayouts;
+  final int mctsPlayouts;
+  final int mctsRolloutDepth;
+  final int mctsCandidateLimit;
+  final double mctsExploration;
+  final double rolloutTemperature;
+  final int seed;
+
+  String get id => '${style.name}_${difficulty.name}_v1';
+
+  CaptureAiRobotConfig copyWith({
+    CaptureAiEngine? engine,
+    int? heuristicPlayouts,
+    int? mctsPlayouts,
+    int? mctsRolloutDepth,
+    int? mctsCandidateLimit,
+    double? mctsExploration,
+    double? rolloutTemperature,
+    int? seed,
+  }) {
+    return CaptureAiRobotConfig(
+      style: style,
+      difficulty: difficulty,
+      engine: engine ?? this.engine,
+      heuristicPlayouts: heuristicPlayouts ?? this.heuristicPlayouts,
+      mctsPlayouts: mctsPlayouts ?? this.mctsPlayouts,
+      mctsRolloutDepth: mctsRolloutDepth ?? this.mctsRolloutDepth,
+      mctsCandidateLimit: mctsCandidateLimit ?? this.mctsCandidateLimit,
+      mctsExploration: mctsExploration ?? this.mctsExploration,
+      rolloutTemperature: rolloutTemperature ?? this.rolloutTemperature,
+      seed: seed ?? this.seed,
+    );
+  }
+
+  static CaptureAiRobotConfig forStyle(
+    CaptureAiStyle style,
+    DifficultyLevel difficulty, {
+    int? seed,
+  }) {
+    final stableSeed = seed ?? _stableRobotSeed(style, difficulty);
+    final engine = switch (difficulty) {
+      DifficultyLevel.beginner => CaptureAiEngine.heuristic,
+      DifficultyLevel.intermediate => CaptureAiEngine.hybridMcts,
+      DifficultyLevel.advanced => CaptureAiEngine.mcts,
+    };
+
+    return switch (difficulty) {
+      DifficultyLevel.beginner => CaptureAiRobotConfig(
+          style: style,
+          difficulty: difficulty,
+          engine: engine,
+          heuristicPlayouts: 8,
+          mctsPlayouts: 0,
+          mctsRolloutDepth: 0,
+          mctsCandidateLimit: 6,
+          mctsExploration: 1.414,
+          rolloutTemperature: 0,
+          seed: stableSeed,
+        ),
+      DifficultyLevel.intermediate => CaptureAiRobotConfig(
+          style: style,
+          difficulty: difficulty,
+          engine: engine,
+          heuristicPlayouts: 16,
+          mctsPlayouts: 16,
+          mctsRolloutDepth: 16,
+          mctsCandidateLimit: 6,
+          mctsExploration: 1.25,
+          rolloutTemperature: 3.5,
+          seed: stableSeed,
+        ),
+      DifficultyLevel.advanced => CaptureAiRobotConfig(
+          style: style,
+          difficulty: difficulty,
+          engine: engine,
+          heuristicPlayouts: 0,
+          mctsPlayouts: 32,
+          mctsRolloutDepth: 20,
+          mctsCandidateLimit: 8,
+          mctsExploration: 1.05,
+          rolloutTemperature: 2.5,
+          seed: stableSeed,
+        ),
+    };
+  }
+
+  static int _stableRobotSeed(
+    CaptureAiStyle style,
+    DifficultyLevel difficulty,
+  ) {
+    return 1009 + style.index * 131 + difficulty.index * 1709;
+  }
+}
+
 class CaptureAiRegistry {
   static CaptureAiAgent create({
     required CaptureAiStyle style,
     required DifficultyLevel difficulty,
+    int? seed,
   }) {
-    return _WeightedCaptureAiAgent(
+    return createFromConfig(resolveConfig(
       style: style,
-      profile: _CaptureAiProfile.forStyle(style, difficulty),
+      difficulty: difficulty,
+      seed: seed,
+    ));
+  }
+
+  static CaptureAiRobotConfig resolveConfig({
+    required CaptureAiStyle style,
+    required DifficultyLevel difficulty,
+    int? seed,
+  }) {
+    return CaptureAiRobotConfig.forStyle(style, difficulty, seed: seed);
+  }
+
+  static List<CaptureAiRobotConfig> get registeredConfigs {
+    return [
+      for (final style in CaptureAiStyle.values)
+        for (final difficulty in DifficultyLevel.values)
+          resolveConfig(style: style, difficulty: difficulty),
+    ];
+  }
+
+  static CaptureAiAgent createFromConfig(CaptureAiRobotConfig config) {
+    final profile = _CaptureAiProfile.forStyle(
+      config.style,
+      config.difficulty,
+      playoutOverride: config.heuristicPlayouts,
     );
+    final heuristic = _WeightedCaptureAiAgent(
+      style: config.style,
+      profile: profile,
+    );
+    if (config.engine == CaptureAiEngine.heuristic) return heuristic;
+
+    final mcts = _MctsCaptureAiAgent(
+      style: config.style,
+      profile: profile,
+      config: config,
+    );
+    if (config.engine == CaptureAiEngine.mcts) return mcts;
+
+    return _HybridCaptureAiAgent(
+      style: config.style,
+      heuristicAgent: heuristic,
+      mctsAgent: mcts,
+    );
+  }
+}
+
+class _HybridCaptureAiAgent implements CaptureAiAgent {
+  const _HybridCaptureAiAgent({
+    required this.style,
+    required _WeightedCaptureAiAgent heuristicAgent,
+    required _MctsCaptureAiAgent mctsAgent,
+  })  : _heuristicAgent = heuristicAgent,
+        _mctsAgent = mctsAgent;
+
+  @override
+  final CaptureAiStyle style;
+
+  final _WeightedCaptureAiAgent _heuristicAgent;
+  final _MctsCaptureAiAgent _mctsAgent;
+
+  @override
+  CaptureAiMove? chooseMove(SimBoard board) {
+    return _mctsAgent.chooseMove(board) ?? _heuristicAgent.chooseMove(board);
+  }
+}
+
+class _MctsCaptureAiAgent implements CaptureAiAgent {
+  const _MctsCaptureAiAgent({
+    required this.style,
+    required _CaptureAiProfile profile,
+    required CaptureAiRobotConfig config,
+  })  : _profile = profile,
+        _config = config;
+
+  @override
+  final CaptureAiStyle style;
+
+  final _CaptureAiProfile _profile;
+  final CaptureAiRobotConfig _config;
+
+  @override
+  CaptureAiMove? chooseMove(SimBoard board) {
+    final engine = MctsEngine(
+      maxPlayouts: _config.mctsPlayouts,
+      rolloutDepth: _config.mctsRolloutDepth,
+      exploration: _config.mctsExploration,
+      candidateLimit: _config.mctsCandidateLimit,
+      moveScorer: _scoreMove,
+      rolloutTemperature: _config.rolloutTemperature,
+      seed: _config.seed + _boardFingerprint(board),
+    );
+    final position = engine.getBestMove(board);
+    if (position == null) return null;
+    return CaptureAiMove(
+      position: position,
+      score: _scoreMove(board, board.idx(position.row, position.col),
+          board.analyzeMove(position.row, position.col)),
+    );
+  }
+
+  double _scoreMove(
+    SimBoard board,
+    int moveIndex,
+    SimMoveAnalysis analysis,
+  ) {
+    return _scoreWithProfile(board, analysis, _profile);
+  }
+
+  int _boardFingerprint(SimBoard board) {
+    var hash = 17;
+    for (var i = 0; i < board.cells.length; i++) {
+      hash = 37 * hash + board.cells[i] * (i + 1);
+    }
+    hash = 37 * hash + board.currentPlayer;
+    hash = 37 * hash + board.capturedByBlack * 11;
+    hash = 37 * hash + board.capturedByWhite * 13;
+    return hash & 0x7fffffff;
   }
 }
 
@@ -528,13 +763,15 @@ class _CaptureAiProfile {
 
   static _CaptureAiProfile forStyle(
     CaptureAiStyle style,
-    DifficultyLevel difficulty,
-  ) {
-    final playouts = switch (difficulty) {
-      DifficultyLevel.beginner => 12,
-      DifficultyLevel.intermediate => 24,
-      DifficultyLevel.advanced => 48,
-    };
+    DifficultyLevel difficulty, {
+    int? playoutOverride,
+  }) {
+    final playouts = playoutOverride ??
+        switch (difficulty) {
+          DifficultyLevel.beginner => 12,
+          DifficultyLevel.intermediate => 24,
+          DifficultyLevel.advanced => 48,
+        };
 
     return switch (style) {
       CaptureAiStyle.adaptive => _CaptureAiProfile(
@@ -657,18 +894,7 @@ class _WeightedCaptureAiAgent implements CaptureAiAgent {
   }
 
   double _score(SimBoard board, SimMoveAnalysis analysis) {
-    final currentPlayer = board.currentPlayer;
-    final ownCaptured = currentPlayer == SimBoard.black
-        ? analysis.blackCaptureDelta
-        : analysis.whiteCaptureDelta;
-
-    return ownCaptured * _profile.immediateCaptureWeight +
-        analysis.opponentAtariStones * _profile.opponentAtariWeight +
-        analysis.ownRescuedStones * _profile.ownRescueWeight +
-        analysis.adjacentOpponentStones * _profile.contactWeight +
-        analysis.libertiesAfterMove * _profile.libertyWeight +
-        analysis.centerProximityScore * _profile.centerWeight -
-        analysis.ownAtariStones * _profile.selfAtariPenalty;
+    return _scoreWithProfile(board, analysis, _profile);
   }
 
   int _rolloutWithStyle(SimBoard board, int maxSteps) {
@@ -708,4 +934,23 @@ class _WeightedCaptureAiAgent implements CaptureAiAgent {
     }
     return bestMove?.position;
   }
+}
+
+double _scoreWithProfile(
+  SimBoard board,
+  SimMoveAnalysis analysis,
+  _CaptureAiProfile profile,
+) {
+  final currentPlayer = board.currentPlayer;
+  final ownCaptured = currentPlayer == SimBoard.black
+      ? analysis.blackCaptureDelta
+      : analysis.whiteCaptureDelta;
+
+  return ownCaptured * profile.immediateCaptureWeight +
+      analysis.opponentAtariStones * profile.opponentAtariWeight +
+      analysis.ownRescuedStones * profile.ownRescueWeight +
+      analysis.adjacentOpponentStones * profile.contactWeight +
+      analysis.libertiesAfterMove * profile.libertyWeight +
+      analysis.centerProximityScore * profile.centerWeight -
+      analysis.ownAtariStones * profile.selfAtariPenalty;
 }

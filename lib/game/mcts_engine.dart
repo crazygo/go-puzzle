@@ -3,6 +3,12 @@ import 'dart:math' as math;
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 
+typedef SimMoveScorer = double Function(
+  SimBoard board,
+  int moveIndex,
+  SimMoveAnalysis analysis,
+);
+
 class SimMoveAnalysis {
   const SimMoveAnalysis({
     required this.isLegal,
@@ -323,8 +329,23 @@ class _MctsNode {
     this.playerWhoMoved = 0,
   });
 
-  void initUntriedMoves(List<int> moves) {
-    _untriedMoves = List<int>.from(moves)..shuffle();
+  void initUntriedMoves(
+    List<int> moves, {
+    required SimBoard board,
+    required math.Random rng,
+    SimMoveScorer? scorer,
+    int? candidateLimit,
+  }) {
+    var orderedMoves = List<int>.from(moves);
+    if (scorer != null) {
+      orderedMoves = _rankMoves(board, orderedMoves, scorer);
+    } else {
+      orderedMoves.shuffle(rng);
+    }
+    if (candidateLimit != null && orderedMoves.length > candidateLimit) {
+      orderedMoves = orderedMoves.take(candidateLimit).toList();
+    }
+    _untriedMoves = orderedMoves.reversed.toList();
   }
 
   bool get hasUntriedMoves =>
@@ -347,10 +368,28 @@ class _MctsNode {
     return children.reduce((a, b) => a.visits > b.visits ? a : b);
   }
 
-  _MctsNode _selectUcbChild() {
-    return children.reduce(
-      (a, b) => a.ucb1(visits) > b.ucb1(visits) ? a : b,
-    );
+  static List<int> _rankMoves(
+    SimBoard board,
+    List<int> moves,
+    SimMoveScorer scorer,
+  ) {
+    final scored = <({int moveIndex, double score})>[];
+    for (final moveIndex in moves) {
+      final row = moveIndex ~/ board.size;
+      final col = moveIndex % board.size;
+      final analysis = board.analyzeMove(row, col);
+      if (!analysis.isLegal) continue;
+      scored.add((
+        moveIndex: moveIndex,
+        score: scorer(board, moveIndex, analysis),
+      ));
+    }
+    scored.sort((a, b) {
+      final byScore = b.score.compareTo(a.score);
+      if (byScore != 0) return byScore;
+      return a.moveIndex.compareTo(b.moveIndex);
+    });
+    return scored.map((entry) => entry.moveIndex).toList();
   }
 }
 
@@ -368,12 +407,23 @@ class _MctsNode {
 ///   • 入门  (beginner) : 200  playouts
 ///   • 进阶  (advanced) : 2000 playouts
 class MctsEngine {
+  MctsEngine({
+    this.maxPlayouts = 200,
+    this.rolloutDepth = 50,
+    this.exploration = 1.414,
+    this.candidateLimit,
+    this.moveScorer,
+    this.rolloutTemperature = 0,
+    int seed = 0,
+  }) : _rng = math.Random(seed);
+
   final int maxPlayouts;
-  static const int _rolloutDepth = 50;
-
+  final int rolloutDepth;
+  final double exploration;
+  final int? candidateLimit;
+  final SimMoveScorer? moveScorer;
+  final double rolloutTemperature;
   final math.Random _rng;
-
-  MctsEngine({this.maxPlayouts = 200}) : _rng = math.Random();
 
   /// Returns the best [BoardPosition] for the current player in [board],
   /// or null if the game is already over or no moves exist.
@@ -387,7 +437,13 @@ class MctsEngine {
     }
 
     final root = _MctsNode();
-    root.initUntriedMoves(moves);
+    root.initUntriedMoves(
+      moves,
+      board: board,
+      rng: _rng,
+      scorer: moveScorer,
+      candidateLimit: candidateLimit,
+    );
 
     for (int i = 0; i < maxPlayouts; i++) {
       final simBoard = SimBoard.copy(board);
@@ -412,7 +468,12 @@ class MctsEngine {
     while (!board.isTerminal &&
         !node.hasUntriedMoves &&
         node.children.isNotEmpty) {
-      node = node._selectUcbChild();
+      node = node.children.reduce(
+        (a, b) => a.ucb1(node.visits, c: exploration) >
+                b.ucb1(node.visits, c: exploration)
+            ? a
+            : b,
+      );
       board.applyMove(node.moveIdx ~/ board.size, node.moveIdx % board.size);
     }
 
@@ -428,7 +489,13 @@ class MctsEngine {
           moveIdx: moveIdx,
           playerWhoMoved: playerWhoMoved,
         );
-        child.initUntriedMoves(board.getLegalMoves());
+        child.initUntriedMoves(
+          board.getLegalMoves(),
+          board: board,
+          rng: _rng,
+          scorer: moveScorer,
+          candidateLimit: candidateLimit,
+        );
         node.children.add(child);
         node = child;
       }
@@ -440,10 +507,10 @@ class MctsEngine {
   /// Random playout until terminal or depth limit; returns the winner color.
   int _rollout(SimBoard board) {
     int depth = 0;
-    while (!board.isTerminal && depth < _rolloutDepth) {
+    while (!board.isTerminal && depth < rolloutDepth) {
       final moves = board.getLegalMoves();
       if (moves.isEmpty) break;
-      final moveIdx = moves[_rng.nextInt(moves.length)];
+      final moveIdx = _chooseRolloutMove(board, moves);
       board.applyMove(moveIdx ~/ board.size, moveIdx % board.size);
       depth++;
     }
@@ -467,5 +534,37 @@ class MctsEngine {
       }
       cur = cur.parent;
     }
+  }
+
+  int _chooseRolloutMove(SimBoard board, List<int> moves) {
+    final scorer = moveScorer;
+    if (scorer == null) return moves[_rng.nextInt(moves.length)];
+
+    if (rolloutTemperature <= 0) {
+      return _MctsNode._rankMoves(board, moves, scorer).first;
+    }
+
+    final scored = <({int moveIndex, double weight})>[];
+    var total = 0.0;
+    for (final moveIndex in moves) {
+      final row = moveIndex ~/ board.size;
+      final col = moveIndex % board.size;
+      final analysis = board.analyzeMove(row, col);
+      if (!analysis.isLegal) continue;
+      final score = scorer(board, moveIndex, analysis);
+      final weight = math.exp(score / rolloutTemperature);
+      if (weight.isFinite && weight > 0) {
+        scored.add((moveIndex: moveIndex, weight: weight));
+        total += weight;
+      }
+    }
+    if (scored.isEmpty || total <= 0) return moves[_rng.nextInt(moves.length)];
+
+    var ticket = _rng.nextDouble() * total;
+    for (final entry in scored) {
+      ticket -= entry.weight;
+      if (ticket <= 0) return entry.moveIndex;
+    }
+    return scored.last.moveIndex;
   }
 }
