@@ -401,6 +401,10 @@ class AiArenaScheduler {
   /// All events logged so far.
   List<AiLadderEvent> get events => List.unmodifiable(_events);
 
+  /// All registered candidates keyed by id.
+  Map<String, AiBattleConfig> get candidateMap =>
+      Map<String, AiBattleConfig>.unmodifiable(_candidateMap);
+
   /// Replaces the current ladder with [snapshot].
   ///
   /// Used when resuming from a persisted run: the caller supplies the ladder
@@ -656,8 +660,8 @@ class AiArenaAdjacentPairScheduler {
         final higherId = ids[higherIdx];
         final lowerId = ids[lowerIdx];
 
-        final configA = _scheduler._candidateMap[lowerId]!;
-        final configB = _scheduler._candidateMap[higherId]!;
+        final configA = _scheduler.candidateMap[lowerId]!;
+        final configB = _scheduler.candidateMap[higherId]!;
 
         final event = _scheduler.runMatch(configA, configB);
         allEvents.add(event);
@@ -675,6 +679,5 @@ class AiArenaAdjacentPairScheduler {
   }
 
   /// Exposes the scheduler candidates keyed by candidate id.
-  Map<String, AiBattleConfig> get candidateMap =>
-      Map<String, AiBattleConfig>.unmodifiable(_scheduler._candidateMap);
+  Map<String, AiBattleConfig> get candidateMap => _scheduler.candidateMap;
 }
