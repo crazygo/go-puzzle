@@ -637,7 +637,6 @@ void main() {
       final replayResult = AiArenaReplayer.replay(
         initialLadder: initialLadder,
         events: scheduler.events,
-        promotionThreshold: 7,
       );
 
       expect(replayResult.passed, isTrue,
@@ -719,7 +718,6 @@ void main() {
       final replayResult = AiArenaReplayer.replay(
         initialLadder: AiLadderSnapshot(sortedIds),
         events: accumulated,
-        promotionThreshold: 7,
       );
 
       expect(replayResult.passed, isTrue);

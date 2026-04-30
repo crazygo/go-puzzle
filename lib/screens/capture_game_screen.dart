@@ -854,8 +854,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     final savedBoardSize = prefs.getInt(_boardSizeKey);
     final savedInitialMode = prefs.getString(_initialModeKey);
 
-    // Read new difficulty keys.
-    String difficultyMode = prefs.getString(_difficultyModeKey) ?? 'auto';
+    // Read new difficulty keys; normalize unknown stored values to 'auto'.
+    final rawDifficultyMode = prefs.getString(_difficultyModeKey) ?? 'auto';
+    String difficultyMode =
+        (rawDifficultyMode == 'auto' || rawDifficultyMode == 'manual')
+            ? rawDifficultyMode
+            : 'auto';
     int manualRank = prefs.getInt(_manualRankKey) ?? AiRankLevel.defaultRank;
 
     // Migrate from legacy difficulty key if new keys haven't been set yet.

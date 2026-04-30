@@ -10,7 +10,10 @@ const String _executorVersion = 'ai_arena_executor_v1';
 /// The executor:
 /// - Alternates colors: configA plays black in even-indexed games (0,2,4,6,8)
 ///   and white in odd-indexed games (1,3,5,7,9).
-/// - Uses deterministic seeds derived from [matchSeed] and [openingSeed].
+/// - Derives per-game [gameSeed] and [openingIndex] values from [matchSeed] /
+///   [openingSeed] and records them in each [AiGameRecord] for auditability,
+///   but the current [CaptureAiArena.playMatch] API does not consume seeds, so
+///   game play is NOT deterministic from these values today.
 /// - Returns an [AiMatchResult] with no ranking interpretation.
 class AiArenaExecutor {
   const AiArenaExecutor({

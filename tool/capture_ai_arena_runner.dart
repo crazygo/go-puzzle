@@ -17,7 +17,7 @@ import 'ai_arena_artifact_writer.dart';
 /// Options:
 ///   --smoke                Run a minimal deterministic smoke test
 ///   --rounds <n>           Games per match (default: 10)
-///   --promotion-threshold  Wins required to promote (default: 7)
+///   --promotion-threshold <n>  Wins required to promote (default: 7)
 ///   --board-size <n>       Board size (default: 9)
 ///   --capture-target <n>   Capture target (default: 5)
 ///   --max-moves <n>        Max playout moves per game (default: 512)
@@ -97,6 +97,7 @@ void main(List<String> args) {
   // --- Resume detection ---
   int priorMatchCount = 0;
   AiLadderSnapshot? resumedLadder;
+  AiArenaResumeState? resumeState;
 
   if (!force && artifacts.canResume) {
     final savedManifest = artifacts.readManifest();
@@ -112,7 +113,7 @@ void main(List<String> args) {
     // Config matches — attempt to resume.
     final savedJsonl = artifacts.readMatchLog();
     try {
-      final resumeState = buildResumeState(
+      resumeState = buildResumeState(
         currentManifest: currentManifest,
         savedManifest: savedManifest,
         savedJsonl: savedJsonl,
@@ -132,6 +133,11 @@ void main(List<String> args) {
     } on AiArenaConfigMismatchException catch (e) {
       // Should not happen since we checked above, but be safe.
       print('ERROR: $e');
+      exitCode = 1;
+      return;
+    } on AiArenaCorruptedLogException catch (e) {
+      print('ERROR: $e');
+      print('       Use --force to discard prior results and start fresh.');
       exitCode = 1;
       return;
     }
@@ -163,9 +169,16 @@ void main(List<String> args) {
     matchCounterOffset: priorMatchCount,
   );
 
-  // If resuming, restore the scheduler's ladder to the reconstructed state.
+  // If resuming, restore the scheduler's ladder, last match id and event log.
   if (resumedLadder != null) {
-    scheduler.restoreLadder(resumedLadder);
+    final lastMatchId = resumeState?.loadedEvents.isNotEmpty == true
+        ? resumeState!.loadedEvents.last.matchId
+        : null;
+    scheduler.restoreLadder(
+      resumedLadder,
+      lastMatchId: lastMatchId,
+      events: resumeState?.loadedEvents,
+    );
   }
 
   final initialLadder = scheduler.ladder.copy();

@@ -111,13 +111,67 @@ class AiArenaResumeState {
   bool get isEmpty => loadedEvents.isEmpty;
 }
 
+/// Thrown when a persisted JSONL event line cannot be parsed during resume.
+///
+/// The [lineNumber] (1-based) and [line] identify the offending content so the
+/// log can be repaired manually.  A malformed *last* non-empty line is treated
+/// as a truncated interrupted write and is silently skipped; only earlier
+/// malformed lines throw this exception.
+class AiArenaInvalidJsonlEventException implements Exception {
+  const AiArenaInvalidJsonlEventException({
+    required this.lineNumber,
+    required this.line,
+    this.innerError,
+  });
+
+  final int lineNumber;
+  final String line;
+  final FormatException? innerError;
+
+  @override
+  String toString() =>
+      'AiArenaInvalidJsonlEventException: '
+      'Invalid AI arena event JSONL at line $lineNumber. '
+      'Repair or remove the malformed line before resuming. '
+      'Line: $line';
+}
+
 /// Parses a JSONL string and returns all valid [AiLadderEvent] lines.
+///
+/// A malformed final non-empty line is silently skipped (treated as a
+/// truncated interrupted write) so resume can continue from the last complete
+/// event.  Any malformed *earlier* line throws
+/// [AiArenaInvalidJsonlEventException] with the 1-based line number so the
+/// saved log can be repaired.
 List<AiLadderEvent> parseJsonlEvents(String jsonl) {
   final events = <AiLadderEvent>[];
-  for (final line in jsonl.split('\n')) {
-    final trimmed = line.trim();
+  final lines = jsonl.split('\n');
+
+  // Find the index of the last non-empty line so we can skip it on parse error.
+  var lastNonEmptyIndex = -1;
+  for (var i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].trim().isNotEmpty) {
+      lastNonEmptyIndex = i;
+      break;
+    }
+  }
+
+  for (var i = 0; i < lines.length; i++) {
+    final trimmed = lines[i].trim();
     if (trimmed.isEmpty) continue;
-    events.add(AiLadderEvent.fromJsonLine(trimmed));
+    try {
+      events.add(AiLadderEvent.fromJsonLine(trimmed));
+    } on FormatException catch (e) {
+      if (i == lastNonEmptyIndex) {
+        // Treat a malformed trailing line as an incomplete write; skip it.
+        break;
+      }
+      throw AiArenaInvalidJsonlEventException(
+        lineNumber: i + 1,
+        line: trimmed,
+        innerError: e,
+      );
+    }
   }
   return events;
 }
@@ -145,8 +199,11 @@ AiArenaResumeState buildResumeState({
   final replayResult = AiArenaReplayer.replay(
     initialLadder: initialLadder,
     events: events,
-    promotionThreshold: currentManifest.promotionThreshold,
   );
+
+  if (!replayResult.passed) {
+    throw AiArenaCorruptedLogException(mismatches: replayResult.hashMismatches);
+  }
 
   return AiArenaResumeState(
     loadedEvents: events,
@@ -171,6 +228,23 @@ class AiArenaConfigMismatchException implements Exception {
       'saved configHash=$savedHash does not match '
       'current configHash=$currentHash. '
       'Use --force to discard prior results and start fresh.';
+}
+
+/// Thrown when the saved JSONL log contains hash mismatches, indicating the
+/// event log has been corrupted or edited after writing.
+///
+/// Use `--force` to discard the corrupted log and start a fresh run.
+class AiArenaCorruptedLogException implements Exception {
+  const AiArenaCorruptedLogException({required this.mismatches});
+
+  final List<String> mismatches;
+
+  @override
+  String toString() =>
+      'AiArenaCorruptedLogException: '
+      'JSONL log replay found ${mismatches.length} hash mismatch(es). '
+      'The log may have been edited. Use --force to start fresh.\n'
+      '${mismatches.join('\n')}';
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +283,7 @@ String _canonicalJson(Object? value) {
   }
 }
 
-/// DJB2 hash over bytes, returned as a 16-character hex string.
+/// DJB2 hash over bytes, returned as an 8-character hex string.
 String _stableDjb2Hex(List<int> bytes) {
   var h = 5381;
   for (final b in bytes) {
@@ -332,8 +406,23 @@ class AiArenaScheduler {
   /// Used when resuming from a persisted run: the caller supplies the ladder
   /// state reconstructed by [AiArenaReplayer] from the saved JSONL, so that
   /// new matches continue from exactly the same state as the interrupted run.
-  void restoreLadder(AiLadderSnapshot snapshot) {
+  ///
+  /// When resuming, [lastMatchId] should be the most recent persisted event's
+  /// match id so that the next appended [AiLadderEvent.previousMatchId] links
+  /// back to the existing audit trail.  If [events] are provided, the
+  /// in-memory event log is also restored to match the persisted run state.
+  void restoreLadder(
+    AiLadderSnapshot snapshot, {
+    String? lastMatchId,
+    List<AiLadderEvent>? events,
+  }) {
     _ladder = snapshot.copy();
+    _lastMatchId = lastMatchId;
+    if (events != null) {
+      _events
+        ..clear()
+        ..addAll(events);
+    }
   }
 
   /// Runs a single head-to-head match between [configA] and [configB],
@@ -475,7 +564,6 @@ class AiArenaReplayer {
   static AiReplayResult replay({
     required AiLadderSnapshot initialLadder,
     required List<AiLadderEvent> events,
-    int promotionThreshold = 7,
   }) {
     final ladder = initialLadder.copy();
     final mismatches = <String>[];
@@ -586,5 +674,7 @@ class AiArenaAdjacentPairScheduler {
     return allEvents;
   }
 
-  // Expose candidate map for convenience.
+  /// Exposes the scheduler candidates keyed by candidate id.
+  Map<String, AiBattleConfig> get candidateMap =>
+      Map<String, AiBattleConfig>.unmodifiable(_scheduler._candidateMap);
 }
