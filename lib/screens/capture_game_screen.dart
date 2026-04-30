@@ -3652,7 +3652,6 @@ class _HistoryEmptyState extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           CustomPaint(
             size: const Size(44, 44),
