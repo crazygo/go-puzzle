@@ -41,6 +41,11 @@ void main(List<String> args) {
   final captureTarget =
       int.tryParse(opts['capture-target'] as String? ?? '5') ?? 5;
   final maxMoves = int.tryParse(opts['max-moves'] as String? ?? '512') ?? 512;
+  if (maxMoves < 1) {
+    stderr.writeln('ERROR: --max-moves must be >= 1 (got $maxMoves).');
+    exitCode = 1;
+    return;
+  }
   final isSmoke = opts['smoke'] as bool? ?? false;
   final force = opts['force'] as bool? ?? false;
   const baseSeed = 20260430;
