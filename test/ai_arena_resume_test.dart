@@ -28,9 +28,7 @@ class _FakeExecutor {
         gameSeed: matchSeed * 1000 + i,
         openingIndex: i % 9,
         black: i.isEven ? 'a' : 'b',
-        winner: i < fixedAWins
-            ? 'a'
-            : (i < totalGames ? 'b' : 'draw'),
+        winner: i < fixedAWins ? 'a' : (i < totalGames ? 'b' : 'draw'),
         moves: 40,
         blackCaptures: 5,
         whiteCaptures: 3,
@@ -60,10 +58,9 @@ class _TestScheduler {
   _TestScheduler({
     required List<AiBattleConfig> candidates,
     required _FakeExecutor fakeExecutor,
-    this.promotionThreshold = 7,
     int matchCounterOffset = 0,
-  }) : _fake = fakeExecutor,
-       _matchCounter = matchCounterOffset {
+  })  : _fake = fakeExecutor,
+        _matchCounter = matchCounterOffset {
     final sorted = List<AiBattleConfig>.from(candidates)
       ..sort((a, b) => a.id.compareTo(b.id));
     _candidateMap = {for (final c in sorted) c.id: c};
@@ -72,7 +69,7 @@ class _TestScheduler {
   }
 
   final _FakeExecutor _fake;
-  final int promotionThreshold;
+  final int promotionThreshold = 7;
   late final Map<String, AiBattleConfig> _candidateMap;
   late AiLadderSnapshot _ladder;
   String? _lastMatchId;
@@ -155,8 +152,7 @@ class _TestScheduler {
         winner: null,
         loser: null,
         decision: 'inconclusive',
-        reason:
-            'aWins(${result.aWins}) and bWins(${result.bWins}) '
+        reason: 'aWins(${result.aWins}) and bWins(${result.bWins}) '
             'both < $promotionThreshold',
         before: before,
         after: _ladder.ids.toList(),
@@ -350,8 +346,7 @@ void main() {
       wrong.runMatch(_config('beta'), _config('gamma'));
 
       expect(wrong.ladder.hash, isNot(correctFinalHash),
-          reason:
-              'Without restoreLadder, match 2 sees wrong initial state and '
+          reason: 'Without restoreLadder, match 2 sees wrong initial state and '
               'produces a different (incorrect) final ladder');
     });
   });
@@ -530,6 +525,20 @@ void main() {
       expect(baseManifest.isCompatibleWith(other), isFalse);
     });
 
+    test('changing maxMoves changes the configHash', () {
+      final other = AiArenaRunManifest(
+        candidateIds: baseIds,
+        boardSize: 9,
+        captureTarget: 5,
+        rounds: 10,
+        promotionThreshold: 7,
+        baseSeed: 20260430,
+        maxMoves: 128,
+      );
+      expect(baseManifest.configHash, isNot(other.configHash));
+      expect(baseManifest.isCompatibleWith(other), isFalse);
+    });
+
     test('buildResumeState throws AiArenaConfigMismatchException on mismatch',
         () {
       final differentManifest = AiArenaRunManifest(
@@ -589,6 +598,7 @@ void main() {
       expect(restored.rounds, baseManifest.rounds);
       expect(restored.promotionThreshold, baseManifest.promotionThreshold);
       expect(restored.baseSeed, baseManifest.baseSeed);
+      expect(restored.maxMoves, baseManifest.maxMoves);
     });
   });
 
@@ -631,7 +641,8 @@ void main() {
       );
 
       expect(replayResult.passed, isTrue,
-          reason: 'No hash mismatches expected: ${replayResult.hashMismatches}');
+          reason:
+              'No hash mismatches expected: ${replayResult.hashMismatches}');
       expect(replayResult.finalLadder.hash, liveFinalHash,
           reason: 'Hash from replay must match live final hash');
       expect(replayResult.finalLadder.ids, liveIds,
@@ -724,7 +735,7 @@ void main() {
   // -------------------------------------------------------------------------
   group('AiArenaRunManifest', () {
     test('configHash is prefixed with "djb2:"', () {
-      final m = AiArenaRunManifest(
+      const m = AiArenaRunManifest(
         candidateIds: ['x'],
         boardSize: 9,
         captureTarget: 5,
@@ -736,7 +747,7 @@ void main() {
     });
 
     test('toJson includes configHash field', () {
-      final m = AiArenaRunManifest(
+      const m = AiArenaRunManifest(
         candidateIds: ['x'],
         boardSize: 9,
         captureTarget: 5,
@@ -745,6 +756,7 @@ void main() {
         baseSeed: 1,
       );
       expect(m.toJson()['configHash'], m.configHash);
+      expect(m.toJson()['maxMoves'], 512);
     });
 
     test('empty JSONL produces empty event list', () {

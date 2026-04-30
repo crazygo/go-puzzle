@@ -1,5 +1,4 @@
 // ignore_for_file: avoid_print
-import 'dart:convert' show JsonEncoder, jsonDecode;
 import 'dart:io';
 
 import 'package:go_puzzle/game/ai_arena_ladder.dart';
@@ -7,6 +6,8 @@ import 'package:go_puzzle/game/ai_arena_executor.dart';
 import 'package:go_puzzle/game/ai_arena_scheduler.dart';
 import 'package:go_puzzle/game/capture_ai.dart';
 import 'package:go_puzzle/game/difficulty_level.dart';
+
+import 'ai_arena_artifact_writer.dart';
 
 /// Developer runner for the AI arena ladder.
 ///
@@ -19,28 +20,47 @@ import 'package:go_puzzle/game/difficulty_level.dart';
 ///   --promotion-threshold  Wins required to promote (default: 7)
 ///   --board-size <n>       Board size (default: 9)
 ///   --capture-target <n>   Capture target (default: 5)
-///   --output <path>        Path for matches JSONL (default: build/ai_arena/matches.jsonl)
-///   --snapshot <path>      Path for ladder snapshot JSON (default: build/ai_arena/ladder.json)
+///   --max-moves <n>        Max playout moves per game (default: 512)
+///   --output-log <path>    Path for local matches JSONL (default: build/ai_arena/matches.jsonl)
+///   --output-ladder <path> Path for latest ladder JSON (default: docs/ai_arena/latest_ladder.json)
+///   --no-log               Skip local JSONL match log output and resume
 ///   --manifest <path>      Path for run manifest JSON (default: build/ai_arena/manifest.json)
+///   --output <path>        Deprecated alias for --output-log
+///   --snapshot <path>      Deprecated alias for --output-ladder
 ///   --force                Discard any prior results and start fresh
 void main(List<String> args) {
   final opts = _parseArgs(args);
 
-  final outputPath =
-      opts['output'] as String? ?? 'build/ai_arena/matches.jsonl';
-  final snapshotPath =
-      opts['snapshot'] as String? ?? 'build/ai_arena/ladder.json';
+  if (opts.containsKey('output')) {
+    print('DEPRECATED: --output is now --output-log.');
+  }
+  if (opts.containsKey('snapshot')) {
+    print('DEPRECATED: --snapshot is now --output-ladder.');
+  }
+
+  final outputLogPath = opts['output-log'] as String? ??
+      opts['output'] as String? ??
+      'build/ai_arena/matches.jsonl';
+  final outputLadderPath = opts['output-ladder'] as String? ??
+      opts['snapshot'] as String? ??
+      'docs/ai_arena/latest_ladder.json';
   final manifestPath =
       opts['manifest'] as String? ?? 'build/ai_arena/manifest.json';
   final rounds = int.tryParse(opts['rounds'] as String? ?? '10') ?? 10;
   final promotionThreshold =
       int.tryParse(opts['promotion-threshold'] as String? ?? '7') ?? 7;
-  final boardSize =
-      int.tryParse(opts['board-size'] as String? ?? '9') ?? 9;
+  final boardSize = int.tryParse(opts['board-size'] as String? ?? '9') ?? 9;
   final captureTarget =
       int.tryParse(opts['capture-target'] as String? ?? '5') ?? 5;
+  final maxMoves = int.tryParse(opts['max-moves'] as String? ?? '512') ?? 512;
+  if (maxMoves < 1) {
+    stderr.writeln('ERROR: --max-moves must be >= 1 (got $maxMoves).');
+    exitCode = 1;
+    return;
+  }
   final isSmoke = opts['smoke'] as bool? ?? false;
   final force = opts['force'] as bool? ?? false;
+  final noLog = opts['no-log'] as bool? ?? false;
   const baseSeed = 20260430;
 
   final candidates = isSmoke ? _smokeCandidates() : _defaultCandidates();
@@ -53,32 +73,33 @@ void main(List<String> args) {
     rounds: rounds,
     promotionThreshold: promotionThreshold,
     baseSeed: baseSeed,
+    maxMoves: maxMoves,
+  );
+
+  final artifacts = AiArenaArtifactWriter(
+    ladderPath: outputLadderPath,
+    logPath: noLog ? null : outputLogPath,
+    manifestPath: manifestPath,
   );
 
   print('=== AI Arena Ladder Runner ===');
   print('Candidates: ${candidates.map((c) => c.id).join(', ')}');
   print('Rounds per match: $rounds');
   print('Promotion threshold: $promotionThreshold');
-  print('Board: ${boardSize}x$boardSize, capture target: $captureTarget');
+  print(
+      'Board: ${boardSize}x$boardSize, capture target: $captureTarget, max moves: $maxMoves');
   print('Config hash: ${currentManifest.configHash}');
   print('');
 
   // --- Ensure output directories exist ---
-  _ensureDir(outputPath);
-  _ensureDir(snapshotPath);
-  _ensureDir(manifestPath);
+  artifacts.prepare();
 
   // --- Resume detection ---
-  final manifestFile = File(manifestPath);
-  final outputFile = File(outputPath);
-
   int priorMatchCount = 0;
   AiLadderSnapshot? resumedLadder;
 
-  if (!force && manifestFile.existsSync() && outputFile.existsSync()) {
-    final savedManifestJson =
-        jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
-    final savedManifest = AiArenaRunManifest.fromJson(savedManifestJson);
+  if (!force && artifacts.canResume) {
+    final savedManifest = artifacts.readManifest();
 
     if (!currentManifest.isCompatibleWith(savedManifest)) {
       print('ERROR: Saved manifest (${savedManifest.configHash}) does not '
@@ -89,7 +110,7 @@ void main(List<String> args) {
     }
 
     // Config matches — attempt to resume.
-    final savedJsonl = outputFile.readAsStringSync();
+    final savedJsonl = artifacts.readMatchLog();
     try {
       final resumeState = buildResumeState(
         currentManifest: currentManifest,
@@ -103,7 +124,7 @@ void main(List<String> args) {
         resumedLadder = resumeState.reconstructedLadder;
         print(
           'Resuming from prior run: '
-          '${priorMatchCount} match(es) already completed.',
+          '$priorMatchCount match(es) already completed.',
         );
         print('Reconstructed ladder: ${resumedLadder.ids.join(' > ')}');
         print('');
@@ -114,11 +135,14 @@ void main(List<String> args) {
       exitCode = 1;
       return;
     }
+  } else if (noLog) {
+    print('Match logging disabled; starting from a fresh in-memory run.');
+    print('');
   }
 
   // Write (or overwrite) manifest for this run.
-  if (force || !manifestFile.existsSync()) {
-    manifestFile.writeAsStringSync(_prettyJson(currentManifest.toJson()));
+  if (force || !artifacts.manifestFile.existsSync() || !artifacts.canResume) {
+    artifacts.writeManifest(currentManifest);
   }
 
   // --- Build executor and scheduler ---
@@ -126,7 +150,7 @@ void main(List<String> args) {
     boardSize: boardSize,
     captureTarget: captureTarget,
     rounds: rounds,
-    maxMoves: 512,
+    maxMoves: maxMoves,
   );
 
   final scheduler = AiArenaScheduler(
@@ -164,8 +188,20 @@ void main(List<String> args) {
     final configB = candidates.firstWhere((c) => c.id == higherId);
     final event = scheduler.runMatch(configA, configB);
     newEvents.add(event);
+    final completedMatches = priorMatchCount + newEvents.length;
+    if (artifacts.writesMatchLog) {
+      artifacts.writeMatchLogLine(
+        event,
+        append: completedMatches > 1,
+      );
+    }
+    artifacts.writeLatestLadder(
+      scheduler.ladder,
+      manifest: currentManifest,
+      completedMatches: completedMatches,
+    );
     print(
-      'Match ${priorMatchCount + newEvents.length}: '
+      'Match $completedMatches: '
       '${configA.id} vs ${configB.id} → '
       '${event.schedulerDecision.decision} '
       '(a:${event.rawResult.aWins} b:${event.rawResult.bWins} '
@@ -180,36 +216,34 @@ void main(List<String> args) {
   print('Final ladder hash: ${finalLadder.hash}');
   print(
     'Total matches: ${priorMatchCount + newEvents.length} '
-    '(${priorMatchCount} prior + ${newEvents.length} new)',
+    '($priorMatchCount prior + ${newEvents.length} new)',
   );
 
-  // --- Append new events to JSONL (preserve prior results on resume) ---
-  if (newEvents.isNotEmpty) {
-    // When resuming, append to the existing log.
-    // When starting fresh (force or first run), overwrite so old results
-    // from an incompatible run are not mixed in.
-    final mode =
-        priorMatchCount > 0 ? FileMode.append : FileMode.write;
-    final sink = outputFile.openWrite(mode: mode);
-    for (final event in newEvents) {
-      sink.writeln(event.toJsonLine());
-    }
-    sink.closeSync();
-  } else if (force) {
-    // force flag with no new events → truncate to empty.
-    outputFile.writeAsStringSync('');
+  // If force produced no new events, truncate any stale local log.
+  if (artifacts.writesMatchLog && newEvents.isEmpty && force) {
+    artifacts.clearMatchLog();
   }
 
   // Write ladder snapshot (always overwrite with final state).
-  File(snapshotPath).writeAsStringSync(_prettyJson(finalLadder.toJson()));
+  artifacts.writeLatestLadder(
+    finalLadder,
+    manifest: currentManifest,
+    completedMatches: priorMatchCount + newEvents.length,
+  );
 
   print('');
-  print('Output: $outputPath');
-  print('Snapshot: $snapshotPath');
+  if (artifacts.writesMatchLog) {
+    print('Local match log: $outputLogPath');
+  } else {
+    print('Local match log: disabled');
+  }
+  print('Latest ladder: $outputLadderPath');
   print('Manifest: $manifestPath');
 
   // --- Decision replay verification (all events, including prior) ---
-  final allEvents = parseJsonlEvents(outputFile.readAsStringSync());
+  final allEvents = artifacts.writesMatchLog
+      ? parseJsonlEvents(artifacts.readMatchLog())
+      : newEvents;
   final replayInitialLadder = AiLadderSnapshot(sortedIds);
   final replayResult = AiArenaReplayer.replay(
     initialLadder: replayInitialLadder,
@@ -233,17 +267,18 @@ void main(List<String> args) {
   }
 
   // Verify outputs are non-empty.
-  final matchesContent = outputFile.readAsStringSync();
-  final snapshotContent = File(snapshotPath).readAsStringSync();
+  final matchesContent =
+      artifacts.writesMatchLog ? artifacts.readMatchLog() : 'disabled';
+  final snapshotContent = artifacts.ladderFile.readAsStringSync();
 
-  if (matchesContent.trim().isEmpty) {
+  if (artifacts.writesMatchLog && matchesContent.trim().isEmpty) {
     print('ERROR: matches.jsonl is empty!');
     exitCode = 1;
   } else if (snapshotContent.trim().isEmpty) {
-    print('ERROR: ladder.json is empty!');
+    print('ERROR: latest ladder JSON is empty!');
     exitCode = 1;
   } else {
-    print('Artifact check: PASSED ✓ (both files are non-empty)');
+    print('Artifact check: PASSED ✓');
   }
 }
 
@@ -281,23 +316,11 @@ List<AiBattleConfig> _defaultCandidates() {
   return configs;
 }
 
-void _ensureDir(String filePath) {
-  final dir = File(filePath).parent;
-  if (!dir.existsSync()) {
-    dir.createSync(recursive: true);
-  }
-}
-
-String _prettyJson(Map<String, dynamic> json) {
-  const encoder = JsonEncoder.withIndent('  ');
-  return encoder.convert(json);
-}
-
 Map<String, Object?> _parseArgs(List<String> args) {
   final opts = <String, Object?>{};
   for (var i = 0; i < args.length; i++) {
     final arg = args[i];
-    if (arg == '--smoke' || arg == '--force') {
+    if (arg == '--smoke' || arg == '--force' || arg == '--no-log') {
       opts[arg.substring(2)] = true;
     } else if (arg.startsWith('--') && i + 1 < args.length) {
       opts[arg.substring(2)] = args[i + 1];

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "configHash": "djb2:5093fd3d",
+  "boardSize": 9,
+  "captureTarget": 5,
+  "rounds": 10,
+  "promotionThreshold": 7,
+  "maxMoves": 512,
+  "candidateCount": 15,
+  "completedMatches": 14,
+  "ladder": [
+    "adaptive_advanced_v1",
+    "adaptive_beginner_v1",
+    "adaptive_intermediate_v1",
+    "counter_advanced_v1",
+    "counter_beginner_v1",
+    "counter_intermediate_v1",
+    "hunter_advanced_v1",
+    "hunter_intermediate_v1",
+    "hunter_beginner_v1",
+    "switcher_advanced_v1",
+    "switcher_beginner_v1",
+    "switcher_intermediate_v1",
+    "trapper_advanced_v1",
+    "trapper_beginner_v1",
+    "trapper_intermediate_v1"
+  ],
+  "hash": "djb2:07b9dcb6"
+}
