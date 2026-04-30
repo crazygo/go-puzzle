@@ -200,7 +200,7 @@ class _Section extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          padding: kPageSectionTitlePadding,
           child: Text(
             title.toUpperCase(),
             style: TextStyle(
@@ -212,15 +212,16 @@ class _Section extends StatelessWidget {
           ),
         ),
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
+          margin: kPageSectionCardMargin,
           decoration: BoxDecoration(
-            color: CupertinoColors.systemBackground.resolveFrom(context),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
+            color: const Color(0xF7FFFDF9),
+            borderRadius: BorderRadius.circular(kPageSectionCardRadius),
+            border: Border.all(color: const Color(0x26D8C1A4)),
+            boxShadow: const [
               BoxShadow(
-                color: CupertinoColors.systemGrey.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+                color: Color(0x0A000000),
+                blurRadius: 24,
+                offset: Offset(0, 10),
               ),
             ],
           ),
@@ -250,7 +251,7 @@ class _SwitchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: kPageSectionRowPadding,
       child: Row(
         children: [
           Expanded(
@@ -290,7 +291,7 @@ class _ThemeSegmentedRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.appPalette;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: kPageSectionRowPadding,
       child: Row(
         children: [
           const Expanded(
@@ -340,7 +341,7 @@ class _SettingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: kPageSectionRowPadding,
       child: Row(
         children: [
           Expanded(
@@ -376,7 +377,7 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: kPageSectionRowPadding,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -407,7 +408,7 @@ class _TapRow extends StatelessWidget {
       padding: EdgeInsets.zero,
       onPressed: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: kPageSectionRowPadding,
         child: Row(
           children: [
             Expanded(

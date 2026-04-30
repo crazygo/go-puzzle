@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -540,6 +541,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             const cardTop = kPageHeroContentOffset + 8;
+            final heroTitleTop = MediaQuery.of(context).padding.top + 36;
 
             return Stack(
               children: [
@@ -549,7 +551,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   right: 0,
                   child: PageHeroBanner(
                     title: _CaptureCopy.pageTitle,
-                    subtitle: _CaptureCopy.pageSubtitle,
+                    titleWidget: const SizedBox.shrink(),
                     showOrbitalArt: false,
                   ),
                 ),
@@ -566,13 +568,17 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              const _OuterSectionTitle(
+                                title: '下一盘',
+                                isVisible: false,
+                              ),
+                              const SizedBox(height: 8),
                               _SectionCard(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     _PracticeHeader(
-                                      title: '下一盘',
-                                      subtitle: '先吃$_captureTarget子为胜',
+                                      title: '先吃$_captureTarget子为胜',
                                       isAdjusting: _isAdjusting,
                                       onAdjustTap: () => setState(
                                         () => _isAdjusting = !_isAdjusting,
@@ -586,11 +592,17 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                         selectedValue: _boardSize,
                                         options: const [
                                           _SegmentOption(
-                                              value: 9, label: '9 路'),
+                                            value: 9,
+                                            label: '9 路',
+                                          ),
                                           _SegmentOption(
-                                              value: 13, label: '13 路'),
+                                            value: 13,
+                                            label: '13 路',
+                                          ),
                                           _SegmentOption(
-                                              value: 19, label: '19 路'),
+                                            value: 19,
+                                            label: '19 路',
+                                          ),
                                         ],
                                         onChanged: (value) =>
                                             _updateSelection(boardSize: value),
@@ -689,6 +701,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                Positioned(
+                  top: heroTitleTop,
+                  left: 24,
+                  right: 16,
+                  child: _MotivationHeroTitle(
+                    title: _CaptureCopy.pageTitle,
+                    motivation: _CaptureCopy.motivation,
                   ),
                 ),
                 if (kIsWeb && developerMode)
@@ -2161,7 +2182,7 @@ class _RgbEditor extends StatelessWidget {
 class _CaptureCopy {
   static const pageTitle = '小闲围棋';
 
-  static const _subtitles = [
+  static const _motivations = [
     '围棋让我放松',
     '下棋使我更平静',
     '我在这里是专注的',
@@ -2216,19 +2237,222 @@ class _CaptureCopy {
 
   static const _millisecondsPerHour = 1000 * 3600;
 
-  /// Returns a subtitle that is stable within the same hour but rotates
+  /// Returns a motivation line that is stable within the same hour but rotates
   /// across hours, using hours-since-epoch as the seed so the same clock
   /// hour on different days shows different sentences.
-  static String get pageSubtitle {
+  static String get motivation {
     final hoursSinceEpoch =
         DateTime.now().millisecondsSinceEpoch ~/ _millisecondsPerHour;
-    final index = Random(hoursSinceEpoch).nextInt(_subtitles.length);
-    return _subtitles[index];
+    final index = Random(hoursSinceEpoch).nextInt(_motivations.length);
+    return _motivations[index];
+  }
+
+  static String randomMotivation({String? except}) {
+    if (_motivations.length == 1) {
+      return _motivations.first;
+    }
+    final candidates = except == null
+        ? _motivations
+        : _motivations.where((motivation) => motivation != except).toList();
+    return candidates[Random().nextInt(candidates.length)];
   }
 
   static const startAsBlackButton = '执黑先行';
   static const startAsWhiteButton = '执白后行';
   static const startSetupButton = '开始';
+}
+
+class _MotivationHeroTitle extends StatefulWidget {
+  const _MotivationHeroTitle({
+    required this.title,
+    required this.motivation,
+  });
+
+  final String title;
+  final String motivation;
+
+  @override
+  State<_MotivationHeroTitle> createState() => _MotivationHeroTitleState();
+}
+
+class _MotivationHeroTitleState extends State<_MotivationHeroTitle>
+    with SingleTickerProviderStateMixin {
+  static bool _hasPlayedInProcess = false;
+
+  static const _holdDuration = Duration(seconds: 5);
+  static const _transitionDuration = Duration(milliseconds: 900);
+
+  late final AnimationController _controller;
+  late final Animation<double> _curve;
+  late String _currentMotivation;
+  Timer? _holdTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentMotivation = widget.motivation;
+    final shouldPlayIntro = !_hasPlayedInProcess;
+    _hasPlayedInProcess = true;
+    _controller = AnimationController(
+      vsync: this,
+      duration: _transitionDuration,
+      value: shouldPlayIntro ? 0 : 1,
+    );
+    _curve = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    if (shouldPlayIntro) {
+      _holdTimer = Timer(_holdDuration, () {
+        if (mounted) {
+          _controller.forward();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _holdTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleTitleTap() {
+    _holdTimer?.cancel();
+    if (_controller.isAnimating) {
+      _controller.forward();
+      return;
+    }
+    if (_controller.status != AnimationStatus.completed) {
+      _controller.forward();
+      return;
+    }
+    setState(() {
+      _currentMotivation =
+          _CaptureCopy.randomMotivation(except: _currentMotivation);
+    });
+  }
+
+  Widget _buildMotivationText(TextStyle style) {
+    return RichText(
+      key: ValueKey(_currentMotivation),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: '‘ ',
+            style: style.copyWith(
+              fontSize: 38,
+              fontWeight: FontWeight.w900,
+              color: CupertinoColors.secondaryLabel.resolveFrom(context),
+              height: 1.0,
+            ),
+          ),
+          TextSpan(
+            text: _currentMotivation,
+            style: style,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMotivationSwitcher(TextStyle style) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 420),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        final offset = Tween<Offset>(
+          begin: const Offset(0, 0.18),
+          end: Offset.zero,
+        ).animate(animation);
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: offset,
+            child: child,
+          ),
+        );
+      },
+      child: _buildMotivationText(style),
+    );
+  }
+
+  void _handleMotivationTap() {
+    if (_controller.status != AnimationStatus.completed ||
+        _controller.isAnimating) {
+      return;
+    }
+    setState(() {
+      _currentMotivation =
+          _CaptureCopy.randomMotivation(except: _currentMotivation);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final style = TextStyle(
+      fontSize: 28,
+      fontWeight: FontWeight.w800,
+      color: palette.heroTitle,
+      height: 1.12,
+    );
+
+    return SizedBox(
+      height: 72,
+      child: AnimatedBuilder(
+        animation: _curve,
+        builder: (context, _) {
+          final progress = _curve.value;
+          return Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topLeft,
+            children: [
+              Opacity(
+                opacity: 1 - progress,
+                child: IgnorePointer(
+                  ignoring: progress >= 0.5,
+                  child: Transform.translate(
+                    offset: Offset(0, -10 * progress),
+                    child: GestureDetector(
+                      onTap: _handleTitleTap,
+                      child: Text(
+                        widget.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: style,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Opacity(
+                opacity: progress,
+                child: IgnorePointer(
+                  ignoring: progress < 0.5,
+                  child: Transform.translate(
+                    offset: Offset(0, 10 * (1 - progress)),
+                    child: Transform.scale(
+                      scale: 0.98 + 0.02 * progress,
+                      alignment: Alignment.topLeft,
+                      child: GestureDetector(
+                        onTap: _handleMotivationTap,
+                        child: _buildMotivationSwitcher(style),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 String _initialModeLabel(CaptureInitialMode mode) {
@@ -2338,10 +2562,10 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+      padding: kPageSectionCardPadding,
       decoration: BoxDecoration(
         color: const Color(0xF7FFFDF9),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(kPageSectionCardRadius),
         border: Border.all(color: const Color(0x26D8C1A4)),
         boxShadow: const [
           BoxShadow(
@@ -2374,16 +2598,43 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
+class _OuterSectionTitle extends StatelessWidget {
+  const _OuterSectionTitle({
+    required this.title,
+    this.isVisible = true,
+  });
+
+  final String title;
+  final bool isVisible;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: isVisible
+              ? CupertinoColors.secondaryLabel.resolveFrom(context)
+              : CupertinoColors.transparent,
+        ),
+      ),
+    );
+  }
+}
+
 class _PracticeHeader extends StatelessWidget {
   const _PracticeHeader({
     required this.title,
-    required this.subtitle,
     required this.isAdjusting,
     required this.onAdjustTap,
   });
 
   final String title;
-  final String subtitle;
   final bool isAdjusting;
   final VoidCallback onAdjustTap;
 
@@ -2405,18 +2656,6 @@ class _PracticeHeader extends StatelessWidget {
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF3A2A1F),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF8C7966),
                   ),
                 ),
               ),
