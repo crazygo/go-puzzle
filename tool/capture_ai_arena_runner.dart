@@ -141,7 +141,9 @@ void main(List<String> args) {
   }
 
   // Write (or overwrite) manifest for this run.
-  if (force || !artifacts.manifestFile.existsSync() || !artifacts.canResume) {
+  // Avoid clobbering an existing resumable manifest when --no-log disables
+  // resume for the current invocation.
+  if (force || !artifacts.manifestFile.existsSync() || !noLog) {
     artifacts.writeManifest(currentManifest);
   }
 
