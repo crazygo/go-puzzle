@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_puzzle/game/ai_rank_level.dart';
 import 'package:go_puzzle/game/capture_ai.dart';
 import 'package:go_puzzle/game/go_engine.dart';
 import 'package:go_puzzle/game/mcts_engine.dart';
@@ -52,7 +53,7 @@ void main() {
         difficulty: DifficultyLevel.beginner,
       );
 
-      expect(provider.aiStyle, CaptureAiStyle.hunter);
+      expect(provider.aiStyle, CaptureAiStyle.adaptive);
 
       provider.setAiStyle(CaptureAiStyle.counter);
       expect(provider.aiStyle, CaptureAiStyle.counter);
@@ -115,7 +116,7 @@ void main() {
               ChangeNotifierProvider.value(value: provider),
             ],
             child: const CaptureGamePlayScreen(
-              difficulty: DifficultyLevel.beginner,
+              aiRank: AiRankLevel.min,
               captureTarget: 5,
             ),
           ),
@@ -129,9 +130,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('对局配置'), findsOneWidget);
-      expect(find.text('猎杀'), findsOneWidget);
+      expect(find.text('随机'), findsOneWidget);
 
-      await tester.tap(find.text('猎杀'));
+      await tester.tap(find.text('随机'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('稳守 · 先补强自己，再等反击'));

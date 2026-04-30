@@ -27,6 +27,15 @@ class GameHistoryRepository {
     return records;
   }
 
+  /// Returns all stored records in chronological order (oldest first).
+  ///
+  /// Use this when replaying history to compute the current player rank via
+  /// [PlayerRankRepository.computeCurrentRank].
+  Future<List<GameRecord>> loadAllChronological() async {
+    final records = await loadAll();
+    return records.reversed.toList();
+  }
+
   /// Persists [record], replacing an existing entry with the same [GameRecord.id]
   /// if present.  Trims the list to [maxRecords].
   Future<void> save(GameRecord record) async {

@@ -103,7 +103,7 @@ class CaptureGameProvider extends ChangeNotifier {
     return board.length == size && board.every((row) => row.length == size);
   }
 
-  CaptureAiStyle _aiStyle = CaptureAiStyle.hunter;
+  CaptureAiStyle _aiStyle = CaptureAiStyle.adaptive;
   CaptureAiAgent? _cachedAgent;
 
   late GameState _gameState;

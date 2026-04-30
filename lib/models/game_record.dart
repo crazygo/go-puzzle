@@ -42,6 +42,8 @@ class GameRecord {
     required this.outcome,
     this.initialBoardCells,
     this.finalBoard,
+    this.aiRank,
+    this.aiStyleName,
   });
 
   /// ISO-8601 string used as a unique key, e.g. "2024-01-15T10:30:00.000000".
@@ -76,9 +78,20 @@ class GameRecord {
   /// Each inner list is a row of StoneColor.index values.
   final List<List<int>>? finalBoard;
 
+  /// The AI rank (1–28) used in this game, or null for records created before
+  /// the rank system was introduced.
+  final int? aiRank;
+
+  /// The [CaptureAiStyle.name] string for the AI used in this game, or null
+  /// for older records.
+  final String? aiStyleName;
+
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  /// Convenience getter: true when the human player won.
+  bool get playerWon => outcome == GameOutcome.humanWins;
 
   DifficultyLevel get difficultyLevel =>
       DifficultyLevel.values.firstWhere((v) => v.name == difficulty,
@@ -107,6 +120,8 @@ class GameRecord {
         'moves': moves,
         'outcome': outcome.name,
         'finalBoard': finalBoard,
+        if (aiRank != null) 'aiRank': aiRank,
+        if (aiStyleName != null) 'aiStyleName': aiStyleName,
       };
 
   factory GameRecord.fromJson(Map<String, dynamic> json) {
@@ -133,6 +148,8 @@ class GameRecord {
         orElse: () => GameOutcome.abandoned,
       ),
       finalBoard: parseBoard(json['finalBoard']),
+      aiRank: (json['aiRank'] as num?)?.toInt(),
+      aiStyleName: json['aiStyleName'] as String?,
     );
   }
 
