@@ -15,6 +15,7 @@ enum BoardSizeOption {
 
 class SettingsProvider extends ChangeNotifier {
   static const _appThemeKey = 'settings.app_theme';
+  static const _developerModeKey = 'settings.developer_mode';
 
   AppVisualTheme _appTheme = AppVisualTheme.agarwood;
   BoardSizeOption _boardSize = BoardSizeOption.nine;
@@ -23,6 +24,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _showCaptureWarning = true;
   bool _soundEnabled = true;
   bool _hapticEnabled = true;
+  bool _developerMode = false;
 
   AppVisualTheme get appTheme => _appTheme;
   BoardSizeOption get boardSize => _boardSize;
@@ -31,6 +33,7 @@ class SettingsProvider extends ChangeNotifier {
   bool get showCaptureWarning => _showCaptureWarning;
   bool get soundEnabled => _soundEnabled;
   bool get hapticEnabled => _hapticEnabled;
+  bool get developerMode => _developerMode;
 
   SettingsProvider() {
     _restorePreferences();
@@ -43,9 +46,13 @@ class SettingsProvider extends ChangeNotifier {
       (theme) => theme.name == savedTheme,
       orElse: () => _appTheme,
     );
-    if (restoredTheme == _appTheme) return;
+    final restoredDeveloperMode = prefs.getBool(_developerModeKey) ?? false;
+    if (restoredTheme == _appTheme && restoredDeveloperMode == _developerMode) {
+      return;
+    }
 
     _appTheme = restoredTheme;
+    _developerMode = restoredDeveloperMode;
     notifyListeners();
   }
 
@@ -87,5 +94,15 @@ class SettingsProvider extends ChangeNotifier {
   void setHapticEnabled(bool value) {
     _hapticEnabled = value;
     notifyListeners();
+  }
+
+  Future<void> setDeveloperMode(bool value) async {
+    if (_developerMode == value) return;
+
+    _developerMode = value;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_developerModeKey, value);
   }
 }
