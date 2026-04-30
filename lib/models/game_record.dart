@@ -1,0 +1,143 @@
+import 'dart:convert';
+
+import '../game/difficulty_level.dart';
+import '../models/board_position.dart';
+
+/// Outcome of a recorded game from the human player's perspective.
+enum GameOutcome {
+  /// The game was abandoned before either side won.
+  abandoned,
+
+  /// The human player won.
+  humanWins,
+
+  /// The AI (or opponent) won.
+  aiWins,
+}
+
+extension GameOutcomeExt on GameOutcome {
+  String get displayName {
+    switch (this) {
+      case GameOutcome.abandoned:
+        return '未完成';
+      case GameOutcome.humanWins:
+        return '人类胜';
+      case GameOutcome.aiWins:
+        return 'AI 胜';
+    }
+  }
+}
+
+/// A persisted record of one completed (or abandoned) capture game.
+class GameRecord {
+  const GameRecord({
+    required this.id,
+    required this.playedAt,
+    required this.boardSize,
+    required this.captureTarget,
+    required this.difficulty,
+    required this.humanColorIndex,
+    required this.initialMode,
+    required this.moves,
+    required this.outcome,
+    this.initialBoardCells,
+    this.finalBoard,
+  });
+
+  /// ISO-8601 string used as a unique key, e.g. "2024-01-15T10:30:00.000000".
+  final String id;
+
+  /// When the game was started.
+  final DateTime playedAt;
+
+  final int boardSize;
+  final int captureTarget;
+
+  /// DifficultyLevel.name, e.g. "beginner".
+  final String difficulty;
+
+  /// StoneColor.index for the human player (1 = black, 2 = white).
+  final int humanColorIndex;
+
+  /// CaptureInitialMode.name, e.g. "twistCross".
+  final String initialMode;
+
+  /// Serialised initial board for setup-mode games; null otherwise.
+  /// Each inner list is a row of StoneColor.index values.
+  final List<List<int>>? initialBoardCells;
+
+  /// All moves in order: each element is [row, col].
+  final List<List<int>> moves;
+
+  /// Who won the game.
+  final GameOutcome outcome;
+
+  /// The final board state (optional), stored for quick display.
+  /// Each inner list is a row of StoneColor.index values.
+  final List<List<int>>? finalBoard;
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  DifficultyLevel get difficultyLevel =>
+      DifficultyLevel.values.firstWhere((v) => v.name == difficulty,
+          orElse: () => DifficultyLevel.intermediate);
+
+  StoneColor get humanColor =>
+      humanColorIndex < StoneColor.values.length
+          ? StoneColor.values[humanColorIndex]
+          : StoneColor.black;
+
+  int get totalMoves => moves.length;
+
+  // ---------------------------------------------------------------------------
+  // Serialisation
+  // ---------------------------------------------------------------------------
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'playedAt': playedAt.toIso8601String(),
+        'boardSize': boardSize,
+        'captureTarget': captureTarget,
+        'difficulty': difficulty,
+        'humanColorIndex': humanColorIndex,
+        'initialMode': initialMode,
+        'initialBoardCells': initialBoardCells,
+        'moves': moves,
+        'outcome': outcome.name,
+        'finalBoard': finalBoard,
+      };
+
+  factory GameRecord.fromJson(Map<String, dynamic> json) {
+    List<List<int>>? parseBoard(dynamic raw) {
+      if (raw == null) return null;
+      return (raw as List)
+          .map<List<int>>(
+              (row) => (row as List).map<int>((v) => (v as num).toInt()).toList())
+          .toList();
+    }
+
+    return GameRecord(
+      id: json['id'] as String,
+      playedAt: DateTime.parse(json['playedAt'] as String),
+      boardSize: (json['boardSize'] as num).toInt(),
+      captureTarget: (json['captureTarget'] as num).toInt(),
+      difficulty: json['difficulty'] as String,
+      humanColorIndex: (json['humanColorIndex'] as num).toInt(),
+      initialMode: json['initialMode'] as String,
+      initialBoardCells: parseBoard(json['initialBoardCells']),
+      moves: parseBoard(json['moves']) ?? const [],
+      outcome: GameOutcome.values.firstWhere(
+        (v) => v.name == json['outcome'],
+        orElse: () => GameOutcome.abandoned,
+      ),
+      finalBoard: parseBoard(json['finalBoard']),
+    );
+  }
+
+  String toJsonString() => jsonEncode(toJson());
+
+  factory GameRecord.fromJsonString(String source) =>
+      GameRecord.fromJson(jsonDecode(source) as Map<String, dynamic>);
+}

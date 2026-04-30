@@ -111,12 +111,18 @@ class CaptureGameProvider extends ChangeNotifier {
   bool _isAiThinking = false;
   final List<GameState> _undoStack = [];
 
+  /// Every move played in the current game, in order: each entry is [row, col].
+  final List<List<int>> _moveLog = [];
+
   GameState get gameState => _gameState;
   CaptureGameResult get result => _result;
   bool get isAiThinking => _isAiThinking;
   bool get canUndo => _undoStack.isNotEmpty && !_isAiThinking;
   CaptureAiStyle get aiStyle => _aiStyle;
   bool get isPlacementMode => initialMode == CaptureInitialMode.setup;
+
+  /// An unmodifiable view of the current game's move sequence.
+  List<List<int>> get moveLog => List.unmodifiable(_moveLog);
 
   CaptureAiAgent get _activeAgent {
     return _cachedAgent ??=
@@ -142,6 +148,7 @@ class CaptureGameProvider extends ChangeNotifier {
 
     _undoStack.add(_gameState);
     _gameState = newState;
+    _moveLog.add([row, col]);
     _checkWinCondition();
     notifyListeners();
 
@@ -163,11 +170,13 @@ class CaptureGameProvider extends ChangeNotifier {
       currentPlayer: StoneColor.black,
     );
     _undoStack.clear();
+    _moveLog.clear();
     notifyListeners();
   }
 
   void undoMove() {
     if (!canUndo) return;
+    final stackSizeBefore = _undoStack.length;
     if (isPlacementMode) {
       // Setup mode: undo one move at a time
       _gameState = _undoStack.removeLast();
@@ -177,6 +186,10 @@ class CaptureGameProvider extends ChangeNotifier {
       while (_undoStack.isNotEmpty && _gameState.currentPlayer != humanColor) {
         _gameState = _undoStack.removeLast();
       }
+    }
+    final movesRemoved = stackSizeBefore - _undoStack.length;
+    if (_moveLog.length >= movesRemoved) {
+      _moveLog.removeRange(_moveLog.length - movesRemoved, _moveLog.length);
     }
     _result = CaptureGameResult.none;
     notifyListeners();
@@ -287,6 +300,7 @@ class CaptureGameProvider extends ChangeNotifier {
     _result = CaptureGameResult.none;
     _isAiThinking = false;
     _undoStack.clear();
+    _moveLog.clear();
     notifyListeners();
   }
 
@@ -306,6 +320,7 @@ class CaptureGameProvider extends ChangeNotifier {
           GoEngine.placeStone(_gameState, bestMove.row, bestMove.col);
       if (newState != null) {
         _gameState = newState;
+        _moveLog.add([bestMove.row, bestMove.col]);
         _checkWinCondition();
       }
     }
