@@ -13,71 +13,155 @@
 
 `CaptureAiArena` 已支持 round-robin 对战，并输出胜率、平均步数、提子数、Elo 等信息，具备批量测评基础。落子时机（AI 思考完立刻落子）目前没有延迟处理。玩家胜负统计由 `GameHistoryRepository` 记录（最多 50 局），但尚未用于动态匹配对手。
 
+**目标用户**：K12 学生（主要是小学至初中）。核心体验原则：**让用户赢得有成就感**优先于展示技术能力。机器人整体应略弱于对应水平的用户，让用户通过认真思考能够取胜，而非被碾压。
+
 ### Problem
 
-1. **等级设计粗糙**：3 个难度只靠 `playouts` 区分，初级机器人并不是"更短视"或"更容易漏掉打吃"，只是"想得少"，导致弱 AI 仍然比初学者强太多，失去挑战梯度。
+1. **等级设计粗糙**：3 个难度只靠 `playouts` 区分，初级机器人并不是"更短视"或"更容易漏掉打吃"，只是"想得少"，导致弱 AI 仍然比初学者强太多，没有胜利爽感。
 2. **等级不可信**：等级由参数"设计出来"，没有通过实测胜率校准，不同风格同一级别的 AI 强弱差异未知。
-3. **缺乏自适应性**：无论玩家水平如何，每次对局都使用相同等级，没有"略强于玩家"的动态匹配机制。
+3. **缺乏自适应性**：无论玩家水平如何，每次对局都使用相同等级，没有"略弱于玩家"的动态匹配机制。
 4. **落子体验缺失**：AI 计算完成后立刻落子，没有思考动画/延迟，给玩家压迫感，且计算时间随 `playouts` 变化，落子时机不稳定。
 5. **风格与等级正交不清晰**：4 风格 × 3 等级共 12 种组合，但每个组合的参数差异仅体现在 `playouts` 上，风格特征随等级变化时没有相应调整。
+6. **等级命名缺失**：没有面向 K12 用户的等级命名体系；直接沿用"段/级"对新用户不友好。
 
 ### Motivation
 
+- 构建 28 阶（含两大区间）的等级体系，以围棋人类评级为参照但使用自有命名。
 - 引入"行为参数 → 实测 Elo → 映射等级"的校准流程，让等级可信、可迭代。
-- 让低等级 AI 犯的是符合棋理的典型错误（短视、漏提、贪吃被反杀），而不是随机劣化。
-- 根据玩家历史胜率，始终给出有挑战的对手（60% 略强、40% 略弱），提升留存。
+- 让低等级 AI 犯的是符合棋理的典型错误（短视、漏提、贪吃被反杀），且错误概率随等级提升快速衰减到 0，而非随机劣化。
+- 根据玩家历史胜率，始终给出**略弱于玩家**的对手（60% 略弱、40% 略强），保证胜利成就感同时维持挑战。
 - 规范落子延迟，让 AI 落子节奏自然，不压迫也不拖沓。
 
 ---
 
 ## 2. Goals
 
-1. 扩展行为参数模型，让低等级 AI 表现出符合棋理的弱点（漏提、短视、缺少预判）。
-2. 建立离线 Arena 校准工具，对所有风格 × 候选参数组合测出 Elo，映射到 Lv.1–Lv.9。
-3. 基于 `GameHistoryRepository` 计算玩家动态 Elo，按"60% 略强 / 40% 略弱"规则自动选取对手。
-4. 为 AI 落子添加最小/最大延迟，保证 UX 节奏（最少等待感、最多不卡顿）。
-5. 全程保持风格特征在等级之间可辨识，低等级版猎杀风仍然"偏向进攻"，只是更容易出错。
+1. 建立 28 阶两区间等级体系和对应的产品命名，与人类围棋评级对齐但不直接使用级/段名称。
+2. 扩展行为参数模型，让低等级 AI（探索区 8 阶及以下）表现出符合棋理的弱点（漏提、短视），且犯傻概率随等级提升单调衰减至 0。
+3. 建立离线 Arena 校准工具，对所有风格 × 候选参数组合测出 Elo，映射到 28 个等级档位。
+4. 基于 `GameHistoryRepository` 计算玩家动态 Elo，按"60% 略弱 / 40% 略强"规则自动选取对手，给用户以胜利爽感为优先。
+5. 为 AI 落子添加最小/最大延迟，保证 UX 节奏（最少等待感、最多不卡顿）。
+6. 全程保持风格特征在等级之间可辨识，低等级版猎杀风仍然"偏向进攻"，只是更容易出错。
 
 ---
 
-## 3. Implementation Plan
+## 3. 等级体系设计
+
+### 3.1 等级区间与命名
+
+整体等级结构参照人类围棋评级体系：
+
+| 区间名（待定）| 档位数 | 对应人类评级 | 能力描述 |
+|---|---|---|---|
+| **探索区**（Exploration） | 8 阶（E1–E8） | 22 级 ~ 15 级 | 初学者；会犯低级错误，但错误在此区间快速衰减 |
+| **进阶区**（Advancement） | 6 阶（A1–A6） | 14 级 ~ 9 级 | 掌握基本提子和逃棋；不犯傻，但视野有限 |
+| **挑战区**（Challenge） | 8 阶（C1–C8） | 8 级 ~ 1 级 | 具备连续威胁能力；棋力接近认真思考的成年人 |
+| **精英区**（Elite） | 6 阶（L1–L6） | 业余 1 段 ~ 6 段 | 接近当前本地策略上限；每个风格的最强形态 |
+
+> **命名说明**：区间英文缩写仅供代码内部使用；面向用户的展示名称后续另行设计（例如以"探险家→侠客→宗师→传说"等 K12 友好的名称呈现），不在本 plan 范围内。
+
+代码中等级用整数 1–28 表示，1 最弱，28 最强。映射关系：E1–E8 = 1–8，A1–A6 = 9–14，C1–C8 = 15–22，L1–L6 = 23–28。
+
+### 3.2 犯傻衰减规则（Blunder Decay）
+
+"犯傻"定义为以下三类行为参数触发：
+
+- `captureBlindRate`（漏掉直接提子）
+- `selfAtariBlindRate`（忽略自打吃风险）
+- `rescueBlindRate`（漏掉己方被打吃）
+
+衰减约束：
+
+| 等级区间 | 犯傻概率上限 | 说明 |
+|---|---|---|
+| E1（等级 1） | 最高 0.55 | 最初级：经常漏提 |
+| E8（等级 8） | 约 0.15 | 低级区末尾：偶尔出错 |
+| 等级 9（进阶区起点） | **0.00** | 进入进阶区后严格禁止 |
+| A1–L6（等级 9–28） | **0.00** | 绝不犯傻，只有战略判断失误 |
+
+衰减曲线采用指数衰减（而非线性），使得 E1–E4 下降较慢、E4–E8 下降急剧，视觉上和局面感受上快速"变聪明"，给玩家明显的成长反馈。
+
+```
+blunderRate(level) = 0.55 × exp(-0.35 × (level - 1))   for level 1..8
+blunderRate(level) = 0.0                                  for level >= 9
+```
+
+### 3.3 等级与棋力的对应关系
+
+等级是实测结果，不是参数定义。粗略参照：
+
+| 等级 | 对标人类评级 | Elo 目标区间（初始估算，待校准） |
+|---|---|---|
+| 1–8   | 22 级 ~ 15 级 | 400–750 |
+| 9–14  | 14 级 ~ 9 级  | 750–1000 |
+| 15–22 | 8 级 ~ 1 级   | 1000–1300 |
+| 23–28 | 业1段 ~ 业6段 | 1300–1600 |
+
+具体 Elo 值由 Arena 校准后确定（见 Phase C）。
+
+---
+
+## 4. Implementation Plan
 
 ### Phase A — 扩展行为参数（AI 错误模型）
 
 1. 在 `_CaptureAiProfile` 中新增以下参数：
 
-   | 参数 | 含义 | 典型范围 |
+   | 参数 | 含义 | 有效区间 |
    |---|---|---|
-   | `captureBlindRate` | 漏掉直接提子的概率 | 0.0（绝不漏）~ 0.6 |
-   | `selfAtariBlindRate` | 忽略自打吃惩罚的概率 | 0.0 ~ 0.5 |
-   | `rescueBlindRate` | 漏掉己方被打吃需要救棋的概率 | 0.0 ~ 0.5 |
-   | `topKCandidates` | rollout 前保留的候选手数 | 2（短视）~ 8（全局） |
+   | `captureBlindRate` | 漏掉直接提子的概率 | 0.0（绝不漏）~ 0.55 |
+   | `selfAtariBlindRate` | 忽略自打吃惩罚的概率 | 0.0 ~ 0.45 |
+   | `rescueBlindRate` | 漏掉己方被打吃需要救棋的概率 | 0.0 ~ 0.45 |
+   | `topKCandidates` | rollout 前保留的候选手数 | 2（短视）~ 10（全局） |
 
-2. 在 `_WeightedCaptureAiAgent._score()` 中，根据以上参数按概率将对应权重临时置零，模拟"没看到"而非"随机变笨"。
+2. 在 `_WeightedCaptureAiAgent._score()` 中，根据以上参数按概率将对应权重临时置零，模拟"没看到"而非"随机变笨"。每次评分调用独立采样，不在一局内累积偏差。
 
-3. `_CaptureAiProfile.forStyle()` 改为接受更细粒度的等级参数（`AiGeneLevel`，见 Phase B），而不仅仅是 `DifficultyLevel`。
+3. 提供静态工具方法 `AiBlunderProfile.forLevel(int level)` 按指数衰减公式计算对应等级的三个盲区率，供 Phase B 的基因表使用，杜绝手工拼凑。
+
+4. `_CaptureAiProfile.forStyle()` 改为接受 28 档 `AiRankLevel`（见 Phase B），而不仅仅是 `DifficultyLevel`。
 
 ### Phase B — 定义参数基因表（候选机器人）
 
-1. 在 `capture_ai.dart` 中定义 `AiGeneLevel`（值域 1–9，对应 9 个候选等级），替代现有 3 档 `DifficultyLevel`。
+1. 在 `capture_ai.dart` 中定义 `AiRankLevel`（值域 1–28），替代现有 3 档 `DifficultyLevel`。对外暴露 `rank`（int）和 `zone`（enum：exploration / advancement / challenge / elite）属性。
 
-2. 为每个 `CaptureAiStyle × AiGeneLevel` 组合手工拟定初始行为参数（基因），遵循以下原则：
-   - **Lv.1–3**：`captureBlindRate ≥ 0.45`，`topKCandidates = 2`，`playouts = 8`，角色是"偶尔漏提，容易贪吃被反杀"。
-   - **Lv.4–6**：`captureBlindRate 0.15–0.30`，`topKCandidates = 4`，`playouts = 20`，角色是"偶尔漏打吃，但不常犯低级错"。
-   - **Lv.7–9**：`captureBlindRate ≤ 0.05`，`topKCandidates = 6`，`playouts = 48`，角色是"偶尔因风格激进/保守而失误，战术识别完整"。
-   - 各风格在同一等级内保留原有倾向比例（猎杀仍高 `immediateCaptureWeight`，稳守仍高 `libertyWeight`）。
+2. 为每个 `CaptureAiStyle × AiRankLevel` 组合生成行为参数（基因），规则如下：
 
-3. 将基因表以常量 Map 的形式内嵌于代码（`_geneTable`），方便后续通过 Arena 测试结果迭代调整。
+   **探索区（rank 1–8）**
+   - `captureBlindRate`、`selfAtariBlindRate`、`rescueBlindRate` 按指数衰减公式计算。
+   - `topKCandidates` 从 2 线性增长到 4。
+   - `playouts` 从 6 增长到 14。
+
+   **进阶区（rank 9–14）**
+   - 三个盲区率严格为 0。
+   - `topKCandidates` 从 4 增长到 6。
+   - `playouts` 从 16 增长到 28。
+
+   **挑战区（rank 15–22）**
+   - 三个盲区率严格为 0。
+   - `topKCandidates` 从 6 增长到 8。
+   - `playouts` 从 32 增长到 56。
+   - 开始引入策略性失误（风格偏向过激/过保守），通过调整 `immediateCaptureWeight` 偏置实现。
+
+   **精英区（rank 23–28）**
+   - 三个盲区率严格为 0。
+   - `topKCandidates` = 10。
+   - `playouts` 从 64 增长到 96。
+   - 强化风格特征到最大（猎杀最激进，稳守最保守），风格差异是主要变量。
+
+   各风格在同一等级内保留原有倾向比例（猎杀仍高 `immediateCaptureWeight`，稳守仍高 `libertyWeight`）。
+
+3. 将基因表以常量 Map 的形式内嵌于代码（`_rankGeneTable`），方便后续通过 Arena 测试结果迭代调整。
 
 ### Phase C — Arena 离线校准工具
 
 1. 新增 `CaptureAiCalibrator`（`lib/game/capture_ai_calibrator.dart`），封装以下流程：
-   - 枚举所有 `CaptureAiStyle × AiGeneLevel` 组合，共 4 × 9 = 36 个机器人。
+   - 枚举所有 `CaptureAiStyle × AiRankLevel` 组合，共 4 × 28 = 112 个机器人。
    - 以 `CaptureAiArena.runRoundRobin` 进行全量对战（每对 200 局，可配置）。
    - 汇总每个机器人的对战 Elo（使用现有 `_calculateElo` 逻辑）。
-   - 输出一份机器人 Elo 排行表（文本/JSON），供手动验证后提交为常量。
+   - 输出一份机器人 Elo 排行表（JSON），同时输出"等级 Elo 均值"表（每个 rank 对应 4 个风格的 Elo 均值）。
+   - 自动验证：相邻等级 Elo 均值是否单调递增（若不满足，报警提示调整基因参数）。
 
-2. 将校准结果作为编译期常量 `kAiEloTable`（`Map<String, double>`，key 为 `"${style.name}_lv${level}"`）写入 `capture_ai.dart`，供运行时动态匹配使用。
+2. 将校准结果作为编译期常量 `kAiEloTable`（`Map<String, double>`，key 为 `"${style.name}_r${rank}"`）写入 `capture_ai.dart`，供运行时动态匹配使用。另提供按 rank 聚合的 `kRankEloRange`（Map<int, (double min, double max)>）。
 
 3. 校准工具只在开发环境（`kDebugMode` 或独立 Dart 脚本）下运行，不打包进 release。
 
@@ -85,18 +169,20 @@
 
 1. 在 `GameRecord`（`lib/models/game_record.dart`）中增加：
    - `aiStyleName`（对战 AI 风格）
-   - `aiGeneLevel`（对战 AI 基因等级）
+   - `aiRank`（对战 AI 等级，int 1–28）
+   - `aiElo`（对战 AI 的 Elo 快照，double）
 
 2. 在 `GameHistoryRepository` 中新增 `estimatePlayerElo()` 方法：
-   - 取最近 20 局（可配置）的胜负结果。
-   - 对每局已知的 AI Elo 用简化 Elo 公式反推玩家 Elo 估算值。
-   - 首次游戏时默认给定初始 Elo（与 Lv.4 对应）。
+   - 取最近 20 局（可配置）的胜负结果和 `aiElo`。
+   - 对每局用简化 Elo 公式反推玩家 Elo 估算值，加权平均（近期局权重更高）。
+   - 首次游戏时默认给定初始 Elo（对应 rank 6，约 600 Elo），给新用户先赢几局的机会。
 
 3. 新增 `AdaptiveOpponentSelector`（`lib/game/adaptive_opponent_selector.dart`）：
-   - 输入：玩家当前估算 Elo，`kAiEloTable`。
-   - 输出：以 60% 概率选取比玩家 Elo 略高的机器人，40% 概率选取略低的机器人。
-   - "略高/略低"定义为 Elo 差值在目标区间内（如 ±80–200 Elo 点），而非绝对排名。
+   - 输入：玩家当前估算 Elo，`kAiEloTable`，可选风格偏好。
+   - **输出策略**：以 **60% 概率**选取比玩家 Elo 略低（-50 ~ -200 Elo）的机器人，**40% 概率**选取略高（+50 ~ +150 Elo）的机器人。
+     > 注：与初版 plan 相比，此处调整为以"给玩家胜利成就感"为优先，60% 选略弱对手，40% 选略强对手，维持挑战感而不压制。
    - 若用户手动指定风格，则在该风格内按相同概率分布选等级；若风格也不限，则全域选取。
+   - 若玩家 Elo 估算值置信度低（局数 < 5），优先选取等级低的对手，给新用户建立信心。
 
 4. 在 `CaptureGameProvider` 构造时，若未传入 `difficulty`，改为调用 `AdaptiveOpponentSelector` 自动决定等级和风格，并在 `GameRecord` 中记录实际使用的 AI 参数。
 
@@ -110,33 +196,43 @@
 
 2. `minMoveDelay` 和 `maxMoveDelay` 作为 `CaptureGameProvider` 的可选构造参数，默认值来自常量，方便测试时设为 0。
 
+3. 延迟范围与等级无关（保持统一节奏），但高等级机器人因 `playouts` 更多，实际计算时间本身已趋近 `minMoveDelay`，无需特殊处理。
+
 ### Phase F — 向后兼容与迁移
 
-1. 保留 `DifficultyLevel` 枚举作为外部接口（settings、URL params），内部映射到 `AiGeneLevel`：
-   - `beginner` → Lv.1–3 随机（加权中间值）
-   - `intermediate` → Lv.4–6
-   - `advanced` → Lv.7–9
+1. 保留 `DifficultyLevel` 枚举作为外部接口（settings、URL params），内部映射到 `AiRankLevel`：
+   - `beginner` → rank 3（探索区中段）
+   - `intermediate` → rank 12（进阶区中段）
+   - `advanced` → rank 20（挑战区中段）
 
-2. 现有 `CaptureAiRegistry.create(style, difficulty)` 保持签名不变，内部根据新的 `_geneTable` 路由。
+2. 现有 `CaptureAiRegistry.create(style, difficulty)` 保持签名不变，内部根据新的 `_rankGeneTable` 路由。
 
 3. 所有现有测试保持通过；`minMoveDelay` 在测试中默认 `Duration.zero`。
 
 ---
 
-## 4. Acceptance Criteria
+## 5. Acceptance Criteria
 
-### 行为参数
-- Lv.1 机器人在 9 路棋盘 200 局测试中，漏掉直接提子（captureBlindRate）的实际触发次数占比 ≥ 35%。
-- Lv.9 机器人与 Lv.1 机器人对战 200 局，胜率 ≥ 80%。
+### 等级体系
+- 28 个等级档位（rank 1–28）已定义，覆盖两大区间（探索/进阶/挑战/精英）。
+- `AiRankLevel.zone` 属性正确返回对应区间枚举值。
+- 面向用户的展示名称文案已确定（另行设计，不阻塞本 plan）。
+
+### 犯傻衰减
+- rank 1–8 的 `captureBlindRate` 按指数衰减，`AiBlunderProfile.forLevel(8).captureBlindRate < 0.20`。
+- rank 9 及以上三个盲区率严格为 0（单元测试断言）。
+- rank 1 机器人在 9 路棋盘 200 局测试中，实际漏提触发次数占比 ≥ 30%。
 
 ### 等级校准
-- 36 个机器人完成 round-robin 对战后，Elo 从最低到最高呈单调递增趋势（允许同等级不同风格间交叉，但相邻等级 Elo 均值差 ≥ 60 点）。
+- 112 个机器人完成 round-robin 对战后，各 rank 的 Elo 均值单调递增（相邻档位 Elo 均值差 ≥ 40 点）。
 - `kAiEloTable` 常量已提交，可供运行时查询。
+- rank 28 机器人对 rank 1 机器人胜率 ≥ 90%；rank 14 对 rank 1 胜率 ≥ 70%。
 
-### 自适应对手
+### 自适应对手（以玩家爽感为优先）
 - 新建游戏时，系统根据玩家历史自动选取机器人（无需用户手动选等级）。
-- 在 100 局模拟测试中，选取的机器人 Elo 比玩家估算 Elo 略高（+80~200）的概率落在 55%–65% 区间内。
-- 胜负结果正确写入 `GameRecord.aiGeneLevel`，`estimatePlayerElo()` 随对局增加而收敛。
+- 在 100 局模拟测试中，选取的机器人 Elo 比玩家估算 Elo 低（-50 ~ -200）的概率落在 55%–65% 区间内。
+- 首次游戏（历史局数 < 5）默认选取 rank ≤ 6 的对手。
+- 胜负结果正确写入 `GameRecord.aiRank`，`estimatePlayerElo()` 随对局增加而收敛（误差 < 150 Elo）。
 
 ### 落子延迟
 - AI 落子等待时间在 `[minMoveDelay, maxMoveDelay]` 区间内（800 ms–2500 ms）。
