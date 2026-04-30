@@ -12,6 +12,7 @@ import '../models/board_position.dart';
 import '../models/game_state.dart';
 import '../providers/capture_game_provider.dart';
 import '../providers/settings_provider.dart';
+import '../theme/theme_context.dart';
 import '../widgets/go_board_widget.dart';
 import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
@@ -76,14 +77,14 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
   double _windowCenterV = _CaptureGameScreenState._defaultWindowCenterV;
   double _windowSpreadU = _CaptureGameScreenState._defaultWindowSpreadU;
   double _windowSpreadV = _CaptureGameScreenState._defaultWindowSpreadV;
+  double _windowPlateau = _CaptureGameScreenState._defaultWindowPlateau;
+  double _windowFalloff = _CaptureGameScreenState._defaultWindowFalloff;
+  double _windowRotation = _CaptureGameScreenState._defaultWindowRotation;
   // Grid dissolution controls
   double _gridBaseOpacity = _CaptureGameScreenState._defaultGridBaseOpacity;
   double _gridFadeMult = _CaptureGameScreenState._defaultGridFadeMult;
   double _gridFadePower = _CaptureGameScreenState._defaultGridFadePower;
   double _gridFadeMin = _CaptureGameScreenState._defaultGridFadeMin;
-  double _washStrength = _CaptureGameScreenState._defaultWashStrength;
-  double _washStart = _CaptureGameScreenState._defaultWashStart;
-  double _washPower = _CaptureGameScreenState._defaultWashPower;
   double _lightMapFloor = _CaptureGameScreenState._defaultLightMapFloor;
   double _lightMapIntensity = _CaptureGameScreenState._defaultLightMapIntensity;
 
@@ -130,13 +131,13 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   windowCenterV: _windowCenterV,
                   windowSpreadU: _windowSpreadU,
                   windowSpreadV: _windowSpreadV,
+                  windowPlateau: _windowPlateau,
+                  windowFalloff: _windowFalloff,
+                  windowRotation: _windowRotation,
                   gridBaseOpacity: _gridBaseOpacity,
                   gridFadeMult: _gridFadeMult,
                   gridFadePower: _gridFadePower,
                   gridFadeMin: _gridFadeMin,
-                  washStrength: _washStrength,
-                  washStart: _washStart,
-                  washPower: _washPower,
                   lightMapFloor: _lightMapFloor,
                   lightMapIntensity: _lightMapIntensity,
                 ),
@@ -224,13 +225,13 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                     windowCenterV: _windowCenterV,
                     windowSpreadU: _windowSpreadU,
                     windowSpreadV: _windowSpreadV,
+                    windowPlateau: _windowPlateau,
+                    windowFalloff: _windowFalloff,
+                    windowRotation: _windowRotation,
                     gridBaseOpacity: _gridBaseOpacity,
                     gridFadeMult: _gridFadeMult,
                     gridFadePower: _gridFadePower,
                     gridFadeMin: _gridFadeMin,
-                    washStrength: _washStrength,
-                    washStart: _washStart,
-                    washPower: _washPower,
                     lightMapFloor: _lightMapFloor,
                     lightMapIntensity: _lightMapIntensity,
                     onWindowCenterUChanged: (v) =>
@@ -241,6 +242,12 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                         setState(() => _windowSpreadU = v),
                     onWindowSpreadVChanged: (v) =>
                         setState(() => _windowSpreadV = v),
+                    onWindowPlateauChanged: (v) =>
+                        setState(() => _windowPlateau = v),
+                    onWindowFalloffChanged: (v) =>
+                        setState(() => _windowFalloff = v),
+                    onWindowRotationChanged: (v) =>
+                        setState(() => _windowRotation = v),
                     onGridBaseOpacityChanged: (v) =>
                         setState(() => _gridBaseOpacity = v),
                     onGridFadeMultChanged: (v) =>
@@ -249,10 +256,6 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                         setState(() => _gridFadePower = v),
                     onGridFadeMinChanged: (v) =>
                         setState(() => _gridFadeMin = v),
-                    onWashStrengthChanged: (v) =>
-                        setState(() => _washStrength = v),
-                    onWashStartChanged: (v) => setState(() => _washStart = v),
-                    onWashPowerChanged: (v) => setState(() => _washPower = v),
                     onLightMapFloorChanged: (v) =>
                         setState(() => _lightMapFloor = v),
                     onLightMapIntensityChanged: (v) =>
@@ -318,13 +321,13 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
       _windowCenterV = _CaptureGameScreenState._defaultWindowCenterV;
       _windowSpreadU = _CaptureGameScreenState._defaultWindowSpreadU;
       _windowSpreadV = _CaptureGameScreenState._defaultWindowSpreadV;
+      _windowPlateau = _CaptureGameScreenState._defaultWindowPlateau;
+      _windowFalloff = _CaptureGameScreenState._defaultWindowFalloff;
+      _windowRotation = _CaptureGameScreenState._defaultWindowRotation;
       _gridBaseOpacity = _CaptureGameScreenState._defaultGridBaseOpacity;
       _gridFadeMult = _CaptureGameScreenState._defaultGridFadeMult;
       _gridFadePower = _CaptureGameScreenState._defaultGridFadePower;
       _gridFadeMin = _CaptureGameScreenState._defaultGridFadeMin;
-      _washStrength = _CaptureGameScreenState._defaultWashStrength;
-      _washStart = _CaptureGameScreenState._defaultWashStart;
-      _washPower = _CaptureGameScreenState._defaultWashPower;
       _lightMapFloor = _CaptureGameScreenState._defaultLightMapFloor;
       _lightMapIntensity = _CaptureGameScreenState._defaultLightMapIntensity;
     });
@@ -345,14 +348,13 @@ Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardTopFactor = 0.06;
   static const double _defaultHomeBoardHeightFactor = 0.62;
-  static const double _defaultHomeBoardCanvasYOffset = -34.0;
+  static const double _defaultHomeBoardCanvasYOffset = -128.0;
   static const double _defaultHomeBoardSceneScale = 0.88;
   static const double _defaultHomeBoardCameraLift = 0.01;
   static const double _defaultHomeBoardCameraDepth = 17.2;
   static const double _defaultHomeBoardTargetZOffset = 0.0;
   static const double _defaultHomeBoardCinematicFov = 28.0;
   static const double _defaultHomeBoardRotationY = -0.62;
-  static const double _defaultHomeCardTopFactor = 0.44;
   static const double _defaultLeafShadowOpacity = 0.16;
   static const bool _defaultStoneExtraOverlayEnabled = true;
   static const bool _defaultFloatingParticlesEnabled = false;
@@ -371,20 +373,20 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const int _defaultAmbientLightColor = 0xffeddc;
   static const int _defaultSheenLightColor = 0xfffaed;
   // Window irradiance defaults
-  static const double _defaultWindowCenterU = 0.88;
-  static const double _defaultWindowCenterV = 0.05;
-  static const double _defaultWindowSpreadU = 1.80;
-  static const double _defaultWindowSpreadV = 1.60;
+  static const double _defaultWindowCenterU = 0.89;
+  static const double _defaultWindowCenterV = 0.43;
+  static const double _defaultWindowSpreadU = 1.17;
+  static const double _defaultWindowSpreadV = 3.64;
+  static const double _defaultWindowPlateau = 0.73;
+  static const double _defaultWindowFalloff = 0.97;
+  static const double _defaultWindowRotation = 0.39;
   // Grid dissolution defaults
   static const double _defaultGridBaseOpacity = 0.78;
   static const double _defaultGridFadeMult = 0.00;
   static const double _defaultGridFadePower = 0.66;
   static const double _defaultGridFadeMin = 0.20;
-  static const double _defaultWashStrength = 0.26;
-  static const double _defaultWashStart = 0.28;
-  static const double _defaultWashPower = 0.50;
   static const double _defaultLightMapFloor = 0.12;
-  static const double _defaultLightMapIntensity = 0.64;
+  static const double _defaultLightMapIntensity = 1.49;
 
   static const _difficultyKey = 'capture_setup.difficulty';
   static const _boardSizeKey = 'capture_setup.board_size';
@@ -406,7 +408,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
   double _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
   double _homeBoardRotationY = _defaultHomeBoardRotationY;
-  double _homeCardTopFactor = _defaultHomeCardTopFactor;
   double _leafShadowOpacity = _defaultLeafShadowOpacity;
   bool _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
   bool _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
@@ -428,13 +429,13 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _windowCenterV = _defaultWindowCenterV;
   double _windowSpreadU = _defaultWindowSpreadU;
   double _windowSpreadV = _defaultWindowSpreadV;
+  double _windowPlateau = _defaultWindowPlateau;
+  double _windowFalloff = _defaultWindowFalloff;
+  double _windowRotation = _defaultWindowRotation;
   double _gridBaseOpacity = _defaultGridBaseOpacity;
   double _gridFadeMult = _defaultGridFadeMult;
   double _gridFadePower = _defaultGridFadePower;
   double _gridFadeMin = _defaultGridFadeMin;
-  double _washStrength = _defaultWashStrength;
-  double _washStart = _defaultWashStart;
-  double _washPower = _defaultWashPower;
   double _lightMapFloor = _defaultLightMapFloor;
   double _lightMapIntensity = _defaultLightMapIntensity;
 
@@ -457,63 +458,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     }
 
     return CupertinoPageScaffold(
-      backgroundColor: kPageBackgroundColor,
+      backgroundColor: CupertinoColors.transparent,
       child: DecoratedBox(
-        decoration: kPageBackgroundDecoration,
+        decoration: const BoxDecoration(),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final topPadding = MediaQuery.of(context).padding.top;
-            final cardTop = max(
-              0.0,
-              constraints.maxHeight * _homeCardTopFactor - topPadding,
-            );
+            const cardTop = kPageHeroContentOffset + 8;
 
             return Stack(
               children: [
-                _HomeThreeBoardPreview(
-                  constraints: constraints,
-                  topFactor: _homeBoardTopFactor,
-                  heightFactor: _homeBoardHeightFactor,
-                  canvasYOffset: _homeBoardCanvasYOffset,
-                  sceneScale: _homeBoardSceneScale,
-                  cameraLift: _homeBoardCameraLift,
-                  cameraDepth: _homeBoardCameraDepth,
-                  targetZOffset: _homeBoardTargetZOffset,
-                  cinematicFov: _homeBoardCinematicFov,
-                  boardRotationY: _homeBoardRotationY,
-                  leafShadowOpacity: _leafShadowOpacity,
-                  stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
-                  floatingParticlesEnabled: _floatingParticlesEnabled,
-                  cornerLabelsEnabled:
-                      _homeTuningSheetVisible && _cornerLabelsEnabled,
-                  boardTopBrightness: _boardTopBrightness,
-                  boardWoodColor: _boardWoodColor,
-                  toneMappingExposure: _toneMappingExposure,
-                  keyLightPosition: _keyLightPosition,
-                  fillLightPosition: _fillLightPosition,
-                  keyLightIntensity: _keyLightIntensity,
-                  fillLightIntensity: _fillLightIntensity,
-                  ambientLightIntensity: _ambientLightIntensity,
-                  sheenLightIntensity: _sheenLightIntensity,
-                  keyLightColor: _keyLightColor,
-                  fillLightColor: _fillLightColor,
-                  ambientLightColor: _ambientLightColor,
-                  sheenLightColor: _sheenLightColor,
-                  showDebugGuides: _homeTuningSheetVisible,
-                  windowCenterU: _windowCenterU,
-                  windowCenterV: _windowCenterV,
-                  windowSpreadU: _windowSpreadU,
-                  windowSpreadV: _windowSpreadV,
-                  gridBaseOpacity: _gridBaseOpacity,
-                  gridFadeMult: _gridFadeMult,
-                  gridFadePower: _gridFadePower,
-                  gridFadeMin: _gridFadeMin,
-                  washStrength: _washStrength,
-                  washStart: _washStart,
-                  washPower: _washPower,
-                  lightMapFloor: _lightMapFloor,
-                  lightMapIntensity: _lightMapIntensity,
-                ),
                 Positioned(
                   top: 0,
                   left: 0,
@@ -757,13 +710,13 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     windowCenterV: _windowCenterV,
                     windowSpreadU: _windowSpreadU,
                     windowSpreadV: _windowSpreadV,
+                    windowPlateau: _windowPlateau,
+                    windowFalloff: _windowFalloff,
+                    windowRotation: _windowRotation,
                     gridBaseOpacity: _gridBaseOpacity,
                     gridFadeMult: _gridFadeMult,
                     gridFadePower: _gridFadePower,
                     gridFadeMin: _gridFadeMin,
-                    washStrength: _washStrength,
-                    washStart: _washStart,
-                    washPower: _washPower,
                     lightMapFloor: _lightMapFloor,
                     lightMapIntensity: _lightMapIntensity,
                     onWindowCenterUChanged: (v) =>
@@ -774,6 +727,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _windowSpreadU = v),
                     onWindowSpreadVChanged: (v) =>
                         setState(() => _windowSpreadV = v),
+                    onWindowPlateauChanged: (v) =>
+                        setState(() => _windowPlateau = v),
+                    onWindowFalloffChanged: (v) =>
+                        setState(() => _windowFalloff = v),
+                    onWindowRotationChanged: (v) =>
+                        setState(() => _windowRotation = v),
                     onGridBaseOpacityChanged: (v) =>
                         setState(() => _gridBaseOpacity = v),
                     onGridFadeMultChanged: (v) =>
@@ -782,10 +741,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _gridFadePower = v),
                     onGridFadeMinChanged: (v) =>
                         setState(() => _gridFadeMin = v),
-                    onWashStrengthChanged: (v) =>
-                        setState(() => _washStrength = v),
-                    onWashStartChanged: (v) => setState(() => _washStart = v),
-                    onWashPowerChanged: (v) => setState(() => _washPower = v),
                     onLightMapFloorChanged: (v) =>
                         setState(() => _lightMapFloor = v),
                     onLightMapIntensityChanged: (v) =>
@@ -813,7 +768,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
       _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
       _homeBoardRotationY = _defaultHomeBoardRotationY;
-      _homeCardTopFactor = _defaultHomeCardTopFactor;
       _leafShadowOpacity = _defaultLeafShadowOpacity;
       _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
       _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
@@ -835,13 +789,13 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _windowCenterV = _defaultWindowCenterV;
       _windowSpreadU = _defaultWindowSpreadU;
       _windowSpreadV = _defaultWindowSpreadV;
+      _windowPlateau = _defaultWindowPlateau;
+      _windowFalloff = _defaultWindowFalloff;
+      _windowRotation = _defaultWindowRotation;
       _gridBaseOpacity = _defaultGridBaseOpacity;
       _gridFadeMult = _defaultGridFadeMult;
       _gridFadePower = _defaultGridFadePower;
       _gridFadeMin = _defaultGridFadeMin;
-      _washStrength = _defaultWashStrength;
-      _washStart = _defaultWashStart;
-      _washPower = _defaultWashPower;
       _lightMapFloor = _defaultLightMapFloor;
       _lightMapIntensity = _defaultLightMapIntensity;
     });
@@ -1054,13 +1008,13 @@ class _HomeThreeBoardPreview extends StatelessWidget {
     required this.windowCenterV,
     required this.windowSpreadU,
     required this.windowSpreadV,
+    required this.windowPlateau,
+    required this.windowFalloff,
+    required this.windowRotation,
     required this.gridBaseOpacity,
     required this.gridFadeMult,
     required this.gridFadePower,
     required this.gridFadeMin,
-    required this.washStrength,
-    required this.washStart,
-    required this.washPower,
     required this.lightMapFloor,
     required this.lightMapIntensity,
   });
@@ -1097,13 +1051,13 @@ class _HomeThreeBoardPreview extends StatelessWidget {
   final double windowCenterV;
   final double windowSpreadU;
   final double windowSpreadV;
+  final double windowPlateau;
+  final double windowFalloff;
+  final double windowRotation;
   final double gridBaseOpacity;
   final double gridFadeMult;
   final double gridFadePower;
   final double gridFadeMin;
-  final double washStrength;
-  final double washStart;
-  final double washPower;
   final double lightMapFloor;
   final double lightMapIntensity;
 
@@ -1148,13 +1102,13 @@ class _HomeThreeBoardPreview extends StatelessWidget {
             windowCenterV: windowCenterV,
             windowSpreadU: windowSpreadU,
             windowSpreadV: windowSpreadV,
+            windowPlateau: windowPlateau,
+            windowFalloff: windowFalloff,
+            windowRotation: windowRotation,
             gridBaseOpacity: gridBaseOpacity,
             gridFadeMult: gridFadeMult,
             gridFadePower: gridFadePower,
             gridFadeMin: gridFadeMin,
-            washStrength: washStrength,
-            washStart: washStart,
-            washPower: washPower,
             lightMapFloor: lightMapFloor,
             lightMapIntensity: lightMapIntensity,
           ),
@@ -1275,26 +1229,26 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.windowCenterV,
     required this.windowSpreadU,
     required this.windowSpreadV,
+    required this.windowPlateau,
+    required this.windowFalloff,
+    required this.windowRotation,
     required this.gridBaseOpacity,
     required this.gridFadeMult,
     required this.gridFadePower,
     required this.gridFadeMin,
-    required this.washStrength,
-    required this.washStart,
-    required this.washPower,
     required this.lightMapFloor,
     required this.lightMapIntensity,
     required this.onWindowCenterUChanged,
     required this.onWindowCenterVChanged,
     required this.onWindowSpreadUChanged,
     required this.onWindowSpreadVChanged,
+    required this.onWindowPlateauChanged,
+    required this.onWindowFalloffChanged,
+    required this.onWindowRotationChanged,
     required this.onGridBaseOpacityChanged,
     required this.onGridFadeMultChanged,
     required this.onGridFadePowerChanged,
     required this.onGridFadeMinChanged,
-    required this.onWashStrengthChanged,
-    required this.onWashStartChanged,
-    required this.onWashPowerChanged,
     required this.onLightMapFloorChanged,
     required this.onLightMapIntensityChanged,
   });
@@ -1357,26 +1311,26 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final double windowCenterV;
   final double windowSpreadU;
   final double windowSpreadV;
+  final double windowPlateau;
+  final double windowFalloff;
+  final double windowRotation;
   final double gridBaseOpacity;
   final double gridFadeMult;
   final double gridFadePower;
   final double gridFadeMin;
-  final double washStrength;
-  final double washStart;
-  final double washPower;
   final double lightMapFloor;
   final double lightMapIntensity;
   final ValueChanged<double> onWindowCenterUChanged;
   final ValueChanged<double> onWindowCenterVChanged;
   final ValueChanged<double> onWindowSpreadUChanged;
   final ValueChanged<double> onWindowSpreadVChanged;
+  final ValueChanged<double> onWindowPlateauChanged;
+  final ValueChanged<double> onWindowFalloffChanged;
+  final ValueChanged<double> onWindowRotationChanged;
   final ValueChanged<double> onGridBaseOpacityChanged;
   final ValueChanged<double> onGridFadeMultChanged;
   final ValueChanged<double> onGridFadePowerChanged;
   final ValueChanged<double> onGridFadeMinChanged;
-  final ValueChanged<double> onWashStrengthChanged;
-  final ValueChanged<double> onWashStartChanged;
-  final ValueChanged<double> onWashPowerChanged;
   final ValueChanged<double> onLightMapFloorChanged;
   final ValueChanged<double> onLightMapIntensityChanged;
 
@@ -1615,6 +1569,27 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           onChanged: widget.onWindowSpreadVChanged,
         ),
         _TuningSlider(
+          label: '窗光平台',
+          value: widget.windowPlateau,
+          min: 0.00,
+          max: 0.95,
+          onChanged: widget.onWindowPlateauChanged,
+        ),
+        _TuningSlider(
+          label: '窗光衰减',
+          value: widget.windowFalloff,
+          min: 0.05,
+          max: 1.50,
+          onChanged: widget.onWindowFalloffChanged,
+        ),
+        _TuningSlider(
+          label: '窗光旋转',
+          value: widget.windowRotation,
+          min: -3.14,
+          max: 3.14,
+          onChanged: widget.onWindowRotationChanged,
+        ),
+        _TuningSlider(
           label: '格子基础透明度',
           value: widget.gridBaseOpacity,
           min: 0.10,
@@ -1641,27 +1616,6 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           min: 0.00,
           max: 0.50,
           onChanged: widget.onGridFadeMinChanged,
-        ),
-        _TuningSlider(
-          label: '奶白覆盖强度',
-          value: widget.washStrength,
-          min: 0.00,
-          max: 1.00,
-          onChanged: widget.onWashStrengthChanged,
-        ),
-        _TuningSlider(
-          label: '奶白起始位置',
-          value: widget.washStart,
-          min: 0.00,
-          max: 0.90,
-          onChanged: widget.onWashStartChanged,
-        ),
-        _TuningSlider(
-          label: '奶白渐变曲线',
-          value: widget.washPower,
-          min: 0.20,
-          max: 3.00,
-          onChanged: widget.onWashPowerChanged,
         ),
         _TuningSlider(
           label: 'lightMap 地板',
@@ -2100,19 +2054,23 @@ class _PrimaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final primaryEnd =
+        Color.lerp(palette.primary, CupertinoColors.black, 0.20)!;
+
     return SizedBox(
       width: double.infinity,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFC89257), Color(0xFFA86930)],
+            colors: [palette.primary, primaryEnd],
           ),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Color(0x33A56730),
+              color: palette.primary.withValues(alpha: 0.24),
               blurRadius: 18,
               offset: Offset(0, 8),
             ),
@@ -2128,7 +2086,6 @@ class _PrimaryActionButton extends StatelessWidget {
               fontSize: 17,
               fontWeight: FontWeight.w700,
               color: CupertinoColors.white,
-              letterSpacing: 1.2,
             ),
           ),
         ),
@@ -2145,19 +2102,21 @@ class _SecondaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
+
     return SizedBox(
       width: double.infinity,
       child: CupertinoButton(
         padding: const EdgeInsets.symmetric(vertical: 12),
         borderRadius: BorderRadius.circular(14),
-        color: const Color(0x14A86930),
+        color: palette.primary.withValues(alpha: 0.10),
         onPressed: onPressed,
         child: Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF915C2F),
+            color: Color.lerp(palette.primary, CupertinoColors.black, 0.18),
           ),
         ),
       ),
@@ -3483,6 +3442,7 @@ class _TapBoard extends StatelessWidget {
                 CustomPaint(
                   painter: GoBoardPainter(
                     gameState: gameState,
+                    palette: context.appPalette,
                     showCaptureWarning: showCaptureWarning,
                   ),
                 ),

@@ -75,19 +75,19 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.fillLightColor = 0xf4e8d8,
     this.ambientLightColor = 0xffeddc,
     this.sheenLightColor = 0xfffaed,
-    this.windowCenterU = 0.88,
-    this.windowCenterV = 0.05,
-    this.windowSpreadU = 1.80,
-    this.windowSpreadV = 1.60,
+    this.windowCenterU = 0.89,
+    this.windowCenterV = 0.43,
+    this.windowSpreadU = 1.17,
+    this.windowSpreadV = 3.64,
+    this.windowPlateau = 0.73,
+    this.windowFalloff = 0.97,
+    this.windowRotation = 0.39,
     this.gridBaseOpacity = 0.78,
     this.gridFadeMult = 0.00,
     this.gridFadePower = 0.66,
     this.gridFadeMin = 0.20,
-    this.washStrength = 0.26,
-    this.washStart = 0.28,
-    this.washPower = 0.50,
     this.lightMapFloor = 0.12,
-    this.lightMapIntensity = 0.64,
+    this.lightMapIntensity = 1.49,
   });
 
   final int boardSize;
@@ -118,19 +118,19 @@ class GoThreeBoardBackground extends StatefulWidget {
   final int fillLightColor;
   final int ambientLightColor;
   final int sheenLightColor;
-  // Window irradiance Gaussian controls (rebuild textures + grid on change).
+  // Window irradiance controls (rebuild textures + grid on change).
   final double windowCenterU;
   final double windowCenterV;
   final double windowSpreadU;
   final double windowSpreadV;
+  final double windowPlateau;
+  final double windowFalloff;
+  final double windowRotation;
   // Grid dissolution controls (rebuild grid only on change).
   final double gridBaseOpacity;
   final double gridFadeMult;
   final double gridFadePower;
   final double gridFadeMin;
-  final double washStrength;
-  final double washStart;
-  final double washPower;
   final double lightMapFloor;
   final double lightMapIntensity;
 
@@ -154,7 +154,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   static const double _cornerRadius = 0.34;
   static const double _gridSpan = 7.24;
 
-  late final three.ThreeJS _threeJs;
+  three.ThreeJS? _threeJs;
+  Size? _threeJsSize;
   final three.Group _root = three.Group();
   final three.Group _stoneGroup = three.Group();
   final three.Group _particleGroup = three.Group();
@@ -196,8 +197,17 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     // first error or after the scene is successfully initialized.
     _prevErrorHandler = FlutterError.onError;
     FlutterError.onError = _pluginErrorGuard;
+  }
 
+  void _ensureThreeJs(Size size) {
+    if (_threeJs != null && _threeJsSize == size) return;
+    if (_threeJs != null) {
+      _threeJs!.dispose();
+      _sceneInitialized = false;
+    }
+    _threeJsSize = size;
     _threeJs = three.ThreeJS(
+      size: size,
       settings: three.Settings(
         alpha: true,
         antialias: true,
@@ -251,8 +261,8 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       _root.rotation.y = widget.boardRotationY;
     }
     if (oldWidget.cinematicFov != widget.cinematicFov) {
-      _threeJs.camera.fov = widget.cinematicFrame ? widget.cinematicFov : 28;
-      _threeJs.camera.updateProjectionMatrix();
+      _threeJs?.camera.fov = widget.cinematicFrame ? widget.cinematicFov : 28;
+      _threeJs?.camera.updateProjectionMatrix();
     }
     if (oldWidget.leafShadowOpacity != widget.leafShadowOpacity) {
       _buildLeafShadowCaustics();
@@ -291,13 +301,13 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         oldWidget.windowCenterV != widget.windowCenterV ||
         oldWidget.windowSpreadU != widget.windowSpreadU ||
         oldWidget.windowSpreadV != widget.windowSpreadV ||
+        oldWidget.windowPlateau != widget.windowPlateau ||
+        oldWidget.windowFalloff != widget.windowFalloff ||
+        oldWidget.windowRotation != widget.windowRotation ||
         oldWidget.gridBaseOpacity != widget.gridBaseOpacity ||
         oldWidget.gridFadeMult != widget.gridFadeMult ||
         oldWidget.gridFadePower != widget.gridFadePower ||
         oldWidget.gridFadeMin != widget.gridFadeMin ||
-        oldWidget.washStrength != widget.washStrength ||
-        oldWidget.washStart != widget.washStart ||
-        oldWidget.washPower != widget.washPower ||
         oldWidget.lightMapFloor != widget.lightMapFloor ||
         oldWidget.lightMapIntensity != widget.lightMapIntensity) {
       unawaited(_rebuildBoardTextures());
@@ -306,7 +316,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   }
 
   void _updateToneMappingExposure() {
-    _threeJs.renderer?.toneMappingExposure = widget.toneMappingExposure;
+    _threeJs?.renderer?.toneMappingExposure = widget.toneMappingExposure;
   }
 
   Future<void> _rebuildBoardTextures() async {
@@ -332,9 +342,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   @override
   void dispose() {
     _restorePrevErrorHandler();
-    if (_sceneInitialized) {
-      _threeJs.dispose();
-    }
+    _threeJs?.dispose();
     super.dispose();
   }
 
@@ -355,11 +363,12 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           width.isFinite && width > 0 ? width : fallbackSize.width,
           height.isFinite && height > 0 ? height : fallbackSize.height,
         );
+        _ensureThreeJs(viewSize);
 
         return ClipRect(
-          child: MediaQuery(
-            data: MediaQuery.of(context).copyWith(size: viewSize),
-            child: SizedBox.expand(child: _threeJs.build()),
+          child: CustomPaint(
+            painter: const _BoardAtmospherePainter(),
+            child: SizedBox.expand(child: _threeJs!.build()),
           ),
         );
       },
@@ -378,20 +387,22 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   }
 
   Future<void> _setup() async {
-    _threeJs.scene = three.Scene();
+    final threeJs = _threeJs;
+    if (threeJs == null) return;
+    threeJs.scene = three.Scene();
     _sceneInitialized = true;
     _root
       ..position.setValues(0, widget.cinematicFrame ? -1.50 : 0, 0)
       ..rotation.y = widget.boardRotationY;
-    _threeJs.camera = three.PerspectiveCamera(
+    threeJs.camera = three.PerspectiveCamera(
       widget.cinematicFrame ? widget.cinematicFov : 28,
-      _threeJs.width / _threeJs.height,
+      threeJs.width / threeJs.height,
       0.1,
       30,
     );
     _setCamera(0);
 
-    _threeJs.scene.add(_root);
+    threeJs.scene.add(_root);
     _buildLights();
     await _buildBoard();
     _buildSideWoodDetail();
@@ -401,7 +412,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _buildParticles();
     _rebuildStones();
 
-    _threeJs.addAnimationEvent((dt) {
+    threeJs.addAnimationEvent((dt) {
       if (!mounted) return;
       _elapsed += dt;
       if (widget.animate) {
@@ -524,7 +535,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         distance: widget.cameraDepth ?? 6.55,
         viewScale: viewScale,
       );
-      _threeJs.camera.lookAt(target);
+      _threeJs?.camera.lookAt(target);
     } else {
       final target =
           three.Vector3(0, _root.position.y + _boardTop, widget.targetZOffset);
@@ -536,7 +547,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         distance: widget.cameraDepth ?? 9.66,
         viewScale: viewScale,
       );
-      _threeJs.camera.lookAt(target);
+      _threeJs?.camera.lookAt(target);
     }
   }
 
@@ -553,7 +564,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     );
     if (vectorLength <= 0) return;
     final scaledDistance = distance / viewScale;
-    _threeJs.camera.position.setValues(
+    _threeJs?.camera.position.setValues(
       target.x + offsetX / vectorLength * scaledDistance,
       target.y + offsetY / vectorLength * scaledDistance,
       target.z + offsetZ / vectorLength * scaledDistance,
@@ -561,9 +572,11 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   }
 
   void _buildLights() {
+    final threeJs = _threeJs;
+    if (threeJs == null) return;
     _ambientLight = three.AmbientLight(
         widget.ambientLightColor, widget.ambientLightIntensity);
-    _threeJs.scene.add(_ambientLight!);
+    threeJs.scene.add(_ambientLight!);
 
     final key =
         three.DirectionalLight(widget.keyLightColor, widget.keyLightIntensity);
@@ -583,9 +596,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     key.shadow?.bias = -0.0008;
     key.shadow?.radius = 8;
     key.shadow?.blurSamples = 18;
-    _threeJs.scene.add(key);
+    threeJs.scene.add(key);
     if (key.target != null) {
-      _threeJs.scene.add(key.target);
+      threeJs.scene.add(key.target);
     }
     _keyLight = key;
 
@@ -596,7 +609,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       widget.fillLightPosition.y,
       widget.fillLightPosition.z,
     );
-    _threeJs.scene.add(fill);
+    threeJs.scene.add(fill);
     _fillLight = fill;
 
     final sheen = three.RectAreaLight(
@@ -615,7 +628,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       _sheenLightTarget.y,
       _sheenLightTarget.z,
     ));
-    _threeJs.scene.add(sheen);
+    threeJs.scene.add(sheen);
     _sheenLight = sheen;
   }
 
@@ -1408,13 +1421,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           );
     final data = three.Uint8Array(source.width * source.height * 4);
 
-    final washStrength = widget.washStrength;
-    final washPower = widget.washPower;
-    final washStart = widget.washStart;
-    const creamR = 255.0;
-    const creamG = 254.0;
-    const creamB = 250.0;
-
     // Grid line UV geometry (same world coords as mesh grid).
     final n = widget.boardSize;
     final lineStartU = 0.5 - _gridSpan / (2 * _boardWidth);
@@ -1439,10 +1445,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
       for (int x = 0; x < source.width; x++) {
         final u = x / (source.width - 1);
         final window = _windowIrradiance(u, v);
-        final directionalWindow =
-            ((window - washStart) / (1.0 - washStart)).clamp(0.0, 1.0);
-        final wash =
-            washStrength * math.pow(directionalWindow, washPower).toDouble();
         final pixel = source.getPixel(x, y);
         final index = (y * source.width + x) * 4;
         final woodTone = _tintWoodPixel(
@@ -1452,10 +1454,9 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
           widget.boardWoodColor,
         );
 
-        // Board surface with cream wash.
-        final boardR = _lerpDouble(woodTone.$1, creamR, wash);
-        final boardG = _lerpDouble(woodTone.$2, creamG, wash);
-        final boardB = _lerpDouble(woodTone.$3, creamB, wash);
+        final boardR = woodTone.$1;
+        final boardG = woodTone.$2;
+        final boardB = woodTone.$3;
 
         // Grid line coverage: max of vertical-line and horizontal-line proximity.
         double gridCoverage = 0.0;
@@ -1533,24 +1534,42 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
   double _windowIrradiance(double u, double v) {
     // UV (1,0) = near-right corner = screen lower-right = target window-light region.
-    // broadWindow and upperRightLift centres sit just inside that corner.
+    // Model the window as a broad rectangular aperture: a high plateau near C,
+    // then soft U/V edges. Do not use radial distance here; a real window wash
+    // should read as a large opening, not a circular spotlight.
     final cu = widget.windowCenterU;
     final cv = widget.windowCenterV;
-    final su = widget.windowSpreadU;
-    final sv = widget.windowSpreadV;
-    final broadWindow = math.exp(
-      -((u - cu) * (u - cu) / su + (v - cv) * (v - cv) / sv),
-    );
-    // diagonalWash uses (1-v) so that high-u / low-v (near-right, C corner) gets the
-    // strongest lift; far-left (A corner) falls to zero.
-    final diagonalWash =
-        ((u * 0.96 + (1.0 - v) * 0.68 - 0.18) / 1.58).clamp(0.0, 1.0);
-    final middleLift = math.pow(diagonalWash, 0.58).toDouble();
-    final upperRightLift = math.exp(
-      -((u - 0.94) * (u - 0.94) / 0.65 + (v - 0.04) * (v - 0.04) / 0.50),
-    );
-    return (broadWindow * middleLift * 0.92 + upperRightLift * 0.08)
-        .clamp(0.0, 1.0);
+    final halfU = widget.windowSpreadU.clamp(0.05, 8.0) * 0.24;
+    final halfV = widget.windowSpreadV.clamp(0.05, 8.0) * 0.24;
+    final plateau = widget.windowPlateau.clamp(0.0, 1.0);
+    final falloff = widget.windowFalloff.clamp(0.05, 2.0);
+    final rotation = widget.windowRotation;
+    final sinR = math.sin(rotation);
+    final cosR = math.cos(rotation);
+    final localU = (u - cu) * cosR - (v - cv) * sinR;
+    final localV = (u - cu) * sinR + (v - cv) * cosR;
+
+    final innerU = halfU * plateau;
+    final innerV = halfV * plateau;
+    final outerU = innerU + halfU * falloff;
+    final outerV = innerV + halfV * falloff;
+    final uField = 1.0 - _smoothStep(innerU, outerU, localU.abs());
+    final vField = 1.0 - _smoothStep(innerV, outerV, localV.abs());
+    final areaWindow = math.min(uField, vField).clamp(0.0, 1.0);
+
+    final diagonal = ((u * 0.84 + (1.0 - v) * 0.72) / 1.56).clamp(0.0, 1.0);
+    final diagonalField = math.pow(diagonal, 0.42).toDouble();
+    final midField = (0.30 + diagonalField * 0.70).clamp(0.0, 1.0);
+
+    return (areaWindow * midField).clamp(0.0, 1.0);
+  }
+
+  static double _smoothStep(double edge0, double edge1, double value) {
+    if (edge0 == edge1) {
+      return value < edge0 ? 0.0 : 1.0;
+    }
+    final t = ((value - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
   }
 
   static (double, double, double) _tintWoodPixel(
@@ -1579,6 +1598,61 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   static double _luma(double r, double g, double b) {
     return r * 0.2126 + g * 0.7152 + b * 0.0722;
   }
+}
+
+class _BoardAtmospherePainter extends CustomPainter {
+  const _BoardAtmospherePainter();
+
+  static const _pageBase = Color(0xFFF9F4EC);
+  static const _warmFloor = Color(0xFFECE2D3);
+  static const _windowGlow = Color(0xFFFFF5D9);
+  static const _softCream = Color(0xFFFFFBF2);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+
+    canvas.drawRect(Offset.zero & size, Paint()..color = _pageBase);
+
+    final floorRect = Rect.fromLTWH(
+      -size.width * 0.20,
+      size.height * 0.24,
+      size.width * 1.40,
+      size.height * 0.78,
+    );
+    final floorPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color(0x00F9F4EC),
+          _warmFloor,
+          _pageBase,
+        ],
+        stops: [0.0, 0.45, 1.0],
+      ).createShader(floorRect);
+    canvas.drawRect(floorRect, floorPaint);
+
+    final windowRect = Rect.fromCircle(
+      center: Offset(size.width * 0.88, size.height * 0.34),
+      radius: size.shortestSide * 0.70,
+    );
+    final windowPaint = Paint()
+      ..shader = const RadialGradient(
+        center: Alignment.center,
+        radius: 1.0,
+        colors: [
+          _windowGlow,
+          _softCream,
+          Color(0x00F9F4EC),
+        ],
+        stops: [0.0, 0.46, 1.0],
+      ).createShader(windowRect);
+    canvas.drawOval(windowRect, windowPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BoardAtmospherePainter oldDelegate) => false;
 }
 
 class Offset3 {
