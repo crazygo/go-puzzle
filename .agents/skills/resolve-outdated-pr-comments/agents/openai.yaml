@@ -1,0 +1,4 @@
+interface:
+  display_name: "Resolve Outdated PR Comments"
+  short_description: "Find and resolve stale GitHub PR review threads."
+  default_prompt: "Clean up outdated review comments on this PR."
