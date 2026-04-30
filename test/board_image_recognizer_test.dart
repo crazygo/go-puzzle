@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -159,6 +160,88 @@ void main() {
       color: StoneColor.empty,
     );
   });
+
+  test('recognizes all captured board samples exactly', () async {
+    final sampleIds = [
+      '320555dd89b76dafcfe7d3750f7ca7d9',
+      '44065bf4b7e8a77e969bf66271ecb1bb',
+      'abf526c2b6b729227a0bcf79bc945cee',
+      'b229491199c6560fb58b0ccfbd3d9460',
+      'de373423ef1e24dd28e7556fbe568e36',
+    ];
+
+    for (final sampleId in sampleIds) {
+      final truth = await _loadRecognitionTruth(sampleId);
+      final imageBytes = await _loadSampleBytes('$sampleId.png');
+
+      final result = BoardImageRecognizer.recognize(imageBytes);
+
+      expect(result.boardSize, truth.boardSize, reason: sampleId);
+      final expectedStones = <BoardPosition, StoneColor>{};
+      for (final entry in truth.stones.entries) {
+        expectedStones[entry.key] = entry.value;
+        expect(
+          result.board[entry.key.row][entry.key.col],
+          entry.value,
+          reason: '$sampleId ${_formatCoord(entry.key, truth.boardSize)}',
+        );
+      }
+
+      for (var row = 0; row < result.boardSize; row++) {
+        for (var col = 0; col < result.boardSize; col++) {
+          final position = BoardPosition(row, col);
+          final expected = expectedStones[position] ?? StoneColor.empty;
+          expect(
+            result.board[row][col],
+            expected,
+            reason: '$sampleId ${_formatCoord(position, truth.boardSize)}',
+          );
+        }
+      }
+    }
+  });
+}
+
+Future<Uint8List> _loadSampleBytes(String name) async {
+  final uri = Uri.file('test/assets/recognition_samples/$name');
+  return Uint8List.fromList(await File.fromUri(uri).readAsBytes());
+}
+
+Future<_RecognitionTruth> _loadRecognitionTruth(String sampleId) async {
+  final uri = Uri.file('test/assets/recognition_samples/$sampleId.txt');
+  final lines = await File.fromUri(uri).readAsLines();
+  final boardSize = int.parse(lines.first.split(RegExp(r'\s+')).last);
+  final stones = <BoardPosition, StoneColor>{};
+  for (final line in lines.skip(1)) {
+    if (line.trim().isEmpty) continue;
+    final parts = line.split(',');
+    final color = parts[0] == 'B' ? StoneColor.black : StoneColor.white;
+    stones[_parseGoCoord(parts[1], boardSize)] = color;
+  }
+  return _RecognitionTruth(boardSize: boardSize, stones: stones);
+}
+
+BoardPosition _parseGoCoord(String coord, int boardSize) {
+  var col = coord.codeUnitAt(0) - 'A'.codeUnitAt(0);
+  if (col > 8) col--;
+  final rowNumber = int.parse(coord.substring(1));
+  return BoardPosition(boardSize - rowNumber, col);
+}
+
+String _formatCoord(BoardPosition position, int boardSize) {
+  final colCode = position.col >= 8 ? position.col + 1 : position.col;
+  return '${String.fromCharCode('A'.codeUnitAt(0) + colCode)}'
+      '${boardSize - position.row}';
+}
+
+class _RecognitionTruth {
+  const _RecognitionTruth({
+    required this.boardSize,
+    required this.stones,
+  });
+
+  final int boardSize;
+  final Map<BoardPosition, StoneColor> stones;
 }
 
 void _expectScaledStoneAt(
