@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/settings_provider.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_context.dart';
 import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
 
@@ -12,9 +14,9 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      backgroundColor: kPageBackgroundColor,
+      backgroundColor: CupertinoColors.transparent,
       child: DecoratedBox(
-        decoration: kPageBackgroundDecoration,
+        decoration: const BoxDecoration(),
         child: Stack(
           children: [
             // Hero as full-bleed background layer
@@ -22,7 +24,7 @@ class SettingsScreen extends StatelessWidget {
               top: 0,
               left: 0,
               right: 0,
-              child: PageHeroBanner(title: '设置'),
+              child: PageHeroBanner(title: '设置', showOrbitalArt: false),
             ),
             // Scrollable content floats over hero
             SafeArea(
@@ -36,6 +38,8 @@ class SettingsScreen extends StatelessWidget {
                   SliverList(
                     delegate: SliverChildListDelegate([
                       const SizedBox(height: 8),
+                      _buildAppearanceSection(context),
+                      const SizedBox(height: 24),
                       _buildGameSection(context),
                       const SizedBox(height: 24),
                       _buildFeedbackSection(context),
@@ -52,6 +56,22 @@ class SettingsScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAppearanceSection(BuildContext context) {
+    return Consumer<SettingsProvider>(
+      builder: (context, settings, _) {
+        return _Section(
+          title: '外观',
+          children: [
+            _ThemeSegmentedRow(
+              value: settings.appTheme,
+              onChanged: settings.setAppTheme,
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -636,6 +656,59 @@ class _SwitchRow extends StatelessWidget {
             ),
           ),
           CupertinoSwitch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeSegmentedRow extends StatelessWidget {
+  const _ThemeSegmentedRow({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final AppVisualTheme value;
+  final ValueChanged<AppVisualTheme> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text('主题', style: TextStyle(fontSize: 16)),
+          ),
+          SizedBox(
+            width: 184,
+            child: CupertinoSlidingSegmentedControl<AppVisualTheme>(
+              groupValue: value,
+              backgroundColor: palette.segmentTrack,
+              thumbColor: palette.segmentSelected,
+              onValueChanged: (theme) {
+                if (theme != null) onChanged(theme);
+              },
+              children: {
+                for (final theme in AppVisualTheme.values)
+                  theme: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Text(
+                      theme.label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: value == theme
+                            ? palette.segmentSelectedText
+                            : palette.segmentText,
+                      ),
+                    ),
+                  ),
+              },
+            ),
+          ),
         ],
       ),
     );

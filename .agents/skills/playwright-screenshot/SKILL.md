@@ -1,0 +1,174 @@
+---
+name: playwright-screenshot
+description: Use when you need browser-rendered screenshots of local or remote web pages for UI comparison, visual QA, or preserving screenshot history. Uses Playwright with a portable browser-resolution flow for macOS and Linux, and keeps screenshot history by renaming older files instead of deleting them.
+---
+
+# Playwright Screenshot
+
+Use this skill when the user wants a real browser screenshot instead of a framework render or emulator export.
+
+## Workflow
+
+1. Decide the target URL, output path, and viewport.
+2. Prefer repo-relative output paths such as `.cache/screenshots/page.png`.
+3. Use the bundled script instead of rewriting Playwright launch code.
+4. For Flutter Web verification in this repo, prefer a release static web build served by Python: `flutter build web --no-pub --release`, then `python3 -m http.server --directory build/web`.
+5. After the screenshot is captured, stop/kill the Python static server before taking the next screenshot. A fresh host process per shot keeps the flow idempotent.
+6. If the output file already exists, keep the history by renaming the old file to `name vN.ext` before writing the new file.
+7. Report the exact viewport, DPR, URL, and server lifecycle used in the final response.
+
+## Runtime Model
+
+Run `scripts/browser_screenshot.sh`. It:
+
+- archives the previous screenshot if present
+- uses an environment-provided Chrome or Chromium executable when configured
+- otherwise lets Playwright use its installed browser registry
+- launches the browser through Playwright
+- or connects to an already-running Chromium browser when `PLAYWRIGHT_CDP_URL` is set
+- waits for visual stability instead of capturing the first rendered frame
+- uses a fixed viewport and device scale factor for repeatable comparison
+
+For Flutter Web in this repo, the expected lifecycle is:
+
+1. Build static web once for the current code: `flutter build web --no-pub --release`.
+2. Start a new Python static server for `build/web`: `python3 -m http.server <port> --bind 127.0.0.1 --directory build/web`.
+3. Add a cache-busting query value to the URL, such as `&shot=YYYY-MM-DD-HH-mm-SS`, when comparing iterative visual changes.
+4. Run `scripts/browser_screenshot.sh`.
+5. Stop the Python server with `Ctrl-C` in the PTY, or kill the exact process if it does not exit.
+6. Use a new Python process for the next shot. Rebuild `build/web` whenever source code or assets changed.
+
+Do not use `flutter run -d web-server` as the default screenshot path here. It
+can block on debug service/DDC/hot restart behavior and has proven less
+deterministic than serving a compiled static release build. Keep the old
+`flutter run` path only as a last-resort diagnostic when release build output is
+not suitable for the specific question.
+
+Flutter Web can still be blank after browser `networkidle` or `domcontentloaded`.
+This is normal for CanvasKit/WebGL pages: Dart, WebGL, and platform-view setup
+may continue after the page itself is loaded. Do not capture on page-load alone.
+Use a large enough wait budget for heavy WebGL pages, for example `45000`, and
+let the bundled script accept the first visually ready frame.
+
+If a shot times out as not ready, inspect the generated
+`<output>.notready.txt` before changing rendering code. Important fields:
+
+- `counts.flutter-view` / `counts.canvas`: if both are `0`, Flutter did not
+  finish bootstrapping; this is a page/runtime readiness issue, not a visual
+  rendering result.
+- `[events]`: look for early `console`, `pageerror`, and `requestfailed` lines.
+  These listeners must be installed before navigation so bootstrap failures are
+  not missed.
+- `dominantRatio=1.000`, `luminanceStdDev=0.000`, `edgeDensity=0.000` usually
+  means the screenshot is still a blank background.
+
+Known stable local command shape for this repo:
+
+```bash
+flutter build web --no-pub --release
+
+python3 -m http.server <port> \
+  --bind 127.0.0.1 \
+  --directory build/web
+
+ts=$(date '+%Y-%m-%d-%H-%M-%S')
+bash .agents/skills/playwright-screenshot/scripts/browser_screenshot.sh \
+  "http://127.0.0.1:<port>/?threeBoardDebug=1&shot=${ts}" \
+  ".cache/screenshots/${ts}-threeBoardDebug-release-web-wide.png" \
+  900 874 2 45000
+
+# Stop the Python server after capture.
+```
+
+Verified on 2026-04-29 with port `8177`; the release build served static assets
+successfully, including `assets/assets/textures/board_top_albedo_v2_1024.png`,
+and produced a visually ready screenshot with `900x874`, DPR `2`, wait budget
+`45000`.
+
+For 3D board inspection, prefer a wider viewport such as `900x874` with DPR `2`
+when the goal is board lighting/material comparison. Use the mobile preset only
+when validating final mobile composition.
+
+The skill expects a local Playwright dependency to already exist. It does not rely on a network install during execution.
+
+Supported resolution order for the Playwright module:
+
+- `PLAYWRIGHT_MODULE_PATH`, if set
+- local `playwright`
+- local `playwright-core`
+
+Supported browser resolution order:
+
+- `PLAYWRIGHT_CDP_URL`, if set, bypasses browser launch and connects to that remote-debugging endpoint
+- `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, if set
+- `CHROME_BIN`, if set
+- common binaries on `PATH` such as `google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser`, or `chrome`
+- Playwright's installed browser registry, when available
+
+Do not hard-code machine-specific browser paths in project workflows. CI and local machines should provide browser location through environment variables, PATH, or CDP.
+
+## macOS Chrome Crash Handling
+
+On macOS, `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` can crash before navigation with a report showing `HIServices _RegisterApplication` / `TransformProcessType` and `SIGABRT`. This is a browser process registration failure, not a page readiness problem.
+
+Playwright's installed Chromium can also fail before navigation if the current execution sandbox blocks macOS Mach port registration. The error commonly includes `MachPortRendezvous`, `bootstrap_check_in`, or `Permission denied (1100)`.
+
+When this happens:
+
+- Do not treat it as a Flutter render failure.
+- Do not keep retrying the same crashing browser executable.
+- Prefer Playwright's installed Chromium, a non-app-bundle Chromium/Chrome-for-Testing executable via `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, or a CI-provided `CHROME_BIN`.
+- If the current execution context cannot launch the browser, move screenshot execution to a non-sandboxed runner or start Chrome/Chromium outside that context with remote debugging and connect to it with `PLAYWRIGHT_CDP_URL`.
+- Record the failure in the final status and keep the current code iteration marked as `pending screenshot verification`.
+
+External CDP fallback:
+
+```bash
+"$CHROME_BIN" \
+  --remote-debugging-port=9222 \
+  --user-data-dir=/tmp/go-puzzle-cdp-chrome
+
+PLAYWRIGHT_CDP_URL=http://127.0.0.1:9222 \
+  bash skills/playwright-screenshot/scripts/browser_screenshot.sh \
+  "http://127.0.0.1:<port>/?threeBoardDebug=1" \
+  ".cache/screenshots/YYYY-MM-DD-HH-mm-threeBoardDebug-1.png" \
+  402 874 3 12000
+```
+
+`CHROME_BIN` is an example environment-provided executable. It may point to Chrome, Chromium, or Chrome for Testing depending on the machine. Do not commit a local absolute browser path into the workflow.
+
+## iPhone 17 Preset
+
+For iPhone 17 browser screenshots, use:
+
+- CSS viewport: `402x874`
+- Device scale factor: `3`
+
+This is derived from Apple’s 1206x2622 display resolution. If the user asks for the latest device dimensions, verify the current official specs first.
+
+Example:
+
+```bash
+bash skills/playwright-screenshot/scripts/browser_screenshot.sh \
+  "http://localhost:8081" \
+  ".cache/screenshots/particle.png" \
+  402 874 3 12000
+```
+
+Arguments are:
+
+1. URL
+2. Output path
+3. Width in CSS pixels
+4. Height in CSS pixels
+5. Device scale factor
+6. Extra wait time in milliseconds after navigation
+
+## Setup Notes
+
+- If Playwright is missing, install it in the repo instead of in a home-directory tool cache.
+- If Playwright browsers are not installed, prefer pointing Playwright at a system Chrome or Chromium executable with `CHROME_BIN` or `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`.
+- For CJK screenshots, wire the font into Flutter assets and the app theme. Do not rely on the browser eventually swapping in a fallback font after first paint.
+- `flutter test` screenshot rendering and browser rendering solve fonts differently. Do not assume a `FontLoader` test fix automatically applies to Playwright.
+- In CI or Linux containers, the launcher may add `--no-sandbox` and `--disable-dev-shm-usage` automatically when needed.
+- Keep the viewport fixed during visual comparison so only the UI changes between iterations.

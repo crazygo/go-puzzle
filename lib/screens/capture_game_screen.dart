@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../game/board_image_recognizer.dart';
 import '../game/capture_ai.dart';
 import '../game/ai_rank_level.dart';
+import '../game/go_engine.dart';
 import '../models/board_position.dart';
 import '../models/game_record.dart';
 import '../models/game_state.dart';
@@ -16,6 +17,7 @@ import '../providers/capture_game_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/game_history_repository.dart';
 import '../services/player_rank_repository.dart';
+import '../theme/theme_context.dart';
 import '../widgets/go_board_widget.dart';
 import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
@@ -25,6 +27,316 @@ class CaptureGameScreen extends StatefulWidget {
 
   @override
   State<CaptureGameScreen> createState() => _CaptureGameScreenState();
+}
+
+class ThreeBoardDebugScreen extends StatefulWidget {
+  const ThreeBoardDebugScreen({super.key});
+
+  @override
+  State<ThreeBoardDebugScreen> createState() => _ThreeBoardDebugScreenState();
+}
+
+class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
+  bool _panelVisible = false;
+  double _leafShadowOpacity = _CaptureGameScreenState._defaultLeafShadowOpacity;
+  bool _stoneExtraOverlayEnabled =
+      _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
+  bool _floatingParticlesEnabled =
+      _CaptureGameScreenState._defaultFloatingParticlesEnabled;
+  bool _cornerLabelsEnabled =
+      _CaptureGameScreenState._defaultCornerLabelsEnabled;
+  double _boardTopBrightness =
+      _CaptureGameScreenState._defaultBoardTopBrightness;
+  int _boardWoodColor = _CaptureGameScreenState._defaultBoardWoodColor;
+  double _toneMappingExposure =
+      _CaptureGameScreenState._defaultToneMappingExposure;
+  Offset3 _keyLightPosition = _CaptureGameScreenState._defaultKeyLightPosition;
+  Offset3 _fillLightPosition =
+      _CaptureGameScreenState._defaultFillLightPosition;
+  double _keyLightIntensity = _CaptureGameScreenState._defaultKeyLightIntensity;
+  double _fillLightIntensity =
+      _CaptureGameScreenState._defaultFillLightIntensity;
+  double _ambientLightIntensity =
+      _CaptureGameScreenState._defaultAmbientLightIntensity;
+  double _sheenLightIntensity =
+      _CaptureGameScreenState._defaultSheenLightIntensity;
+  int _keyLightColor = _CaptureGameScreenState._defaultKeyLightColor;
+  int _fillLightColor = _CaptureGameScreenState._defaultFillLightColor;
+  int _ambientLightColor = _CaptureGameScreenState._defaultAmbientLightColor;
+  int _sheenLightColor = _CaptureGameScreenState._defaultSheenLightColor;
+  double _boardTopFactor = 0.03;
+  double _boardHeightFactor = 0.66;
+  double _boardCanvasYOffset =
+      _CaptureGameScreenState._defaultHomeBoardCanvasYOffset;
+  double _boardSceneScale = _CaptureGameScreenState._defaultHomeBoardSceneScale;
+  double _boardCameraLift = _CaptureGameScreenState._defaultHomeBoardCameraLift;
+  double _boardCameraDepth =
+      _CaptureGameScreenState._defaultHomeBoardCameraDepth;
+  double _boardTargetZOffset =
+      _CaptureGameScreenState._defaultHomeBoardTargetZOffset;
+  double _boardCinematicFov =
+      _CaptureGameScreenState._defaultHomeBoardCinematicFov;
+  double _boardRotationY = _CaptureGameScreenState._defaultHomeBoardRotationY;
+  // Window irradiance controls
+  double _windowCenterU = _CaptureGameScreenState._defaultWindowCenterU;
+  double _windowCenterV = _CaptureGameScreenState._defaultWindowCenterV;
+  double _windowSpreadU = _CaptureGameScreenState._defaultWindowSpreadU;
+  double _windowSpreadV = _CaptureGameScreenState._defaultWindowSpreadV;
+  double _windowPlateau = _CaptureGameScreenState._defaultWindowPlateau;
+  double _windowFalloff = _CaptureGameScreenState._defaultWindowFalloff;
+  double _windowRotation = _CaptureGameScreenState._defaultWindowRotation;
+  // Grid dissolution controls
+  double _gridBaseOpacity = _CaptureGameScreenState._defaultGridBaseOpacity;
+  double _gridFadeMult = _CaptureGameScreenState._defaultGridFadeMult;
+  double _gridFadePower = _CaptureGameScreenState._defaultGridFadePower;
+  double _gridFadeMin = _CaptureGameScreenState._defaultGridFadeMin;
+  double _lightMapFloor = _CaptureGameScreenState._defaultLightMapFloor;
+  double _lightMapIntensity = _CaptureGameScreenState._defaultLightMapIntensity;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      backgroundColor: kPageBackgroundColor,
+      child: DecoratedBox(
+        decoration: kPageBackgroundDecoration,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              children: [
+                _HomeThreeBoardPreview(
+                  constraints: constraints,
+                  topFactor: _boardTopFactor,
+                  heightFactor: _boardHeightFactor,
+                  canvasYOffset: _boardCanvasYOffset,
+                  sceneScale: _boardSceneScale,
+                  cameraLift: _boardCameraLift,
+                  cameraDepth: _boardCameraDepth,
+                  targetZOffset: _boardTargetZOffset,
+                  cinematicFov: _boardCinematicFov,
+                  boardRotationY: _boardRotationY,
+                  leafShadowOpacity: _leafShadowOpacity,
+                  stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
+                  floatingParticlesEnabled: _floatingParticlesEnabled,
+                  cornerLabelsEnabled: _cornerLabelsEnabled,
+                  boardTopBrightness: _boardTopBrightness,
+                  boardWoodColor: _boardWoodColor,
+                  toneMappingExposure: _toneMappingExposure,
+                  keyLightPosition: _keyLightPosition,
+                  fillLightPosition: _fillLightPosition,
+                  keyLightIntensity: _keyLightIntensity,
+                  fillLightIntensity: _fillLightIntensity,
+                  ambientLightIntensity: _ambientLightIntensity,
+                  sheenLightIntensity: _sheenLightIntensity,
+                  keyLightColor: _keyLightColor,
+                  fillLightColor: _fillLightColor,
+                  ambientLightColor: _ambientLightColor,
+                  sheenLightColor: _sheenLightColor,
+                  showDebugGuides: _panelVisible,
+                  windowCenterU: _windowCenterU,
+                  windowCenterV: _windowCenterV,
+                  windowSpreadU: _windowSpreadU,
+                  windowSpreadV: _windowSpreadV,
+                  windowPlateau: _windowPlateau,
+                  windowFalloff: _windowFalloff,
+                  windowRotation: _windowRotation,
+                  gridBaseOpacity: _gridBaseOpacity,
+                  gridFadeMult: _gridFadeMult,
+                  gridFadePower: _gridFadePower,
+                  gridFadeMin: _gridFadeMin,
+                  lightMapFloor: _lightMapFloor,
+                  lightMapIntensity: _lightMapIntensity,
+                ),
+                if (_panelVisible)
+                  _HomeBoardTuningSheet(
+                    shadowOpacity: _leafShadowOpacity,
+                    stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
+                    floatingParticlesEnabled: _floatingParticlesEnabled,
+                    cornerLabelsEnabled: _cornerLabelsEnabled,
+                    boardTopBrightness: _boardTopBrightness,
+                    boardWoodColor: _boardWoodColor,
+                    toneMappingExposure: _toneMappingExposure,
+                    keyLightPosition: _keyLightPosition,
+                    fillLightPosition: _fillLightPosition,
+                    keyLightIntensity: _keyLightIntensity,
+                    fillLightIntensity: _fillLightIntensity,
+                    ambientLightIntensity: _ambientLightIntensity,
+                    sheenLightIntensity: _sheenLightIntensity,
+                    keyLightColor: _keyLightColor,
+                    fillLightColor: _fillLightColor,
+                    ambientLightColor: _ambientLightColor,
+                    sheenLightColor: _sheenLightColor,
+                    boardTopFactor: _boardTopFactor,
+                    boardHeightFactor: _boardHeightFactor,
+                    boardCanvasYOffset: _boardCanvasYOffset,
+                    boardSceneScale: _boardSceneScale,
+                    boardCameraLift: _boardCameraLift,
+                    boardCameraDepth: _boardCameraDepth,
+                    boardTargetZOffset: _boardTargetZOffset,
+                    boardCinematicFov: _boardCinematicFov,
+                    boardRotationY: _boardRotationY,
+                    onShadowOpacityChanged: (value) =>
+                        setState(() => _leafShadowOpacity = value),
+                    onStoneExtraOverlayChanged: (value) =>
+                        setState(() => _stoneExtraOverlayEnabled = value),
+                    onFloatingParticlesChanged: (value) =>
+                        setState(() => _floatingParticlesEnabled = value),
+                    onCornerLabelsChanged: (value) =>
+                        setState(() => _cornerLabelsEnabled = value),
+                    onBoardTopBrightnessChanged: (value) =>
+                        setState(() => _boardTopBrightness = value),
+                    onBoardWoodColorChanged: (value) =>
+                        setState(() => _boardWoodColor = value),
+                    onToneMappingExposureChanged: (value) =>
+                        setState(() => _toneMappingExposure = value),
+                    onKeyLightPositionChanged: (value) =>
+                        setState(() => _keyLightPosition = value),
+                    onFillLightPositionChanged: (value) =>
+                        setState(() => _fillLightPosition = value),
+                    onKeyLightIntensityChanged: (value) =>
+                        setState(() => _keyLightIntensity = value),
+                    onFillLightIntensityChanged: (value) =>
+                        setState(() => _fillLightIntensity = value),
+                    onAmbientLightIntensityChanged: (value) =>
+                        setState(() => _ambientLightIntensity = value),
+                    onSheenLightIntensityChanged: (value) =>
+                        setState(() => _sheenLightIntensity = value),
+                    onKeyLightColorChanged: (value) =>
+                        setState(() => _keyLightColor = value),
+                    onFillLightColorChanged: (value) =>
+                        setState(() => _fillLightColor = value),
+                    onAmbientLightColorChanged: (value) =>
+                        setState(() => _ambientLightColor = value),
+                    onSheenLightColorChanged: (value) =>
+                        setState(() => _sheenLightColor = value),
+                    onBoardTopFactorChanged: (value) =>
+                        setState(() => _boardTopFactor = value),
+                    onBoardHeightFactorChanged: (value) =>
+                        setState(() => _boardHeightFactor = value),
+                    onBoardCanvasYOffsetChanged: (value) =>
+                        setState(() => _boardCanvasYOffset = value),
+                    onBoardSceneScaleChanged: (value) =>
+                        setState(() => _boardSceneScale = value),
+                    onBoardCameraLiftChanged: (value) =>
+                        setState(() => _boardCameraLift = value),
+                    onBoardCameraDepthChanged: (value) =>
+                        setState(() => _boardCameraDepth = value),
+                    onBoardTargetZOffsetChanged: (value) =>
+                        setState(() => _boardTargetZOffset = value),
+                    onBoardCinematicFovChanged: (value) =>
+                        setState(() => _boardCinematicFov = value),
+                    onBoardRotationYChanged: (value) =>
+                        setState(() => _boardRotationY = value),
+                    windowCenterU: _windowCenterU,
+                    windowCenterV: _windowCenterV,
+                    windowSpreadU: _windowSpreadU,
+                    windowSpreadV: _windowSpreadV,
+                    windowPlateau: _windowPlateau,
+                    windowFalloff: _windowFalloff,
+                    windowRotation: _windowRotation,
+                    gridBaseOpacity: _gridBaseOpacity,
+                    gridFadeMult: _gridFadeMult,
+                    gridFadePower: _gridFadePower,
+                    gridFadeMin: _gridFadeMin,
+                    lightMapFloor: _lightMapFloor,
+                    lightMapIntensity: _lightMapIntensity,
+                    onWindowCenterUChanged: (v) =>
+                        setState(() => _windowCenterU = v),
+                    onWindowCenterVChanged: (v) =>
+                        setState(() => _windowCenterV = v),
+                    onWindowSpreadUChanged: (v) =>
+                        setState(() => _windowSpreadU = v),
+                    onWindowSpreadVChanged: (v) =>
+                        setState(() => _windowSpreadV = v),
+                    onWindowPlateauChanged: (v) =>
+                        setState(() => _windowPlateau = v),
+                    onWindowFalloffChanged: (v) =>
+                        setState(() => _windowFalloff = v),
+                    onWindowRotationChanged: (v) =>
+                        setState(() => _windowRotation = v),
+                    onGridBaseOpacityChanged: (v) =>
+                        setState(() => _gridBaseOpacity = v),
+                    onGridFadeMultChanged: (v) =>
+                        setState(() => _gridFadeMult = v),
+                    onGridFadePowerChanged: (v) =>
+                        setState(() => _gridFadePower = v),
+                    onGridFadeMinChanged: (v) =>
+                        setState(() => _gridFadeMin = v),
+                    onLightMapFloorChanged: (v) =>
+                        setState(() => _lightMapFloor = v),
+                    onLightMapIntensityChanged: (v) =>
+                        setState(() => _lightMapIntensity = v),
+                    onClose: () => setState(() => _panelVisible = false),
+                    onReset: _resetTuning,
+                  )
+                else
+                  SafeArea(
+                    child: Align(
+                      alignment: Alignment.bottomRight,
+                      child: _HomeBoardTuningLauncher(
+                        onTap: () => setState(() => _panelVisible = true),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _resetTuning() {
+    setState(() {
+      _leafShadowOpacity = _CaptureGameScreenState._defaultLeafShadowOpacity;
+      _stoneExtraOverlayEnabled =
+          _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
+      _floatingParticlesEnabled =
+          _CaptureGameScreenState._defaultFloatingParticlesEnabled;
+      _cornerLabelsEnabled =
+          _CaptureGameScreenState._defaultCornerLabelsEnabled;
+      _boardTopBrightness = _CaptureGameScreenState._defaultBoardTopBrightness;
+      _boardWoodColor = _CaptureGameScreenState._defaultBoardWoodColor;
+      _toneMappingExposure =
+          _CaptureGameScreenState._defaultToneMappingExposure;
+      _keyLightPosition = _CaptureGameScreenState._defaultKeyLightPosition;
+      _fillLightPosition = _CaptureGameScreenState._defaultFillLightPosition;
+      _keyLightIntensity = _CaptureGameScreenState._defaultKeyLightIntensity;
+      _fillLightIntensity = _CaptureGameScreenState._defaultFillLightIntensity;
+      _ambientLightIntensity =
+          _CaptureGameScreenState._defaultAmbientLightIntensity;
+      _sheenLightIntensity =
+          _CaptureGameScreenState._defaultSheenLightIntensity;
+      _keyLightColor = _CaptureGameScreenState._defaultKeyLightColor;
+      _fillLightColor = _CaptureGameScreenState._defaultFillLightColor;
+      _ambientLightColor = _CaptureGameScreenState._defaultAmbientLightColor;
+      _sheenLightColor = _CaptureGameScreenState._defaultSheenLightColor;
+      _boardTopFactor = 0.03;
+      _boardHeightFactor = 0.66;
+      _boardCanvasYOffset =
+          _CaptureGameScreenState._defaultHomeBoardCanvasYOffset;
+      _boardSceneScale = _CaptureGameScreenState._defaultHomeBoardSceneScale;
+      _boardCameraLift = _CaptureGameScreenState._defaultHomeBoardCameraLift;
+      _boardCameraDepth = _CaptureGameScreenState._defaultHomeBoardCameraDepth;
+      _boardTargetZOffset =
+          _CaptureGameScreenState._defaultHomeBoardTargetZOffset;
+      _boardCinematicFov =
+          _CaptureGameScreenState._defaultHomeBoardCinematicFov;
+      _boardRotationY = _CaptureGameScreenState._defaultHomeBoardRotationY;
+      _windowCenterU = _CaptureGameScreenState._defaultWindowCenterU;
+      _windowCenterV = _CaptureGameScreenState._defaultWindowCenterV;
+      _windowSpreadU = _CaptureGameScreenState._defaultWindowSpreadU;
+      _windowSpreadV = _CaptureGameScreenState._defaultWindowSpreadV;
+      _windowPlateau = _CaptureGameScreenState._defaultWindowPlateau;
+      _windowFalloff = _CaptureGameScreenState._defaultWindowFalloff;
+      _windowRotation = _CaptureGameScreenState._defaultWindowRotation;
+      _gridBaseOpacity = _CaptureGameScreenState._defaultGridBaseOpacity;
+      _gridFadeMult = _CaptureGameScreenState._defaultGridFadeMult;
+      _gridFadePower = _CaptureGameScreenState._defaultGridFadePower;
+      _gridFadeMin = _CaptureGameScreenState._defaultGridFadeMin;
+      _lightMapFloor = _CaptureGameScreenState._defaultLightMapFloor;
+      _lightMapIntensity = _CaptureGameScreenState._defaultLightMapIntensity;
+    });
+  }
 }
 
 Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
@@ -39,27 +351,47 @@ Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
 }
 
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
-  static const double _defaultHomeBoardTopFactor = 0.12;
-  static const double _defaultHomeBoardHeightFactor = 0.68;
-  static const double _defaultHomeBoardCanvasYOffset = -82.0;
-  static const double _defaultHomeBoardSceneScale = 0.38;
-  static const double _defaultHomeBoardCameraLift = 5.5;
-  static const double _defaultHomeBoardCameraDepth = 4.85;
-  static const double _defaultHomeBoardTargetZOffset = -0.31;
-  static const double _defaultHomeCardTopFactor = 0.44;
+  static const double _defaultHomeBoardTopFactor = 0.06;
+  static const double _defaultHomeBoardHeightFactor = 0.62;
+  static const double _defaultHomeBoardCanvasYOffset = -128.0;
+  static const double _defaultHomeBoardSceneScale = 0.88;
+  static const double _defaultHomeBoardCameraLift = 0.01;
+  static const double _defaultHomeBoardCameraDepth = 17.2;
+  static const double _defaultHomeBoardTargetZOffset = 0.0;
+  static const double _defaultHomeBoardCinematicFov = 28.0;
+  static const double _defaultHomeBoardRotationY = -0.62;
   static const double _defaultLeafShadowOpacity = 0.16;
   static const bool _defaultStoneExtraOverlayEnabled = true;
+  static const bool _defaultFloatingParticlesEnabled = false;
+  static const bool _defaultCornerLabelsEnabled = false;
   static const double _defaultBoardTopBrightness = 1.0;
-  static const Offset3 _defaultKeyLightPosition = Offset3(5.8, 5.6, -3.8);
-  static const Offset3 _defaultFillLightPosition = Offset3(-4.8, 2.6, 3.2);
-  static const double _defaultKeyLightIntensity = 0.92;
-  static const double _defaultFillLightIntensity = 0.14;
-  static const double _defaultAmbientLightIntensity = 0.19;
-  static const double _defaultSheenLightIntensity = 0.36;
+  static const int _defaultBoardWoodColor = 0xd0b39c;
+  static const double _defaultToneMappingExposure = 0.44;
+  static const Offset3 _defaultKeyLightPosition = Offset3(5.5, 5.5, 5.5);
+  static const Offset3 _defaultFillLightPosition = Offset3(-4.8, 2.2, 3.2);
+  static const double _defaultKeyLightIntensity = 1.44;
+  static const double _defaultFillLightIntensity = 0.09;
+  static const double _defaultAmbientLightIntensity = 0.15;
+  static const double _defaultSheenLightIntensity = 0.14;
   static const int _defaultKeyLightColor = 0xfff0d2;
   static const int _defaultFillLightColor = 0xf4e8d8;
   static const int _defaultAmbientLightColor = 0xffeddc;
   static const int _defaultSheenLightColor = 0xfffaed;
+  // Window irradiance defaults
+  static const double _defaultWindowCenterU = 0.89;
+  static const double _defaultWindowCenterV = 0.43;
+  static const double _defaultWindowSpreadU = 1.17;
+  static const double _defaultWindowSpreadV = 3.64;
+  static const double _defaultWindowPlateau = 0.73;
+  static const double _defaultWindowFalloff = 0.97;
+  static const double _defaultWindowRotation = 0.39;
+  // Grid dissolution defaults
+  static const double _defaultGridBaseOpacity = 0.78;
+  static const double _defaultGridFadeMult = 0.00;
+  static const double _defaultGridFadePower = 0.66;
+  static const double _defaultGridFadeMin = 0.20;
+  static const double _defaultLightMapFloor = 0.12;
+  static const double _defaultLightMapIntensity = 1.49;
 
   // ── SharedPreferences keys ──────────────────────────────────────────────────
   // Legacy key (read once for migration, then ignored).
@@ -89,6 +421,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   bool _isAdjusting = false;
   bool _isRecognizingScreenshot = false;
   bool _homeTuningSheetVisible = false;
+
+  final _historyRepo = GameHistoryRepository();
+  List<GameRecord> _history = const [];
   double _homeBoardTopFactor = _defaultHomeBoardTopFactor;
   double _homeBoardHeightFactor = _defaultHomeBoardHeightFactor;
   double _homeBoardCanvasYOffset = _defaultHomeBoardCanvasYOffset;
@@ -96,10 +431,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardCameraLift = _defaultHomeBoardCameraLift;
   double _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
   double _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
-  double _homeCardTopFactor = _defaultHomeCardTopFactor;
+  double _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
+  double _homeBoardRotationY = _defaultHomeBoardRotationY;
   double _leafShadowOpacity = _defaultLeafShadowOpacity;
   bool _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
+  bool _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
+  bool _cornerLabelsEnabled = _defaultCornerLabelsEnabled;
   double _boardTopBrightness = _defaultBoardTopBrightness;
+  int _boardWoodColor = _defaultBoardWoodColor;
+  double _toneMappingExposure = _defaultToneMappingExposure;
   Offset3 _keyLightPosition = _defaultKeyLightPosition;
   Offset3 _fillLightPosition = _defaultFillLightPosition;
   double _keyLightIntensity = _defaultKeyLightIntensity;
@@ -110,11 +450,25 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   int _fillLightColor = _defaultFillLightColor;
   int _ambientLightColor = _defaultAmbientLightColor;
   int _sheenLightColor = _defaultSheenLightColor;
+  double _windowCenterU = _defaultWindowCenterU;
+  double _windowCenterV = _defaultWindowCenterV;
+  double _windowSpreadU = _defaultWindowSpreadU;
+  double _windowSpreadV = _defaultWindowSpreadV;
+  double _windowPlateau = _defaultWindowPlateau;
+  double _windowFalloff = _defaultWindowFalloff;
+  double _windowRotation = _defaultWindowRotation;
+  double _gridBaseOpacity = _defaultGridBaseOpacity;
+  double _gridFadeMult = _defaultGridFadeMult;
+  double _gridFadePower = _defaultGridFadePower;
+  double _gridFadeMin = _defaultGridFadeMin;
+  double _lightMapFloor = _defaultLightMapFloor;
+  double _lightMapIntensity = _defaultLightMapIntensity;
 
   @override
   void initState() {
     super.initState();
     _restoreSelection();
+    _loadHistory();
   }
 
   @override
@@ -130,53 +484,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     }
 
     return CupertinoPageScaffold(
-      backgroundColor: kPageBackgroundColor,
+      backgroundColor: CupertinoColors.transparent,
       child: DecoratedBox(
-        decoration: kPageBackgroundDecoration,
+        decoration: const BoxDecoration(),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final topPadding = MediaQuery.of(context).padding.top;
-            final cardTop = max(
-              0.0,
-              constraints.maxHeight * _homeCardTopFactor - topPadding,
-            );
+            const cardTop = kPageHeroContentOffset + 8;
 
             return Stack(
               children: [
-                Positioned(
-                  top: constraints.maxHeight * _homeBoardTopFactor,
-                  left: 0,
-                  right: 0,
-                  height: constraints.maxHeight * _homeBoardHeightFactor,
-                  child: IgnorePointer(
-                    child: Transform.translate(
-                      offset: Offset(0, _homeBoardCanvasYOffset),
-                      child: GoThreeBoardBackground(
-                        boardSize: 19,
-                        stones: kGoThreeDemoStones,
-                        particles: true,
-                        sceneScale: _homeBoardSceneScale,
-                        cameraLift: _homeBoardCameraLift,
-                        cameraDepth: _homeBoardCameraDepth,
-                        targetZOffset: _homeBoardTargetZOffset,
-                        leafShadowOpacity: _leafShadowOpacity,
-                        stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
-                        boardTopBrightness: _boardTopBrightness,
-                        showDebugGuides: true,
-                        keyLightPosition: _keyLightPosition,
-                        fillLightPosition: _fillLightPosition,
-                        keyLightIntensity: _keyLightIntensity,
-                        fillLightIntensity: _fillLightIntensity,
-                        ambientLightIntensity: _ambientLightIntensity,
-                        sheenLightIntensity: _sheenLightIntensity,
-                        keyLightColor: _keyLightColor,
-                        fillLightColor: _fillLightColor,
-                        ambientLightColor: _ambientLightColor,
-                        sheenLightColor: _sheenLightColor,
-                      ),
-                    ),
-                  ),
-                ),
                 Positioned(
                   top: 0,
                   left: 0,
@@ -332,6 +648,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                     : _importBoardFromScreenshot,
                               ),
                               const SizedBox(height: 14),
+                              if (_history.isNotEmpty) ...[
+                                _HistorySectionCard(
+                                  history: _history,
+                                ),
+                                const SizedBox(height: 14),
+                              ],
                             ],
                           ),
                         ),
@@ -353,7 +675,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   _HomeBoardTuningSheet(
                     shadowOpacity: _leafShadowOpacity,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
+                    floatingParticlesEnabled: _floatingParticlesEnabled,
+                    cornerLabelsEnabled:
+                        _homeTuningSheetVisible && _cornerLabelsEnabled,
                     boardTopBrightness: _boardTopBrightness,
+                    boardWoodColor: _boardWoodColor,
+                    toneMappingExposure: _toneMappingExposure,
                     keyLightPosition: _keyLightPosition,
                     fillLightPosition: _fillLightPosition,
                     keyLightIntensity: _keyLightIntensity,
@@ -364,12 +691,29 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     fillLightColor: _fillLightColor,
                     ambientLightColor: _ambientLightColor,
                     sheenLightColor: _sheenLightColor,
+                    boardTopFactor: _homeBoardTopFactor,
+                    boardHeightFactor: _homeBoardHeightFactor,
+                    boardCanvasYOffset: _homeBoardCanvasYOffset,
+                    boardSceneScale: _homeBoardSceneScale,
+                    boardCameraLift: _homeBoardCameraLift,
+                    boardCameraDepth: _homeBoardCameraDepth,
+                    boardTargetZOffset: _homeBoardTargetZOffset,
+                    boardCinematicFov: _homeBoardCinematicFov,
+                    boardRotationY: _homeBoardRotationY,
                     onShadowOpacityChanged: (value) =>
                         setState(() => _leafShadowOpacity = value),
                     onStoneExtraOverlayChanged: (value) =>
                         setState(() => _stoneExtraOverlayEnabled = value),
+                    onFloatingParticlesChanged: (value) =>
+                        setState(() => _floatingParticlesEnabled = value),
+                    onCornerLabelsChanged: (value) =>
+                        setState(() => _cornerLabelsEnabled = value),
                     onBoardTopBrightnessChanged: (value) =>
                         setState(() => _boardTopBrightness = value),
+                    onBoardWoodColorChanged: (value) =>
+                        setState(() => _boardWoodColor = value),
+                    onToneMappingExposureChanged: (value) =>
+                        setState(() => _toneMappingExposure = value),
                     onKeyLightPositionChanged: (value) =>
                         setState(() => _keyLightPosition = value),
                     onFillLightPositionChanged: (value) =>
@@ -390,6 +734,63 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _ambientLightColor = value),
                     onSheenLightColorChanged: (value) =>
                         setState(() => _sheenLightColor = value),
+                    onBoardTopFactorChanged: (value) =>
+                        setState(() => _homeBoardTopFactor = value),
+                    onBoardHeightFactorChanged: (value) =>
+                        setState(() => _homeBoardHeightFactor = value),
+                    onBoardCanvasYOffsetChanged: (value) =>
+                        setState(() => _homeBoardCanvasYOffset = value),
+                    onBoardSceneScaleChanged: (value) =>
+                        setState(() => _homeBoardSceneScale = value),
+                    onBoardCameraLiftChanged: (value) =>
+                        setState(() => _homeBoardCameraLift = value),
+                    onBoardCameraDepthChanged: (value) =>
+                        setState(() => _homeBoardCameraDepth = value),
+                    onBoardTargetZOffsetChanged: (value) =>
+                        setState(() => _homeBoardTargetZOffset = value),
+                    onBoardCinematicFovChanged: (value) =>
+                        setState(() => _homeBoardCinematicFov = value),
+                    onBoardRotationYChanged: (value) =>
+                        setState(() => _homeBoardRotationY = value),
+                    windowCenterU: _windowCenterU,
+                    windowCenterV: _windowCenterV,
+                    windowSpreadU: _windowSpreadU,
+                    windowSpreadV: _windowSpreadV,
+                    windowPlateau: _windowPlateau,
+                    windowFalloff: _windowFalloff,
+                    windowRotation: _windowRotation,
+                    gridBaseOpacity: _gridBaseOpacity,
+                    gridFadeMult: _gridFadeMult,
+                    gridFadePower: _gridFadePower,
+                    gridFadeMin: _gridFadeMin,
+                    lightMapFloor: _lightMapFloor,
+                    lightMapIntensity: _lightMapIntensity,
+                    onWindowCenterUChanged: (v) =>
+                        setState(() => _windowCenterU = v),
+                    onWindowCenterVChanged: (v) =>
+                        setState(() => _windowCenterV = v),
+                    onWindowSpreadUChanged: (v) =>
+                        setState(() => _windowSpreadU = v),
+                    onWindowSpreadVChanged: (v) =>
+                        setState(() => _windowSpreadV = v),
+                    onWindowPlateauChanged: (v) =>
+                        setState(() => _windowPlateau = v),
+                    onWindowFalloffChanged: (v) =>
+                        setState(() => _windowFalloff = v),
+                    onWindowRotationChanged: (v) =>
+                        setState(() => _windowRotation = v),
+                    onGridBaseOpacityChanged: (v) =>
+                        setState(() => _gridBaseOpacity = v),
+                    onGridFadeMultChanged: (v) =>
+                        setState(() => _gridFadeMult = v),
+                    onGridFadePowerChanged: (v) =>
+                        setState(() => _gridFadePower = v),
+                    onGridFadeMinChanged: (v) =>
+                        setState(() => _gridFadeMin = v),
+                    onLightMapFloorChanged: (v) =>
+                        setState(() => _lightMapFloor = v),
+                    onLightMapIntensityChanged: (v) =>
+                        setState(() => _lightMapIntensity = v),
                     onClose: () =>
                         setState(() => _homeTuningSheetVisible = false),
                     onReset: _resetHomeBoardTuning,
@@ -411,10 +812,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _homeBoardCameraLift = _defaultHomeBoardCameraLift;
       _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
       _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
-      _homeCardTopFactor = _defaultHomeCardTopFactor;
+      _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
+      _homeBoardRotationY = _defaultHomeBoardRotationY;
       _leafShadowOpacity = _defaultLeafShadowOpacity;
       _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
+      _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
+      _cornerLabelsEnabled = _defaultCornerLabelsEnabled;
       _boardTopBrightness = _defaultBoardTopBrightness;
+      _boardWoodColor = _defaultBoardWoodColor;
+      _toneMappingExposure = _defaultToneMappingExposure;
       _keyLightPosition = _defaultKeyLightPosition;
       _fillLightPosition = _defaultFillLightPosition;
       _keyLightIntensity = _defaultKeyLightIntensity;
@@ -425,6 +831,19 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _fillLightColor = _defaultFillLightColor;
       _ambientLightColor = _defaultAmbientLightColor;
       _sheenLightColor = _defaultSheenLightColor;
+      _windowCenterU = _defaultWindowCenterU;
+      _windowCenterV = _defaultWindowCenterV;
+      _windowSpreadU = _defaultWindowSpreadU;
+      _windowSpreadV = _defaultWindowSpreadV;
+      _windowPlateau = _defaultWindowPlateau;
+      _windowFalloff = _defaultWindowFalloff;
+      _windowRotation = _defaultWindowRotation;
+      _gridBaseOpacity = _defaultGridBaseOpacity;
+      _gridFadeMult = _defaultGridFadeMult;
+      _gridFadePower = _defaultGridFadePower;
+      _gridFadeMin = _defaultGridFadeMin;
+      _lightMapFloor = _defaultLightMapFloor;
+      _lightMapIntensity = _defaultLightMapIntensity;
     });
   }
 
@@ -458,7 +877,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     final savedAiStyle = prefs.getString(_aiStyleKey);
 
     // Compute rank from history for 'auto' mode.
-    final history = await GameHistoryRepository().loadAll();
+    final history = await GameHistoryRepository().loadAllChronological();
     final computedRank = PlayerRankRepository.computeCurrentRank(history);
 
     if (!mounted) return;
@@ -506,6 +925,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       prefs.setInt(_boardSizeKey, _boardSize),
       prefs.setString(_initialModeKey, _initialMode.name),
     ]);
+  }
+
+  Future<void> _loadHistory() async {
+    final records = await _historyRepo.loadAll();
+    if (!mounted) return;
+    setState(() => _history = records);
   }
 
   Future<void> _importBoardFromScreenshot() async {
@@ -604,8 +1029,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       orElse: () => DifficultyLevel.intermediate,
     );
 
-    final historyRepo = GameHistoryRepository();
-
     Navigator.of(context, rootNavigator: true).push(
       CupertinoPageRoute(
         builder: (_) => ChangeNotifierProvider(
@@ -616,17 +1039,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
             humanColor: humanColor,
             initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
             initialBoardOverride: initialBoard,
-            aiRank: effectiveRank,
-            onGameFinished: (playerWon) {
-              historyRepo.add(GameRecord(
-                timestamp: DateTime.now(),
-                boardSize: _boardSize,
-                captureTarget: _captureTarget,
-                playerWon: playerWon,
-                aiRank: effectiveRank,
-                aiStyleName: _aiStyleChoice,
-              ));
-            },
           )..setAiStyle(
               CaptureAiStyle.values.firstWhere(
                 (s) => s.name == _aiStyleChoice,
@@ -638,10 +1050,11 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
             captureTarget: _captureTarget,
             humanColor: humanColor,
             initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
+            initialBoardOverride: initialBoard,
           ),
         ),
       ),
-    );
+    ).then((_) => _loadHistory());
   }
 }
 
@@ -657,6 +1070,150 @@ class _ParticlePreviewCanvas extends StatelessWidget {
           title: _CaptureCopy.pageTitle,
           subtitle: _CaptureCopy.pageSubtitle,
           showOrbitalArt: false,
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeThreeBoardPreview extends StatelessWidget {
+  const _HomeThreeBoardPreview({
+    required this.constraints,
+    required this.topFactor,
+    required this.heightFactor,
+    required this.canvasYOffset,
+    required this.sceneScale,
+    required this.cameraLift,
+    required this.cameraDepth,
+    required this.targetZOffset,
+    required this.cinematicFov,
+    required this.boardRotationY,
+    required this.leafShadowOpacity,
+    required this.stoneExtraOverlayEnabled,
+    required this.floatingParticlesEnabled,
+    required this.cornerLabelsEnabled,
+    required this.boardTopBrightness,
+    required this.boardWoodColor,
+    required this.toneMappingExposure,
+    required this.keyLightPosition,
+    required this.fillLightPosition,
+    required this.keyLightIntensity,
+    required this.fillLightIntensity,
+    required this.ambientLightIntensity,
+    required this.sheenLightIntensity,
+    required this.keyLightColor,
+    required this.fillLightColor,
+    required this.ambientLightColor,
+    required this.sheenLightColor,
+    required this.showDebugGuides,
+    required this.windowCenterU,
+    required this.windowCenterV,
+    required this.windowSpreadU,
+    required this.windowSpreadV,
+    required this.windowPlateau,
+    required this.windowFalloff,
+    required this.windowRotation,
+    required this.gridBaseOpacity,
+    required this.gridFadeMult,
+    required this.gridFadePower,
+    required this.gridFadeMin,
+    required this.lightMapFloor,
+    required this.lightMapIntensity,
+  });
+
+  final BoxConstraints constraints;
+  final double topFactor;
+  final double heightFactor;
+  final double canvasYOffset;
+  final double sceneScale;
+  final double cameraLift;
+  final double cameraDepth;
+  final double targetZOffset;
+  final double cinematicFov;
+  final double boardRotationY;
+  final double leafShadowOpacity;
+  final bool stoneExtraOverlayEnabled;
+  final bool floatingParticlesEnabled;
+  final bool cornerLabelsEnabled;
+  final double boardTopBrightness;
+  final int boardWoodColor;
+  final double toneMappingExposure;
+  final Offset3 keyLightPosition;
+  final Offset3 fillLightPosition;
+  final double keyLightIntensity;
+  final double fillLightIntensity;
+  final double ambientLightIntensity;
+  final double sheenLightIntensity;
+  final int keyLightColor;
+  final int fillLightColor;
+  final int ambientLightColor;
+  final int sheenLightColor;
+  final bool showDebugGuides;
+  final double windowCenterU;
+  final double windowCenterV;
+  final double windowSpreadU;
+  final double windowSpreadV;
+  final double windowPlateau;
+  final double windowFalloff;
+  final double windowRotation;
+  final double gridBaseOpacity;
+  final double gridFadeMult;
+  final double gridFadePower;
+  final double gridFadeMin;
+  final double lightMapFloor;
+  final double lightMapIntensity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: constraints.maxHeight * topFactor,
+      left: 0,
+      right: 0,
+      height: constraints.maxHeight * heightFactor,
+      child: IgnorePointer(
+        child: Transform.translate(
+          offset: Offset(0, canvasYOffset),
+          child: GoThreeBoardBackground(
+            boardSize: 19,
+            stones: kGoThreeDemoStones,
+            particles: floatingParticlesEnabled,
+            showCornerLabels: cornerLabelsEnabled,
+            sceneScale: sceneScale,
+            cameraLift: cameraLift,
+            cameraDepth: cameraDepth,
+            targetZOffset: targetZOffset,
+            cinematicFov: cinematicFov,
+            boardRotationY: boardRotationY,
+            leafShadowOpacity: leafShadowOpacity,
+            stoneExtraOverlayEnabled: stoneExtraOverlayEnabled,
+            boardTopBrightness: boardTopBrightness,
+            boardWoodColor: boardWoodColor,
+            toneMappingExposure: toneMappingExposure,
+            showDebugGuides: showDebugGuides,
+            keyLightPosition: keyLightPosition,
+            fillLightPosition: fillLightPosition,
+            keyLightIntensity: keyLightIntensity,
+            fillLightIntensity: fillLightIntensity,
+            ambientLightIntensity: ambientLightIntensity,
+            sheenLightIntensity: sheenLightIntensity,
+            keyLightColor: keyLightColor,
+            fillLightColor: fillLightColor,
+            ambientLightColor: ambientLightColor,
+            sheenLightColor: sheenLightColor,
+            windowCenterU: windowCenterU,
+            windowCenterV: windowCenterV,
+            windowSpreadU: windowSpreadU,
+            windowSpreadV: windowSpreadV,
+            windowPlateau: windowPlateau,
+            windowFalloff: windowFalloff,
+            windowRotation: windowRotation,
+            gridBaseOpacity: gridBaseOpacity,
+            gridFadeMult: gridFadeMult,
+            gridFadePower: gridFadePower,
+            gridFadeMin: gridFadeMin,
+            lightMapFloor: lightMapFloor,
+            lightMapIntensity: lightMapIntensity,
+          ),
         ),
       ),
     );
@@ -718,7 +1275,11 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   const _HomeBoardTuningSheet({
     required this.shadowOpacity,
     required this.stoneExtraOverlayEnabled,
+    required this.floatingParticlesEnabled,
+    required this.cornerLabelsEnabled,
     required this.boardTopBrightness,
+    required this.boardWoodColor,
+    required this.toneMappingExposure,
     required this.keyLightPosition,
     required this.fillLightPosition,
     required this.keyLightIntensity,
@@ -729,9 +1290,22 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.fillLightColor,
     required this.ambientLightColor,
     required this.sheenLightColor,
+    required this.boardTopFactor,
+    required this.boardHeightFactor,
+    required this.boardCanvasYOffset,
+    required this.boardSceneScale,
+    required this.boardCameraLift,
+    required this.boardCameraDepth,
+    required this.boardTargetZOffset,
+    required this.boardCinematicFov,
+    required this.boardRotationY,
     required this.onShadowOpacityChanged,
     required this.onStoneExtraOverlayChanged,
+    required this.onFloatingParticlesChanged,
+    required this.onCornerLabelsChanged,
     required this.onBoardTopBrightnessChanged,
+    required this.onBoardWoodColorChanged,
+    required this.onToneMappingExposureChanged,
     required this.onKeyLightPositionChanged,
     required this.onFillLightPositionChanged,
     required this.onKeyLightIntensityChanged,
@@ -742,13 +1316,52 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.onFillLightColorChanged,
     required this.onAmbientLightColorChanged,
     required this.onSheenLightColorChanged,
+    required this.onBoardTopFactorChanged,
+    required this.onBoardHeightFactorChanged,
+    required this.onBoardCanvasYOffsetChanged,
+    required this.onBoardSceneScaleChanged,
+    required this.onBoardCameraLiftChanged,
+    required this.onBoardCameraDepthChanged,
+    required this.onBoardTargetZOffsetChanged,
+    required this.onBoardCinematicFovChanged,
+    required this.onBoardRotationYChanged,
     required this.onClose,
     required this.onReset,
+    required this.windowCenterU,
+    required this.windowCenterV,
+    required this.windowSpreadU,
+    required this.windowSpreadV,
+    required this.windowPlateau,
+    required this.windowFalloff,
+    required this.windowRotation,
+    required this.gridBaseOpacity,
+    required this.gridFadeMult,
+    required this.gridFadePower,
+    required this.gridFadeMin,
+    required this.lightMapFloor,
+    required this.lightMapIntensity,
+    required this.onWindowCenterUChanged,
+    required this.onWindowCenterVChanged,
+    required this.onWindowSpreadUChanged,
+    required this.onWindowSpreadVChanged,
+    required this.onWindowPlateauChanged,
+    required this.onWindowFalloffChanged,
+    required this.onWindowRotationChanged,
+    required this.onGridBaseOpacityChanged,
+    required this.onGridFadeMultChanged,
+    required this.onGridFadePowerChanged,
+    required this.onGridFadeMinChanged,
+    required this.onLightMapFloorChanged,
+    required this.onLightMapIntensityChanged,
   });
 
   final double shadowOpacity;
   final bool stoneExtraOverlayEnabled;
+  final bool floatingParticlesEnabled;
+  final bool cornerLabelsEnabled;
   final double boardTopBrightness;
+  final int boardWoodColor;
+  final double toneMappingExposure;
   final Offset3 keyLightPosition;
   final Offset3 fillLightPosition;
   final double keyLightIntensity;
@@ -759,9 +1372,22 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final int fillLightColor;
   final int ambientLightColor;
   final int sheenLightColor;
+  final double boardTopFactor;
+  final double boardHeightFactor;
+  final double boardCanvasYOffset;
+  final double boardSceneScale;
+  final double boardCameraLift;
+  final double boardCameraDepth;
+  final double boardTargetZOffset;
+  final double boardCinematicFov;
+  final double boardRotationY;
   final ValueChanged<double> onShadowOpacityChanged;
   final ValueChanged<bool> onStoneExtraOverlayChanged;
+  final ValueChanged<bool> onFloatingParticlesChanged;
+  final ValueChanged<bool> onCornerLabelsChanged;
   final ValueChanged<double> onBoardTopBrightnessChanged;
+  final ValueChanged<int> onBoardWoodColorChanged;
+  final ValueChanged<double> onToneMappingExposureChanged;
   final ValueChanged<Offset3> onKeyLightPositionChanged;
   final ValueChanged<Offset3> onFillLightPositionChanged;
   final ValueChanged<double> onKeyLightIntensityChanged;
@@ -772,15 +1398,50 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final ValueChanged<int> onFillLightColorChanged;
   final ValueChanged<int> onAmbientLightColorChanged;
   final ValueChanged<int> onSheenLightColorChanged;
+  final ValueChanged<double> onBoardTopFactorChanged;
+  final ValueChanged<double> onBoardHeightFactorChanged;
+  final ValueChanged<double> onBoardCanvasYOffsetChanged;
+  final ValueChanged<double> onBoardSceneScaleChanged;
+  final ValueChanged<double> onBoardCameraLiftChanged;
+  final ValueChanged<double> onBoardCameraDepthChanged;
+  final ValueChanged<double> onBoardTargetZOffsetChanged;
+  final ValueChanged<double> onBoardCinematicFovChanged;
+  final ValueChanged<double> onBoardRotationYChanged;
   final VoidCallback onClose;
   final VoidCallback onReset;
+  final double windowCenterU;
+  final double windowCenterV;
+  final double windowSpreadU;
+  final double windowSpreadV;
+  final double windowPlateau;
+  final double windowFalloff;
+  final double windowRotation;
+  final double gridBaseOpacity;
+  final double gridFadeMult;
+  final double gridFadePower;
+  final double gridFadeMin;
+  final double lightMapFloor;
+  final double lightMapIntensity;
+  final ValueChanged<double> onWindowCenterUChanged;
+  final ValueChanged<double> onWindowCenterVChanged;
+  final ValueChanged<double> onWindowSpreadUChanged;
+  final ValueChanged<double> onWindowSpreadVChanged;
+  final ValueChanged<double> onWindowPlateauChanged;
+  final ValueChanged<double> onWindowFalloffChanged;
+  final ValueChanged<double> onWindowRotationChanged;
+  final ValueChanged<double> onGridBaseOpacityChanged;
+  final ValueChanged<double> onGridFadeMultChanged;
+  final ValueChanged<double> onGridFadePowerChanged;
+  final ValueChanged<double> onGridFadeMinChanged;
+  final ValueChanged<double> onLightMapFloorChanged;
+  final ValueChanged<double> onLightMapIntensityChanged;
 
   @override
   State<_HomeBoardTuningSheet> createState() => _HomeBoardTuningSheetState();
 }
 
 class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
-  static const List<String> _tabTitles = ['基础', '主光', '补光', '环境'];
+  static const List<String> _tabTitles = ['基础', '构图', '主光', '补光', '环境', '格子'];
   int _selectedTab = 0;
 
   @override
@@ -792,12 +1453,55 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           value: widget.stoneExtraOverlayEnabled,
           onChanged: widget.onStoneExtraOverlayChanged,
         ),
+        _TuningSwitchRow(
+          title: '漂浮粒子',
+          value: widget.floatingParticlesEnabled,
+          onChanged: widget.onFloatingParticlesChanged,
+        ),
+        _TuningSwitchRow(
+          title: '角标 ABCD',
+          value: widget.cornerLabelsEnabled,
+          onChanged: widget.onCornerLabelsChanged,
+        ),
         _TuningSlider(
           label: '棋盘亮度',
           value: widget.boardTopBrightness,
           min: 0.40,
           max: 2.40,
           onChanged: widget.onBoardTopBrightnessChanged,
+        ),
+        _RgbEditor(
+          title: '棋盘本色',
+          colorHex: widget.boardWoodColor,
+          onChanged: widget.onBoardWoodColorChanged,
+        ),
+        _TuningSlider(
+          label: '曝光',
+          value: widget.toneMappingExposure,
+          min: 0.10,
+          max: 1.20,
+          onChanged: widget.onToneMappingExposureChanged,
+        ),
+        _TuningSlider(
+          label: '主光强度',
+          value: widget.keyLightIntensity,
+          min: 0.0,
+          max: 1.8,
+          onChanged: widget.onKeyLightIntensityChanged,
+        ),
+        _TuningSlider(
+          label: '补光强度',
+          value: widget.fillLightIntensity,
+          min: 0.0,
+          max: 1.2,
+          onChanged: widget.onFillLightIntensityChanged,
+        ),
+        _TuningSlider(
+          label: '环境光',
+          value: widget.ambientLightIntensity,
+          min: 0.0,
+          max: 0.9,
+          onChanged: widget.onAmbientLightIntensityChanged,
         ),
         const _TuningGroupTitle('棋盘氛围'),
         _TuningSlider(
@@ -806,6 +1510,72 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           min: 0.04,
           max: 0.28,
           onChanged: widget.onShadowOpacityChanged,
+        ),
+      ],
+      [
+        _TuningSlider(
+          label: 'FOV',
+          value: widget.boardCinematicFov,
+          min: 18,
+          max: 100,
+          onChanged: widget.onBoardCinematicFovChanged,
+        ),
+        _TuningSlider(
+          label: '缩放',
+          value: widget.boardSceneScale,
+          min: 0.24,
+          max: 2.0,
+          onChanged: widget.onBoardSceneScaleChanged,
+        ),
+        _TuningSlider(
+          label: '相机高',
+          value: widget.boardCameraLift,
+          min: 0.01,
+          max: 20,
+          onChanged: widget.onBoardCameraLiftChanged,
+        ),
+        _TuningSlider(
+          label: '相机远',
+          value: widget.boardCameraDepth,
+          min: 1.0,
+          max: 30,
+          onChanged: widget.onBoardCameraDepthChanged,
+        ),
+        _TuningSlider(
+          label: '目标Z',
+          value: widget.boardTargetZOffset,
+          min: -1.4,
+          max: 0.6,
+          onChanged: widget.onBoardTargetZOffsetChanged,
+        ),
+        _TuningSlider(
+          label: '棋盘转向',
+          value: widget.boardRotationY,
+          min: -3.14,
+          max: 3.14,
+          onChanged: widget.onBoardRotationYChanged,
+        ),
+        const _TuningGroupTitle('画布位置'),
+        _TuningSlider(
+          label: '顶部',
+          value: widget.boardTopFactor,
+          min: 0.0,
+          max: 0.18,
+          onChanged: widget.onBoardTopFactorChanged,
+        ),
+        _TuningSlider(
+          label: '高度',
+          value: widget.boardHeightFactor,
+          min: 0.48,
+          max: 0.86,
+          onChanged: widget.onBoardHeightFactorChanged,
+        ),
+        _TuningSlider(
+          label: '偏移Y',
+          value: widget.boardCanvasYOffset,
+          min: -160,
+          max: 60,
+          onChanged: widget.onBoardCanvasYOffsetChanged,
         ),
       ],
       [
@@ -870,15 +1640,105 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           onChanged: widget.onSheenLightColorChanged,
         ),
       ],
+      // 格子 tab
+      [
+        _TuningSlider(
+          label: '窗光中心 U',
+          value: widget.windowCenterU,
+          min: 0.50,
+          max: 1.00,
+          onChanged: widget.onWindowCenterUChanged,
+        ),
+        _TuningSlider(
+          label: '窗光中心 V',
+          value: widget.windowCenterV,
+          min: 0.00,
+          max: 0.50,
+          onChanged: widget.onWindowCenterVChanged,
+        ),
+        _TuningSlider(
+          label: '窗光扩散 U',
+          value: widget.windowSpreadU,
+          min: 0.50,
+          max: 4.00,
+          onChanged: widget.onWindowSpreadUChanged,
+        ),
+        _TuningSlider(
+          label: '窗光扩散 V',
+          value: widget.windowSpreadV,
+          min: 0.50,
+          max: 4.00,
+          onChanged: widget.onWindowSpreadVChanged,
+        ),
+        _TuningSlider(
+          label: '窗光平台',
+          value: widget.windowPlateau,
+          min: 0.00,
+          max: 0.95,
+          onChanged: widget.onWindowPlateauChanged,
+        ),
+        _TuningSlider(
+          label: '窗光衰减',
+          value: widget.windowFalloff,
+          min: 0.05,
+          max: 1.50,
+          onChanged: widget.onWindowFalloffChanged,
+        ),
+        _TuningSlider(
+          label: '窗光旋转',
+          value: widget.windowRotation,
+          min: -3.14,
+          max: 3.14,
+          onChanged: widget.onWindowRotationChanged,
+        ),
+        _TuningSlider(
+          label: '格子基础透明度',
+          value: widget.gridBaseOpacity,
+          min: 0.10,
+          max: 1.00,
+          onChanged: widget.onGridBaseOpacityChanged,
+        ),
+        _TuningSlider(
+          label: '格子淡化强度',
+          value: widget.gridFadeMult,
+          min: 0.00,
+          max: 1.20,
+          onChanged: widget.onGridFadeMultChanged,
+        ),
+        _TuningSlider(
+          label: '格子淡化曲线',
+          value: widget.gridFadePower,
+          min: 0.20,
+          max: 2.00,
+          onChanged: widget.onGridFadePowerChanged,
+        ),
+        _TuningSlider(
+          label: '格子最低不透明',
+          value: widget.gridFadeMin,
+          min: 0.00,
+          max: 0.50,
+          onChanged: widget.onGridFadeMinChanged,
+        ),
+        _TuningSlider(
+          label: 'lightMap 地板',
+          value: widget.lightMapFloor,
+          min: 0.00,
+          max: 0.90,
+          onChanged: widget.onLightMapFloorChanged,
+        ),
+        _TuningSlider(
+          label: 'lightMap 强度',
+          value: widget.lightMapIntensity,
+          min: 0.50,
+          max: 4.00,
+          onChanged: widget.onLightMapIntensityChanged,
+        ),
+      ],
     ];
 
     return Positioned.fill(
       child: Stack(
         children: [
-          GestureDetector(
-            onTap: widget.onClose,
-            child: Container(color: const Color(0x48000000)),
-          ),
           Align(
             alignment: Alignment.bottomCenter,
             child: TweenAnimationBuilder<double>(
@@ -909,51 +1769,45 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
                   children: [
                     Row(
                       children: [
-                        const Expanded(
-                          child: Text(
-                            '棋盘光影调试面板',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF3A2A1F),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: CupertinoSlidingSegmentedControl<int>(
+                              groupValue: _selectedTab,
+                              children: {
+                                for (int i = 0; i < _tabTitles.length; i++)
+                                  i: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    child: Text(
+                                      _tabTitles[i],
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                              },
+                              onValueChanged: (next) {
+                                if (next != null) {
+                                  setState(() => _selectedTab = next);
+                                }
+                              },
                             ),
                           ),
                         ),
                         CupertinoButton(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          minimumSize: const Size(44, 30),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: const Size(42, 30),
                           onPressed: widget.onReset,
                           child: const Text('重置'),
                         ),
                         CupertinoButton(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          minimumSize: const Size(44, 30),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: const Size(42, 30),
                           onPressed: widget.onClose,
                           child: const Text('关闭'),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 8),
-                    CupertinoSlidingSegmentedControl<int>(
-                      groupValue: _selectedTab,
-                      children: {
-                        for (int i = 0; i < _tabTitles.length; i++)
-                          i: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            child: Text(
-                              _tabTitles[i],
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                      },
-                      onValueChanged: (next) {
-                        if (next != null) {
-                          setState(() => _selectedTab = next);
-                        }
-                      },
                     ),
                     const SizedBox(height: 10),
                     Expanded(
@@ -1302,19 +2156,23 @@ class _PrimaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final primaryEnd =
+        Color.lerp(palette.primary, CupertinoColors.black, 0.20)!;
+
     return SizedBox(
       width: double.infinity,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFC89257), Color(0xFFA86930)],
+            colors: [palette.primary, primaryEnd],
           ),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Color(0x33A56730),
+              color: palette.primary.withValues(alpha: 0.24),
               blurRadius: 18,
               offset: Offset(0, 8),
             ),
@@ -1330,7 +2188,6 @@ class _PrimaryActionButton extends StatelessWidget {
               fontSize: 17,
               fontWeight: FontWeight.w700,
               color: CupertinoColors.white,
-              letterSpacing: 1.2,
             ),
           ),
         ),
@@ -1347,19 +2204,21 @@ class _SecondaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
+
     return SizedBox(
       width: double.infinity,
       child: CupertinoButton(
         padding: const EdgeInsets.symmetric(vertical: 12),
         borderRadius: BorderRadius.circular(14),
-        color: const Color(0x14A86930),
+        color: palette.primary.withValues(alpha: 0.10),
         onPressed: onPressed,
         child: Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF915C2F),
+            color: Color.lerp(palette.primary, CupertinoColors.black, 0.18),
           ),
         ),
       ),
@@ -2125,12 +2984,16 @@ class CaptureGamePlayScreen extends StatefulWidget {
     required this.captureTarget,
     this.humanColor = StoneColor.black,
     this.initialMode = CaptureInitialMode.twistCross,
+    this.initialBoardOverride,
   });
 
   final int aiRank;
   final int captureTarget;
   final StoneColor humanColor;
   final CaptureInitialMode initialMode;
+
+  /// The initial board passed to the provider (needed to persist the record).
+  final List<List<StoneColor>>? initialBoardOverride;
 
   @override
   State<CaptureGamePlayScreen> createState() => _CaptureGamePlayScreenState();
@@ -2139,132 +3002,198 @@ class CaptureGamePlayScreen extends StatefulWidget {
 class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   List<_HintMark> _hintMarks = const [];
   bool _isLoadingHints = false;
+  bool _gameSaved = false;
+
+  final _historyRepo = GameHistoryRepository();
+
+  /// Converts a board of [StoneColor] to a list of int indices.
+  static List<List<int>> _boardToInts(List<List<StoneColor>> board) =>
+      board.map((row) => row.map((c) => c.index).toList()).toList();
+
+  Future<void> _saveGame(CaptureGameProvider provider) async {
+    if (_gameSaved) return;
+    if (provider.moveLog.isEmpty) return; // nothing to save
+
+    final outcome = switch (provider.result) {
+      CaptureGameResult.blackWins =>
+        widget.humanColor == StoneColor.black
+            ? GameOutcome.humanWins
+            : GameOutcome.aiWins,
+      CaptureGameResult.whiteWins =>
+        widget.humanColor == StoneColor.white
+            ? GameOutcome.humanWins
+            : GameOutcome.aiWins,
+      CaptureGameResult.none => GameOutcome.abandoned,
+    };
+
+    final initialBoardCells = widget.initialBoardOverride != null
+        ? _boardToInts(widget.initialBoardOverride!)
+        : null;
+
+    final now = DateTime.now();
+    final record = GameRecord(
+      id: now.toIso8601String(),
+      playedAt: now,
+      boardSize: provider.boardSize,
+      captureTarget: provider.captureTarget,
+      difficulty: provider.difficulty.name,
+      humanColorIndex: widget.humanColor.index,
+      initialMode: widget.initialMode.name,
+      initialBoardCells: initialBoardCells,
+      moves: List<List<int>>.from(
+        provider.moveLog.map((m) => List<int>.from(m)),
+      ),
+      outcome: outcome,
+      finalBoard: _boardToInts(provider.gameState.board),
+      aiRank: widget.aiRank,
+      aiStyleName: provider.aiStyle.name,
+    );
+    try {
+      await _historyRepo.save(record);
+      _gameSaved = true;
+    } catch (_) {
+      // Save failed; _gameSaved stays false so a retry is possible.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CaptureGameProvider>(
-      builder: (context, provider, _) {
-        final rates = provider.winRateEstimate;
-        final blackRate = (rates[StoneColor.black]! * 100).toStringAsFixed(0);
-        final whiteRate = (rates[StoneColor.white]! * 100).toStringAsFixed(0);
-        final blackCaptured = provider.gameState.capturedByBlack.length;
-        final whiteCaptured = provider.gameState.capturedByWhite.length;
-        final aiThinking = provider.isAiThinking;
-        final isFinished = provider.result != CaptureGameResult.none;
-        final settings = context.watch<SettingsProvider?>();
-        final showCaptureWarning = settings?.showCaptureWarning ?? true;
+    return PopScope(
+      onPopInvokedWithResult: (_, __) {
+        final provider = context.read<CaptureGameProvider>();
+        _saveGame(provider);
+      },
+      child: Consumer<CaptureGameProvider>(
+        builder: (context, provider, _) {
+          // Auto-save when game finishes.
+          if (provider.result != CaptureGameResult.none && !_gameSaved) {
+            Future.microtask(() => _saveGame(provider));
+          }
 
-        return CupertinoPageScaffold(
-          backgroundColor: const Color(0xFFF3F0ED),
-          navigationBar: CupertinoNavigationBar(
+          final rates = provider.winRateEstimate;
+          final blackRate =
+              (rates[StoneColor.black]! * 100).toStringAsFixed(0);
+          final whiteRate =
+              (rates[StoneColor.white]! * 100).toStringAsFixed(0);
+          final blackCaptured = provider.gameState.capturedByBlack.length;
+          final whiteCaptured = provider.gameState.capturedByWhite.length;
+          final aiThinking = provider.isAiThinking;
+          final isFinished = provider.result != CaptureGameResult.none;
+          final settings = context.watch<SettingsProvider?>();
+          final showCaptureWarning = settings?.showCaptureWarning ?? true;
+
+          return CupertinoPageScaffold(
             backgroundColor: const Color(0xFFF3F0ED),
-            border: null,
-            previousPageTitle: _CaptureCopy.pageTitle,
-            middle: Text(
-              '${_initialModeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${AiRankLevel.displayName(widget.aiRank)}',
-            ),
-            trailing: CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: () => _showGameConfigDialog(
-                context: context,
-                provider: provider,
-                settings: settings,
+            navigationBar: CupertinoNavigationBar(
+              backgroundColor: const Color(0xFFF3F0ED),
+              border: null,
+              previousPageTitle: _CaptureCopy.pageTitle,
+              middle: Text(
+                '${_initialModeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${AiRankLevel.displayName(widget.aiRank)}',
               ),
-              child: const Icon(
-                CupertinoIcons.slider_horizontal_3,
-                color: Color(0xFFC3996E),
-                size: 20,
-              ),
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: _PlayerSummaryRow(
-                    captureTarget: widget.captureTarget,
-                    blackCaptured: blackCaptured,
-                    whiteCaptured: whiteCaptured,
-                    result: provider.result,
-                    currentPlayer: provider.gameState.currentPlayer,
-                    isSetupMode: provider.isPlacementMode,
-                    humanColor: widget.humanColor,
-                    isAiThinking: aiThinking,
-                  ),
+              trailing: CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => _showGameConfigDialog(
+                  context: context,
+                  provider: provider,
+                  settings: settings,
                 ),
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0DFC9),
-                          borderRadius: BorderRadius.circular(26),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x14000000),
-                              blurRadius: 12,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: _TapBoard(
-                            gameState: provider.gameState,
-                            enabled: !aiThinking && !isFinished,
-                            hintMarks: _hintMarks,
-                            showCaptureWarning: showCaptureWarning,
-                            onTap: (row, col) => _handleBoardTap(
-                              provider: provider,
-                              row: row,
-                              col: col,
+                child: const Icon(
+                  CupertinoIcons.slider_horizontal_3,
+                  color: Color(0xFFC3996E),
+                  size: 20,
+                ),
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: _PlayerSummaryRow(
+                      captureTarget: widget.captureTarget,
+                      blackCaptured: blackCaptured,
+                      whiteCaptured: whiteCaptured,
+                      result: provider.result,
+                      currentPlayer: provider.gameState.currentPlayer,
+                      isSetupMode: provider.isPlacementMode,
+                      humanColor: widget.humanColor,
+                      isAiThinking: aiThinking,
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0DFC9),
+                            borderRadius: BorderRadius.circular(26),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x14000000),
+                                blurRadius: 12,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: _TapBoard(
+                              gameState: provider.gameState,
+                              enabled: !aiThinking && !isFinished,
+                              hintMarks: _hintMarks,
+                              showCaptureWarning: showCaptureWarning,
+                              onTap: (row, col) => _handleBoardTap(
+                                provider: provider,
+                                row: row,
+                                col: col,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                  child: _BottomInfoCard(
-                    infoText: _buildInfoText(provider, widget.humanColor),
-                    blackRate: blackRate,
-                    whiteRate: whiteRate,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    child: _BottomInfoCard(
+                      infoText: _buildInfoText(provider, widget.humanColor),
+                      blackRate: blackRate,
+                      whiteRate: whiteRate,
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 22),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _DecoratedActionButton(
-                          text: '后退一手',
-                          filled: false,
-                          onPressed:
-                              provider.canUndo ? provider.undoMove : null,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 22),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _DecoratedActionButton(
+                            text: '后退一手',
+                            filled: false,
+                            onPressed:
+                                provider.canUndo ? provider.undoMove : null,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _DecoratedActionButton(
-                          text: '提示一手',
-                          filled: true,
-                          onPressed: _isLoadingHints
-                              ? null
-                              : () => _showHintsOnBoard(provider),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _DecoratedActionButton(
+                            text: '提示一手',
+                            filled: true,
+                            onPressed: _isLoadingHints
+                                ? null
+                                : () => _showHintsOnBoard(provider),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -2797,6 +3726,7 @@ class _TapBoard extends StatelessWidget {
                 CustomPaint(
                   painter: GoBoardPainter(
                     gameState: gameState,
+                    palette: context.appPalette,
                     showCaptureWarning: showCaptureWarning,
                   ),
                 ),
@@ -2826,5 +3756,619 @@ class _TapBoard extends StatelessWidget {
     if (row >= 0 && row < n && col >= 0 && col < n) {
       onTap(row, col);
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// History section
+// ---------------------------------------------------------------------------
+
+/// Section card shown on the home screen listing recent games.
+class _HistorySectionCard extends StatelessWidget {
+  const _HistorySectionCard({
+    required this.history,
+  });
+
+  final List<GameRecord> history;
+
+  static const _maxVisible = 5;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = history.take(_maxVisible).toList();
+    return _SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '历史对局',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF3A2A1F),
+                  ),
+                ),
+              ),
+              if (history.length > _maxVisible)
+                CupertinoButton(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  minimumSize: Size.zero,
+                  onPressed: () => _showAllHistory(context),
+                  child: const Text(
+                    '全部 ›',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFFB68454),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...visible.map(
+            (r) => _HistoryRow(
+              record: r,
+              onTap: () => _showDetailSheet(context, r),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDetailSheet(BuildContext context, GameRecord record) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (ctx) => _HistoryDetailSheet(record: record),
+    );
+  }
+
+  void _showAllHistory(BuildContext context) {
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (_) => _FullHistoryScreen(history: history),
+      ),
+    );
+  }
+}
+
+class _HistoryRow extends StatelessWidget {
+  const _HistoryRow({
+    required this.record,
+    required this.onTap,
+  });
+
+  final GameRecord record;
+  final VoidCallback onTap;
+
+  static const _outcomeColors = {
+    GameOutcome.humanWins: Color(0xFF4A7C59),
+    GameOutcome.aiWins: Color(0xFF8B3A3A),
+    GameOutcome.abandoned: Color(0xFF8C7966),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final date = _formatDate(record.playedAt);
+    final boardLabel = '${record.boardSize} 路';
+    final diffLabel = record.difficultyLevel.displayName;
+    final outcomeLabel = record.outcome.displayName;
+    final outcomeColor =
+        _outcomeColors[record.outcome] ?? const Color(0xFF8C7966);
+
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      minimumSize: Size.zero,
+      onPressed: onTap,
+      child: Row(
+        children: [
+          _StoneCircle(isBlack: record.humanColorIndex == StoneColor.black.index),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$boardLabel · $diffLabel · ${record.totalMoves} 手',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF3A2A1F),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  date,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF897564),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: outcomeColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              outcomeLabel,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: outcomeColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(
+            CupertinoIcons.chevron_right,
+            color: Color(0xFFCBAF8C),
+            size: 14,
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatDate(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inDays == 0) return '今天 ${_pad(dt.hour)}:${_pad(dt.minute)}';
+    if (diff.inDays == 1) return '昨天 ${_pad(dt.hour)}:${_pad(dt.minute)}';
+    return '${dt.month}/${dt.day} ${_pad(dt.hour)}:${_pad(dt.minute)}';
+  }
+
+  static String _pad(int n) => n.toString().padLeft(2, '0');
+}
+
+class _StoneCircle extends StatelessWidget {
+  const _StoneCircle({required this.isBlack});
+
+  final bool isBlack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isBlack ? const Color(0xFF1A1A1A) : const Color(0xFFF5F0E8),
+        border: Border.all(
+          color: isBlack ? const Color(0xFF3A3A3A) : const Color(0xFFBCA88A),
+          width: 1.2,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// History detail sheet
+// ---------------------------------------------------------------------------
+
+class _HistoryDetailSheet extends StatelessWidget {
+  const _HistoryDetailSheet({required this.record});
+
+  final GameRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    final boardState = _buildFinalBoardState(record);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFFF9F4EC),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0x33B68454),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${record.boardSize} 路 · 吃${record.captureTarget}子 · ${record.difficultyLevel.displayName}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF3A2A1F),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatFullDate(record.playedAt),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF8C7966),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _OutcomeBadge(outcome: record.outcome),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (boardState != null) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0DFC9),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: GoBoardWidget(
+                        gameState: boardState,
+                        onTap: null,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '共 ${record.totalMoves} 手',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF8C7966),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (record.moves.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: _PrimaryActionButton(
+                  title: '浏览棋局',
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(
+                      CupertinoPageRoute<void>(
+                        builder: (_) => _GameBrowseScreen(record: record),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 4),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _formatFullDate(DateTime dt) {
+    return '${dt.year}/${dt.month.toString().padLeft(2, '0')}/${dt.day.toString().padLeft(2, '0')} '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  static GameState? _buildFinalBoardState(GameRecord record) {
+    final fb = record.finalBoard;
+    if (fb == null) return null;
+    try {
+      final board = fb
+          .map((row) => row
+              .map((i) =>
+                  StoneColor.values[i.clamp(0, StoneColor.values.length - 1)])
+              .toList())
+          .toList();
+      return GameState(
+        boardSize: record.boardSize,
+        board: board,
+        currentPlayer: StoneColor.black,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class _OutcomeBadge extends StatelessWidget {
+  const _OutcomeBadge({required this.outcome});
+
+  final GameOutcome outcome;
+
+  static const _bgColors = {
+    GameOutcome.humanWins: Color(0xFFE6F4EC),
+    GameOutcome.aiWins: Color(0xFFF9E6E6),
+    GameOutcome.abandoned: Color(0xFFF0EAE2),
+  };
+
+  static const _fgColors = {
+    GameOutcome.humanWins: Color(0xFF3D7A56),
+    GameOutcome.aiWins: Color(0xFF8B3A3A),
+    GameOutcome.abandoned: Color(0xFF7A6A5A),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: _bgColors[outcome],
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        outcome.displayName,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: _fgColors[outcome],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Full history screen
+// ---------------------------------------------------------------------------
+
+class _FullHistoryScreen extends StatelessWidget {
+  const _FullHistoryScreen({required this.history});
+
+  final List<GameRecord> history;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      backgroundColor: kPageBackgroundColor,
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('历史对局'),
+        previousPageTitle: '小闲围棋',
+      ),
+      child: SafeArea(
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          itemCount: history.length,
+          separatorBuilder: (_, __) => Container(
+            height: 0.5,
+            color: const Color(0x26D8C1A4),
+          ),
+          itemBuilder: (ctx, i) {
+            final r = history[i];
+            return _HistoryRow(
+              record: r,
+              onTap: () => showCupertinoModalPopup<void>(
+                context: ctx,
+                builder: (_) => _HistoryDetailSheet(record: r),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Game browse screen – move-by-move viewer for a recorded game
+// ---------------------------------------------------------------------------
+
+class _GameBrowseScreen extends StatefulWidget {
+  const _GameBrowseScreen({required this.record});
+
+  final GameRecord record;
+
+  @override
+  State<_GameBrowseScreen> createState() => _GameBrowseScreenState();
+}
+
+class _GameBrowseScreenState extends State<_GameBrowseScreen> {
+  late final List<GameState> _states;
+  int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _states = _buildStates(widget.record);
+  }
+
+  /// Replays every move in [record] and returns the ordered list of
+  /// board states: index 0 = initial board, index N = after move N.
+  static List<GameState> _buildStates(GameRecord record) {
+    // Build initial board.
+    final emptyBoard = List.generate(
+      record.boardSize,
+      (_) => List<StoneColor>.filled(record.boardSize, StoneColor.empty),
+    );
+
+    if (record.initialBoardCells != null) {
+      final cells = record.initialBoardCells!;
+      for (int r = 0; r < record.boardSize; r++) {
+        for (int c = 0; c < record.boardSize; c++) {
+          if (r < cells.length && c < cells[r].length) {
+            emptyBoard[r][c] = StoneColor.values[
+                cells[r][c].clamp(0, StoneColor.values.length - 1)];
+          }
+        }
+      }
+    } else if (record.initialMode == 'twistCross') {
+      final center = record.boardSize ~/ 2;
+      if (center > 0 && center < record.boardSize - 1) {
+        emptyBoard[center - 1][center] = StoneColor.black;
+        emptyBoard[center + 1][center] = StoneColor.black;
+        emptyBoard[center][center - 1] = StoneColor.white;
+        emptyBoard[center][center + 1] = StoneColor.white;
+      }
+    }
+
+    var state = GameState(
+      boardSize: record.boardSize,
+      board: emptyBoard,
+      currentPlayer: StoneColor.black,
+    );
+
+    final states = <GameState>[state];
+    for (final move in record.moves) {
+      if (move.length < 2) break;
+      final next = GoEngine.placeStone(state, move[0], move[1]);
+      if (next == null) break;
+      state = next;
+      states.add(state);
+    }
+    return states;
+  }
+
+  int get _totalMoves => _states.length - 1;
+
+  @override
+  Widget build(BuildContext context) {
+    final isAtStart = _index == 0;
+    final isAtEnd = _index == _totalMoves;
+    final current = _states[_index];
+
+    return CupertinoPageScaffold(
+      backgroundColor: kPageBackgroundColor,
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('棋局浏览'),
+        previousPageTitle: '历史对局',
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0DFC9),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: GoBoardWidget(
+                          gameState: current,
+                          onTap: null,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                _index == 0
+                    ? '初始局面'
+                    : '第 $_index 手 / 共 $_totalMoves 手',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF8C7966),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              child: Row(
+                children: [
+                  _NavIconButton(
+                    icon: CupertinoIcons.backward_end_fill,
+                    enabled: !isAtStart,
+                    onPressed: () => setState(() => _index = 0),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _DecoratedActionButton(
+                      text: '上一手',
+                      filled: false,
+                      onPressed: isAtStart
+                          ? null
+                          : () => setState(() => _index--),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _DecoratedActionButton(
+                      text: '下一手',
+                      filled: true,
+                      onPressed: isAtEnd
+                          ? null
+                          : () => setState(() => _index++),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _NavIconButton(
+                    icon: CupertinoIcons.forward_end_fill,
+                    enabled: !isAtEnd,
+                    onPressed: () => setState(() => _index = _totalMoves),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavIconButton extends StatelessWidget {
+  const _NavIconButton({
+    required this.icon,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      onPressed: enabled ? onPressed : null,
+      child: Icon(
+        icon,
+        size: 22,
+        color: enabled
+            ? const Color(0xFFB68454)
+            : const Color(0xFFB68454).withValues(alpha: 0.35),
+      ),
+    );
   }
 }

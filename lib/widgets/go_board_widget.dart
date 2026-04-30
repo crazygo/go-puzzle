@@ -5,6 +5,8 @@ import 'package:flutter/widgets.dart';
 
 import '../models/board_position.dart';
 import '../models/game_state.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_context.dart';
 
 // Board visual constants – shared between painter and widget
 const double _kBoardPadding = 0.5; // padding in cell units
@@ -15,12 +17,14 @@ class GoBoardPainter extends CustomPainter {
   final BoardPosition? hintPosition;
   final bool showMoveNumbers;
   final bool showCaptureWarning;
+  final AppThemePalette palette;
 
   // Stone radius / cell size ratio
   static const double _stoneSizeRatio = 0.48;
 
   GoBoardPainter({
     required this.gameState,
+    required this.palette,
     this.hintPosition,
     this.showMoveNumbers = false,
     this.showCaptureWarning = true,
@@ -54,10 +58,14 @@ class GoBoardPainter extends CustomPainter {
     canvas.drawRRect(
       sideRRect,
       Paint()
-        ..shader = const LinearGradient(
+        ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFE0B06B), Color(0xFFC98E4F), Color(0xFF9A6530)],
+          colors: [
+            palette.boardSideStart,
+            palette.boardSideMid,
+            palette.boardSideEnd,
+          ],
         ).createShader(boardRect),
     );
 
@@ -71,7 +79,7 @@ class GoBoardPainter extends CustomPainter {
     // Top wood base.
     canvas.drawRRect(
       topRRect,
-      Paint()..color = const Color(0xFFE8C98E),
+      Paint()..color = palette.boardTop,
     );
 
     // Bevel: light from upper-right, shadow toward lower-left.
@@ -89,7 +97,7 @@ class GoBoardPainter extends CustomPainter {
       Offset(topRect.right, topRect.bottom),
       bevelPaint,
     );
-    bevelPaint.color = const Color(0xFF8A5B2F).withOpacity(0.35);
+    bevelPaint.color = palette.boardSideEnd.withOpacity(0.35);
     canvas.drawLine(
       Offset(topRect.left, topRect.bottom),
       Offset(topRect.right, topRect.bottom),
@@ -111,7 +119,7 @@ class GoBoardPainter extends CustomPainter {
   ) {
     // Outer border (engraved frame)
     final borderPaint = Paint()
-      ..color = const Color(0xFF7A5C36).withOpacity(0.62)
+      ..color = palette.boardLine.withOpacity(0.62)
       ..strokeWidth = 1.15
       ..style = PaintingStyle.stroke;
     canvas.drawRect(
@@ -142,7 +150,7 @@ class GoBoardPainter extends CustomPainter {
     Offset b,
   ) {
     final core = Paint()
-      ..color = const Color(0xFF7A5C36).withOpacity(0.56)
+      ..color = palette.boardLine.withOpacity(0.56)
       ..strokeWidth = 0.72
       ..style = PaintingStyle.stroke;
     canvas.drawLine(a, b, core);
@@ -151,7 +159,7 @@ class GoBoardPainter extends CustomPainter {
   void _drawStarPoints(Canvas canvas, double origin, int n, double cellSize) {
     final starPositions = _getStarPoints(n);
     final paint = Paint()
-      ..color = const Color(0xFF6B4E10)
+      ..color = palette.boardLine
       ..style = PaintingStyle.fill;
 
     for (final pos in starPositions) {
@@ -229,7 +237,7 @@ class GoBoardPainter extends CustomPainter {
       text: TextSpan(
         text: text,
         style: TextStyle(
-          color: const Color(0xFF5C3A0A),
+          color: palette.coordinateText,
           fontSize: fontSize,
           fontWeight: FontWeight.w500,
         ),
@@ -356,7 +364,8 @@ class GoBoardPainter extends CustomPainter {
     return oldDelegate.gameState != gameState ||
         oldDelegate.hintPosition != hintPosition ||
         oldDelegate.showMoveNumbers != showMoveNumbers ||
-        oldDelegate.showCaptureWarning != showCaptureWarning;
+        oldDelegate.showCaptureWarning != showCaptureWarning ||
+        oldDelegate.palette != palette;
   }
 }
 
@@ -381,6 +390,7 @@ class GoBoardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     return LayoutBuilder(
       builder: (context, constraints) {
         final boardSize =
@@ -398,6 +408,7 @@ class GoBoardWidget extends StatelessWidget {
                 hintPosition: hintPosition,
                 showMoveNumbers: showMoveNumbers,
                 showCaptureWarning: showCaptureWarning,
+                palette: palette,
               ),
             ),
           ),

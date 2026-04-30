@@ -1,0 +1,7 @@
+interface:
+  display_name: "3D Board Golden Flow"
+  short_description: "Controlled 3D board golden iteration."
+  default_prompt: "Use $three-board-golden-flow to modify one 3D board rendering capability, commit it, capture a timestamped screenshot with commit-linked params, and compare the board region against the golden."
+
+policy:
+  allow_implicit_invocation: true

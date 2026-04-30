@@ -66,8 +66,6 @@ class CaptureGameProvider extends ChangeNotifier {
     this.initialMode = CaptureInitialMode.twistCross,
     this.initialBoardOverride,
     this.initialPlayerOverride,
-    this.aiRank,
-    this.onGameFinished,
   })  : assert(
           boardSize == 9 || boardSize == 13 || boardSize == 19,
           'boardSize must be 9, 13, or 19.',
@@ -100,15 +98,6 @@ class CaptureGameProvider extends ChangeNotifier {
   final List<List<StoneColor>>? initialBoardOverride;
   final StoneColor? initialPlayerOverride;
 
-  /// The AI rank (1–28) used for this game, stored in [GameRecord] when the
-  /// game finishes.  Null when the game was started without a rank context.
-  final int? aiRank;
-
-  /// Called once when the game finishes (result becomes non-none).
-  ///
-  /// Receives [playerWon] = true when the human player won.
-  final void Function(bool playerWon)? onGameFinished;
-
   static bool _isValidBoardShape(List<List<StoneColor>>? board, int size) {
     if (board == null) return true;
     return board.length == size && board.every((row) => row.length == size);
@@ -122,12 +111,18 @@ class CaptureGameProvider extends ChangeNotifier {
   bool _isAiThinking = false;
   final List<GameState> _undoStack = [];
 
+  /// Every move played in the current game, in order: each entry is [row, col].
+  final List<List<int>> _moveLog = [];
+
   GameState get gameState => _gameState;
   CaptureGameResult get result => _result;
   bool get isAiThinking => _isAiThinking;
   bool get canUndo => _undoStack.isNotEmpty && !_isAiThinking;
   CaptureAiStyle get aiStyle => _aiStyle;
   bool get isPlacementMode => initialMode == CaptureInitialMode.setup;
+
+  /// An unmodifiable view of the current game's move sequence.
+  List<List<int>> get moveLog => List.unmodifiable(_moveLog);
 
   CaptureAiAgent get _activeAgent {
     return _cachedAgent ??=
@@ -153,6 +148,7 @@ class CaptureGameProvider extends ChangeNotifier {
 
     _undoStack.add(_gameState);
     _gameState = newState;
+    _moveLog.add([row, col]);
     _checkWinCondition();
     notifyListeners();
 
@@ -174,11 +170,13 @@ class CaptureGameProvider extends ChangeNotifier {
       currentPlayer: StoneColor.black,
     );
     _undoStack.clear();
+    _moveLog.clear();
     notifyListeners();
   }
 
   void undoMove() {
     if (!canUndo) return;
+    final stackSizeBefore = _undoStack.length;
     if (isPlacementMode) {
       // Setup mode: undo one move at a time
       _gameState = _undoStack.removeLast();
@@ -188,6 +186,10 @@ class CaptureGameProvider extends ChangeNotifier {
       while (_undoStack.isNotEmpty && _gameState.currentPlayer != humanColor) {
         _gameState = _undoStack.removeLast();
       }
+    }
+    final movesRemoved = stackSizeBefore - _undoStack.length;
+    if (_moveLog.length >= movesRemoved) {
+      _moveLog.removeRange(_moveLog.length - movesRemoved, _moveLog.length);
     }
     _result = CaptureGameResult.none;
     notifyListeners();
@@ -298,7 +300,7 @@ class CaptureGameProvider extends ChangeNotifier {
     _result = CaptureGameResult.none;
     _isAiThinking = false;
     _undoStack.clear();
-    _finishCallbackFired = false;
+    _moveLog.clear();
     notifyListeners();
   }
 
@@ -318,6 +320,7 @@ class CaptureGameProvider extends ChangeNotifier {
           GoEngine.placeStone(_gameState, bestMove.row, bestMove.col);
       if (newState != null) {
         _gameState = newState;
+        _moveLog.add([bestMove.row, bestMove.col]);
         _checkWinCondition();
       }
     }
@@ -329,21 +332,8 @@ class CaptureGameProvider extends ChangeNotifier {
   void _checkWinCondition() {
     if (_gameState.capturedByBlack.length >= captureTarget) {
       _result = CaptureGameResult.blackWins;
-      _notifyGameFinished();
     } else if (_gameState.capturedByWhite.length >= captureTarget) {
       _result = CaptureGameResult.whiteWins;
-      _notifyGameFinished();
     }
-  }
-
-  bool _finishCallbackFired = false;
-
-  void _notifyGameFinished() {
-    if (_finishCallbackFired) return;
-    _finishCallbackFired = true;
-    final playerWon = _result == CaptureGameResult.blackWins
-        ? humanColor == StoneColor.black
-        : humanColor == StoneColor.white;
-    onGameFinished?.call(playerWon);
   }
 }
