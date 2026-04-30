@@ -213,7 +213,7 @@ class _ThreeBoardDebugScreenState extends State<_ThreeBoardDebugScreen> {
                       boardSize: _boardSize,
                       stones: kGoThreeDemoStones,
                       animate: true,
-                      particles: true,
+                      particles: false,
                       sceneScale: _sceneScale,
                     ),
                   ),
@@ -246,7 +246,7 @@ class _ThreeBoardDebugScreenState extends State<_ThreeBoardDebugScreen> {
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(
-                                  'three_js · $_boardSize路 · ${kGoThreeDemoStones.length} stones · particles on · s=${_sceneScale.toStringAsFixed(2)}',
+                                  'three_js · $_boardSize路 · ${kGoThreeDemoStones.length} stones · particles off · s=${_sceneScale.toStringAsFixed(2)}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: CupertinoColors.secondaryLabel

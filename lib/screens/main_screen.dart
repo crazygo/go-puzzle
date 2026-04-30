@@ -37,11 +37,14 @@ class _MainTabScaffold extends StatefulWidget {
 
 class _MainTabScaffoldState extends State<_MainTabScaffold> {
   int _selectedIndex = 0;
-  bool _windowAirGlowEnabled = true;
-  double _windowAirGlowOpacity = 0.18;
-  double _windowAirGlowSize = 0.10;
-  double _windowAirGlowSpeed = 0.22;
-  double _windowAirGlowPulse = 0.35;
+  bool _leafShadowEnabled = true;
+  double _leafShadowOpacity = 0.16;
+  double _leafShadowSpeed = 0.05;
+  double _leafShadowDrift = 0.14;
+  double _leafShadowRotation = 0.19;
+  double _leafShadowScale = 1.65;
+  double _leafShadowOffsetX = -1.38;
+  double _leafShadowOffsetZ = -2.0;
 
   @override
   Widget build(BuildContext context) {
@@ -56,11 +59,14 @@ class _MainTabScaffoldState extends State<_MainTabScaffold> {
         children: [
           if (showSharedBoard)
             _SharedHeroBoardBackground(
-              windowAirGlowEnabled: _windowAirGlowEnabled,
-              windowAirGlowOpacity: _windowAirGlowOpacity,
-              windowAirGlowSize: _windowAirGlowSize,
-              windowAirGlowSpeed: _windowAirGlowSpeed,
-              windowAirGlowPulse: _windowAirGlowPulse,
+              leafShadowEnabled: _leafShadowEnabled,
+              leafShadowOpacity: _leafShadowOpacity,
+              leafShadowSpeed: _leafShadowSpeed,
+              leafShadowDrift: _leafShadowDrift,
+              leafShadowRotation: _leafShadowRotation,
+              leafShadowScale: _leafShadowScale,
+              leafShadowOffsetX: _leafShadowOffsetX,
+              leafShadowOffsetZ: _leafShadowOffsetZ,
             ),
           Padding(
             padding: EdgeInsets.only(bottom: tabBarBottomInset),
@@ -68,21 +74,30 @@ class _MainTabScaffoldState extends State<_MainTabScaffold> {
               index: _selectedIndex,
               children: [
                 CaptureGameScreen(
-                  windowAirGlowEnabled: _windowAirGlowEnabled,
-                  windowAirGlowOpacity: _windowAirGlowOpacity,
-                  windowAirGlowSize: _windowAirGlowSize,
-                  windowAirGlowSpeed: _windowAirGlowSpeed,
-                  windowAirGlowPulse: _windowAirGlowPulse,
-                  onWindowAirGlowEnabledChanged: (value) =>
-                      setState(() => _windowAirGlowEnabled = value),
-                  onWindowAirGlowOpacityChanged: (value) =>
-                      setState(() => _windowAirGlowOpacity = value),
-                  onWindowAirGlowSizeChanged: (value) =>
-                      setState(() => _windowAirGlowSize = value),
-                  onWindowAirGlowSpeedChanged: (value) =>
-                      setState(() => _windowAirGlowSpeed = value),
-                  onWindowAirGlowPulseChanged: (value) =>
-                      setState(() => _windowAirGlowPulse = value),
+                  leafShadowEnabled: _leafShadowEnabled,
+                  leafShadowOpacity: _leafShadowOpacity,
+                  leafShadowSpeed: _leafShadowSpeed,
+                  leafShadowDrift: _leafShadowDrift,
+                  leafShadowRotation: _leafShadowRotation,
+                  leafShadowScale: _leafShadowScale,
+                  leafShadowOffsetX: _leafShadowOffsetX,
+                  leafShadowOffsetZ: _leafShadowOffsetZ,
+                  onLeafShadowEnabledChanged: (value) =>
+                      setState(() => _leafShadowEnabled = value),
+                  onLeafShadowOpacityChanged: (value) =>
+                      setState(() => _leafShadowOpacity = value),
+                  onLeafShadowSpeedChanged: (value) =>
+                      setState(() => _leafShadowSpeed = value),
+                  onLeafShadowDriftChanged: (value) =>
+                      setState(() => _leafShadowDrift = value),
+                  onLeafShadowRotationChanged: (value) =>
+                      setState(() => _leafShadowRotation = value),
+                  onLeafShadowScaleChanged: (value) =>
+                      setState(() => _leafShadowScale = value),
+                  onLeafShadowOffsetXChanged: (value) =>
+                      setState(() => _leafShadowOffsetX = value),
+                  onLeafShadowOffsetZChanged: (value) =>
+                      setState(() => _leafShadowOffsetZ = value),
                 ),
                 const DailyPuzzleScreen(),
                 const SettingsScreen(),
@@ -134,18 +149,24 @@ class _MainTabScaffoldState extends State<_MainTabScaffold> {
 
 class _SharedHeroBoardBackground extends StatelessWidget {
   const _SharedHeroBoardBackground({
-    required this.windowAirGlowEnabled,
-    required this.windowAirGlowOpacity,
-    required this.windowAirGlowSize,
-    required this.windowAirGlowSpeed,
-    required this.windowAirGlowPulse,
+    required this.leafShadowEnabled,
+    required this.leafShadowOpacity,
+    required this.leafShadowSpeed,
+    required this.leafShadowDrift,
+    required this.leafShadowRotation,
+    required this.leafShadowScale,
+    required this.leafShadowOffsetX,
+    required this.leafShadowOffsetZ,
   });
 
-  final bool windowAirGlowEnabled;
-  final double windowAirGlowOpacity;
-  final double windowAirGlowSize;
-  final double windowAirGlowSpeed;
-  final double windowAirGlowPulse;
+  final bool leafShadowEnabled;
+  final double leafShadowOpacity;
+  final double leafShadowSpeed;
+  final double leafShadowDrift;
+  final double leafShadowRotation;
+  final double leafShadowScale;
+  final double leafShadowOffsetX;
+  final double leafShadowOffsetZ;
 
   @override
   Widget build(BuildContext context) {
@@ -165,18 +186,21 @@ class _SharedHeroBoardBackground extends StatelessWidget {
                     child: GoThreeBoardBackground(
                       boardSize: 19,
                       stones: kGoThreeDemoStones,
-                      particles: windowAirGlowEnabled,
-                      windowAirGlowOpacity: windowAirGlowOpacity,
-                      windowAirGlowSize: windowAirGlowSize,
-                      windowAirGlowSpeed: windowAirGlowSpeed,
-                      windowAirGlowPulse: windowAirGlowPulse,
+                      particles: false,
                       sceneScale: 0.88,
                       cameraLift: 0.01,
                       cameraDepth: 17.2,
                       targetZOffset: 0.0,
                       cinematicFov: 28.0,
                       boardRotationY: -0.62,
-                      leafShadowOpacity: 0.16,
+                      leafShadowEnabled: leafShadowEnabled,
+                      leafShadowOpacity: leafShadowOpacity,
+                      leafShadowSpeed: leafShadowSpeed,
+                      leafShadowDrift: leafShadowDrift,
+                      leafShadowRotation: leafShadowRotation,
+                      leafShadowScale: leafShadowScale,
+                      leafShadowOffsetX: leafShadowOffsetX,
+                      leafShadowOffsetZ: leafShadowOffsetZ,
                       stoneExtraOverlayEnabled: true,
                       boardTopBrightness: 1.0,
                       boardWoodColor: 0xd0b39c,

@@ -25,11 +25,27 @@ class CaptureGameScreen extends StatefulWidget {
     this.windowAirGlowSize,
     this.windowAirGlowSpeed,
     this.windowAirGlowPulse,
+    this.leafShadowEnabled,
+    this.leafShadowOpacity,
+    this.leafShadowSpeed,
+    this.leafShadowDrift,
+    this.leafShadowRotation,
+    this.leafShadowScale,
+    this.leafShadowOffsetX,
+    this.leafShadowOffsetZ,
     this.onWindowAirGlowEnabledChanged,
     this.onWindowAirGlowOpacityChanged,
     this.onWindowAirGlowSizeChanged,
     this.onWindowAirGlowSpeedChanged,
     this.onWindowAirGlowPulseChanged,
+    this.onLeafShadowEnabledChanged,
+    this.onLeafShadowOpacityChanged,
+    this.onLeafShadowSpeedChanged,
+    this.onLeafShadowDriftChanged,
+    this.onLeafShadowRotationChanged,
+    this.onLeafShadowScaleChanged,
+    this.onLeafShadowOffsetXChanged,
+    this.onLeafShadowOffsetZChanged,
   });
 
   final bool? windowAirGlowEnabled;
@@ -37,11 +53,27 @@ class CaptureGameScreen extends StatefulWidget {
   final double? windowAirGlowSize;
   final double? windowAirGlowSpeed;
   final double? windowAirGlowPulse;
+  final bool? leafShadowEnabled;
+  final double? leafShadowOpacity;
+  final double? leafShadowSpeed;
+  final double? leafShadowDrift;
+  final double? leafShadowRotation;
+  final double? leafShadowScale;
+  final double? leafShadowOffsetX;
+  final double? leafShadowOffsetZ;
   final ValueChanged<bool>? onWindowAirGlowEnabledChanged;
   final ValueChanged<double>? onWindowAirGlowOpacityChanged;
   final ValueChanged<double>? onWindowAirGlowSizeChanged;
   final ValueChanged<double>? onWindowAirGlowSpeedChanged;
   final ValueChanged<double>? onWindowAirGlowPulseChanged;
+  final ValueChanged<bool>? onLeafShadowEnabledChanged;
+  final ValueChanged<double>? onLeafShadowOpacityChanged;
+  final ValueChanged<double>? onLeafShadowSpeedChanged;
+  final ValueChanged<double>? onLeafShadowDriftChanged;
+  final ValueChanged<double>? onLeafShadowRotationChanged;
+  final ValueChanged<double>? onLeafShadowScaleChanged;
+  final ValueChanged<double>? onLeafShadowOffsetXChanged;
+  final ValueChanged<double>? onLeafShadowOffsetZChanged;
 
   @override
   State<CaptureGameScreen> createState() => _CaptureGameScreenState();
@@ -56,7 +88,15 @@ class ThreeBoardDebugScreen extends StatefulWidget {
 
 class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
   bool _panelVisible = false;
+  bool _leafShadowEnabled = _CaptureGameScreenState._defaultLeafShadowEnabled;
   double _leafShadowOpacity = _CaptureGameScreenState._defaultLeafShadowOpacity;
+  double _leafShadowSpeed = _CaptureGameScreenState._defaultLeafShadowSpeed;
+  double _leafShadowDrift = _CaptureGameScreenState._defaultLeafShadowDrift;
+  double _leafShadowRotation =
+      _CaptureGameScreenState._defaultLeafShadowRotation;
+  double _leafShadowScale = _CaptureGameScreenState._defaultLeafShadowScale;
+  double _leafShadowOffsetX = _CaptureGameScreenState._defaultLeafShadowOffsetX;
+  double _leafShadowOffsetZ = _CaptureGameScreenState._defaultLeafShadowOffsetZ;
   bool _stoneExtraOverlayEnabled =
       _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
   bool _floatingParticlesEnabled =
@@ -139,7 +179,14 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   targetZOffset: _boardTargetZOffset,
                   cinematicFov: _boardCinematicFov,
                   boardRotationY: _boardRotationY,
+                  leafShadowEnabled: _leafShadowEnabled,
                   leafShadowOpacity: _leafShadowOpacity,
+                  leafShadowSpeed: _leafShadowSpeed,
+                  leafShadowDrift: _leafShadowDrift,
+                  leafShadowRotation: _leafShadowRotation,
+                  leafShadowScale: _leafShadowScale,
+                  leafShadowOffsetX: _leafShadowOffsetX,
+                  leafShadowOffsetZ: _leafShadowOffsetZ,
                   stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                   floatingParticlesEnabled: _floatingParticlesEnabled,
                   windowAirGlowOpacity: _windowAirGlowOpacity,
@@ -177,7 +224,14 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                 ),
                 if (_panelVisible)
                   _HomeBoardTuningSheet(
+                    leafShadowEnabled: _leafShadowEnabled,
                     shadowOpacity: _leafShadowOpacity,
+                    leafShadowSpeed: _leafShadowSpeed,
+                    leafShadowDrift: _leafShadowDrift,
+                    leafShadowRotation: _leafShadowRotation,
+                    leafShadowScale: _leafShadowScale,
+                    leafShadowOffsetX: _leafShadowOffsetX,
+                    leafShadowOffsetZ: _leafShadowOffsetZ,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                     floatingParticlesEnabled: _floatingParticlesEnabled,
                     windowAirGlowOpacity: _windowAirGlowOpacity,
@@ -207,8 +261,22 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                     boardTargetZOffset: _boardTargetZOffset,
                     boardCinematicFov: _boardCinematicFov,
                     boardRotationY: _boardRotationY,
+                    onLeafShadowEnabledChanged: (value) =>
+                        setState(() => _leafShadowEnabled = value),
                     onShadowOpacityChanged: (value) =>
                         setState(() => _leafShadowOpacity = value),
+                    onLeafShadowSpeedChanged: (value) =>
+                        setState(() => _leafShadowSpeed = value),
+                    onLeafShadowDriftChanged: (value) =>
+                        setState(() => _leafShadowDrift = value),
+                    onLeafShadowRotationChanged: (value) =>
+                        setState(() => _leafShadowRotation = value),
+                    onLeafShadowScaleChanged: (value) =>
+                        setState(() => _leafShadowScale = value),
+                    onLeafShadowOffsetXChanged: (value) =>
+                        setState(() => _leafShadowOffsetX = value),
+                    onLeafShadowOffsetZChanged: (value) =>
+                        setState(() => _leafShadowOffsetZ = value),
                     onStoneExtraOverlayChanged: (value) =>
                         setState(() => _stoneExtraOverlayEnabled = value),
                     onFloatingParticlesChanged: (value) =>
@@ -328,7 +396,14 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
 
   void _resetTuning() {
     setState(() {
+      _leafShadowEnabled = _CaptureGameScreenState._defaultLeafShadowEnabled;
       _leafShadowOpacity = _CaptureGameScreenState._defaultLeafShadowOpacity;
+      _leafShadowSpeed = _CaptureGameScreenState._defaultLeafShadowSpeed;
+      _leafShadowDrift = _CaptureGameScreenState._defaultLeafShadowDrift;
+      _leafShadowRotation = _CaptureGameScreenState._defaultLeafShadowRotation;
+      _leafShadowScale = _CaptureGameScreenState._defaultLeafShadowScale;
+      _leafShadowOffsetX = _CaptureGameScreenState._defaultLeafShadowOffsetX;
+      _leafShadowOffsetZ = _CaptureGameScreenState._defaultLeafShadowOffsetZ;
       _stoneExtraOverlayEnabled =
           _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
       _floatingParticlesEnabled =
@@ -406,7 +481,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardTargetZOffset = 0.0;
   static const double _defaultHomeBoardCinematicFov = 28.0;
   static const double _defaultHomeBoardRotationY = -0.62;
+  static const bool _defaultLeafShadowEnabled = true;
   static const double _defaultLeafShadowOpacity = 0.16;
+  static const double _defaultLeafShadowSpeed = 0.05;
+  static const double _defaultLeafShadowDrift = 0.14;
+  static const double _defaultLeafShadowRotation = 0.19;
+  static const double _defaultLeafShadowScale = 1.65;
+  static const double _defaultLeafShadowOffsetX = -1.38;
+  static const double _defaultLeafShadowOffsetZ = -2.0;
   static const bool _defaultStoneExtraOverlayEnabled = true;
   static const bool _defaultFloatingParticlesEnabled = false;
   static const double _defaultWindowAirGlowOpacity = 0.18;
@@ -463,7 +545,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
   double _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
   double _homeBoardRotationY = _defaultHomeBoardRotationY;
+  bool _leafShadowEnabled = _defaultLeafShadowEnabled;
   double _leafShadowOpacity = _defaultLeafShadowOpacity;
+  double _leafShadowSpeed = _defaultLeafShadowSpeed;
+  double _leafShadowDrift = _defaultLeafShadowDrift;
+  double _leafShadowRotation = _defaultLeafShadowRotation;
+  double _leafShadowScale = _defaultLeafShadowScale;
+  double _leafShadowOffsetX = _defaultLeafShadowOffsetX;
+  double _leafShadowOffsetZ = _defaultLeafShadowOffsetZ;
   bool _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
   bool _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
   double _windowAirGlowOpacity = _defaultWindowAirGlowOpacity;
@@ -686,7 +775,19 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   ),
                 if (kIsWeb && _homeTuningSheetVisible)
                   _HomeBoardTuningSheet(
-                    shadowOpacity: _leafShadowOpacity,
+                    leafShadowEnabled:
+                        widget.leafShadowEnabled ?? _leafShadowEnabled,
+                    shadowOpacity:
+                        widget.leafShadowOpacity ?? _leafShadowOpacity,
+                    leafShadowSpeed: widget.leafShadowSpeed ?? _leafShadowSpeed,
+                    leafShadowDrift: widget.leafShadowDrift ?? _leafShadowDrift,
+                    leafShadowRotation:
+                        widget.leafShadowRotation ?? _leafShadowRotation,
+                    leafShadowScale: widget.leafShadowScale ?? _leafShadowScale,
+                    leafShadowOffsetX:
+                        widget.leafShadowOffsetX ?? _leafShadowOffsetX,
+                    leafShadowOffsetZ:
+                        widget.leafShadowOffsetZ ?? _leafShadowOffsetZ,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                     floatingParticlesEnabled: widget.windowAirGlowEnabled ??
                         _floatingParticlesEnabled,
@@ -722,8 +823,38 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     boardTargetZOffset: _homeBoardTargetZOffset,
                     boardCinematicFov: _homeBoardCinematicFov,
                     boardRotationY: _homeBoardRotationY,
-                    onShadowOpacityChanged: (value) =>
-                        setState(() => _leafShadowOpacity = value),
+                    onLeafShadowEnabledChanged: (value) {
+                      widget.onLeafShadowEnabledChanged?.call(value);
+                      setState(() => _leafShadowEnabled = value);
+                    },
+                    onShadowOpacityChanged: (value) {
+                      widget.onLeafShadowOpacityChanged?.call(value);
+                      setState(() => _leafShadowOpacity = value);
+                    },
+                    onLeafShadowSpeedChanged: (value) {
+                      widget.onLeafShadowSpeedChanged?.call(value);
+                      setState(() => _leafShadowSpeed = value);
+                    },
+                    onLeafShadowDriftChanged: (value) {
+                      widget.onLeafShadowDriftChanged?.call(value);
+                      setState(() => _leafShadowDrift = value);
+                    },
+                    onLeafShadowRotationChanged: (value) {
+                      widget.onLeafShadowRotationChanged?.call(value);
+                      setState(() => _leafShadowRotation = value);
+                    },
+                    onLeafShadowScaleChanged: (value) {
+                      widget.onLeafShadowScaleChanged?.call(value);
+                      setState(() => _leafShadowScale = value);
+                    },
+                    onLeafShadowOffsetXChanged: (value) {
+                      widget.onLeafShadowOffsetXChanged?.call(value);
+                      setState(() => _leafShadowOffsetX = value);
+                    },
+                    onLeafShadowOffsetZChanged: (value) {
+                      widget.onLeafShadowOffsetZChanged?.call(value);
+                      setState(() => _leafShadowOffsetZ = value);
+                    },
                     onStoneExtraOverlayChanged: (value) =>
                         setState(() => _stoneExtraOverlayEnabled = value),
                     onFloatingParticlesChanged: (value) {
@@ -850,6 +981,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     widget.onWindowAirGlowSizeChanged?.call(_defaultWindowAirGlowSize);
     widget.onWindowAirGlowSpeedChanged?.call(_defaultWindowAirGlowSpeed);
     widget.onWindowAirGlowPulseChanged?.call(_defaultWindowAirGlowPulse);
+    widget.onLeafShadowEnabledChanged?.call(_defaultLeafShadowEnabled);
+    widget.onLeafShadowOpacityChanged?.call(_defaultLeafShadowOpacity);
+    widget.onLeafShadowSpeedChanged?.call(_defaultLeafShadowSpeed);
+    widget.onLeafShadowDriftChanged?.call(_defaultLeafShadowDrift);
+    widget.onLeafShadowRotationChanged?.call(_defaultLeafShadowRotation);
+    widget.onLeafShadowScaleChanged?.call(_defaultLeafShadowScale);
+    widget.onLeafShadowOffsetXChanged?.call(_defaultLeafShadowOffsetX);
+    widget.onLeafShadowOffsetZChanged?.call(_defaultLeafShadowOffsetZ);
     setState(() {
       _homeBoardTopFactor = _defaultHomeBoardTopFactor;
       _homeBoardHeightFactor = _defaultHomeBoardHeightFactor;
@@ -860,7 +999,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
       _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
       _homeBoardRotationY = _defaultHomeBoardRotationY;
+      _leafShadowEnabled = _defaultLeafShadowEnabled;
       _leafShadowOpacity = _defaultLeafShadowOpacity;
+      _leafShadowSpeed = _defaultLeafShadowSpeed;
+      _leafShadowDrift = _defaultLeafShadowDrift;
+      _leafShadowRotation = _defaultLeafShadowRotation;
+      _leafShadowScale = _defaultLeafShadowScale;
+      _leafShadowOffsetX = _defaultLeafShadowOffsetX;
+      _leafShadowOffsetZ = _defaultLeafShadowOffsetZ;
       _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
       _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
       _windowAirGlowOpacity = _defaultWindowAirGlowOpacity;
@@ -1082,7 +1228,14 @@ class _HomeThreeBoardPreview extends StatelessWidget {
     required this.targetZOffset,
     required this.cinematicFov,
     required this.boardRotationY,
+    required this.leafShadowEnabled,
     required this.leafShadowOpacity,
+    required this.leafShadowSpeed,
+    required this.leafShadowDrift,
+    required this.leafShadowRotation,
+    required this.leafShadowScale,
+    required this.leafShadowOffsetX,
+    required this.leafShadowOffsetZ,
     required this.stoneExtraOverlayEnabled,
     required this.floatingParticlesEnabled,
     required this.windowAirGlowOpacity,
@@ -1129,7 +1282,14 @@ class _HomeThreeBoardPreview extends StatelessWidget {
   final double targetZOffset;
   final double cinematicFov;
   final double boardRotationY;
+  final bool leafShadowEnabled;
   final double leafShadowOpacity;
+  final double leafShadowSpeed;
+  final double leafShadowDrift;
+  final double leafShadowRotation;
+  final double leafShadowScale;
+  final double leafShadowOffsetX;
+  final double leafShadowOffsetZ;
   final bool stoneExtraOverlayEnabled;
   final bool floatingParticlesEnabled;
   final double windowAirGlowOpacity;
@@ -1178,11 +1338,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
           child: GoThreeBoardBackground(
             boardSize: 19,
             stones: kGoThreeDemoStones,
-            particles: floatingParticlesEnabled,
-            windowAirGlowOpacity: windowAirGlowOpacity,
-            windowAirGlowSize: windowAirGlowSize,
-            windowAirGlowSpeed: windowAirGlowSpeed,
-            windowAirGlowPulse: windowAirGlowPulse,
+            particles: false,
             showCornerLabels: cornerLabelsEnabled,
             sceneScale: sceneScale,
             cameraLift: cameraLift,
@@ -1190,7 +1346,14 @@ class _HomeThreeBoardPreview extends StatelessWidget {
             targetZOffset: targetZOffset,
             cinematicFov: cinematicFov,
             boardRotationY: boardRotationY,
+            leafShadowEnabled: leafShadowEnabled,
             leafShadowOpacity: leafShadowOpacity,
+            leafShadowSpeed: leafShadowSpeed,
+            leafShadowDrift: leafShadowDrift,
+            leafShadowRotation: leafShadowRotation,
+            leafShadowScale: leafShadowScale,
+            leafShadowOffsetX: leafShadowOffsetX,
+            leafShadowOffsetZ: leafShadowOffsetZ,
             stoneExtraOverlayEnabled: stoneExtraOverlayEnabled,
             boardTopBrightness: boardTopBrightness,
             boardWoodColor: boardWoodColor,
@@ -1279,7 +1442,14 @@ class _HomeBoardTuningLauncher extends StatelessWidget {
 
 class _HomeBoardTuningSheet extends StatefulWidget {
   const _HomeBoardTuningSheet({
+    required this.leafShadowEnabled,
     required this.shadowOpacity,
+    required this.leafShadowSpeed,
+    required this.leafShadowDrift,
+    required this.leafShadowRotation,
+    required this.leafShadowScale,
+    required this.leafShadowOffsetX,
+    required this.leafShadowOffsetZ,
     required this.stoneExtraOverlayEnabled,
     required this.floatingParticlesEnabled,
     required this.windowAirGlowOpacity,
@@ -1309,7 +1479,14 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.boardTargetZOffset,
     required this.boardCinematicFov,
     required this.boardRotationY,
+    required this.onLeafShadowEnabledChanged,
     required this.onShadowOpacityChanged,
+    required this.onLeafShadowSpeedChanged,
+    required this.onLeafShadowDriftChanged,
+    required this.onLeafShadowRotationChanged,
+    required this.onLeafShadowScaleChanged,
+    required this.onLeafShadowOffsetXChanged,
+    required this.onLeafShadowOffsetZChanged,
     required this.onStoneExtraOverlayChanged,
     required this.onFloatingParticlesChanged,
     required this.onWindowAirGlowOpacityChanged,
@@ -1369,7 +1546,14 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.onLightMapIntensityChanged,
   });
 
+  final bool leafShadowEnabled;
   final double shadowOpacity;
+  final double leafShadowSpeed;
+  final double leafShadowDrift;
+  final double leafShadowRotation;
+  final double leafShadowScale;
+  final double leafShadowOffsetX;
+  final double leafShadowOffsetZ;
   final bool stoneExtraOverlayEnabled;
   final bool floatingParticlesEnabled;
   final double windowAirGlowOpacity;
@@ -1399,7 +1583,14 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final double boardTargetZOffset;
   final double boardCinematicFov;
   final double boardRotationY;
+  final ValueChanged<bool> onLeafShadowEnabledChanged;
   final ValueChanged<double> onShadowOpacityChanged;
+  final ValueChanged<double> onLeafShadowSpeedChanged;
+  final ValueChanged<double> onLeafShadowDriftChanged;
+  final ValueChanged<double> onLeafShadowRotationChanged;
+  final ValueChanged<double> onLeafShadowScaleChanged;
+  final ValueChanged<double> onLeafShadowOffsetXChanged;
+  final ValueChanged<double> onLeafShadowOffsetZChanged;
   final ValueChanged<bool> onStoneExtraOverlayChanged;
   final ValueChanged<bool> onFloatingParticlesChanged;
   final ValueChanged<double> onWindowAirGlowOpacityChanged;
@@ -1527,14 +1718,6 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           min: 0.0,
           max: 0.9,
           onChanged: widget.onAmbientLightIntensityChanged,
-        ),
-        const _TuningGroupTitle('棋盘氛围'),
-        _TuningSlider(
-          label: '叶影强度',
-          value: widget.shadowOpacity,
-          min: 0.04,
-          max: 0.28,
-          onChanged: widget.onShadowOpacityChanged,
         ),
       ],
       [
@@ -1760,38 +1943,60 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
         ),
       ],
       [
+        const _TuningGroupTitle('桂花树影'),
         _TuningSwitchRow(
-          title: '窗光浮尘',
-          value: widget.floatingParticlesEnabled,
-          onChanged: widget.onFloatingParticlesChanged,
+          title: '启用树影',
+          value: widget.leafShadowEnabled,
+          onChanged: widget.onLeafShadowEnabledChanged,
         ),
         _TuningSlider(
-          label: '浮尘可见度',
-          value: widget.windowAirGlowOpacity,
+          label: '叶影强度',
+          value: widget.shadowOpacity,
+          min: 0.04,
+          max: 0.42,
+          onChanged: widget.onShadowOpacityChanged,
+        ),
+        _TuningSlider(
+          label: '叶影速度',
+          value: widget.leafShadowSpeed,
           min: 0.00,
-          max: 0.80,
-          onChanged: widget.onWindowAirGlowOpacityChanged,
+          max: 0.60,
+          onChanged: widget.onLeafShadowSpeedChanged,
         ),
         _TuningSlider(
-          label: '浮尘尺寸',
-          value: widget.windowAirGlowSize,
-          min: 0.02,
-          max: 0.30,
-          onChanged: widget.onWindowAirGlowSizeChanged,
-        ),
-        _TuningSlider(
-          label: '漂移速度',
-          value: widget.windowAirGlowSpeed,
+          label: '叶影摆幅',
+          value: widget.leafShadowDrift,
           min: 0.00,
-          max: 1.20,
-          onChanged: widget.onWindowAirGlowSpeedChanged,
+          max: 0.18,
+          onChanged: widget.onLeafShadowDriftChanged,
         ),
         _TuningSlider(
-          label: '呼吸强度',
-          value: widget.windowAirGlowPulse,
-          min: 0.00,
-          max: 1.00,
-          onChanged: widget.onWindowAirGlowPulseChanged,
+          label: '叶影旋转',
+          value: widget.leafShadowRotation,
+          min: -3.14,
+          max: 3.14,
+          onChanged: widget.onLeafShadowRotationChanged,
+        ),
+        _TuningSlider(
+          label: '叶影缩放',
+          value: widget.leafShadowScale,
+          min: 0.05,
+          max: 2.40,
+          onChanged: widget.onLeafShadowScaleChanged,
+        ),
+        _TuningSlider(
+          label: '叶影位置 X',
+          value: widget.leafShadowOffsetX,
+          min: -2.00,
+          max: 2.00,
+          onChanged: widget.onLeafShadowOffsetXChanged,
+        ),
+        _TuningSlider(
+          label: '叶影位置 Z',
+          value: widget.leafShadowOffsetZ,
+          min: -2.00,
+          max: 2.00,
+          onChanged: widget.onLeafShadowOffsetZChanged,
         ),
       ],
     ];
