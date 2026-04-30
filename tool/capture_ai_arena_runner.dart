@@ -263,7 +263,6 @@ void main(List<String> args) {
   final replayResult = AiArenaReplayer.replay(
     initialLadder: replayInitialLadder,
     events: allEvents,
-    promotionThreshold: promotionThreshold,
   );
 
   print('');

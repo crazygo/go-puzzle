@@ -23,7 +23,13 @@ class PlayerRankRepository {
   ///   - Otherwise  → no change, window slides forward.
   /// - Records with a null [GameRecord.aiRank] (old records) are skipped.
   static int computeCurrentRank(List<GameRecord> records) {
-    int rank = AiRankLevel.defaultRank;
+    final firstRankedRecord =
+        records.where((r) => r.aiRank != null).firstOrNull;
+    if (firstRankedRecord == null) {
+      return AiRankLevel.defaultRank;
+    }
+
+    int rank = firstRankedRecord.aiRank!;
     final window = <bool>[];
 
     for (final record in records) {
