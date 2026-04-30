@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_puzzle/game/ai_rank_level.dart';
 import 'package:go_puzzle/game/capture_ai.dart';
 import 'package:go_puzzle/game/go_engine.dart';
 import 'package:go_puzzle/game/mcts_engine.dart';
@@ -115,7 +116,7 @@ void main() {
               ChangeNotifierProvider.value(value: provider),
             ],
             child: const CaptureGamePlayScreen(
-              difficulty: DifficultyLevel.beginner,
+              aiRank: AiRankLevel.min,
               captureTarget: 5,
             ),
           ),
