@@ -1,0 +1,8 @@
+{
+  "ladder": [
+    "adaptive_beginner_v1",
+    "hunter_beginner_v1",
+    "trapper_beginner_v1"
+  ],
+  "hash": "djb2:751bed52"
+}

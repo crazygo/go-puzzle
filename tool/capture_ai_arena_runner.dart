@@ -21,6 +21,7 @@ import 'package:go_puzzle/game/difficulty_level.dart';
 ///   --capture-target <n>   Capture target (default: 5)
 ///   --output <path>        Path for matches JSONL (default: build/ai_arena/matches.jsonl)
 ///   --snapshot <path>      Path for ladder snapshot JSON (default: build/ai_arena/ladder.json)
+///   --max-moves <n>        Max playout moves per game (default: 512)
 void main(List<String> args) {
   final opts = _parseArgs(args);
 
@@ -35,6 +36,7 @@ void main(List<String> args) {
       int.tryParse(opts['board-size'] as String? ?? '9') ?? 9;
   final captureTarget =
       int.tryParse(opts['capture-target'] as String? ?? '5') ?? 5;
+  final maxMoves = int.tryParse(opts['max-moves'] as String? ?? '512') ?? 512;
   final isSmoke = opts['smoke'] as bool? ?? false;
 
   final candidates = isSmoke ? _smokeCandidates() : _defaultCandidates();
@@ -43,7 +45,7 @@ void main(List<String> args) {
     boardSize: boardSize,
     captureTarget: captureTarget,
     rounds: rounds,
-    maxMoves: 512,
+    maxMoves: maxMoves,
   );
 
   final scheduler = AiArenaScheduler(
@@ -59,7 +61,7 @@ void main(List<String> args) {
   print('Candidates: ${candidates.map((c) => c.id).join(', ')}');
   print('Rounds per match: $rounds');
   print('Promotion threshold: $promotionThreshold');
-  print('Board: ${boardSize}x$boardSize, capture target: $captureTarget');
+  print('Board: ${boardSize}x$boardSize, capture target: $captureTarget, max moves: $maxMoves');
   print('Initial ladder: ${initialLadder.ids.join(' > ')}');
   print('');
 
