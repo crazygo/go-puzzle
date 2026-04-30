@@ -156,13 +156,21 @@ def main() -> int:
     )
     parser.add_argument("--repo", required=True, help="GitHub repo, e.g. owner/name")
     parser.add_argument("--pr", required=True, type=int, help="Pull request number")
-    parser.add_argument("--limit", default=100, type=int, help="Thread fetch limit")
+    parser.add_argument(
+        "--limit",
+        default=100,
+        type=int,
+        help="Thread fetch limit (1-100)",
+    )
     parser.add_argument(
         "--resolve",
         action="store_true",
         help="Resolve outdated unresolved threads. Omit for dry-run.",
     )
     args = parser.parse_args()
+
+    if not 1 <= args.limit <= 100:
+        parser.error("--limit must be between 1 and 100")
 
     try:
         threads = fetch_threads(args.repo, args.pr, args.limit)
