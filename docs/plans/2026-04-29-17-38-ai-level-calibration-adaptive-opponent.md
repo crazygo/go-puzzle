@@ -165,26 +165,53 @@ blunderRate(level) = 0.0                                  for level >= 9
 
 3. 校准工具只在开发环境（`kDebugMode` 或独立 Dart 脚本）下运行，不打包进 release。
 
-### Phase D — 玩家 Elo 估算与动态对手选择
+### Phase D — 道场晋级制（取代 Elo 估算）
 
-1. 在 `GameRecord`（`lib/models/game_record.dart`）中增加：
-   - `aiStyleName`（对战 AI 风格）
-   - `aiRank`（对战 AI 等级，int 1–28）
-   - `aiElo`（对战 AI 的 Elo 快照，double）
+> **设计思路**：玩家水平不通过 Elo 公式反推，而是像围棋道场升降班一样，用"最近 3 局 2 胜/2 负"规则直接升降机器人等级。28 个机器人即 28 个"班级"，玩家通过连续胜利逐级升班，连续失败降班。机制直观、对 K12 用户友好，升级感强。
 
-2. 在 `GameHistoryRepository` 中新增 `estimatePlayerElo()` 方法：
-   - 取最近 20 局（可配置）的胜负结果和 `aiElo`。
-   - 对每局用简化 Elo 公式反推玩家 Elo 估算值，加权平均（近期局权重更高）。
-   - 首次游戏时默认给定初始 Elo（对应 rank 6，约 600 Elo），给新用户先赢几局的机会。
+#### D1 — 玩家等级状态持久化
 
-3. 新增 `AdaptiveOpponentSelector`（`lib/game/adaptive_opponent_selector.dart`）：
-   - 输入：玩家当前估算 Elo，`kAiEloTable`，可选风格偏好。
-   - **输出策略**：以 **60% 概率**选取比玩家 Elo 略低（-50 ~ -200 Elo）的机器人，**40% 概率**选取略高（+50 ~ +150 Elo）的机器人。
-     > 注：与初版 plan 相比，此处调整为以"给玩家胜利成就感"为优先，60% 选略弱对手，40% 选略强对手，维持挑战感而不压制。
-   - 若用户手动指定风格，则在该风格内按相同概率分布选等级；若风格也不限，则全域选取。
-   - 若玩家 Elo 估算值置信度低（局数 < 5），优先选取等级低的对手，给新用户建立信心。
+1. 新增 `PlayerRankState`（`lib/models/player_rank_state.dart`）：
+   - `currentRank`（int，1–28，默认值 3）：玩家当前对战的机器人等级。新用户从 rank 3 出发，先赢几局再晋级，建立信心。
+   - `recentResults`（`List<bool>`，最多保留最近 10 局胜负）：每次游戏结束后追加。
 
-4. 在 `CaptureGameProvider` 构造时，若未传入 `difficulty`，改为调用 `AdaptiveOpponentSelector` 自动决定等级和风格，并在 `GameRecord` 中记录实际使用的 AI 参数。
+2. 在 `GameHistoryRepository`（或新增 `PlayerRankRepository`）中持久化 `PlayerRankState`，存储在 SharedPreferences（key: `'player_rank_v1'`）。
+
+#### D2 — 晋级/降级规则（"3 局 2 胜/2 负"判定）
+
+每局结束后执行以下判定：
+
+```
+取最近 3 局结果（不足 3 局时只取已有局数）：
+  若胜局数 >= 2  →  currentRank = min(currentRank + 1, 28)  // 晋级
+  若负局数 >= 2  →  currentRank = max(currentRank - 1, 1)   // 降级
+  否则           →  保持不变
+```
+
+**注意事项**：
+- 判定窗口严格取"最近 3 局"（含本局），不跨等级累计（升级后 recentResults 清空，重新计数）。
+- rank 1 不再降级；rank 28 不再晋级。
+- 连续晋级/降级不做限制（玩家快速进步时应快速提升，避免卡关感）。
+
+#### D3 — 机器人选取
+
+1. 新建游戏时，直接以 `PlayerRankState.currentRank` 对应的机器人作为对手，无需概率抽取。
+2. 若玩家指定风格（`CaptureAiStyle`），则在该风格 × `currentRank` 的机器人上选取；若风格不限，随机选 4 种风格之一。
+3. 在 `GameRecord` 中记录本局使用的 `aiRank`（int）和 `aiStyleName`（String）。
+
+#### D4 — GameRecord 扩展
+
+在 `GameRecord`（`lib/models/game_record.dart`）中增加：
+- `aiStyleName`（对战 AI 风格，String，可为 null 兼容旧记录）
+- `aiRank`（对战 AI 等级，int 1–28，可为 null 兼容旧记录）
+
+旧记录读取时 `aiRank` 为 null，不参与晋降判定。
+
+#### D5 — 与 Elo 系统的关系
+
+- Phase C 的 `kAiEloTable` 仍然存在，供开发者了解各机器人相对棋力；
+- **运行时不再使用 Elo 驱动对手选择**，改由道场晋级制驱动；
+- Elo 作为"棋力参考"展示在开发者工具 / 调试界面，不向用户暴露。
 
 ### Phase E — 落子延迟（UX）
 
@@ -228,11 +255,13 @@ blunderRate(level) = 0.0                                  for level >= 9
 - `kAiEloTable` 常量已提交，可供运行时查询。
 - rank 28 机器人对 rank 1 机器人胜率 ≥ 90%；rank 14 对 rank 1 胜率 ≥ 70%。
 
-### 自适应对手（以玩家爽感为优先）
-- 新建游戏时，系统根据玩家历史自动选取机器人（无需用户手动选等级）。
-- 在 100 局模拟测试中，选取的机器人 Elo 比玩家估算 Elo 低（-50 ~ -200）的概率落在 55%–65% 区间内。
-- 首次游戏（历史局数 < 5）默认选取 rank ≤ 6 的对手。
-- 胜负结果正确写入 `GameRecord.aiRank`，`estimatePlayerElo()` 随对局增加而收敛（误差 < 150 Elo）。
+### 道场晋级制（取代 Elo 估算）
+- 新建游戏时，系统以 `PlayerRankState.currentRank` 直接决定对战机器人，无需概率抽取。
+- 每局结束后正确执行"最近 3 局 2 胜晋级 / 2 负降级"判定，判定结果持久化到 SharedPreferences。
+- 晋级后 recentResults 清空，不跨等级累计。
+- 新用户首局从 rank 3 出发，rank 上限 28，下限 1。
+- `GameRecord.aiRank` 和 `GameRecord.aiStyleName` 正确记录，旧记录 null 兼容不崩溃。
+- 在 100 局模拟测试中：固定胜率 ≥ 80% 的玩家最终稳定在 rank ≥ 22；固定胜率 ≤ 30% 的玩家稳定在 rank ≤ 5。
 
 ### 落子延迟
 - AI 落子等待时间在 `[minMoveDelay, maxMoveDelay]` 区间内（800 ms–2500 ms）。
