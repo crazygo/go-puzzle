@@ -259,9 +259,9 @@ sliding window（最近 3 局）：
 - rank 28 机器人对 rank 1 机器人胜率 ≥ 90%；rank 14 对 rank 1 胜率 ≥ 70%。
 
 ### 道场晋级制（取代 Elo 估算）
-- 新建游戏时，系统以 `PlayerRankState.currentRank` 直接决定对战机器人，无需概率抽取。
-- 每局结束后正确执行"最近 3 局 2 胜晋级 / 2 负降级"判定，判定结果持久化到 SharedPreferences。
-- 晋级后 recentResults 清空，不跨等级累计。
+- 新建游戏时，系统根据历史对局记录重新计算 `PlayerRankState.currentRank`，并以此直接决定对战机器人，无需概率抽取。
+- 每局结束后正确记录对局结果，并按"最近 3 局 2 胜晋级 / 2 负降级"规则从历史中重新计算当前 rank；计算出的 rank 不持久化到 SharedPreferences。
+- 晋级后用于后续判定的 recentResults 视为清空，不跨等级累计。
 - 新用户首局从 rank 3 出发，rank 上限 28，下限 1。
 - `GameRecord.aiRank` 和 `GameRecord.aiStyleName` 正确记录，旧记录 null 兼容不崩溃。
 - 在 100 局模拟测试中：固定胜率 ≥ 80% 的玩家最终稳定在 rank ≥ 22；固定胜率 ≤ 30% 的玩家稳定在 rank ≤ 5。

@@ -12,8 +12,8 @@ class PlayerRankRepository {
   /// Pure function: given [records] in chronological order (oldest first),
   /// returns the player's current rank (1–28).
   ///
-  /// [records] must be in oldest-first order (as returned by
-  /// [GameHistoryRepository.loadAll]).
+  /// [records] must be in oldest-first order (for example, as returned by
+  /// [GameHistoryRepository.loadAllChronological()]).
   ///
   /// ### Dojo ladder rules
   /// - New players start at [AiRankLevel.defaultRank].
@@ -32,7 +32,7 @@ class PlayerRankRepository {
       window.add(record.playerWon);
       if (window.length > 3) window.removeAt(0);
 
-      if (window.length >= 2) {
+      if (window.length == 3) {
         final wins = window.where((w) => w).length;
         final losses = window.where((w) => !w).length;
 

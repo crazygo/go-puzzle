@@ -148,7 +148,7 @@ class GameRecord {
         orElse: () => GameOutcome.abandoned,
       ),
       finalBoard: parseBoard(json['finalBoard']),
-      aiRank: json['aiRank'] as int?,
+      aiRank: (json['aiRank'] as num?)?.toInt(),
       aiStyleName: json['aiStyleName'] as String?,
     );
   }

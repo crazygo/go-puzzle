@@ -1,3 +1,5 @@
+import 'difficulty_level.dart';
+
 /// Utility constants and helpers for the 28-level AI rank system.
 ///
 /// Ranks 1–28 map directly to player-facing display names:
@@ -31,9 +33,9 @@ class AiRankLevel {
   ///   rank  1–9   → beginner   (beginner midpoint = rank 3)
   ///   rank 10–19  → intermediate (intermediate midpoint = rank 12)
   ///   rank 20–28  → advanced   (advanced midpoint = rank 20)
-  static String difficultyZone(int rank) {
-    if (rank <= 9) return 'beginner';
-    if (rank <= 19) return 'intermediate';
-    return 'advanced';
+  static DifficultyLevel difficultyZone(int rank) {
+    if (rank <= 9) return DifficultyLevel.beginner;
+    if (rank <= 19) return DifficultyLevel.intermediate;
+    return DifficultyLevel.advanced;
   }
 }

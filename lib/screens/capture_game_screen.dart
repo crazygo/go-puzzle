@@ -872,7 +872,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     }
 
     // Clamp manual rank to valid range.
-    manualRank = manualRank.clamp(AiRankLevel.min, AiRankLevel.max);
+    manualRank = manualRank.clamp(AiRankLevel.min, AiRankLevel.max).toInt();
 
     final savedAiStyle = prefs.getString(_aiStyleKey);
 
@@ -1024,10 +1024,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     _saveSelection();
 
     final effectiveRank = _difficultyMode == 'auto' ? _computedRank : _manualRank;
-    final effectiveDifficulty = DifficultyLevel.values.firstWhere(
-      (v) => v.name == AiRankLevel.difficultyZone(effectiveRank),
-      orElse: () => DifficultyLevel.intermediate,
-    );
+    final effectiveDifficulty = AiRankLevel.difficultyZone(effectiveRank);
 
     Navigator.of(context, rootNavigator: true).push(
       CupertinoPageRoute(
@@ -2645,7 +2642,7 @@ class _AiStyleTile extends StatelessWidget {
 }
 
 /// A compact inline rank picker showing all 28 ranks as a drum-roll picker.
-class _RankPicker extends StatelessWidget {
+class _RankPicker extends StatefulWidget {
   const _RankPicker({
     required this.selectedRank,
     required this.onChanged,
@@ -2653,6 +2650,41 @@ class _RankPicker extends StatelessWidget {
 
   final int selectedRank;
   final ValueChanged<int> onChanged;
+
+  @override
+  State<_RankPicker> createState() => _RankPickerState();
+}
+
+class _RankPickerState extends State<_RankPicker> {
+  late final FixedExtentScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = FixedExtentScrollController(
+      initialItem: widget.selectedRank - AiRankLevel.min,
+    );
+  }
+
+  @override
+  void didUpdateWidget(_RankPicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Jump to the new rank when the parent drives a programmatic change (e.g.
+    // legacy migration sets an initial value before the picker is touched).
+    if (oldWidget.selectedRank != widget.selectedRank) {
+      final targetItem = widget.selectedRank - AiRankLevel.min;
+      if (_scrollController.hasClients &&
+          _scrollController.selectedItem != targetItem) {
+        _scrollController.jumpToItem(targetItem);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2664,12 +2696,10 @@ class _RankPicker extends StatelessWidget {
         border: Border.all(color: const Color(0x22D2B28E)),
       ),
       child: CupertinoPicker(
-        scrollController: FixedExtentScrollController(
-          initialItem: selectedRank - AiRankLevel.min,
-        ),
+        scrollController: _scrollController,
         itemExtent: 36,
         onSelectedItemChanged: (index) {
-          onChanged(AiRankLevel.min + index);
+          widget.onChanged(AiRankLevel.min + index);
         },
         children: [
           for (int rank = AiRankLevel.min; rank <= AiRankLevel.max; rank++)
