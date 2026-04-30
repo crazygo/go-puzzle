@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -21,7 +22,42 @@ import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
 
 class CaptureGameScreen extends StatefulWidget {
-  const CaptureGameScreen({super.key});
+  const CaptureGameScreen({
+    super.key,
+    this.leafShadowEnabled,
+    this.leafShadowOpacity,
+    this.leafShadowSpeed,
+    this.leafShadowDrift,
+    this.leafShadowRotation,
+    this.leafShadowScale,
+    this.leafShadowOffsetX,
+    this.leafShadowOffsetZ,
+    this.onLeafShadowEnabledChanged,
+    this.onLeafShadowOpacityChanged,
+    this.onLeafShadowSpeedChanged,
+    this.onLeafShadowDriftChanged,
+    this.onLeafShadowRotationChanged,
+    this.onLeafShadowScaleChanged,
+    this.onLeafShadowOffsetXChanged,
+    this.onLeafShadowOffsetZChanged,
+  });
+
+  final bool? leafShadowEnabled;
+  final double? leafShadowOpacity;
+  final double? leafShadowSpeed;
+  final double? leafShadowDrift;
+  final double? leafShadowRotation;
+  final double? leafShadowScale;
+  final double? leafShadowOffsetX;
+  final double? leafShadowOffsetZ;
+  final ValueChanged<bool>? onLeafShadowEnabledChanged;
+  final ValueChanged<double>? onLeafShadowOpacityChanged;
+  final ValueChanged<double>? onLeafShadowSpeedChanged;
+  final ValueChanged<double>? onLeafShadowDriftChanged;
+  final ValueChanged<double>? onLeafShadowRotationChanged;
+  final ValueChanged<double>? onLeafShadowScaleChanged;
+  final ValueChanged<double>? onLeafShadowOffsetXChanged;
+  final ValueChanged<double>? onLeafShadowOffsetZChanged;
 
   @override
   State<CaptureGameScreen> createState() => _CaptureGameScreenState();
@@ -36,11 +72,17 @@ class ThreeBoardDebugScreen extends StatefulWidget {
 
 class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
   bool _panelVisible = false;
+  bool _leafShadowEnabled = _CaptureGameScreenState._defaultLeafShadowEnabled;
   double _leafShadowOpacity = _CaptureGameScreenState._defaultLeafShadowOpacity;
+  double _leafShadowSpeed = _CaptureGameScreenState._defaultLeafShadowSpeed;
+  double _leafShadowDrift = _CaptureGameScreenState._defaultLeafShadowDrift;
+  double _leafShadowRotation =
+      _CaptureGameScreenState._defaultLeafShadowRotation;
+  double _leafShadowScale = _CaptureGameScreenState._defaultLeafShadowScale;
+  double _leafShadowOffsetX = _CaptureGameScreenState._defaultLeafShadowOffsetX;
+  double _leafShadowOffsetZ = _CaptureGameScreenState._defaultLeafShadowOffsetZ;
   bool _stoneExtraOverlayEnabled =
       _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
-  bool _floatingParticlesEnabled =
-      _CaptureGameScreenState._defaultFloatingParticlesEnabled;
   bool _cornerLabelsEnabled =
       _CaptureGameScreenState._defaultCornerLabelsEnabled;
   double _boardTopBrightness =
@@ -112,9 +154,15 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   targetZOffset: _boardTargetZOffset,
                   cinematicFov: _boardCinematicFov,
                   boardRotationY: _boardRotationY,
+                  leafShadowEnabled: _leafShadowEnabled,
                   leafShadowOpacity: _leafShadowOpacity,
+                  leafShadowSpeed: _leafShadowSpeed,
+                  leafShadowDrift: _leafShadowDrift,
+                  leafShadowRotation: _leafShadowRotation,
+                  leafShadowScale: _leafShadowScale,
+                  leafShadowOffsetX: _leafShadowOffsetX,
+                  leafShadowOffsetZ: _leafShadowOffsetZ,
                   stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
-                  floatingParticlesEnabled: _floatingParticlesEnabled,
                   cornerLabelsEnabled: _cornerLabelsEnabled,
                   boardTopBrightness: _boardTopBrightness,
                   boardWoodColor: _boardWoodColor,
@@ -146,9 +194,15 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                 ),
                 if (_panelVisible)
                   _HomeBoardTuningSheet(
+                    leafShadowEnabled: _leafShadowEnabled,
                     shadowOpacity: _leafShadowOpacity,
+                    leafShadowSpeed: _leafShadowSpeed,
+                    leafShadowDrift: _leafShadowDrift,
+                    leafShadowRotation: _leafShadowRotation,
+                    leafShadowScale: _leafShadowScale,
+                    leafShadowOffsetX: _leafShadowOffsetX,
+                    leafShadowOffsetZ: _leafShadowOffsetZ,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
-                    floatingParticlesEnabled: _floatingParticlesEnabled,
                     cornerLabelsEnabled: _cornerLabelsEnabled,
                     boardTopBrightness: _boardTopBrightness,
                     boardWoodColor: _boardWoodColor,
@@ -172,12 +226,24 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                     boardTargetZOffset: _boardTargetZOffset,
                     boardCinematicFov: _boardCinematicFov,
                     boardRotationY: _boardRotationY,
+                    onLeafShadowEnabledChanged: (value) =>
+                        setState(() => _leafShadowEnabled = value),
                     onShadowOpacityChanged: (value) =>
                         setState(() => _leafShadowOpacity = value),
+                    onLeafShadowSpeedChanged: (value) =>
+                        setState(() => _leafShadowSpeed = value),
+                    onLeafShadowDriftChanged: (value) =>
+                        setState(() => _leafShadowDrift = value),
+                    onLeafShadowRotationChanged: (value) =>
+                        setState(() => _leafShadowRotation = value),
+                    onLeafShadowScaleChanged: (value) =>
+                        setState(() => _leafShadowScale = value),
+                    onLeafShadowOffsetXChanged: (value) =>
+                        setState(() => _leafShadowOffsetX = value),
+                    onLeafShadowOffsetZChanged: (value) =>
+                        setState(() => _leafShadowOffsetZ = value),
                     onStoneExtraOverlayChanged: (value) =>
                         setState(() => _stoneExtraOverlayEnabled = value),
-                    onFloatingParticlesChanged: (value) =>
-                        setState(() => _floatingParticlesEnabled = value),
                     onCornerLabelsChanged: (value) =>
                         setState(() => _cornerLabelsEnabled = value),
                     onBoardTopBrightnessChanged: (value) =>
@@ -285,11 +351,16 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
 
   void _resetTuning() {
     setState(() {
+      _leafShadowEnabled = _CaptureGameScreenState._defaultLeafShadowEnabled;
       _leafShadowOpacity = _CaptureGameScreenState._defaultLeafShadowOpacity;
+      _leafShadowSpeed = _CaptureGameScreenState._defaultLeafShadowSpeed;
+      _leafShadowDrift = _CaptureGameScreenState._defaultLeafShadowDrift;
+      _leafShadowRotation = _CaptureGameScreenState._defaultLeafShadowRotation;
+      _leafShadowScale = _CaptureGameScreenState._defaultLeafShadowScale;
+      _leafShadowOffsetX = _CaptureGameScreenState._defaultLeafShadowOffsetX;
+      _leafShadowOffsetZ = _CaptureGameScreenState._defaultLeafShadowOffsetZ;
       _stoneExtraOverlayEnabled =
           _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
-      _floatingParticlesEnabled =
-          _CaptureGameScreenState._defaultFloatingParticlesEnabled;
       _cornerLabelsEnabled =
           _CaptureGameScreenState._defaultCornerLabelsEnabled;
       _boardTopBrightness = _CaptureGameScreenState._defaultBoardTopBrightness;
@@ -358,9 +429,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardTargetZOffset = 0.0;
   static const double _defaultHomeBoardCinematicFov = 28.0;
   static const double _defaultHomeBoardRotationY = -0.62;
+  static const bool _defaultLeafShadowEnabled = true;
   static const double _defaultLeafShadowOpacity = 0.16;
+  static const double _defaultLeafShadowSpeed = 0.05;
+  static const double _defaultLeafShadowDrift = 0.14;
+  static const double _defaultLeafShadowRotation = 0.19;
+  static const double _defaultLeafShadowScale = 1.65;
+  static const double _defaultLeafShadowOffsetX = -1.38;
+  static const double _defaultLeafShadowOffsetZ = -2.0;
   static const bool _defaultStoneExtraOverlayEnabled = true;
-  static const bool _defaultFloatingParticlesEnabled = false;
   static const bool _defaultCornerLabelsEnabled = false;
   static const double _defaultBoardTopBrightness = 1.0;
   static const int _defaultBoardWoodColor = 0xd0b39c;
@@ -414,9 +491,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
   double _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
   double _homeBoardRotationY = _defaultHomeBoardRotationY;
+  bool _leafShadowEnabled = _defaultLeafShadowEnabled;
   double _leafShadowOpacity = _defaultLeafShadowOpacity;
+  double _leafShadowSpeed = _defaultLeafShadowSpeed;
+  double _leafShadowDrift = _defaultLeafShadowDrift;
+  double _leafShadowRotation = _defaultLeafShadowRotation;
+  double _leafShadowScale = _defaultLeafShadowScale;
+  double _leafShadowOffsetX = _defaultLeafShadowOffsetX;
+  double _leafShadowOffsetZ = _defaultLeafShadowOffsetZ;
   bool _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
-  bool _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
   bool _cornerLabelsEnabled = _defaultCornerLabelsEnabled;
   double _boardTopBrightness = _defaultBoardTopBrightness;
   int _boardWoodColor = _defaultBoardWoodColor;
@@ -454,15 +537,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final particlePreviewOnly =
-        kIsWeb && Uri.base.queryParameters['particlePreview'] == '1';
-
-    if (particlePreviewOnly) {
-      return const CupertinoPageScaffold(
-        backgroundColor: kPageBackgroundColor,
-        child: _ParticlePreviewCanvas(),
-      );
-    }
+    final developerMode = context.select<SettingsProvider?, bool>(
+      (settings) => settings?.developerMode ?? false,
+    );
 
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.transparent,
@@ -471,6 +548,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             const cardTop = kPageHeroContentOffset + 8;
+            final heroTitleTop = MediaQuery.of(context).padding.top + 36;
 
             return Stack(
               children: [
@@ -480,7 +558,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   right: 0,
                   child: PageHeroBanner(
                     title: _CaptureCopy.pageTitle,
-                    subtitle: _CaptureCopy.pageSubtitle,
+                    titleWidget: const SizedBox.shrink(),
                     showOrbitalArt: false,
                   ),
                 ),
@@ -497,13 +575,17 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              const _OuterSectionTitle(
+                                title: '下一盘',
+                                isVisible: false,
+                              ),
+                              const SizedBox(height: 8),
                               _SectionCard(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     _PracticeHeader(
-                                      title: '下一盘',
-                                      subtitle: '先吃$_captureTarget子为胜',
+                                      title: '先吃$_captureTarget子为胜',
                                       isAdjusting: _isAdjusting,
                                       onAdjustTap: () => setState(
                                         () => _isAdjusting = !_isAdjusting,
@@ -517,11 +599,17 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                         selectedValue: _boardSize,
                                         options: const [
                                           _SegmentOption(
-                                              value: 9, label: '9 路'),
+                                            value: 9,
+                                            label: '9 路',
+                                          ),
                                           _SegmentOption(
-                                              value: 13, label: '13 路'),
+                                            value: 13,
+                                            label: '13 路',
+                                          ),
                                           _SegmentOption(
-                                              value: 19, label: '19 路'),
+                                            value: 19,
+                                            label: '19 路',
+                                          ),
                                         ],
                                         onChanged: (value) =>
                                             _updateSelection(boardSize: value),
@@ -628,7 +716,16 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     ],
                   ),
                 ),
-                if (kIsWeb)
+                Positioned(
+                  top: heroTitleTop,
+                  left: 24,
+                  right: 16,
+                  child: _MotivationHeroTitle(
+                    title: _CaptureCopy.pageTitle,
+                    motivation: _CaptureCopy.motivation,
+                  ),
+                ),
+                if (kIsWeb && developerMode)
                   SafeArea(
                     child: Align(
                       alignment: Alignment.bottomRight,
@@ -638,11 +735,22 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                       ),
                     ),
                   ),
-                if (kIsWeb && _homeTuningSheetVisible)
+                if (kIsWeb && developerMode && _homeTuningSheetVisible)
                   _HomeBoardTuningSheet(
-                    shadowOpacity: _leafShadowOpacity,
+                    leafShadowEnabled:
+                        widget.leafShadowEnabled ?? _leafShadowEnabled,
+                    shadowOpacity:
+                        widget.leafShadowOpacity ?? _leafShadowOpacity,
+                    leafShadowSpeed: widget.leafShadowSpeed ?? _leafShadowSpeed,
+                    leafShadowDrift: widget.leafShadowDrift ?? _leafShadowDrift,
+                    leafShadowRotation:
+                        widget.leafShadowRotation ?? _leafShadowRotation,
+                    leafShadowScale: widget.leafShadowScale ?? _leafShadowScale,
+                    leafShadowOffsetX:
+                        widget.leafShadowOffsetX ?? _leafShadowOffsetX,
+                    leafShadowOffsetZ:
+                        widget.leafShadowOffsetZ ?? _leafShadowOffsetZ,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
-                    floatingParticlesEnabled: _floatingParticlesEnabled,
                     cornerLabelsEnabled:
                         _homeTuningSheetVisible && _cornerLabelsEnabled,
                     boardTopBrightness: _boardTopBrightness,
@@ -667,12 +775,40 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     boardTargetZOffset: _homeBoardTargetZOffset,
                     boardCinematicFov: _homeBoardCinematicFov,
                     boardRotationY: _homeBoardRotationY,
-                    onShadowOpacityChanged: (value) =>
-                        setState(() => _leafShadowOpacity = value),
+                    onLeafShadowEnabledChanged: (value) {
+                      widget.onLeafShadowEnabledChanged?.call(value);
+                      setState(() => _leafShadowEnabled = value);
+                    },
+                    onShadowOpacityChanged: (value) {
+                      widget.onLeafShadowOpacityChanged?.call(value);
+                      setState(() => _leafShadowOpacity = value);
+                    },
+                    onLeafShadowSpeedChanged: (value) {
+                      widget.onLeafShadowSpeedChanged?.call(value);
+                      setState(() => _leafShadowSpeed = value);
+                    },
+                    onLeafShadowDriftChanged: (value) {
+                      widget.onLeafShadowDriftChanged?.call(value);
+                      setState(() => _leafShadowDrift = value);
+                    },
+                    onLeafShadowRotationChanged: (value) {
+                      widget.onLeafShadowRotationChanged?.call(value);
+                      setState(() => _leafShadowRotation = value);
+                    },
+                    onLeafShadowScaleChanged: (value) {
+                      widget.onLeafShadowScaleChanged?.call(value);
+                      setState(() => _leafShadowScale = value);
+                    },
+                    onLeafShadowOffsetXChanged: (value) {
+                      widget.onLeafShadowOffsetXChanged?.call(value);
+                      setState(() => _leafShadowOffsetX = value);
+                    },
+                    onLeafShadowOffsetZChanged: (value) {
+                      widget.onLeafShadowOffsetZChanged?.call(value);
+                      setState(() => _leafShadowOffsetZ = value);
+                    },
                     onStoneExtraOverlayChanged: (value) =>
                         setState(() => _stoneExtraOverlayEnabled = value),
-                    onFloatingParticlesChanged: (value) =>
-                        setState(() => _floatingParticlesEnabled = value),
                     onCornerLabelsChanged: (value) =>
                         setState(() => _cornerLabelsEnabled = value),
                     onBoardTopBrightnessChanged: (value) =>
@@ -771,6 +907,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }
 
   void _resetHomeBoardTuning() {
+    widget.onLeafShadowEnabledChanged?.call(_defaultLeafShadowEnabled);
+    widget.onLeafShadowOpacityChanged?.call(_defaultLeafShadowOpacity);
+    widget.onLeafShadowSpeedChanged?.call(_defaultLeafShadowSpeed);
+    widget.onLeafShadowDriftChanged?.call(_defaultLeafShadowDrift);
+    widget.onLeafShadowRotationChanged?.call(_defaultLeafShadowRotation);
+    widget.onLeafShadowScaleChanged?.call(_defaultLeafShadowScale);
+    widget.onLeafShadowOffsetXChanged?.call(_defaultLeafShadowOffsetX);
+    widget.onLeafShadowOffsetZChanged?.call(_defaultLeafShadowOffsetZ);
     setState(() {
       _homeBoardTopFactor = _defaultHomeBoardTopFactor;
       _homeBoardHeightFactor = _defaultHomeBoardHeightFactor;
@@ -781,9 +925,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
       _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
       _homeBoardRotationY = _defaultHomeBoardRotationY;
+      _leafShadowEnabled = _defaultLeafShadowEnabled;
       _leafShadowOpacity = _defaultLeafShadowOpacity;
+      _leafShadowSpeed = _defaultLeafShadowSpeed;
+      _leafShadowDrift = _defaultLeafShadowDrift;
+      _leafShadowRotation = _defaultLeafShadowRotation;
+      _leafShadowScale = _defaultLeafShadowScale;
+      _leafShadowOffsetX = _defaultLeafShadowOffsetX;
+      _leafShadowOffsetZ = _defaultLeafShadowOffsetZ;
       _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
-      _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
       _cornerLabelsEnabled = _defaultCornerLabelsEnabled;
       _boardTopBrightness = _defaultBoardTopBrightness;
       _boardWoodColor = _defaultBoardWoodColor;
@@ -976,24 +1126,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }
 }
 
-class _ParticlePreviewCanvas extends StatelessWidget {
-  const _ParticlePreviewCanvas();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
-        child: PageHeroBanner(
-          title: _CaptureCopy.pageTitle,
-          subtitle: _CaptureCopy.pageSubtitle,
-          showOrbitalArt: false,
-        ),
-      ),
-    );
-  }
-}
-
 class _HomeThreeBoardPreview extends StatelessWidget {
   const _HomeThreeBoardPreview({
     required this.constraints,
@@ -1006,9 +1138,15 @@ class _HomeThreeBoardPreview extends StatelessWidget {
     required this.targetZOffset,
     required this.cinematicFov,
     required this.boardRotationY,
+    required this.leafShadowEnabled,
     required this.leafShadowOpacity,
+    required this.leafShadowSpeed,
+    required this.leafShadowDrift,
+    required this.leafShadowRotation,
+    required this.leafShadowScale,
+    required this.leafShadowOffsetX,
+    required this.leafShadowOffsetZ,
     required this.stoneExtraOverlayEnabled,
-    required this.floatingParticlesEnabled,
     required this.cornerLabelsEnabled,
     required this.boardTopBrightness,
     required this.boardWoodColor,
@@ -1049,9 +1187,15 @@ class _HomeThreeBoardPreview extends StatelessWidget {
   final double targetZOffset;
   final double cinematicFov;
   final double boardRotationY;
+  final bool leafShadowEnabled;
   final double leafShadowOpacity;
+  final double leafShadowSpeed;
+  final double leafShadowDrift;
+  final double leafShadowRotation;
+  final double leafShadowScale;
+  final double leafShadowOffsetX;
+  final double leafShadowOffsetZ;
   final bool stoneExtraOverlayEnabled;
-  final bool floatingParticlesEnabled;
   final bool cornerLabelsEnabled;
   final double boardTopBrightness;
   final int boardWoodColor;
@@ -1094,7 +1238,7 @@ class _HomeThreeBoardPreview extends StatelessWidget {
           child: GoThreeBoardBackground(
             boardSize: 19,
             stones: kGoThreeDemoStones,
-            particles: floatingParticlesEnabled,
+            particles: false,
             showCornerLabels: cornerLabelsEnabled,
             sceneScale: sceneScale,
             cameraLift: cameraLift,
@@ -1102,7 +1246,14 @@ class _HomeThreeBoardPreview extends StatelessWidget {
             targetZOffset: targetZOffset,
             cinematicFov: cinematicFov,
             boardRotationY: boardRotationY,
+            leafShadowEnabled: leafShadowEnabled,
             leafShadowOpacity: leafShadowOpacity,
+            leafShadowSpeed: leafShadowSpeed,
+            leafShadowDrift: leafShadowDrift,
+            leafShadowRotation: leafShadowRotation,
+            leafShadowScale: leafShadowScale,
+            leafShadowOffsetX: leafShadowOffsetX,
+            leafShadowOffsetZ: leafShadowOffsetZ,
             stoneExtraOverlayEnabled: stoneExtraOverlayEnabled,
             boardTopBrightness: boardTopBrightness,
             boardWoodColor: boardWoodColor,
@@ -1191,9 +1342,15 @@ class _HomeBoardTuningLauncher extends StatelessWidget {
 
 class _HomeBoardTuningSheet extends StatefulWidget {
   const _HomeBoardTuningSheet({
+    required this.leafShadowEnabled,
     required this.shadowOpacity,
+    required this.leafShadowSpeed,
+    required this.leafShadowDrift,
+    required this.leafShadowRotation,
+    required this.leafShadowScale,
+    required this.leafShadowOffsetX,
+    required this.leafShadowOffsetZ,
     required this.stoneExtraOverlayEnabled,
-    required this.floatingParticlesEnabled,
     required this.cornerLabelsEnabled,
     required this.boardTopBrightness,
     required this.boardWoodColor,
@@ -1217,9 +1374,15 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.boardTargetZOffset,
     required this.boardCinematicFov,
     required this.boardRotationY,
+    required this.onLeafShadowEnabledChanged,
     required this.onShadowOpacityChanged,
+    required this.onLeafShadowSpeedChanged,
+    required this.onLeafShadowDriftChanged,
+    required this.onLeafShadowRotationChanged,
+    required this.onLeafShadowScaleChanged,
+    required this.onLeafShadowOffsetXChanged,
+    required this.onLeafShadowOffsetZChanged,
     required this.onStoneExtraOverlayChanged,
-    required this.onFloatingParticlesChanged,
     required this.onCornerLabelsChanged,
     required this.onBoardTopBrightnessChanged,
     required this.onBoardWoodColorChanged,
@@ -1273,9 +1436,15 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.onLightMapIntensityChanged,
   });
 
+  final bool leafShadowEnabled;
   final double shadowOpacity;
+  final double leafShadowSpeed;
+  final double leafShadowDrift;
+  final double leafShadowRotation;
+  final double leafShadowScale;
+  final double leafShadowOffsetX;
+  final double leafShadowOffsetZ;
   final bool stoneExtraOverlayEnabled;
-  final bool floatingParticlesEnabled;
   final bool cornerLabelsEnabled;
   final double boardTopBrightness;
   final int boardWoodColor;
@@ -1299,9 +1468,15 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final double boardTargetZOffset;
   final double boardCinematicFov;
   final double boardRotationY;
+  final ValueChanged<bool> onLeafShadowEnabledChanged;
   final ValueChanged<double> onShadowOpacityChanged;
+  final ValueChanged<double> onLeafShadowSpeedChanged;
+  final ValueChanged<double> onLeafShadowDriftChanged;
+  final ValueChanged<double> onLeafShadowRotationChanged;
+  final ValueChanged<double> onLeafShadowScaleChanged;
+  final ValueChanged<double> onLeafShadowOffsetXChanged;
+  final ValueChanged<double> onLeafShadowOffsetZChanged;
   final ValueChanged<bool> onStoneExtraOverlayChanged;
-  final ValueChanged<bool> onFloatingParticlesChanged;
   final ValueChanged<bool> onCornerLabelsChanged;
   final ValueChanged<double> onBoardTopBrightnessChanged;
   final ValueChanged<int> onBoardWoodColorChanged;
@@ -1359,7 +1534,15 @@ class _HomeBoardTuningSheet extends StatefulWidget {
 }
 
 class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
-  static const List<String> _tabTitles = ['基础', '构图', '主光', '补光', '环境', '格子'];
+  static const List<String> _tabTitles = [
+    '基础',
+    '构图',
+    '主光',
+    '补光',
+    '环境',
+    '格子',
+    '动画',
+  ];
   int _selectedTab = 0;
 
   @override
@@ -1370,11 +1553,6 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           title: '棋子额外阴影叠加',
           value: widget.stoneExtraOverlayEnabled,
           onChanged: widget.onStoneExtraOverlayChanged,
-        ),
-        _TuningSwitchRow(
-          title: '漂浮粒子',
-          value: widget.floatingParticlesEnabled,
-          onChanged: widget.onFloatingParticlesChanged,
         ),
         _TuningSwitchRow(
           title: '角标 ABCD',
@@ -1420,14 +1598,6 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           min: 0.0,
           max: 0.9,
           onChanged: widget.onAmbientLightIntensityChanged,
-        ),
-        const _TuningGroupTitle('棋盘氛围'),
-        _TuningSlider(
-          label: '叶影强度',
-          value: widget.shadowOpacity,
-          min: 0.04,
-          max: 0.28,
-          onChanged: widget.onShadowOpacityChanged,
         ),
       ],
       [
@@ -1650,6 +1820,63 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           min: 0.50,
           max: 4.00,
           onChanged: widget.onLightMapIntensityChanged,
+        ),
+      ],
+      [
+        const _TuningGroupTitle('桂花树影'),
+        _TuningSwitchRow(
+          title: '启用树影',
+          value: widget.leafShadowEnabled,
+          onChanged: widget.onLeafShadowEnabledChanged,
+        ),
+        _TuningSlider(
+          label: '叶影强度',
+          value: widget.shadowOpacity,
+          min: 0.04,
+          max: 0.42,
+          onChanged: widget.onShadowOpacityChanged,
+        ),
+        _TuningSlider(
+          label: '叶影速度',
+          value: widget.leafShadowSpeed,
+          min: 0.00,
+          max: 0.60,
+          onChanged: widget.onLeafShadowSpeedChanged,
+        ),
+        _TuningSlider(
+          label: '叶影摆幅',
+          value: widget.leafShadowDrift,
+          min: 0.00,
+          max: 0.18,
+          onChanged: widget.onLeafShadowDriftChanged,
+        ),
+        _TuningSlider(
+          label: '叶影旋转',
+          value: widget.leafShadowRotation,
+          min: -3.14,
+          max: 3.14,
+          onChanged: widget.onLeafShadowRotationChanged,
+        ),
+        _TuningSlider(
+          label: '叶影缩放',
+          value: widget.leafShadowScale,
+          min: 0.05,
+          max: 2.40,
+          onChanged: widget.onLeafShadowScaleChanged,
+        ),
+        _TuningSlider(
+          label: '叶影位置 X',
+          value: widget.leafShadowOffsetX,
+          min: -2.00,
+          max: 2.00,
+          onChanged: widget.onLeafShadowOffsetXChanged,
+        ),
+        _TuningSlider(
+          label: '叶影位置 Z',
+          value: widget.leafShadowOffsetZ,
+          min: -2.00,
+          max: 2.00,
+          onChanged: widget.onLeafShadowOffsetZChanged,
         ),
       ],
     ];
@@ -1975,7 +2202,7 @@ class _RgbEditor extends StatelessWidget {
 class _CaptureCopy {
   static const pageTitle = '小闲围棋';
 
-  static const _subtitles = [
+  static const _motivations = [
     '围棋让我放松',
     '下棋使我更平静',
     '我在这里是专注的',
@@ -2030,19 +2257,231 @@ class _CaptureCopy {
 
   static const _millisecondsPerHour = 1000 * 3600;
 
-  /// Returns a subtitle that is stable within the same hour but rotates
+  /// Returns a motivation line that is stable within the same hour but rotates
   /// across hours, using hours-since-epoch as the seed so the same clock
   /// hour on different days shows different sentences.
-  static String get pageSubtitle {
+  static String get motivation {
     final hoursSinceEpoch =
         DateTime.now().millisecondsSinceEpoch ~/ _millisecondsPerHour;
-    final index = Random(hoursSinceEpoch).nextInt(_subtitles.length);
-    return _subtitles[index];
+    final index = Random(hoursSinceEpoch).nextInt(_motivations.length);
+    return _motivations[index];
+  }
+
+  static String randomMotivation({String? except}) {
+    if (_motivations.length == 1) {
+      return _motivations.first;
+    }
+    final candidates = except == null
+        ? _motivations
+        : _motivations.where((motivation) => motivation != except).toList();
+    return candidates[Random().nextInt(candidates.length)];
   }
 
   static const startAsBlackButton = '执黑先行';
   static const startAsWhiteButton = '执白后行';
   static const startSetupButton = '开始';
+}
+
+class _MotivationHeroTitle extends StatefulWidget {
+  const _MotivationHeroTitle({
+    required this.title,
+    required this.motivation,
+  });
+
+  final String title;
+  final String motivation;
+
+  @override
+  State<_MotivationHeroTitle> createState() => _MotivationHeroTitleState();
+}
+
+class _MotivationHeroTitleState extends State<_MotivationHeroTitle>
+    with SingleTickerProviderStateMixin {
+  static bool _hasPlayedInProcess = false;
+
+  static const _holdDuration = Duration(seconds: 5);
+  static const _transitionDuration = Duration(milliseconds: 900);
+
+  late final AnimationController _controller;
+  late final Animation<double> _curve;
+  late String _currentMotivation;
+  Timer? _holdTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentMotivation = widget.motivation;
+    final shouldPlayIntro = !_hasPlayedInProcess;
+    _hasPlayedInProcess = true;
+    _controller = AnimationController(
+      vsync: this,
+      duration: _transitionDuration,
+      value: shouldPlayIntro ? 0 : 1,
+    );
+    _curve = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    if (shouldPlayIntro) {
+      _holdTimer = Timer(_holdDuration, () {
+        if (mounted) {
+          _controller.forward();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _holdTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleTitleTap() {
+    _holdTimer?.cancel();
+    if (_controller.isAnimating) {
+      _controller.forward();
+      return;
+    }
+    if (_controller.status != AnimationStatus.completed) {
+      _controller.forward();
+      return;
+    }
+    setState(() {
+      _currentMotivation =
+          _CaptureCopy.randomMotivation(except: _currentMotivation);
+    });
+  }
+
+  Widget _buildMotivationText(TextStyle style) {
+    return RichText(
+      key: ValueKey(_currentMotivation),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: '‘ ',
+            style: style.copyWith(
+              fontSize: 38,
+              fontWeight: FontWeight.w900,
+              color: CupertinoColors.secondaryLabel.resolveFrom(context),
+              height: 1.0,
+            ),
+          ),
+          TextSpan(
+            text: _currentMotivation,
+            style: style,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMotivationSwitcher(TextStyle style) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 420),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) {
+        return Stack(
+          alignment: Alignment.topLeft,
+          children: [
+            ...previousChildren,
+            if (currentChild != null) currentChild,
+          ],
+        );
+      },
+      transitionBuilder: (child, animation) {
+        final offset = Tween<Offset>(
+          begin: const Offset(0, 0.18),
+          end: Offset.zero,
+        ).animate(animation);
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: offset,
+            child: child,
+          ),
+        );
+      },
+      child: _buildMotivationText(style),
+    );
+  }
+
+  void _handleMotivationTap() {
+    if (_controller.status != AnimationStatus.completed ||
+        _controller.isAnimating) {
+      return;
+    }
+    setState(() {
+      _currentMotivation =
+          _CaptureCopy.randomMotivation(except: _currentMotivation);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final style = TextStyle(
+      fontSize: 28,
+      fontWeight: FontWeight.w800,
+      color: palette.heroTitle,
+      height: 1.12,
+    );
+
+    return SizedBox(
+      height: 72,
+      child: AnimatedBuilder(
+        animation: _curve,
+        builder: (context, _) {
+          final progress = _curve.value;
+          return Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topLeft,
+            children: [
+              Opacity(
+                opacity: 1 - progress,
+                child: IgnorePointer(
+                  ignoring: progress >= 0.5,
+                  child: Transform.translate(
+                    offset: Offset(0, -10 * progress),
+                    child: GestureDetector(
+                      onTap: _handleTitleTap,
+                      child: Text(
+                        widget.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: style,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Opacity(
+                opacity: progress,
+                child: IgnorePointer(
+                  ignoring: progress < 0.5,
+                  child: Transform.translate(
+                    offset: Offset(0, 10 * (1 - progress)),
+                    child: Transform.scale(
+                      scale: 0.98 + 0.02 * progress,
+                      alignment: Alignment.topLeft,
+                      child: GestureDetector(
+                        onTap: _handleMotivationTap,
+                        child: _buildMotivationSwitcher(style),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 String _initialModeLabel(CaptureInitialMode mode) {
@@ -2152,10 +2591,10 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+      padding: kPageSectionCardPadding,
       decoration: BoxDecoration(
         color: const Color(0xF7FFFDF9),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(kPageSectionCardRadius),
         border: Border.all(color: const Color(0x26D8C1A4)),
         boxShadow: const [
           BoxShadow(
@@ -2188,16 +2627,43 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
+class _OuterSectionTitle extends StatelessWidget {
+  const _OuterSectionTitle({
+    required this.title,
+    this.isVisible = true,
+  });
+
+  final String title;
+  final bool isVisible;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: isVisible
+              ? CupertinoColors.secondaryLabel.resolveFrom(context)
+              : CupertinoColors.transparent,
+        ),
+      ),
+    );
+  }
+}
+
 class _PracticeHeader extends StatelessWidget {
   const _PracticeHeader({
     required this.title,
-    required this.subtitle,
     required this.isAdjusting,
     required this.onAdjustTap,
   });
 
   final String title;
-  final String subtitle;
   final bool isAdjusting;
   final VoidCallback onAdjustTap;
 
@@ -2219,18 +2685,6 @@ class _PracticeHeader extends StatelessWidget {
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF3A2A1F),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF8C7966),
                   ),
                 ),
               ),

@@ -2,9 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/settings_provider.dart';
+import 'capture_game_screen.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_context.dart';
-import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
 
 /// Settings tab screen.
@@ -158,419 +158,34 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildDeveloperSection(BuildContext context) {
-    return _Section(
-      title: '开发者',
-      children: [
-        _TapRow(
-          title: 'Three 3D 棋盘预览',
-          subtitle: '实验 three_js 真 3D 背景',
-          onTap: () {
-            Navigator.of(context, rootNavigator: true).push(
-              CupertinoPageRoute<void>(
-                builder: (_) => const _ThreeBoardDebugScreen(),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-// ── Debug: Three board background preview screen ─────────────────────────────
-
-class _ThreeBoardDebugScreen extends StatefulWidget {
-  const _ThreeBoardDebugScreen();
-
-  @override
-  State<_ThreeBoardDebugScreen> createState() => _ThreeBoardDebugScreenState();
-}
-
-class _ThreeBoardDebugScreenState extends State<_ThreeBoardDebugScreen> {
-  static const double _sceneYOffsetFactor = -0.38;
-
-  final int _boardSize = 19;
-  bool _controlsCollapsed = true;
-  double _sceneScale = 1.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('Three 3D 棋盘预览'),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: const _ThreePreviewBackdropPainter(),
-                  child: Transform.translate(
-                    offset:
-                        Offset(0, constraints.maxHeight * _sceneYOffsetFactor),
-                    child: GoThreeBoardBackground(
-                      boardSize: _boardSize,
-                      stones: kGoThreeDemoStones,
-                      animate: true,
-                      particles: true,
-                      sceneScale: _sceneScale,
-                    ),
-                  ),
-                ),
-              ),
-              SafeArea(
-                child: Stack(
-                  children: [
-                    if (!_controlsCollapsed)
-                      Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Container(
-                          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: CupertinoColors.systemBackground
-                                .resolveFrom(context)
-                                .withOpacity(0.88),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
-                              BoxShadow(
-                                  color: Color(0x18000000),
-                                  blurRadius: 12,
-                                  offset: Offset(0, 4)),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  'three_js · $_boardSize路 · ${kGoThreeDemoStones.length} stones · particles on · s=${_sceneScale.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: CupertinoColors.secondaryLabel
-                                        .resolveFrom(context),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              _ScaleHandle(
-                                scale: _sceneScale,
-                                onDrag: _handleScaleDrag,
-                                onReset: _resetScale,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    Positioned(
-                      left: 16,
-                      bottom: 16,
-                      child: CupertinoButton(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        minimumSize: const Size(32, 32),
-                        color: CupertinoColors.systemGrey6
-                            .resolveFrom(context)
-                            .withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(12),
-                        onPressed: () => setState(
-                          () => _controlsCollapsed = !_controlsCollapsed,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              _controlsCollapsed
-                                  ? CupertinoIcons.chevron_up
-                                  : CupertinoIcons.chevron_down,
-                              size: 16,
-                              color: CupertinoColors.label.resolveFrom(context),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _controlsCollapsed ? '展开' : '收起',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color:
-                                    CupertinoColors.label.resolveFrom(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  void _handleScaleDrag(DragUpdateDetails details) {
-    final delta = (details.delta.dx - details.delta.dy) / 260;
-    setState(() {
-      _sceneScale = (_sceneScale + delta).clamp(0.45, 1.60);
-    });
-  }
-
-  void _resetScale() {
-    setState(() => _sceneScale = 1.0);
-  }
-}
-
-class _ScaleHandle extends StatelessWidget {
-  const _ScaleHandle({
-    required this.scale,
-    required this.onDrag,
-    required this.onReset,
-  });
-
-  final double scale;
-  final GestureDragUpdateCallback onDrag;
-  final VoidCallback onReset;
-
-  @override
-  Widget build(BuildContext context) {
-    final value = ((scale - 0.45) / (1.60 - 0.45)).clamp(0.0, 1.0);
-
-    return Row(
-      children: [
-        Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onPanUpdate: onDrag,
-            child: SizedBox(
-              height: 36,
-              child: Stack(
-                alignment: Alignment.centerLeft,
-                children: [
-                  Positioned.fill(
-                    top: 16,
-                    bottom: 16,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: CupertinoColors.systemGrey4
-                            .resolveFrom(context)
-                            .withValues(alpha: 0.55),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  FractionallySizedBox(
-                    widthFactor: value,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFB87936),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment(-1 + value * 2, 0),
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: CupertinoColors.systemBackground
-                            .resolveFrom(context),
-                        borderRadius: BorderRadius.circular(9),
-                        border: Border.all(
-                          color: const Color(0xFFB87936).withValues(alpha: 0.5),
-                        ),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x24000000),
-                            blurRadius: 8,
-                            offset: Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        CupertinoIcons.arrow_up_left_arrow_down_right,
-                        size: 15,
-                        color: Color(0xFF9A642B),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+    return Consumer<SettingsProvider>(
+      builder: (context, settings, _) {
+        return _Section(
+          title: '开发者',
+          children: [
+            _SwitchRow(
+              title: '打开开发者模式',
+              subtitle: '在首页显示 3D 棋盘调试入口',
+              value: settings.developerMode,
+              onChanged: settings.setDeveloperMode,
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          's=${scale.toStringAsFixed(2)}',
-          style: TextStyle(
-            fontSize: 12,
-            color: CupertinoColors.secondaryLabel.resolveFrom(context),
-          ),
-        ),
-        const SizedBox(width: 8),
-        CupertinoButton(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          minimumSize: const Size(34, 30),
-          borderRadius: BorderRadius.circular(8),
-          color: CupertinoColors.systemGrey6
-              .resolveFrom(context)
-              .withValues(alpha: 0.9),
-          onPressed: onReset,
-          child: Text(
-            '重置',
-            style: TextStyle(
-              fontSize: 12,
-              color: CupertinoColors.label.resolveFrom(context),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ThreePreviewBackdropPainter extends CustomPainter {
-  const _ThreePreviewBackdropPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFFF8EEE6),
-            Color(0xFFF2E2D3),
-            Color(0xFFF2E2D3),
+            if (settings.developerMode)
+              _TapRow(
+                title: '3D 棋盘调试参数',
+                subtitle: '打开单独棋盘调试界面',
+                onTap: () {
+                  Navigator.of(context, rootNavigator: true).push(
+                    CupertinoPageRoute<void>(
+                      builder: (_) => const ThreeBoardDebugScreen(),
+                    ),
+                  );
+                },
+              ),
           ],
-          stops: [0.0, 0.44, 1.0],
-        ).createShader(rect),
-    );
-
-    _drawWallGlow(canvas, size);
-    _drawSoftPlant(canvas, size);
-    _drawBlurredTeaCup(canvas, size);
-    _drawTableWarmth(canvas, size);
-  }
-
-  void _drawWallGlow(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.56, size.height * 0.22);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: center,
-        width: size.width * 1.20,
-        height: size.height * 0.64,
-      ),
-      Paint()
-        ..shader = RadialGradient(
-          colors: [
-            const Color(0xFFFFFFFF).withValues(alpha: 0.58),
-            const Color(0x00F2E2D3),
-          ],
-        ).createShader(
-          Rect.fromCenter(
-            center: center,
-            width: size.width * 1.20,
-            height: size.height * 0.64,
-          ),
-        ),
+        );
+      },
     );
   }
-
-  void _drawSoftPlant(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF59631F).withValues(alpha: 0.40)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-    final stem = Paint()
-      ..color = const Color(0xFF6A6D2B).withValues(alpha: 0.22)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-
-    final base = Offset(size.width * -0.03, size.height * 0.52);
-    canvas.drawLine(
-      base,
-      Offset(size.width * 0.18, size.height * 0.47),
-      stem,
-    );
-    final leaves = [
-      (Offset(size.width * 0.04, size.height * 0.48), 32.0, 18.0, -0.8),
-      (Offset(size.width * 0.10, size.height * 0.45), 36.0, 16.0, -0.45),
-      (Offset(size.width * 0.15, size.height * 0.49), 28.0, 13.0, -0.65),
-      (Offset(size.width * 0.03, size.height * 0.55), 30.0, 16.0, 0.52),
-      (Offset(size.width * 0.20, size.height * 0.53), 24.0, 12.0, 0.20),
-    ];
-    for (final leaf in leaves) {
-      canvas.save();
-      canvas.translate(leaf.$1.dx, leaf.$1.dy);
-      canvas.rotate(leaf.$4);
-      canvas.drawOval(
-        Rect.fromCenter(center: Offset.zero, width: leaf.$2, height: leaf.$3),
-        paint,
-      );
-      canvas.restore();
-    }
-  }
-
-  void _drawBlurredTeaCup(Canvas canvas, Size size) {
-    final cupRect = Rect.fromCenter(
-      center: Offset(size.width * 0.82, size.height * 0.43),
-      width: size.width * 0.19,
-      height: size.height * 0.060,
-    );
-    final cupPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          const Color(0xFFD0944C).withValues(alpha: 0.50),
-          const Color(0xFFB97830).withValues(alpha: 0.34),
-        ],
-      ).createShader(cupRect)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(cupRect, const Radius.circular(24)),
-      cupPaint,
-    );
-    canvas.drawOval(
-      cupRect.shift(Offset(0, -cupRect.height * 0.44)).inflate(4),
-      Paint()
-        ..color = const Color(0xFFF2C58B).withValues(alpha: 0.32)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
-    );
-  }
-
-  void _drawTableWarmth(Canvas canvas, Size size) {
-    final table = Rect.fromLTWH(0, size.height * 0.63, size.width, size.height);
-    canvas.drawRect(
-      table,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0x00D8A15E),
-            const Color(0xFFD8A15E).withValues(alpha: 0.24),
-          ],
-        ).createShader(table),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _ThreePreviewBackdropPainter oldDelegate) =>
-      false;
 }
 
 class _Section extends StatelessWidget {
@@ -585,7 +200,7 @@ class _Section extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          padding: kPageSectionTitlePadding,
           child: Text(
             title.toUpperCase(),
             style: TextStyle(
@@ -597,15 +212,16 @@ class _Section extends StatelessWidget {
           ),
         ),
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
+          margin: kPageSectionCardMargin,
           decoration: BoxDecoration(
-            color: CupertinoColors.systemBackground.resolveFrom(context),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
+            color: const Color(0xF7FFFDF9),
+            borderRadius: BorderRadius.circular(kPageSectionCardRadius),
+            border: Border.all(color: const Color(0x26D8C1A4)),
+            boxShadow: const [
               BoxShadow(
-                color: CupertinoColors.systemGrey.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+                color: Color(0x0A000000),
+                blurRadius: 24,
+                offset: Offset(0, 10),
               ),
             ],
           ),
@@ -635,7 +251,7 @@ class _SwitchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: kPageSectionRowPadding,
       child: Row(
         children: [
           Expanded(
@@ -675,7 +291,7 @@ class _ThemeSegmentedRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.appPalette;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: kPageSectionRowPadding,
       child: Row(
         children: [
           const Expanded(
@@ -725,7 +341,7 @@ class _SettingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: kPageSectionRowPadding,
       child: Row(
         children: [
           Expanded(
@@ -761,7 +377,7 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: kPageSectionRowPadding,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -792,7 +408,7 @@ class _TapRow extends StatelessWidget {
       padding: EdgeInsets.zero,
       onPressed: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: kPageSectionRowPadding,
         child: Row(
           children: [
             Expanded(

@@ -18,6 +18,23 @@ const double kPageHeroCardOverlap = 24.0;
 const double kPageHeroContentOffset =
     kPageHeroVisibleHeight - kPageHeroCardOverlap; // 112.0
 
+/// Shared section title padding for first-level content groups.
+const EdgeInsets kPageSectionTitlePadding = EdgeInsets.fromLTRB(20, 0, 20, 8);
+
+/// Shared section card margin.
+const EdgeInsets kPageSectionCardMargin = EdgeInsets.symmetric(horizontal: 16);
+
+/// Shared section card content padding, matching the play tab card.
+const EdgeInsets kPageSectionCardPadding =
+    EdgeInsets.symmetric(horizontal: 20, vertical: 22);
+
+/// Shared section card radius, matching the play tab card.
+const double kPageSectionCardRadius = 28.0;
+
+/// Shared section row padding for rows inside section cards.
+const EdgeInsets kPageSectionRowPadding =
+    EdgeInsets.symmetric(horizontal: 20, vertical: 22);
+
 // ── Shared background decoration ─────────────────────────────────────────────
 /// Shared page background colour, matching the bottom tab bar.
 const Color kPageBackgroundColor = Color(0xFFF9F4EC);
@@ -35,12 +52,14 @@ class PageHeroBanner extends StatelessWidget {
   const PageHeroBanner({
     super.key,
     required this.title,
+    this.titleWidget,
     this.subtitle,
     this.action,
     this.showOrbitalArt = true,
   });
 
   final String title;
+  final Widget? titleWidget;
   final String? subtitle;
 
   /// Optional widget placed in the top-right of the hero (e.g. a "今天" button).
@@ -70,14 +89,15 @@ class PageHeroBanner extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: palette.heroTitle,
-                          ),
-                        ),
+                        titleWidget ??
+                            Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: palette.heroTitle,
+                              ),
+                            ),
                         if (subtitle != null) ...[
                           const SizedBox(height: 6),
                           Text(

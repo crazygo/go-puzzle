@@ -37,27 +37,70 @@ class _MainTabScaffold extends StatefulWidget {
 
 class _MainTabScaffoldState extends State<_MainTabScaffold> {
   int _selectedIndex = 0;
+  bool _leafShadowEnabled = true;
+  double _leafShadowOpacity = 0.16;
+  double _leafShadowSpeed = 0.05;
+  double _leafShadowDrift = 0.14;
+  double _leafShadowRotation = 0.19;
+  double _leafShadowScale = 1.65;
+  double _leafShadowOffsetX = -1.38;
+  double _leafShadowOffsetZ = -2.0;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final showSharedBoard =
-        context.select<SettingsProvider, bool>((s) => s.appTheme.showsSharedBoard);
+    final showSharedBoard = context
+        .select<SettingsProvider, bool>((s) => s.appTheme.showsSharedBoard);
     final tabBarBottomInset = MediaQuery.paddingOf(context).bottom + 50.0;
 
     return DecoratedBox(
       decoration: BoxDecoration(color: palette.pageBackground),
       child: Stack(
         children: [
-          if (showSharedBoard) const _SharedHeroBoardBackground(),
+          if (showSharedBoard)
+            _SharedHeroBoardBackground(
+              leafShadowEnabled: _leafShadowEnabled,
+              leafShadowOpacity: _leafShadowOpacity,
+              leafShadowSpeed: _leafShadowSpeed,
+              leafShadowDrift: _leafShadowDrift,
+              leafShadowRotation: _leafShadowRotation,
+              leafShadowScale: _leafShadowScale,
+              leafShadowOffsetX: _leafShadowOffsetX,
+              leafShadowOffsetZ: _leafShadowOffsetZ,
+            ),
           Padding(
             padding: EdgeInsets.only(bottom: tabBarBottomInset),
             child: IndexedStack(
               index: _selectedIndex,
-              children: const [
-                CaptureGameScreen(),
-                DailyPuzzleScreen(),
-                SettingsScreen(),
+              children: [
+                CaptureGameScreen(
+                  leafShadowEnabled: _leafShadowEnabled,
+                  leafShadowOpacity: _leafShadowOpacity,
+                  leafShadowSpeed: _leafShadowSpeed,
+                  leafShadowDrift: _leafShadowDrift,
+                  leafShadowRotation: _leafShadowRotation,
+                  leafShadowScale: _leafShadowScale,
+                  leafShadowOffsetX: _leafShadowOffsetX,
+                  leafShadowOffsetZ: _leafShadowOffsetZ,
+                  onLeafShadowEnabledChanged: (value) =>
+                      setState(() => _leafShadowEnabled = value),
+                  onLeafShadowOpacityChanged: (value) =>
+                      setState(() => _leafShadowOpacity = value),
+                  onLeafShadowSpeedChanged: (value) =>
+                      setState(() => _leafShadowSpeed = value),
+                  onLeafShadowDriftChanged: (value) =>
+                      setState(() => _leafShadowDrift = value),
+                  onLeafShadowRotationChanged: (value) =>
+                      setState(() => _leafShadowRotation = value),
+                  onLeafShadowScaleChanged: (value) =>
+                      setState(() => _leafShadowScale = value),
+                  onLeafShadowOffsetXChanged: (value) =>
+                      setState(() => _leafShadowOffsetX = value),
+                  onLeafShadowOffsetZChanged: (value) =>
+                      setState(() => _leafShadowOffsetZ = value),
+                ),
+                const DailyPuzzleScreen(),
+                const SettingsScreen(),
               ],
             ),
           ),
@@ -105,7 +148,25 @@ class _MainTabScaffoldState extends State<_MainTabScaffold> {
 }
 
 class _SharedHeroBoardBackground extends StatelessWidget {
-  const _SharedHeroBoardBackground();
+  const _SharedHeroBoardBackground({
+    required this.leafShadowEnabled,
+    required this.leafShadowOpacity,
+    required this.leafShadowSpeed,
+    required this.leafShadowDrift,
+    required this.leafShadowRotation,
+    required this.leafShadowScale,
+    required this.leafShadowOffsetX,
+    required this.leafShadowOffsetZ,
+  });
+
+  final bool leafShadowEnabled;
+  final double leafShadowOpacity;
+  final double leafShadowSpeed;
+  final double leafShadowDrift;
+  final double leafShadowRotation;
+  final double leafShadowScale;
+  final double leafShadowOffsetX;
+  final double leafShadowOffsetZ;
 
   @override
   Widget build(BuildContext context) {
@@ -122,7 +183,7 @@ class _SharedHeroBoardBackground extends StatelessWidget {
                 child: IgnorePointer(
                   child: Transform.translate(
                     offset: const Offset(0, -128),
-                    child: const GoThreeBoardBackground(
+                    child: GoThreeBoardBackground(
                       boardSize: 19,
                       stones: kGoThreeDemoStones,
                       particles: false,
@@ -132,7 +193,14 @@ class _SharedHeroBoardBackground extends StatelessWidget {
                       targetZOffset: 0.0,
                       cinematicFov: 28.0,
                       boardRotationY: -0.62,
-                      leafShadowOpacity: 0.16,
+                      leafShadowEnabled: leafShadowEnabled,
+                      leafShadowOpacity: leafShadowOpacity,
+                      leafShadowSpeed: leafShadowSpeed,
+                      leafShadowDrift: leafShadowDrift,
+                      leafShadowRotation: leafShadowRotation,
+                      leafShadowScale: leafShadowScale,
+                      leafShadowOffsetX: leafShadowOffsetX,
+                      leafShadowOffsetZ: leafShadowOffsetZ,
                       stoneExtraOverlayEnabled: true,
                       boardTopBrightness: 1.0,
                       boardWoodColor: 0xd0b39c,

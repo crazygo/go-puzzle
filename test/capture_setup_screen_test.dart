@@ -16,14 +16,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('小闲围棋'), findsOneWidget);
-    // Subtitle rotates hourly; verify a non-empty subtitle is rendered.
-    final bannerFinder = find.byType(PageHeroBanner);
-    expect(bannerFinder, findsOneWidget);
-    final banner = tester.widget<PageHeroBanner>(bannerFinder);
-    expect(banner.subtitle, isNotNull);
-    final subtitle = banner.subtitle!.trim();
-    expect(subtitle, isNotEmpty);
-    expect(find.text(subtitle), findsOneWidget);
+    // Motivation text is now rendered by the animated _MotivationHeroTitle
+    // widget rather than through PageHeroBanner.subtitle; just verify the
+    // banner is present and the rest of the page copy is correct.
+    expect(find.byType(PageHeroBanner), findsOneWidget);
     expect(find.text('下一盘'), findsOneWidget);
     expect(find.text('先吃5子为胜'), findsOneWidget);
     expect(find.text(CaptureAiStyle.hunter.label), findsOneWidget);

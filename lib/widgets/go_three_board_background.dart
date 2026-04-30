@@ -51,6 +51,10 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.stones = const [],
     this.animate = false,
     this.particles = false,
+    this.windowAirGlowOpacity = 0.18,
+    this.windowAirGlowSize = 0.10,
+    this.windowAirGlowSpeed = 0.22,
+    this.windowAirGlowPulse = 0.35,
     this.cinematicFrame = true,
     this.cinematicFov = 26,
     this.sceneScale = 1.0,
@@ -58,7 +62,14 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.cameraDepth,
     this.targetZOffset = 0.0,
     this.boardRotationY = -0.62,
+    this.leafShadowEnabled = false,
     this.leafShadowOpacity = 0.16,
+    this.leafShadowSpeed = 0.05,
+    this.leafShadowDrift = 0.14,
+    this.leafShadowRotation = 0.19,
+    this.leafShadowScale = 1.65,
+    this.leafShadowOffsetX = -1.38,
+    this.leafShadowOffsetZ = -2.0,
     this.stoneExtraOverlayEnabled = true,
     this.boardTopBrightness = 1.0,
     this.boardWoodColor = 0xd0b39c,
@@ -94,6 +105,10 @@ class GoThreeBoardBackground extends StatefulWidget {
   final List<GoThreeBoardStone> stones;
   final bool animate;
   final bool particles;
+  final double windowAirGlowOpacity;
+  final double windowAirGlowSize;
+  final double windowAirGlowSpeed;
+  final double windowAirGlowPulse;
   final bool cinematicFrame;
   final double cinematicFov;
   final double sceneScale;
@@ -101,7 +116,14 @@ class GoThreeBoardBackground extends StatefulWidget {
   final double? cameraDepth;
   final double targetZOffset;
   final double boardRotationY;
+  final bool leafShadowEnabled;
   final double leafShadowOpacity;
+  final double leafShadowSpeed;
+  final double leafShadowDrift;
+  final double leafShadowRotation;
+  final double leafShadowScale;
+  final double leafShadowOffsetX;
+  final double leafShadowOffsetZ;
   final bool stoneExtraOverlayEnabled;
   final double boardTopBrightness;
   final int boardWoodColor;
@@ -142,7 +164,6 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   static const String _boardTopAlbedoAsset =
       'assets/textures/board_top_albedo_v2_1024.png';
   static const bool _enableAdditiveBoardHighlights = false;
-  static const bool _enableLeafShadowCaustics = false;
   static const double _surfaceSheenOpacity = 0.18;
   static const Offset3 _keyLightTarget = Offset3(0.20, -0.10, 0.12);
   static const Offset3 _sheenLightPosition = Offset3(6.8, 6.8, 6.2);
@@ -153,12 +174,14 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   static const double _boardThickness = 0.51;
   static const double _cornerRadius = 0.34;
   static const double _gridSpan = 7.24;
+  static const Offset3 _leafShadowPivot = Offset3(5.80, 0, -1.30);
 
   three.ThreeJS? _threeJs;
   Size? _threeJsSize;
   final three.Group _root = three.Group();
   final three.Group _stoneGroup = three.Group();
   final three.Group _particleGroup = three.Group();
+  final three.Group _leafShadowPivotGroup = three.Group();
   final three.Group _leafShadowGroup = three.Group();
   final three.Group _debugGuideGroup = three.Group();
   final three.Group _cornerLabelGroup = three.Group();
@@ -171,6 +194,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   three.MeshBasicMaterial? _reflectionMaterial;
   three.MeshBasicMaterial? _shaftMaterial;
   three.MeshBasicMaterial? _frontGlowMaterial;
+  three.PointsMaterial? _windowAirGlowMaterial;
   double _elapsed = 0;
   bool _sceneInitialized = false;
   int _boardTextureGeneration = 0;
@@ -214,6 +238,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         antialias: true,
         clearAlpha: 0,
         clearColor: 0x000000,
+        localClippingEnabled: true,
         screenResolution: 2.0,
         toneMappingExposure: widget.toneMappingExposure,
       ),
@@ -260,12 +285,14 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     }
     if (oldWidget.boardRotationY != widget.boardRotationY) {
       _root.rotation.y = widget.boardRotationY;
+      _buildLeafShadowCaustics();
     }
     if (oldWidget.cinematicFov != widget.cinematicFov) {
       _threeJs?.camera.fov = widget.cinematicFrame ? widget.cinematicFov : 28;
       _threeJs?.camera.updateProjectionMatrix();
     }
-    if (oldWidget.leafShadowOpacity != widget.leafShadowOpacity) {
+    if (oldWidget.leafShadowEnabled != widget.leafShadowEnabled ||
+        oldWidget.leafShadowOpacity != widget.leafShadowOpacity) {
       _buildLeafShadowCaustics();
     }
     if (oldWidget.showDebugGuides != widget.showDebugGuides) {
@@ -312,6 +339,10 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         oldWidget.lightMapFloor != widget.lightMapFloor ||
         oldWidget.lightMapIntensity != widget.lightMapIntensity) {
       unawaited(_rebuildBoardTextures());
+    }
+    if (oldWidget.windowAirGlowOpacity != widget.windowAirGlowOpacity ||
+        oldWidget.windowAirGlowSize != widget.windowAirGlowSize) {
+      _updateWindowAirGlowMaterial();
     }
     _particleGroup.visible = widget.particles;
   }
@@ -422,9 +453,15 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         _setCamera(_elapsed);
       }
       if (widget.particles) {
-        _particleGroup.rotation.y += dt * 0.045;
-        _particleGroup.position.y = 0.12 + math.sin(_elapsed * 0.7) * 0.025;
+        final speed = widget.windowAirGlowSpeed.clamp(0.0, 2.0);
+        final pulse = math.sin(_elapsed * speed * 2.0 * math.pi);
+        _particleGroup.position
+          ..x = pulse * 0.055
+          ..y = 0.08 + math.sin(_elapsed * speed * 1.27 + 0.8) * 0.035
+          ..z = math.cos(_elapsed * speed * 1.61) * 0.045;
+        _updateWindowAirGlowMaterial(pulse);
       }
+      _updateLeafShadowMotion();
     });
   }
 
@@ -1086,10 +1123,11 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
   void _buildParticles() {
     final positions = <double>[];
-    for (int i = 0; i < 120; i++) {
-      final x = (_noise(i * 11) - 0.5) * 6.4;
-      final y = 0.38 + _noise(i * 19) * 1.55;
-      final z = (_noise(i * 23) - 0.5) * 5.8;
+    for (int i = 0; i < 18; i++) {
+      final lane = i / 17.0;
+      final x = 1.35 + lane * 2.35 + (_noise(i * 11) - 0.5) * 0.44;
+      final y = 0.46 + _noise(i * 19) * 1.28;
+      final z = -2.78 + lane * 2.05 + (_noise(i * 23) - 0.5) * 0.42;
       positions.addAll([x, y, z]);
     }
     final geometry = three.BufferGeometry()
@@ -1098,12 +1136,14 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         three.Float32BufferAttribute.fromList(positions, 3, false),
       );
     final material = three.PointsMaterial({
-      three.MaterialProperty.color: 0xffd8a3,
-      three.MaterialProperty.size: 0.028,
-      three.MaterialProperty.opacity: 0.06,
+      three.MaterialProperty.color: 0xfff0c8,
+      three.MaterialProperty.size: widget.windowAirGlowSize,
+      three.MaterialProperty.opacity: widget.windowAirGlowOpacity,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.blending: three.AdditiveBlending,
+      three.MaterialProperty.depthWrite: false,
     });
+    _windowAirGlowMaterial = material;
     final points = three.Points(geometry, material);
     _particleGroup
       ..visible = widget.particles
@@ -1111,55 +1151,276 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
     _root.add(_particleGroup);
   }
 
+  void _updateWindowAirGlowMaterial([double pulse = 0]) {
+    final material = _windowAirGlowMaterial;
+    if (material == null) return;
+    final pulseStrength = widget.windowAirGlowPulse.clamp(0.0, 1.0);
+    final opacity = widget.windowAirGlowOpacity.clamp(0.0, 0.80) *
+        (1.0 + pulse * pulseStrength);
+    material
+      ..size = widget.windowAirGlowSize.clamp(0.01, 0.30)
+      ..opacity = opacity.clamp(0.0, 0.95)
+      ..needsUpdate = true;
+  }
+
+  void _updateLeafShadowMotion() {
+    if (!widget.leafShadowEnabled) {
+      _leafShadowPivotGroup.visible = false;
+      return;
+    }
+    final speed = widget.leafShadowSpeed.clamp(0.0, 0.60);
+    final drift = widget.leafShadowDrift.clamp(0.0, 0.18);
+    final driftX = math.sin(_elapsed * speed * math.pi * 2.0) * drift;
+    final driftZ =
+        math.sin(_elapsed * speed * math.pi * 1.37 + 0.8) * drift * 0.62;
+    final swayRotation = math.sin(_elapsed * speed * math.pi * 0.84 + 1.2);
+    _leafShadowPivotGroup
+      ..visible = true
+      ..position.setValues(
+        _leafShadowPivot.x,
+        _boardTop,
+        _leafShadowPivot.z,
+      )
+      ..rotation.y = widget.leafShadowRotation + swayRotation * 0.018;
+    _leafShadowGroup
+      ..visible = true
+      ..position.setValues(
+        -_leafShadowPivot.x + widget.leafShadowOffsetX + driftX,
+        0,
+        -_leafShadowPivot.z + widget.leafShadowOffsetZ + driftZ,
+      )
+      ..rotation.y = 0
+      ..scale.setValues(
+        widget.leafShadowScale.clamp(0.05, 2.40),
+        1,
+        widget.leafShadowScale.clamp(0.05, 2.40),
+      );
+  }
+
   void _buildLeafShadowCaustics() {
+    _leafShadowPivotGroup.clear();
     _leafShadowGroup.clear();
-    if (!_enableLeafShadowCaustics) return;
+    _leafShadowPivotGroup.visible = widget.leafShadowEnabled;
+    _leafShadowGroup.visible = widget.leafShadowEnabled;
+    _leafShadowPivotGroup
+      ..position.setValues(_leafShadowPivot.x, _boardTop, _leafShadowPivot.z)
+      ..rotation.y = widget.leafShadowRotation;
+    _leafShadowGroup.position.setValues(
+      -_leafShadowPivot.x + widget.leafShadowOffsetX,
+      0,
+      -_leafShadowPivot.z + widget.leafShadowOffsetZ,
+    );
+    _leafShadowPivotGroup.add(_leafShadowGroup);
+    if (!widget.leafShadowEnabled) return;
 
-    final opacity = widget.leafShadowOpacity.clamp(0.02, 0.18);
-    final coreMaterial = three.MeshBasicMaterial({
+    final opacity = widget.leafShadowOpacity.clamp(0.02, 0.42);
+    final clipPlanes = _buildBoardTopClipPlanes();
+    final branchMaterial = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0x6f573b,
+      three.MaterialProperty.opacity: opacity * 0.72,
+      three.MaterialProperty.transparent: true,
+      three.MaterialProperty.depthWrite: false,
+      three.MaterialProperty.depthTest: false,
+      three.MaterialProperty.clippingPlanes: clipPlanes,
+    });
+    final branchPenumbraMaterial = three.MeshBasicMaterial({
+      three.MaterialProperty.color: 0x8a6f4c,
+      three.MaterialProperty.opacity: opacity * 0.34,
+      three.MaterialProperty.transparent: true,
+      three.MaterialProperty.depthWrite: false,
+      three.MaterialProperty.depthTest: false,
+      three.MaterialProperty.clippingPlanes: clipPlanes,
+    });
+    final leafMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x6b563b,
-      three.MaterialProperty.opacity: opacity * 0.38,
+      three.MaterialProperty.opacity: opacity * 0.82,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.depthWrite: false,
+      three.MaterialProperty.depthTest: false,
+      three.MaterialProperty.clippingPlanes: clipPlanes,
     });
-    final penumbraMaterial = three.MeshBasicMaterial({
+    final leafPenumbraMaterial = three.MeshBasicMaterial({
       three.MaterialProperty.color: 0x8a6a47,
-      three.MaterialProperty.opacity: opacity * 0.16,
+      three.MaterialProperty.opacity: opacity * 0.42,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.depthWrite: false,
+      three.MaterialProperty.depthTest: false,
+      three.MaterialProperty.clippingPlanes: clipPlanes,
     });
 
-    const centerX = 2.15;
-    const centerZ = -1.95;
-    for (int i = 0; i < 10; i++) {
-      final ring = 0.70 + _noise(210 + i * 31) * 1.70;
-      final angle = -1.05 + _noise(310 + i * 19) * 1.05;
-      final baseX = centerX + math.cos(angle) * ring;
-      final baseZ = centerZ + math.sin(angle) * ring * 0.78;
-      final radius = 0.12 + _noise(410 + i * 7) * 0.14;
-
-      final core = three.Mesh(
-        three.CircleGeometry(radius: radius, segments: 26),
-        coreMaterial,
-      )
-        ..position.setValues(baseX, _boardTop + 0.0385, baseZ)
-        ..rotation.x = -math.pi / 2
-        ..rotation.z = (_noise(710 + i * 29) - 0.5) * 1.05
-        ..scale.x = 1.45 + _noise(915 + i * 7) * 0.45;
-      final penumbra = three.Mesh(
-        three.CircleGeometry(radius: radius * 2.2, segments: 30),
-        penumbraMaterial,
-      )
-        ..position.setValues(baseX, _boardTop + 0.0380, baseZ)
-        ..rotation.x = -math.pi / 2
-        ..rotation.z = core.rotation.z
-        ..scale.x = core.scale.x * 1.18;
-      _leafShadowGroup
-        ..add(penumbra)
-        ..add(core);
+    const branchPoints = <Offset3>[
+      Offset3(3.42, 0, -0.40),
+      Offset3(2.72, 0, -0.16),
+      Offset3(2.02, 0, 0.08),
+      Offset3(1.30, 0, 0.34),
+      Offset3(0.58, 0, 0.58),
+    ];
+    for (int i = 0; i < branchPoints.length - 1; i++) {
+      _addBranchShadowSegment(
+        branchPoints[i],
+        branchPoints[i + 1],
+        width: 0.030 - i * 0.003,
+        material: branchMaterial,
+        penumbraMaterial: branchPenumbraMaterial,
+      );
     }
 
-    _root.add(_leafShadowGroup);
+    const twigSegments = <({Offset3 a, Offset3 b, double width})>[
+      (a: Offset3(2.58, 0, -0.10), b: Offset3(2.18, 0, -0.54), width: 0.018),
+      (a: Offset3(2.32, 0, -0.02), b: Offset3(2.90, 0, 0.18), width: 0.017),
+      (a: Offset3(1.82, 0, 0.18), b: Offset3(1.46, 0, -0.22), width: 0.015),
+      (a: Offset3(1.54, 0, 0.30), b: Offset3(2.02, 0, 0.70), width: 0.015),
+      (a: Offset3(1.05, 0, 0.44), b: Offset3(0.64, 0, 0.10), width: 0.012),
+    ];
+    for (final twig in twigSegments) {
+      _addBranchShadowSegment(
+        twig.a,
+        twig.b,
+        width: twig.width,
+        material: branchMaterial,
+        penumbraMaterial: branchPenumbraMaterial,
+      );
+    }
+
+    const leafClusters = <({Offset3 center, double angle, double scale})>[
+      (center: Offset3(2.16, 0, -0.48), angle: -0.82, scale: 1.05),
+      (center: Offset3(2.82, 0, 0.22), angle: 0.46, scale: 1.00),
+      (center: Offset3(1.48, 0, -0.16), angle: -0.72, scale: 0.92),
+      (center: Offset3(2.00, 0, 0.74), angle: 0.66, scale: 1.00),
+      (center: Offset3(0.66, 0, 0.10), angle: -0.78, scale: 0.82),
+      (center: Offset3(0.88, 0, 0.64), angle: 0.50, scale: 0.78),
+    ];
+    for (int i = 0; i < leafClusters.length; i++) {
+      final cluster = leafClusters[i];
+      _addOsmanthusLeafCluster(
+        center: cluster.center,
+        angle: cluster.angle,
+        scale: cluster.scale,
+        seed: i,
+        material: leafMaterial,
+        penumbraMaterial: leafPenumbraMaterial,
+      );
+    }
+    _root.add(_leafShadowPivotGroup);
+  }
+
+  List<three.Plane> _buildBoardTopClipPlanes() {
+    const half = _boardWidth / 2 - 0.018;
+    final rotation = widget.boardRotationY;
+    final cosR = math.cos(rotation);
+    final sinR = math.sin(rotation);
+    final xAxis = three.Vector3(cosR, 0, -sinR);
+    final zAxis = three.Vector3(sinR, 0, cosR);
+    return [
+      three.Plane(xAxis, half),
+      three.Plane(three.Vector3(-xAxis.x, -xAxis.y, -xAxis.z), half),
+      three.Plane(zAxis, half),
+      three.Plane(three.Vector3(-zAxis.x, -zAxis.y, -zAxis.z), half),
+    ];
+  }
+
+  void _addBranchShadowSegment(
+    Offset3 a,
+    Offset3 b, {
+    required double width,
+    required three.Material material,
+    required three.Material penumbraMaterial,
+  }) {
+    final dx = b.x - a.x;
+    final dz = b.z - a.z;
+    final length = math.sqrt(dx * dx + dz * dz);
+    final angle = math.atan2(dz, dx);
+    final x = (a.x + b.x) / 2;
+    final z = (a.z + b.z) / 2;
+
+    final penumbra = three.Mesh(
+      three.BoxGeometry(length, 0.003, width * 4.2),
+      penumbraMaterial,
+    )
+      ..position.setValues(x, _boardTop + 0.0370, z)
+      ..rotation.y = -angle;
+    final core = three.Mesh(
+      three.BoxGeometry(length, 0.004, width),
+      material,
+    )
+      ..position.setValues(x, _boardTop + 0.0380, z)
+      ..rotation.y = -angle;
+    _leafShadowGroup
+      ..add(penumbra)
+      ..add(core);
+  }
+
+  void _addOsmanthusLeafCluster({
+    required Offset3 center,
+    required double angle,
+    required double scale,
+    required int seed,
+    required three.Material material,
+    required three.Material penumbraMaterial,
+  }) {
+    const leaves = <({double x, double z, double angle, double length})>[
+      (x: -0.13, z: -0.05, angle: -0.50, length: 0.30),
+      (x: 0.08, z: -0.03, angle: 0.36, length: 0.28),
+      (x: -0.04, z: 0.12, angle: 0.06, length: 0.32),
+      (x: 0.18, z: 0.12, angle: 0.64, length: 0.26),
+    ];
+    final sinA = math.sin(angle);
+    final cosA = math.cos(angle);
+    for (int i = 0; i < leaves.length; i++) {
+      final leaf = leaves[i];
+      final jitterX = (_noise(1700 + seed * 47 + i * 13) - 0.5) * 0.035;
+      final jitterZ = (_noise(1900 + seed * 41 + i * 17) - 0.5) * 0.035;
+      final localX = (leaf.x + jitterX) * scale;
+      final localZ = (leaf.z + jitterZ) * scale;
+      final x = center.x + localX * cosA - localZ * sinA;
+      final z = center.z + localX * sinA + localZ * cosA;
+      final length = leaf.length * scale;
+      final width = length * (0.34 + _noise(2100 + seed * 31 + i * 19) * 0.06);
+      final leafAngle = angle + leaf.angle;
+      _addOsmanthusLeafShadow(
+        x: x,
+        z: z,
+        length: length,
+        width: width,
+        angle: leafAngle,
+        material: material,
+        penumbraMaterial: penumbraMaterial,
+      );
+    }
+  }
+
+  void _addOsmanthusLeafShadow({
+    required double x,
+    required double z,
+    required double length,
+    required double width,
+    required double angle,
+    required three.Material material,
+    required three.Material penumbraMaterial,
+  }) {
+    final geometry = _buildOsmanthusLeafGeometry();
+    final penumbra = three.Mesh(geometry, penumbraMaterial)
+      ..position.setValues(x, _boardTop + 0.0375, z)
+      ..rotation.x = -math.pi / 2
+      ..rotation.z = angle
+      ..scale.setValues(length * 1.35, width * 1.75, 1);
+    final core = three.Mesh(geometry.clone(), material)
+      ..position.setValues(x, _boardTop + 0.0385, z)
+      ..rotation.x = -math.pi / 2
+      ..rotation.z = angle
+      ..scale.setValues(length, width, 1);
+    _leafShadowGroup
+      ..add(penumbra)
+      ..add(core);
+  }
+
+  three.ShapeGeometry _buildOsmanthusLeafGeometry() {
+    final shape = three.Shape()
+      ..moveTo(-0.50, 0)
+      ..quadraticCurveTo(-0.18, -0.46, 0.42, -0.10)
+      ..quadraticCurveTo(0.55, 0.00, 0.42, 0.10)
+      ..quadraticCurveTo(-0.18, 0.46, -0.50, 0);
+    return three.ShapeGeometry([shape], curveSegments: 10);
   }
 
   void _rebuildStones() {
