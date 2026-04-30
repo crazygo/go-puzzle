@@ -37,27 +37,55 @@ class _MainTabScaffold extends StatefulWidget {
 
 class _MainTabScaffoldState extends State<_MainTabScaffold> {
   int _selectedIndex = 0;
+  bool _windowAirGlowEnabled = true;
+  double _windowAirGlowOpacity = 0.18;
+  double _windowAirGlowSize = 0.10;
+  double _windowAirGlowSpeed = 0.22;
+  double _windowAirGlowPulse = 0.35;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final showSharedBoard =
-        context.select<SettingsProvider, bool>((s) => s.appTheme.showsSharedBoard);
+    final showSharedBoard = context
+        .select<SettingsProvider, bool>((s) => s.appTheme.showsSharedBoard);
     final tabBarBottomInset = MediaQuery.paddingOf(context).bottom + 50.0;
 
     return DecoratedBox(
       decoration: BoxDecoration(color: palette.pageBackground),
       child: Stack(
         children: [
-          if (showSharedBoard) const _SharedHeroBoardBackground(),
+          if (showSharedBoard)
+            _SharedHeroBoardBackground(
+              windowAirGlowEnabled: _windowAirGlowEnabled,
+              windowAirGlowOpacity: _windowAirGlowOpacity,
+              windowAirGlowSize: _windowAirGlowSize,
+              windowAirGlowSpeed: _windowAirGlowSpeed,
+              windowAirGlowPulse: _windowAirGlowPulse,
+            ),
           Padding(
             padding: EdgeInsets.only(bottom: tabBarBottomInset),
             child: IndexedStack(
               index: _selectedIndex,
-              children: const [
-                CaptureGameScreen(),
-                DailyPuzzleScreen(),
-                SettingsScreen(),
+              children: [
+                CaptureGameScreen(
+                  windowAirGlowEnabled: _windowAirGlowEnabled,
+                  windowAirGlowOpacity: _windowAirGlowOpacity,
+                  windowAirGlowSize: _windowAirGlowSize,
+                  windowAirGlowSpeed: _windowAirGlowSpeed,
+                  windowAirGlowPulse: _windowAirGlowPulse,
+                  onWindowAirGlowEnabledChanged: (value) =>
+                      setState(() => _windowAirGlowEnabled = value),
+                  onWindowAirGlowOpacityChanged: (value) =>
+                      setState(() => _windowAirGlowOpacity = value),
+                  onWindowAirGlowSizeChanged: (value) =>
+                      setState(() => _windowAirGlowSize = value),
+                  onWindowAirGlowSpeedChanged: (value) =>
+                      setState(() => _windowAirGlowSpeed = value),
+                  onWindowAirGlowPulseChanged: (value) =>
+                      setState(() => _windowAirGlowPulse = value),
+                ),
+                const DailyPuzzleScreen(),
+                const SettingsScreen(),
               ],
             ),
           ),
@@ -105,7 +133,19 @@ class _MainTabScaffoldState extends State<_MainTabScaffold> {
 }
 
 class _SharedHeroBoardBackground extends StatelessWidget {
-  const _SharedHeroBoardBackground();
+  const _SharedHeroBoardBackground({
+    required this.windowAirGlowEnabled,
+    required this.windowAirGlowOpacity,
+    required this.windowAirGlowSize,
+    required this.windowAirGlowSpeed,
+    required this.windowAirGlowPulse,
+  });
+
+  final bool windowAirGlowEnabled;
+  final double windowAirGlowOpacity;
+  final double windowAirGlowSize;
+  final double windowAirGlowSpeed;
+  final double windowAirGlowPulse;
 
   @override
   Widget build(BuildContext context) {
@@ -122,10 +162,14 @@ class _SharedHeroBoardBackground extends StatelessWidget {
                 child: IgnorePointer(
                   child: Transform.translate(
                     offset: const Offset(0, -128),
-                    child: const GoThreeBoardBackground(
+                    child: GoThreeBoardBackground(
                       boardSize: 19,
                       stones: kGoThreeDemoStones,
-                      particles: false,
+                      particles: windowAirGlowEnabled,
+                      windowAirGlowOpacity: windowAirGlowOpacity,
+                      windowAirGlowSize: windowAirGlowSize,
+                      windowAirGlowSpeed: windowAirGlowSpeed,
+                      windowAirGlowPulse: windowAirGlowPulse,
                       sceneScale: 0.88,
                       cameraLift: 0.01,
                       cameraDepth: 17.2,

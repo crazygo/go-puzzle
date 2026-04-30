@@ -51,6 +51,10 @@ class GoThreeBoardBackground extends StatefulWidget {
     this.stones = const [],
     this.animate = false,
     this.particles = false,
+    this.windowAirGlowOpacity = 0.18,
+    this.windowAirGlowSize = 0.10,
+    this.windowAirGlowSpeed = 0.22,
+    this.windowAirGlowPulse = 0.35,
     this.cinematicFrame = true,
     this.cinematicFov = 26,
     this.sceneScale = 1.0,
@@ -94,6 +98,10 @@ class GoThreeBoardBackground extends StatefulWidget {
   final List<GoThreeBoardStone> stones;
   final bool animate;
   final bool particles;
+  final double windowAirGlowOpacity;
+  final double windowAirGlowSize;
+  final double windowAirGlowSpeed;
+  final double windowAirGlowPulse;
   final bool cinematicFrame;
   final double cinematicFov;
   final double sceneScale;
@@ -171,6 +179,7 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
   three.MeshBasicMaterial? _reflectionMaterial;
   three.MeshBasicMaterial? _shaftMaterial;
   three.MeshBasicMaterial? _frontGlowMaterial;
+  three.PointsMaterial? _windowAirGlowMaterial;
   double _elapsed = 0;
   bool _sceneInitialized = false;
 
@@ -312,6 +321,10 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         oldWidget.lightMapIntensity != widget.lightMapIntensity) {
       unawaited(_rebuildBoardTextures());
     }
+    if (oldWidget.windowAirGlowOpacity != widget.windowAirGlowOpacity ||
+        oldWidget.windowAirGlowSize != widget.windowAirGlowSize) {
+      _updateWindowAirGlowMaterial();
+    }
     _particleGroup.visible = widget.particles;
   }
 
@@ -419,8 +432,13 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         _setCamera(_elapsed);
       }
       if (widget.particles) {
-        _particleGroup.rotation.y += dt * 0.045;
-        _particleGroup.position.y = 0.12 + math.sin(_elapsed * 0.7) * 0.025;
+        final speed = widget.windowAirGlowSpeed.clamp(0.0, 2.0);
+        final pulse = math.sin(_elapsed * speed * 2.0 * math.pi);
+        _particleGroup.position
+          ..x = pulse * 0.055
+          ..y = 0.08 + math.sin(_elapsed * speed * 1.27 + 0.8) * 0.035
+          ..z = math.cos(_elapsed * speed * 1.61) * 0.045;
+        _updateWindowAirGlowMaterial(pulse);
       }
     });
   }
@@ -1084,10 +1102,11 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
 
   void _buildParticles() {
     final positions = <double>[];
-    for (int i = 0; i < 120; i++) {
-      final x = (_noise(i * 11) - 0.5) * 6.4;
-      final y = 0.38 + _noise(i * 19) * 1.55;
-      final z = (_noise(i * 23) - 0.5) * 5.8;
+    for (int i = 0; i < 18; i++) {
+      final lane = i / 17.0;
+      final x = 1.35 + lane * 2.35 + (_noise(i * 11) - 0.5) * 0.44;
+      final y = 0.46 + _noise(i * 19) * 1.28;
+      final z = -2.78 + lane * 2.05 + (_noise(i * 23) - 0.5) * 0.42;
       positions.addAll([x, y, z]);
     }
     final geometry = three.BufferGeometry()
@@ -1096,17 +1115,31 @@ class _GoThreeBoardBackgroundState extends State<GoThreeBoardBackground> {
         three.Float32BufferAttribute.fromList(positions, 3, false),
       );
     final material = three.PointsMaterial({
-      three.MaterialProperty.color: 0xffd8a3,
-      three.MaterialProperty.size: 0.028,
-      three.MaterialProperty.opacity: 0.06,
+      three.MaterialProperty.color: 0xfff0c8,
+      three.MaterialProperty.size: widget.windowAirGlowSize,
+      three.MaterialProperty.opacity: widget.windowAirGlowOpacity,
       three.MaterialProperty.transparent: true,
       three.MaterialProperty.blending: three.AdditiveBlending,
+      three.MaterialProperty.depthWrite: false,
     });
+    _windowAirGlowMaterial = material;
     final points = three.Points(geometry, material);
     _particleGroup
       ..visible = widget.particles
       ..add(points);
     _root.add(_particleGroup);
+  }
+
+  void _updateWindowAirGlowMaterial([double pulse = 0]) {
+    final material = _windowAirGlowMaterial;
+    if (material == null) return;
+    final pulseStrength = widget.windowAirGlowPulse.clamp(0.0, 1.0);
+    final opacity = widget.windowAirGlowOpacity.clamp(0.0, 0.80) *
+        (1.0 + pulse * pulseStrength);
+    material
+      ..size = widget.windowAirGlowSize.clamp(0.01, 0.30)
+      ..opacity = opacity.clamp(0.0, 0.95)
+      ..needsUpdate = true;
   }
 
   void _buildLeafShadowCaustics() {

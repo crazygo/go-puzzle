@@ -18,7 +18,30 @@ import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
 
 class CaptureGameScreen extends StatefulWidget {
-  const CaptureGameScreen({super.key});
+  const CaptureGameScreen({
+    super.key,
+    this.windowAirGlowEnabled,
+    this.windowAirGlowOpacity,
+    this.windowAirGlowSize,
+    this.windowAirGlowSpeed,
+    this.windowAirGlowPulse,
+    this.onWindowAirGlowEnabledChanged,
+    this.onWindowAirGlowOpacityChanged,
+    this.onWindowAirGlowSizeChanged,
+    this.onWindowAirGlowSpeedChanged,
+    this.onWindowAirGlowPulseChanged,
+  });
+
+  final bool? windowAirGlowEnabled;
+  final double? windowAirGlowOpacity;
+  final double? windowAirGlowSize;
+  final double? windowAirGlowSpeed;
+  final double? windowAirGlowPulse;
+  final ValueChanged<bool>? onWindowAirGlowEnabledChanged;
+  final ValueChanged<double>? onWindowAirGlowOpacityChanged;
+  final ValueChanged<double>? onWindowAirGlowSizeChanged;
+  final ValueChanged<double>? onWindowAirGlowSpeedChanged;
+  final ValueChanged<double>? onWindowAirGlowPulseChanged;
 
   @override
   State<CaptureGameScreen> createState() => _CaptureGameScreenState();
@@ -38,6 +61,13 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
       _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
   bool _floatingParticlesEnabled =
       _CaptureGameScreenState._defaultFloatingParticlesEnabled;
+  double _windowAirGlowOpacity =
+      _CaptureGameScreenState._defaultWindowAirGlowOpacity;
+  double _windowAirGlowSize = _CaptureGameScreenState._defaultWindowAirGlowSize;
+  double _windowAirGlowSpeed =
+      _CaptureGameScreenState._defaultWindowAirGlowSpeed;
+  double _windowAirGlowPulse =
+      _CaptureGameScreenState._defaultWindowAirGlowPulse;
   bool _cornerLabelsEnabled =
       _CaptureGameScreenState._defaultCornerLabelsEnabled;
   double _boardTopBrightness =
@@ -112,6 +142,10 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                   leafShadowOpacity: _leafShadowOpacity,
                   stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                   floatingParticlesEnabled: _floatingParticlesEnabled,
+                  windowAirGlowOpacity: _windowAirGlowOpacity,
+                  windowAirGlowSize: _windowAirGlowSize,
+                  windowAirGlowSpeed: _windowAirGlowSpeed,
+                  windowAirGlowPulse: _windowAirGlowPulse,
                   cornerLabelsEnabled: _cornerLabelsEnabled,
                   boardTopBrightness: _boardTopBrightness,
                   boardWoodColor: _boardWoodColor,
@@ -146,6 +180,10 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                     shadowOpacity: _leafShadowOpacity,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
                     floatingParticlesEnabled: _floatingParticlesEnabled,
+                    windowAirGlowOpacity: _windowAirGlowOpacity,
+                    windowAirGlowSize: _windowAirGlowSize,
+                    windowAirGlowSpeed: _windowAirGlowSpeed,
+                    windowAirGlowPulse: _windowAirGlowPulse,
                     cornerLabelsEnabled: _cornerLabelsEnabled,
                     boardTopBrightness: _boardTopBrightness,
                     boardWoodColor: _boardWoodColor,
@@ -175,6 +213,14 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
                         setState(() => _stoneExtraOverlayEnabled = value),
                     onFloatingParticlesChanged: (value) =>
                         setState(() => _floatingParticlesEnabled = value),
+                    onWindowAirGlowOpacityChanged: (value) =>
+                        setState(() => _windowAirGlowOpacity = value),
+                    onWindowAirGlowSizeChanged: (value) =>
+                        setState(() => _windowAirGlowSize = value),
+                    onWindowAirGlowSpeedChanged: (value) =>
+                        setState(() => _windowAirGlowSpeed = value),
+                    onWindowAirGlowPulseChanged: (value) =>
+                        setState(() => _windowAirGlowPulse = value),
                     onCornerLabelsChanged: (value) =>
                         setState(() => _cornerLabelsEnabled = value),
                     onBoardTopBrightnessChanged: (value) =>
@@ -287,6 +333,11 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
           _CaptureGameScreenState._defaultStoneExtraOverlayEnabled;
       _floatingParticlesEnabled =
           _CaptureGameScreenState._defaultFloatingParticlesEnabled;
+      _windowAirGlowOpacity =
+          _CaptureGameScreenState._defaultWindowAirGlowOpacity;
+      _windowAirGlowSize = _CaptureGameScreenState._defaultWindowAirGlowSize;
+      _windowAirGlowSpeed = _CaptureGameScreenState._defaultWindowAirGlowSpeed;
+      _windowAirGlowPulse = _CaptureGameScreenState._defaultWindowAirGlowPulse;
       _cornerLabelsEnabled =
           _CaptureGameScreenState._defaultCornerLabelsEnabled;
       _boardTopBrightness = _CaptureGameScreenState._defaultBoardTopBrightness;
@@ -358,6 +409,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultLeafShadowOpacity = 0.16;
   static const bool _defaultStoneExtraOverlayEnabled = true;
   static const bool _defaultFloatingParticlesEnabled = false;
+  static const double _defaultWindowAirGlowOpacity = 0.18;
+  static const double _defaultWindowAirGlowSize = 0.10;
+  static const double _defaultWindowAirGlowSpeed = 0.22;
+  static const double _defaultWindowAirGlowPulse = 0.35;
   static const bool _defaultCornerLabelsEnabled = false;
   static const double _defaultBoardTopBrightness = 1.0;
   static const int _defaultBoardWoodColor = 0xd0b39c;
@@ -411,6 +466,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _leafShadowOpacity = _defaultLeafShadowOpacity;
   bool _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
   bool _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
+  double _windowAirGlowOpacity = _defaultWindowAirGlowOpacity;
+  double _windowAirGlowSize = _defaultWindowAirGlowSize;
+  double _windowAirGlowSpeed = _defaultWindowAirGlowSpeed;
+  double _windowAirGlowPulse = _defaultWindowAirGlowPulse;
   bool _cornerLabelsEnabled = _defaultCornerLabelsEnabled;
   double _boardTopBrightness = _defaultBoardTopBrightness;
   int _boardWoodColor = _defaultBoardWoodColor;
@@ -629,7 +688,16 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   _HomeBoardTuningSheet(
                     shadowOpacity: _leafShadowOpacity,
                     stoneExtraOverlayEnabled: _stoneExtraOverlayEnabled,
-                    floatingParticlesEnabled: _floatingParticlesEnabled,
+                    floatingParticlesEnabled: widget.windowAirGlowEnabled ??
+                        _floatingParticlesEnabled,
+                    windowAirGlowOpacity:
+                        widget.windowAirGlowOpacity ?? _windowAirGlowOpacity,
+                    windowAirGlowSize:
+                        widget.windowAirGlowSize ?? _windowAirGlowSize,
+                    windowAirGlowSpeed:
+                        widget.windowAirGlowSpeed ?? _windowAirGlowSpeed,
+                    windowAirGlowPulse:
+                        widget.windowAirGlowPulse ?? _windowAirGlowPulse,
                     cornerLabelsEnabled:
                         _homeTuningSheetVisible && _cornerLabelsEnabled,
                     boardTopBrightness: _boardTopBrightness,
@@ -658,8 +726,26 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         setState(() => _leafShadowOpacity = value),
                     onStoneExtraOverlayChanged: (value) =>
                         setState(() => _stoneExtraOverlayEnabled = value),
-                    onFloatingParticlesChanged: (value) =>
-                        setState(() => _floatingParticlesEnabled = value),
+                    onFloatingParticlesChanged: (value) {
+                      widget.onWindowAirGlowEnabledChanged?.call(value);
+                      setState(() => _floatingParticlesEnabled = value);
+                    },
+                    onWindowAirGlowOpacityChanged: (value) {
+                      widget.onWindowAirGlowOpacityChanged?.call(value);
+                      setState(() => _windowAirGlowOpacity = value);
+                    },
+                    onWindowAirGlowSizeChanged: (value) {
+                      widget.onWindowAirGlowSizeChanged?.call(value);
+                      setState(() => _windowAirGlowSize = value);
+                    },
+                    onWindowAirGlowSpeedChanged: (value) {
+                      widget.onWindowAirGlowSpeedChanged?.call(value);
+                      setState(() => _windowAirGlowSpeed = value);
+                    },
+                    onWindowAirGlowPulseChanged: (value) {
+                      widget.onWindowAirGlowPulseChanged?.call(value);
+                      setState(() => _windowAirGlowPulse = value);
+                    },
                     onCornerLabelsChanged: (value) =>
                         setState(() => _cornerLabelsEnabled = value),
                     onBoardTopBrightnessChanged: (value) =>
@@ -758,6 +844,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }
 
   void _resetHomeBoardTuning() {
+    widget.onWindowAirGlowEnabledChanged
+        ?.call(_defaultFloatingParticlesEnabled);
+    widget.onWindowAirGlowOpacityChanged?.call(_defaultWindowAirGlowOpacity);
+    widget.onWindowAirGlowSizeChanged?.call(_defaultWindowAirGlowSize);
+    widget.onWindowAirGlowSpeedChanged?.call(_defaultWindowAirGlowSpeed);
+    widget.onWindowAirGlowPulseChanged?.call(_defaultWindowAirGlowPulse);
     setState(() {
       _homeBoardTopFactor = _defaultHomeBoardTopFactor;
       _homeBoardHeightFactor = _defaultHomeBoardHeightFactor;
@@ -771,6 +863,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       _leafShadowOpacity = _defaultLeafShadowOpacity;
       _stoneExtraOverlayEnabled = _defaultStoneExtraOverlayEnabled;
       _floatingParticlesEnabled = _defaultFloatingParticlesEnabled;
+      _windowAirGlowOpacity = _defaultWindowAirGlowOpacity;
+      _windowAirGlowSize = _defaultWindowAirGlowSize;
+      _windowAirGlowSpeed = _defaultWindowAirGlowSpeed;
+      _windowAirGlowPulse = _defaultWindowAirGlowPulse;
       _cornerLabelsEnabled = _defaultCornerLabelsEnabled;
       _boardTopBrightness = _defaultBoardTopBrightness;
       _boardWoodColor = _defaultBoardWoodColor;
@@ -989,6 +1085,10 @@ class _HomeThreeBoardPreview extends StatelessWidget {
     required this.leafShadowOpacity,
     required this.stoneExtraOverlayEnabled,
     required this.floatingParticlesEnabled,
+    required this.windowAirGlowOpacity,
+    required this.windowAirGlowSize,
+    required this.windowAirGlowSpeed,
+    required this.windowAirGlowPulse,
     required this.cornerLabelsEnabled,
     required this.boardTopBrightness,
     required this.boardWoodColor,
@@ -1032,6 +1132,10 @@ class _HomeThreeBoardPreview extends StatelessWidget {
   final double leafShadowOpacity;
   final bool stoneExtraOverlayEnabled;
   final bool floatingParticlesEnabled;
+  final double windowAirGlowOpacity;
+  final double windowAirGlowSize;
+  final double windowAirGlowSpeed;
+  final double windowAirGlowPulse;
   final bool cornerLabelsEnabled;
   final double boardTopBrightness;
   final int boardWoodColor;
@@ -1075,6 +1179,10 @@ class _HomeThreeBoardPreview extends StatelessWidget {
             boardSize: 19,
             stones: kGoThreeDemoStones,
             particles: floatingParticlesEnabled,
+            windowAirGlowOpacity: windowAirGlowOpacity,
+            windowAirGlowSize: windowAirGlowSize,
+            windowAirGlowSpeed: windowAirGlowSpeed,
+            windowAirGlowPulse: windowAirGlowPulse,
             showCornerLabels: cornerLabelsEnabled,
             sceneScale: sceneScale,
             cameraLift: cameraLift,
@@ -1174,6 +1282,10 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.shadowOpacity,
     required this.stoneExtraOverlayEnabled,
     required this.floatingParticlesEnabled,
+    required this.windowAirGlowOpacity,
+    required this.windowAirGlowSize,
+    required this.windowAirGlowSpeed,
+    required this.windowAirGlowPulse,
     required this.cornerLabelsEnabled,
     required this.boardTopBrightness,
     required this.boardWoodColor,
@@ -1200,6 +1312,10 @@ class _HomeBoardTuningSheet extends StatefulWidget {
     required this.onShadowOpacityChanged,
     required this.onStoneExtraOverlayChanged,
     required this.onFloatingParticlesChanged,
+    required this.onWindowAirGlowOpacityChanged,
+    required this.onWindowAirGlowSizeChanged,
+    required this.onWindowAirGlowSpeedChanged,
+    required this.onWindowAirGlowPulseChanged,
     required this.onCornerLabelsChanged,
     required this.onBoardTopBrightnessChanged,
     required this.onBoardWoodColorChanged,
@@ -1256,6 +1372,10 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final double shadowOpacity;
   final bool stoneExtraOverlayEnabled;
   final bool floatingParticlesEnabled;
+  final double windowAirGlowOpacity;
+  final double windowAirGlowSize;
+  final double windowAirGlowSpeed;
+  final double windowAirGlowPulse;
   final bool cornerLabelsEnabled;
   final double boardTopBrightness;
   final int boardWoodColor;
@@ -1282,6 +1402,10 @@ class _HomeBoardTuningSheet extends StatefulWidget {
   final ValueChanged<double> onShadowOpacityChanged;
   final ValueChanged<bool> onStoneExtraOverlayChanged;
   final ValueChanged<bool> onFloatingParticlesChanged;
+  final ValueChanged<double> onWindowAirGlowOpacityChanged;
+  final ValueChanged<double> onWindowAirGlowSizeChanged;
+  final ValueChanged<double> onWindowAirGlowSpeedChanged;
+  final ValueChanged<double> onWindowAirGlowPulseChanged;
   final ValueChanged<bool> onCornerLabelsChanged;
   final ValueChanged<double> onBoardTopBrightnessChanged;
   final ValueChanged<int> onBoardWoodColorChanged;
@@ -1339,7 +1463,15 @@ class _HomeBoardTuningSheet extends StatefulWidget {
 }
 
 class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
-  static const List<String> _tabTitles = ['基础', '构图', '主光', '补光', '环境', '格子'];
+  static const List<String> _tabTitles = [
+    '基础',
+    '构图',
+    '主光',
+    '补光',
+    '环境',
+    '格子',
+    '动画',
+  ];
   int _selectedTab = 0;
 
   @override
@@ -1350,11 +1482,6 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           title: '棋子额外阴影叠加',
           value: widget.stoneExtraOverlayEnabled,
           onChanged: widget.onStoneExtraOverlayChanged,
-        ),
-        _TuningSwitchRow(
-          title: '漂浮粒子',
-          value: widget.floatingParticlesEnabled,
-          onChanged: widget.onFloatingParticlesChanged,
         ),
         _TuningSwitchRow(
           title: '角标 ABCD',
@@ -1630,6 +1757,41 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           min: 0.50,
           max: 4.00,
           onChanged: widget.onLightMapIntensityChanged,
+        ),
+      ],
+      [
+        _TuningSwitchRow(
+          title: '窗光浮尘',
+          value: widget.floatingParticlesEnabled,
+          onChanged: widget.onFloatingParticlesChanged,
+        ),
+        _TuningSlider(
+          label: '浮尘可见度',
+          value: widget.windowAirGlowOpacity,
+          min: 0.00,
+          max: 0.80,
+          onChanged: widget.onWindowAirGlowOpacityChanged,
+        ),
+        _TuningSlider(
+          label: '浮尘尺寸',
+          value: widget.windowAirGlowSize,
+          min: 0.02,
+          max: 0.30,
+          onChanged: widget.onWindowAirGlowSizeChanged,
+        ),
+        _TuningSlider(
+          label: '漂移速度',
+          value: widget.windowAirGlowSpeed,
+          min: 0.00,
+          max: 1.20,
+          onChanged: widget.onWindowAirGlowSpeedChanged,
+        ),
+        _TuningSlider(
+          label: '呼吸强度',
+          value: widget.windowAirGlowPulse,
+          min: 0.00,
+          max: 1.00,
+          onChanged: widget.onWindowAirGlowPulseChanged,
         ),
       ],
     ];
