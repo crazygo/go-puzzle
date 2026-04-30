@@ -12,6 +12,9 @@ class PlayerRankRepository {
   /// Pure function: given [records] in chronological order (oldest first),
   /// returns the player's current rank (1–28).
   ///
+  /// [records] must be in oldest-first order (as returned by
+  /// [GameHistoryRepository.loadAll]).
+  ///
   /// ### Dojo ladder rules
   /// - New players start at [AiRankLevel.defaultRank].
   /// - After each game a sliding window of the last 3 results is evaluated.
