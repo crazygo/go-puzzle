@@ -26,6 +26,7 @@ class AiArenaRunManifest {
     required this.rounds,
     required this.promotionThreshold,
     required this.baseSeed,
+    this.maxMoves = 512,
     this.schemaVersion = 1,
   });
 
@@ -40,6 +41,7 @@ class AiArenaRunManifest {
   final int rounds;
   final int promotionThreshold;
   final int baseSeed;
+  final int maxMoves;
 
   /// Stable hash over all configuration fields.
   String get configHash {
@@ -51,6 +53,7 @@ class AiArenaRunManifest {
       'rounds': rounds,
       'promotionThreshold': promotionThreshold,
       'baseSeed': baseSeed,
+      'maxMoves': maxMoves,
     });
     final bytes = utf8.encode(repr);
     return 'djb2:${_stableDjb2Hex(bytes)}';
@@ -69,6 +72,7 @@ class AiArenaRunManifest {
         'rounds': rounds,
         'promotionThreshold': promotionThreshold,
         'baseSeed': baseSeed,
+        'maxMoves': maxMoves,
         'configHash': configHash,
       };
 
@@ -81,6 +85,7 @@ class AiArenaRunManifest {
       rounds: json['rounds'] as int,
       promotionThreshold: json['promotionThreshold'] as int,
       baseSeed: json['baseSeed'] as int,
+      maxMoves: json['maxMoves'] as int? ?? 512,
     );
   }
 }
@@ -162,8 +167,7 @@ class AiArenaConfigMismatchException implements Exception {
   final String savedHash;
 
   @override
-  String toString() =>
-      'AiArenaConfigMismatchException: '
+  String toString() => 'AiArenaConfigMismatchException: '
       'saved configHash=$savedHash does not match '
       'current configHash=$currentHash. '
       'Use --force to discard prior results and start fresh.';
@@ -191,8 +195,7 @@ String computeLadderHash(List<String> ladderIds) {
 String _canonicalJson(Object? value) {
   if (value is Map) {
     final sorted = Map.fromEntries(
-      (value.entries.toList()
-            ..sort((a, b) => a.key.compareTo(b.key)))
+      (value.entries.toList()..sort((a, b) => a.key.compareTo(b.key)))
           .map((e) => MapEntry(e.key, e.value)),
     );
     final inner = sorted.entries
@@ -451,12 +454,9 @@ class AiArenaScheduler {
   }
 
   /// Builds a match ID from the timestamp and config IDs.
-  String _buildMatchId(
-      DateTime ts, String configAId, String configBId) {
-    final stamp = ts
-        .toIso8601String()
-        .replaceAll(RegExp(r'[:\-]'), '')
-        .substring(0, 15);
+  String _buildMatchId(DateTime ts, String configAId, String configBId) {
+    final stamp =
+        ts.toIso8601String().replaceAll(RegExp(r'[:\-]'), '').substring(0, 15);
     final a = configAId.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
     final b = configBId.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
     return '${stamp}Z_${a}_vs_$b';

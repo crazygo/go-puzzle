@@ -32,6 +32,8 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+build/ai_arena/*.jsonl
+build/ai_arena/logs/**
 
 # Symbolication related
 app.*.symbols
