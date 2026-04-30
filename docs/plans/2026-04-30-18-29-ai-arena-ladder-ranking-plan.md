@@ -41,7 +41,7 @@ The ranking system should never inflate a configuration just because it repeated
 
 1. Define an arena architecture with a **scheduler** that owns ranking decisions and an **executor** that only runs matches.
 2. Define a durable `AiBattleConfig` concept that can identify style, difficulty, rank, and future full parameter profiles.
-3. Record every 10-game head-to-head comparison as one JSONL line.
+3. Record every 10-game head-to-head comparison as one scheduler JSONL event containing raw executor output plus ranking decision metadata.
 4. Use a promotion threshold of **7 wins out of 10 games**.
 5. Update rankings through relative list movement, not unbounded numeric increments.
 6. Support both per-style ladders and a global cross-style ladder.
@@ -60,21 +60,30 @@ Define an `AiBattleConfig` structure for arena experiments. It should include en
 - `profileVersion`: version string for the parameter recipe.
 - `parameters`: future-compatible object for explicit weights, playouts, blunder rates, and candidate limits.
 
-Define an `AiMatchLogEntry` JSONL schema. Each line represents one 10-game match:
+Define two schema layers:
+
+- `AiMatchResult`: raw, reproducible executor output. It contains no promotion or ranking interpretation.
+- `AiLadderEvent`: scheduler-owned JSONL event. It wraps `rawResult` and adds `schedulerDecision`, ladder hashes, and replay metadata.
+
+Each JSONL line represents one 10-game match plus the scheduler decision made immediately after that match:
 
 ```json
-{"schemaVersion":1,"matchId":"20260430T182900Z_hunter_r03_vs_trapper_r03","createdAt":"2026-04-30T18:29:00+08:00","boardSize":9,"captureTarget":5,"rounds":10,"promotionThreshold":7,"configA":{"id":"hunter_r03_v1","style":"hunter","rank":3,"difficulty":"beginner"},"configB":{"id":"trapper_r03_v1","style":"trapper","rank":3,"difficulty":"beginner"},"aWins":7,"bWins":3,"draws":0,"aWinRate":0.7,"bWinRate":0.3,"winner":"a","decision":"promote_a","games":[{"index":0,"black":"a","winner":"a","moves":43,"blackCaptures":5,"whiteCaptures":2,"endReason":"captureTargetReached"}]}
+{"schemaVersion":1,"eventType":"ladder_match","matchId":"20260430T182900Z_hunter_r03_vs_trapper_r03","createdAt":"2026-04-30T18:29:00+08:00","previousMatchId":"20260430T181700Z_adaptive_r03_vs_hunter_r03","schedulerVersion":"ai_arena_scheduler_v1","executorVersion":"ai_arena_executor_v1","configVersion":"capture_ai_profile_v1","initialLadderHash":"sha256:...","resultLadderHash":"sha256:...","rawResult":{"matchSeed":123456,"openingSeed":987654,"openingPolicy":"fixed_twist_cross_v1","boardSize":9,"captureTarget":5,"rounds":10,"maxMoves":512,"promotionThreshold":7,"configA":{"id":"hunter_r03_v1","style":"hunter","rank":3,"difficulty":"beginner"},"configB":{"id":"trapper_r03_v1","style":"trapper","rank":3,"difficulty":"beginner"},"aWins":7,"bWins":3,"draws":0,"aWinRate":0.7,"bWinRate":0.3,"games":[{"index":0,"openingIndex":0,"black":"a","winner":"a","moves":43,"blackCaptures":5,"whiteCaptures":2,"endReason":"captureTargetReached"}]},"schedulerDecision":{"winner":"a","loser":"b","decision":"promote_winner","reason":"aWins >= 7","before":["adaptive_r03_v1","trapper_r03_v1","hunter_r03_v1"],"after":["adaptive_r03_v1","hunter_r03_v1","trapper_r03_v1"]}}
 ```
 
 The exact implementation can keep per-game entries compact, but each match line must include enough information to audit:
 
 - which configs played;
+- scheduler, executor, and config versions;
+- match seed, opening seed, opening policy, and per-game opening index;
 - who had black in each game;
 - win counts;
 - draw count;
 - end reasons;
-- promotion decision;
-- ranking snapshot reference or sequence number.
+- raw match result;
+- scheduler decision;
+- previous match pointer;
+- initial and resulting ladder hashes.
 
 ### Phase B - Executor
 
@@ -85,11 +94,14 @@ Execution rules:
 - Run 10 games per match by default.
 - Alternate colors: config A plays black in 5 games and white in 5 games.
 - Use the same board size, capture target, and max moves across all games in the match.
-- Return an `AiMatchLogEntry`-compatible result object.
+- Return an `AiMatchResult`-compatible raw result object.
 - Do not update rankings inside the executor.
-- Do not interpret "promotion" inside the executor beyond reporting raw counts.
+- Do not interpret "promotion" inside the executor.
+- Include deterministic replay fields in the raw result, even if the first implementation uses a fixed opening policy.
 
 The executor should initially wrap `CaptureAiArena.playMatch(...)` and `CaptureAiRegistry.create(...)` so it can reuse the current AI implementation.
+
+The first implementation should include `matchSeed`, `openingSeed`, `openingPolicy`, and per-game `openingIndex` from the start. Color alternation alone is not enough to protect 10-game matches from opening-order bias, and adding these fields later would make old logs harder to compare.
 
 ### Phase C - Scheduler and Ladder Rules
 
@@ -106,6 +118,15 @@ After each 10-game match:
 - If config A wins at least 7 games, A is the match winner.
 - If config B wins at least 7 games, B is the match winner.
 - Otherwise the match is inconclusive and the ladder remains unchanged.
+- Draws do not count toward either side's 7-win threshold.
+
+Examples:
+
+- `7-3-0`: A wins.
+- `7-0-3`: A wins.
+- `6-4-0`: inconclusive.
+- `6-0-4`: inconclusive.
+- `5-5-0`: inconclusive.
 
 Ranking update rules:
 
@@ -126,18 +147,18 @@ Start with a simple deterministic scheduler:
 2. For each style, compare neighboring candidates.
 3. If a lower candidate beats a higher candidate by 7/10 or better, move it up and reschedule around its new neighbors.
 4. Stop when one full pass over adjacent pairs produces no changes.
-5. Build a global ladder by taking the top candidates from each per-style ladder and applying the same adjacent-pair process.
+5. Build a global ladder from all candidates by default and apply the same adjacent-pair process.
+6. Support `topNPerStyle` as an optional fast mode, but do not make it the default because it can miss mid-style candidates that are stronger than another style's top candidate.
 
 Later iterations can add:
 
 - retest queues for 6-4 and 5-5 results;
 - periodic champion-vs-contender matches;
-- randomized but seeded openings;
 - larger validation matches, such as 20 or 50 games, for final rank publication.
 
 ### Phase E - Persistence
 
-Persist two artifacts:
+Persist temporary artifacts for local iteration:
 
 1. Append-only match log:
 
@@ -151,9 +172,42 @@ build/ai_arena/matches.jsonl
 build/ai_arena/ladder.json
 ```
 
-`matches.jsonl` is the audit trail. `ladder.json` is derived state and can be regenerated from the JSONL log.
+`build/ai_arena/` is disposable by design. It is useful for fast local experiments, but it should not be treated as calibration evidence because build directories are usually ignored and can be cleaned.
 
-The scheduler should be able to resume from existing JSONL logs by replaying decisions in order.
+For conclusion-grade runs, archive the full run under:
+
+```text
+docs/ai_arena_runs/<run-id>/
+```
+
+Recommended run ID:
+
+```text
+YYYY-MM-DD-HH-mm-ai-arena-<short-git-sha>
+```
+
+Each archived run should include:
+
+```text
+docs/ai_arena_runs/<run-id>/
+  README.md
+  matches.jsonl
+  ladder.initial.json
+  ladder.final.json
+  configs.json
+  environment.json
+```
+
+- `README.md`: human-readable summary, standings, notable upsets, and interpretation.
+- `matches.jsonl`: append-only scheduler events with `rawResult` and `schedulerDecision`.
+- `ladder.initial.json`: initial ranking before replay.
+- `ladder.final.json`: final derived ranking.
+- `configs.json`: all candidate configurations in the run.
+- `environment.json`: git commit, runner versions, seeds, Dart/Flutter versions, OS, and command invocation.
+
+GitHub Wiki can be used as an optional presentation layer by copying or syncing the generated `README.md`, but it should not be the sole source of truth. The repository archive keeps raw evidence reviewable, versioned, and tied to the code commit that produced it.
+
+The scheduler should be able to resume from existing JSONL logs by replaying decisions in order. Replaying `ladder.initial.json` plus `matches.jsonl` must reproduce `ladder.final.json` and its `resultLadderHash`.
 
 ### Phase F - Developer Entry Point
 
@@ -173,6 +227,7 @@ Planned options:
 - `--mode global`
 - `--output build/ai_arena/matches.jsonl`
 - `--snapshot build/ai_arena/ladder.json`
+- `--archive docs/ai_arena_runs/<run-id>`
 
 The first implementation should not wire this into app UI.
 
@@ -187,7 +242,20 @@ The first implementation should not wire this into app UI.
 7. Replaying the same JSONL match log produces the same ladder snapshot.
 8. Repeated wins over already-lower-ranked opponents do not change rank.
 9. Inconclusive results, including 6-4, 5-5, and draw-heavy outcomes without a 7-win side, are logged but do not update the ladder.
-10. The future implementation should validate with:
+10. The JSONL schema separates `rawResult` from `schedulerDecision`.
+11. `rawResult` contains deterministic replay fields: `matchSeed`, `openingSeed`, `openingPolicy`, and per-game `openingIndex`.
+12. `schedulerDecision` contains before/after ladder state or hashes sufficient for audit.
+13. Conclusion-grade runs are archived under `docs/ai_arena_runs/<run-id>/`, while `build/ai_arena/` remains disposable local output.
+14. Wiki publication, if used, is generated from archived run summaries and is not the only source of truth.
+15. The future implementation includes unit tests for:
+
+- lower-ranked config beats higher-ranked config 7-3 and moves only immediately before that defeated config;
+- higher-ranked config beats lower-ranked config 10-0 and the ladder remains unchanged;
+- replaying the same log produces the same snapshot and hash;
+- new candidate insertion at the weakest end before movement rules apply;
+- 6-4, 5-5, and draw-heavy results without a 7-win side are no-ops.
+
+16. The future implementation should validate with:
 
 ```text
 flutter analyze --no-fatal-infos --no-fatal-warnings
