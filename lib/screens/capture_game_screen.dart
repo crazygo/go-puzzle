@@ -2364,6 +2364,15 @@ class _MotivationHeroTitleState extends State<_MotivationHeroTitle>
       duration: const Duration(milliseconds: 420),
       switchInCurve: Curves.easeOutCubic,
       switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) {
+        return Stack(
+          alignment: Alignment.topLeft,
+          children: [
+            ...previousChildren,
+            if (currentChild != null) currentChild,
+          ],
+        );
+      },
       transitionBuilder: (child, animation) {
         final offset = Tween<Offset>(
           begin: const Offset(0, 0.18),
