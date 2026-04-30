@@ -130,9 +130,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('对局配置'), findsOneWidget);
-      expect(find.text('猎杀'), findsOneWidget);
+      expect(find.text('随机'), findsOneWidget);
 
-      await tester.tap(find.text('猎杀'));
+      await tester.tap(find.text('随机'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('稳守 · 先补强自己，再等反击'));
