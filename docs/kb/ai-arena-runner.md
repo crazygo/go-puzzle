@@ -8,7 +8,7 @@ This document defines the AI arena run terms and the expected local workflow.
 - **Game**: One complete capture-go game made of many moves. A game ends with a
   black win, white win, or draw.
 - **Match**: One head-to-head comparison between two AI configs. The runner
-  defaults to 10 games per match and alternates colors between the two configs.
+  defaults to 12 games per match and alternates colors between the two configs.
 - **Ladder**: The ordered ranking of AI configs, strongest first. The ladder can
   change only after a match finishes, because promotion rules use the match's
   final win counts.

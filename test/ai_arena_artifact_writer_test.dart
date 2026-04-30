@@ -91,6 +91,7 @@ AiLadderEvent _event(AiLadderSnapshot ladder) {
         index: 0,
         gameSeed: 1000,
         openingIndex: 0,
+        opening: 'empty',
         black: 'a',
         winner: 'a',
         moves: 10,

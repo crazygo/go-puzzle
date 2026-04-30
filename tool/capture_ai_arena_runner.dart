@@ -16,7 +16,7 @@ import 'ai_arena_artifact_writer.dart';
 ///
 /// Options:
 ///   --smoke                Run a minimal deterministic smoke test
-///   --rounds <n>           Games per match (default: 10)
+///   --rounds <n>           Games per match (default: 12)
 ///   --promotion-threshold <n>  Wins required to promote (default: 7)
 ///   --board-size <n>       Board size (default: 9)
 ///   --capture-target <n>   Capture target (default: 5)
@@ -38,7 +38,7 @@ void main(List<String> args) {
     print('DEPRECATED: --snapshot is now --output-ladder.');
   }
 
-  final rounds = int.tryParse(opts['rounds'] as String? ?? '10') ?? 10;
+  final rounds = int.tryParse(opts['rounds'] as String? ?? '12') ?? 12;
   final promotionThreshold =
       int.tryParse(opts['promotion-threshold'] as String? ?? '7') ?? 7;
   final boardSize = int.tryParse(opts['board-size'] as String? ?? '9') ?? 9;

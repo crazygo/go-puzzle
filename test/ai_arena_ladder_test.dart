@@ -21,11 +21,11 @@ class _FakeExecutor {
       (i) => AiGameRecord(
         index: i,
         gameSeed: matchSeed * 1000 + i,
-        openingIndex: i % 9,
+        openingIndex: i % 2,
+        opening: i.isEven ? 'empty' : 'twistCross',
         black: i.isEven ? 'a' : 'b',
-        winner: i < fixedAWins
-            ? 'a'
-            : (i < fixedAWins + fixedBWins ? 'b' : 'draw'),
+        winner:
+            i < fixedAWins ? 'a' : (i < fixedAWins + fixedBWins ? 'b' : 'draw'),
         moves: 40,
         blackCaptures: 5,
         whiteCaptures: 3,
@@ -205,7 +205,8 @@ void main() {
       expect(snapshot.ids, ['a', 'b', 'c']);
     });
 
-    test('promoteWinner moves lower-ranked winner immediately before loser', () {
+    test('promoteWinner moves lower-ranked winner immediately before loser',
+        () {
       // Ladder: a (rank 0, strongest) > b (rank 1) > c (rank 2, weakest)
       final snapshot = AiLadderSnapshot(['a', 'b', 'c']);
       // c beats b (c is lower-ranked than b).
@@ -258,8 +259,7 @@ void main() {
       expect(scheduler.ladder.ids, ['alpha', 'beta', 'gamma']);
 
       // gamma (configA) beats beta (configB) 7-3.
-      final event =
-          scheduler.runMatch(_config('gamma'), _config('beta'));
+      final event = scheduler.runMatch(_config('gamma'), _config('beta'));
 
       expect(event.schedulerDecision.decision, 'promote_winner');
       expect(event.schedulerDecision.winner, 'gamma');
@@ -280,11 +280,10 @@ void main() {
       );
       // alpha beats gamma — alpha is already above gamma.
       final beforeIds = scheduler.ladder.ids.toList();
-      final event =
-          scheduler.runMatch(_config('alpha'), _config('gamma'));
+      final event = scheduler.runMatch(_config('alpha'), _config('gamma'));
 
-      expect(event.schedulerDecision.decision,
-          'no_change_winner_already_higher');
+      expect(
+          event.schedulerDecision.decision, 'no_change_winner_already_higher');
       expect(scheduler.ladder.ids, beforeIds);
     });
 
@@ -295,8 +294,7 @@ void main() {
         fakeExecutor: _FakeExecutor(fixedAWins: 6, fixedBWins: 4),
       );
       final beforeIds = scheduler.ladder.ids.toList();
-      final event =
-          scheduler.runMatch(_config('beta'), _config('alpha'));
+      final event = scheduler.runMatch(_config('beta'), _config('alpha'));
 
       expect(event.schedulerDecision.decision, 'inconclusive');
       expect(scheduler.ladder.ids, beforeIds);
@@ -309,8 +307,7 @@ void main() {
         fakeExecutor: _FakeExecutor(fixedAWins: 5, fixedBWins: 5),
       );
       final beforeIds = scheduler.ladder.ids.toList();
-      final event =
-          scheduler.runMatch(_config('beta'), _config('alpha'));
+      final event = scheduler.runMatch(_config('beta'), _config('alpha'));
 
       expect(event.schedulerDecision.decision, 'inconclusive');
       expect(scheduler.ladder.ids, beforeIds);
@@ -344,8 +341,7 @@ void main() {
 
       // All decisions should be no_change.
       for (final e in scheduler.events) {
-        expect(e.schedulerDecision.decision,
-            'no_change_winner_already_higher');
+        expect(e.schedulerDecision.decision, 'no_change_winner_already_higher');
       }
       // Ladder should be unchanged throughout.
       expect(scheduler.ladder.ids, ['alpha', 'beta', 'gamma']);
@@ -360,8 +356,7 @@ void main() {
       );
       // Introduce new config 'omega' by running a match.
       // omega (configB) beats alpha (configA) 10-0.
-      final event =
-          scheduler.runMatch(_config('alpha'), _config('omega'));
+      final event = scheduler.runMatch(_config('alpha'), _config('omega'));
 
       // 'omega' should have been inserted at the weakest end first, then
       // promoted if it won. Since B wins = 10, omega (B) wins and gets

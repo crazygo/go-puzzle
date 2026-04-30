@@ -49,14 +49,12 @@ class AiBattleConfig {
       rank: json['rank'] as int?,
       profileVersion:
           json['profileVersion'] as String? ?? 'capture_ai_profile_v1',
-      parameters:
-          (json['parameters'] as Map<String, dynamic>?) ?? const {},
+      parameters: (json['parameters'] as Map<String, dynamic>?) ?? const {},
     );
   }
 
   @override
-  bool operator ==(Object other) =>
-      other is AiBattleConfig && other.id == id;
+  bool operator ==(Object other) => other is AiBattleConfig && other.id == id;
 
   @override
   int get hashCode => id.hashCode;
@@ -71,6 +69,7 @@ class AiGameRecord {
     required this.index,
     required this.gameSeed,
     required this.openingIndex,
+    required this.opening,
     required this.black,
     required this.winner,
     required this.moves,
@@ -82,6 +81,9 @@ class AiGameRecord {
   final int index;
   final int gameSeed;
   final int openingIndex;
+
+  /// Stable opening name used to initialize the board, e.g. 'empty'.
+  final String opening;
 
   /// 'a' or 'b' — which config plays black.
   final String black;
@@ -98,6 +100,7 @@ class AiGameRecord {
         'index': index,
         'gameSeed': gameSeed,
         'openingIndex': openingIndex,
+        'opening': opening,
         'black': black,
         'winner': winner,
         'moves': moves,
@@ -111,6 +114,7 @@ class AiGameRecord {
       index: json['index'] as int,
       gameSeed: json['gameSeed'] as int,
       openingIndex: json['openingIndex'] as int,
+      opening: json['opening'] as String? ?? 'legacy',
       black: json['black'] as String,
       winner: json['winner'] as String,
       moves: json['moves'] as int,
@@ -184,10 +188,8 @@ class AiMatchResult {
       captureTarget: json['captureTarget'] as int,
       rounds: json['rounds'] as int,
       maxMoves: json['maxMoves'] as int,
-      configA: AiBattleConfig.fromJson(
-          json['configA'] as Map<String, dynamic>),
-      configB: AiBattleConfig.fromJson(
-          json['configB'] as Map<String, dynamic>),
+      configA: AiBattleConfig.fromJson(json['configA'] as Map<String, dynamic>),
+      configB: AiBattleConfig.fromJson(json['configB'] as Map<String, dynamic>),
       aWins: json['aWins'] as int,
       bWins: json['bWins'] as int,
       draws: json['draws'] as int,
@@ -314,12 +316,11 @@ class AiLadderEvent {
       schedulerVersion: json['schedulerVersion'] as String,
       executorVersion: json['executorVersion'] as String,
       configVersion: json['configVersion'] as String,
-      matchRules:
-          Map<String, dynamic>.from(json['matchRules'] as Map),
+      matchRules: Map<String, dynamic>.from(json['matchRules'] as Map),
       initialLadderHash: json['initialLadderHash'] as String,
       resultLadderHash: json['resultLadderHash'] as String,
-      rawResult: AiMatchResult.fromJson(
-          json['rawResult'] as Map<String, dynamic>),
+      rawResult:
+          AiMatchResult.fromJson(json['rawResult'] as Map<String, dynamic>),
       schedulerDecision: AiSchedulerDecision.fromJson(
           json['schedulerDecision'] as Map<String, dynamic>),
     );
@@ -328,6 +329,5 @@ class AiLadderEvent {
   String toJsonLine() => jsonEncode(toJson());
 
   static AiLadderEvent fromJsonLine(String line) =>
-      AiLadderEvent.fromJson(
-          jsonDecode(line) as Map<String, dynamic>);
+      AiLadderEvent.fromJson(jsonDecode(line) as Map<String, dynamic>);
 }

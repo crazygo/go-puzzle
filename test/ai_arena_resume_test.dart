@@ -26,7 +26,8 @@ class _FakeExecutor {
       (i) => AiGameRecord(
         index: i,
         gameSeed: matchSeed * 1000 + i,
-        openingIndex: i % 9,
+        openingIndex: i % 2,
+        opening: i.isEven ? 'empty' : 'twistCross',
         black: i.isEven ? 'a' : 'b',
         winner: i < fixedAWins ? 'a' : (i < totalGames ? 'b' : 'draw'),
         moves: 40,

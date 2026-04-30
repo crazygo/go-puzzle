@@ -636,8 +636,11 @@ class CaptureAiArena {
     required int boardSize,
     required int captureTarget,
     int maxMoves = 512,
+    SimBoard? initialBoard,
   }) {
-    final board = SimBoard(boardSize, captureTarget: captureTarget);
+    final board = initialBoard == null
+        ? SimBoard(boardSize, captureTarget: captureTarget)
+        : SimBoard.copy(initialBoard);
     var totalMoves = 0;
     var endReason = CaptureAiMatchEndReason.maxMovesReached;
 
