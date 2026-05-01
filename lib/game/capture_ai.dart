@@ -137,7 +137,7 @@ class CaptureAiRobotConfig {
           style: style,
           difficulty: difficulty,
           engine: engine,
-          heuristicPlayouts: 8,
+          heuristicPlayouts: 12,
           mctsPlayouts: 0,
           mctsRolloutDepth: 0,
           mctsCandidateLimit: 6,
@@ -149,7 +149,7 @@ class CaptureAiRobotConfig {
           style: style,
           difficulty: difficulty,
           engine: engine,
-          heuristicPlayouts: 16,
+          heuristicPlayouts: 24,
           mctsPlayouts: 16,
           mctsRolloutDepth: 16,
           mctsCandidateLimit: 6,
@@ -161,10 +161,10 @@ class CaptureAiRobotConfig {
           style: style,
           difficulty: difficulty,
           engine: engine,
-          heuristicPlayouts: 0,
-          mctsPlayouts: 32,
-          mctsRolloutDepth: 20,
-          mctsCandidateLimit: 8,
+          heuristicPlayouts: 96,
+          mctsPlayouts: 48,
+          mctsRolloutDepth: 36,
+          mctsCandidateLimit: 12,
           mctsExploration: 1.05,
           rolloutTemperature: 2.5,
           seed: stableSeed,
@@ -282,12 +282,25 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
       seed: _config.seed + _boardFingerprint(board),
     );
     final position = engine.getBestMove(board);
-    if (position == null) return null;
-    return CaptureAiMove(
-      position: position,
-      score: _scoreMove(board, board.idx(position.row, position.col),
-          board.analyzeMove(position.row, position.col)),
-    );
+    final mctsMove = position == null
+        ? null
+        : CaptureAiMove(
+            position: position,
+            score: _scoreMove(
+              board,
+              board.idx(position.row, position.col),
+              board.analyzeMove(position.row, position.col),
+            ),
+          );
+
+    final heuristicMove = _WeightedCaptureAiAgent(
+      style: style,
+      profile: _profile,
+    ).chooseMove(board);
+
+    if (mctsMove == null) return heuristicMove;
+    if (heuristicMove == null) return mctsMove;
+    return mctsMove.score >= heuristicMove.score ? mctsMove : heuristicMove;
   }
 
   double _scoreMove(

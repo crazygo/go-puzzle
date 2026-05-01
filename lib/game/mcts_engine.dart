@@ -362,10 +362,15 @@ class _MctsNode {
     return wins / visits + c * math.sqrt(math.log(parentVisits) / visits);
   }
 
-  /// Child with the highest visit count (most-visited policy for final answer).
-  _MctsNode? get mostVisitedChild {
+  /// Child with the highest empirical win rate.
+  _MctsNode? get highestWinRateChild {
     if (children.isEmpty) return null;
-    return children.reduce((a, b) => a.visits > b.visits ? a : b);
+    return children.reduce((a, b) {
+      final aRate = a.visits == 0 ? 0.0 : a.wins / a.visits;
+      final bRate = b.visits == 0 ? 0.0 : b.wins / b.visits;
+      if (aRate == bRate) return a.visits >= b.visits ? a : b;
+      return aRate > bRate ? a : b;
+    });
   }
 
   static List<int> _rankMoves(
@@ -452,7 +457,7 @@ class MctsEngine {
       _backpropagate(leaf, winner);
     }
 
-    final best = root.mostVisitedChild;
+    final best = root.highestWinRateChild;
     if (best == null) return null;
     return BoardPosition(
       best.moveIdx ~/ board.size,
@@ -514,8 +519,12 @@ class MctsEngine {
       board.applyMove(moveIdx ~/ board.size, moveIdx % board.size);
       depth++;
     }
-    // Non-terminal: use capture advantage as tie-break heuristic.
+    // Non-terminal: use capture advantage as tie-break heuristic. If captures
+    // are tied, prefer the player to move because they still own initiative.
     if (!board.isTerminal) {
+      if (board.capturedByBlack == board.capturedByWhite) {
+        return board.currentPlayer;
+      }
       return board.capturedByWhite > board.capturedByBlack
           ? SimBoard.white
           : SimBoard.black;
