@@ -259,7 +259,10 @@ class _HybridCaptureAiAgent implements CaptureAiAgent {
     if (!_isSaferThanHeuristic(board, mctsMove, heuristicMove)) {
       return heuristicMove;
     }
-    return mctsMove.score >= heuristicMove.score + 30.0
+    // Large boards have weaker MCTS signal per playout, so require a smaller
+    // score gap before trusting the MCTS recommendation.
+    final threshold = board.size <= 9 ? 30.0 : 10.0;
+    return mctsMove.score >= heuristicMove.score + threshold
         ? mctsMove
         : heuristicMove;
   }
@@ -281,8 +284,10 @@ class _HybridCaptureAiAgent implements CaptureAiAgent {
     )) {
       return true;
     }
-    return _searchMargin(mctsBoard, currentPlayer, depth: 2) >=
-        _searchMargin(heuristicBoard, currentPlayer, depth: 2);
+    // Use shallower search on larger boards to keep safety checks affordable.
+    final depth = board.size <= 9 ? 2 : 1;
+    return _searchMargin(mctsBoard, currentPlayer, depth: depth) >=
+        _searchMargin(heuristicBoard, currentPlayer, depth: depth);
   }
 
   double _searchMargin(SimBoard board, int player, {required int depth}) {
@@ -361,9 +366,10 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     if (urgentMove != null) return urgentMove;
 
     final lookaheadMove = _chooseLookaheadMove(board);
+    // Scale MCTS budget by board size so large boards get adequate coverage.
     final engine = MctsEngine(
-      maxPlayouts: _config.mctsPlayouts,
-      rolloutDepth: _config.mctsRolloutDepth,
+      maxPlayouts: _scaledPlayouts(_config.mctsPlayouts, board.size),
+      rolloutDepth: _scaledRolloutDepth(_config.mctsRolloutDepth, board.size),
       exploration: _config.mctsExploration,
       candidateLimit: _config.mctsCandidateLimit,
       moveScorer: _scoreMove,
@@ -412,7 +418,7 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
       if (lookaheadMove != null) lookaheadMove,
       CaptureAiMove(
         position: mctsMove.position,
-        score: mctsMove.score + _mctsDecisionBonus,
+        score: mctsMove.score + _mctsDecisionBonusFor(board.size),
       ),
       heuristicMove,
     ]..sort((a, b) => b.score.compareTo(a.score));
@@ -425,17 +431,34 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     final best = safeCandidates.first;
     final sameAsHeuristic = best.position.row == heuristicMove.position.row &&
         best.position.col == heuristicMove.position.col;
-    if (!sameAsHeuristic && best.score < heuristicMove.score + 30.0) {
+    // On large boards the MCTS signal is boosted; require a smaller gap.
+    final scoreThreshold = board.size <= 9 ? 30.0 : 10.0;
+    if (!sameAsHeuristic && best.score < heuristicMove.score + scoreThreshold) {
       return heuristicMove;
     }
     return best;
   }
 
-  double get _mctsDecisionBonus {
+  /// Playouts scale up with board size so the search tree is adequately sampled.
+  static int _scaledPlayouts(int base, int boardSize) {
+    if (boardSize <= 9) return base;
+    if (boardSize <= 13) return (base * 1.5).round();
+    return base * 2; // 19×19: 2× keeps move time under ~3 s
+  }
+
+  /// Rollout depth also scales so simulations reach meaningful game states.
+  static int _scaledRolloutDepth(int base, int boardSize) {
+    if (boardSize <= 9) return base;
+    if (boardSize <= 13) return (base * 1.25).round();
+    return (base * 1.5).round(); // 19×19
+  }
+
+  double _mctsDecisionBonusFor(int boardSize) {
     return switch (_config.difficulty) {
       DifficultyLevel.beginner => 0,
-      DifficultyLevel.intermediate => 0,
-      DifficultyLevel.advanced => 12.0,
+      // On large boards give intermediate a bonus so MCTS can win the tie-break.
+      DifficultyLevel.intermediate => boardSize <= 9 ? 0.0 : 8.0,
+      DifficultyLevel.advanced => boardSize <= 9 ? 12.0 : 20.0,
     };
   }
 
@@ -481,7 +504,8 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     if (!next.applyMove(move.position.row, move.position.col)) {
       return -double.infinity;
     }
-    return _minimaxScore(next, currentPlayer, 2);
+    final depth = board.size <= 9 ? 2 : 1;
+    return _minimaxScore(next, currentPlayer, depth);
   }
 
   CaptureAiMove? _chooseLookaheadMove(SimBoard board) {
@@ -513,8 +537,9 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
           afterMove.winner == board.currentPlayer ? 1000.0 : 0.0;
       final depth = switch (_config.difficulty) {
         DifficultyLevel.beginner => 0,
-        DifficultyLevel.intermediate => 2,
-        DifficultyLevel.advanced => 2,
+        // Shallower lookahead on larger boards keeps move time affordable.
+        DifficultyLevel.intermediate => board.size <= 9 ? 2 : 1,
+        DifficultyLevel.advanced => board.size <= 9 ? 2 : 1,
       };
       final lookaheadScore = entry.score +
           terminalBonus +
