@@ -166,7 +166,7 @@ class CaptureAiRobotConfig {
           mctsRolloutDepth: 36,
           mctsCandidateLimit: 12,
           mctsExploration: 1.05,
-          rolloutTemperature: 2.5,
+          rolloutTemperature: 0,
           seed: stableSeed,
         ),
     };
@@ -789,7 +789,7 @@ class _CaptureAiProfile {
           DifficultyLevel.advanced => 48,
         };
 
-    return switch (style) {
+    final base = switch (style) {
       CaptureAiStyle.adaptive => _CaptureAiProfile(
           // Averaged weights across all four named styles, giving the
           // highest unconstrained strength at equal playouts.
@@ -843,6 +843,37 @@ class _CaptureAiProfile {
           playouts: playouts,
         ),
     };
+
+    return base.tunedForDifficulty(difficulty);
+  }
+
+  _CaptureAiProfile tunedForDifficulty(DifficultyLevel difficulty) {
+    final tacticalScale = switch (difficulty) {
+      DifficultyLevel.beginner => 1.0,
+      DifficultyLevel.intermediate => 1.18,
+      DifficultyLevel.advanced => 1.45,
+    };
+    final safetyScale = switch (difficulty) {
+      DifficultyLevel.beginner => 1.0,
+      DifficultyLevel.intermediate => 1.25,
+      DifficultyLevel.advanced => 1.8,
+    };
+    final libertyScale = switch (difficulty) {
+      DifficultyLevel.beginner => 1.0,
+      DifficultyLevel.intermediate => 1.12,
+      DifficultyLevel.advanced => 1.35,
+    };
+
+    return _CaptureAiProfile(
+      immediateCaptureWeight: immediateCaptureWeight * tacticalScale,
+      opponentAtariWeight: opponentAtariWeight * tacticalScale,
+      ownRescueWeight: ownRescueWeight * safetyScale,
+      selfAtariPenalty: selfAtariPenalty * safetyScale,
+      centerWeight: centerWeight,
+      contactWeight: contactWeight,
+      libertyWeight: libertyWeight * libertyScale,
+      playouts: playouts,
+    );
   }
 }
 
