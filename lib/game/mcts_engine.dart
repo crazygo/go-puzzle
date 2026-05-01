@@ -550,7 +550,9 @@ class MctsEngine {
     if (scorer == null) return moves[_rng.nextInt(moves.length)];
 
     if (rolloutTemperature <= 0) {
-      return _MctsNode._rankMoves(board, moves, scorer).first;
+      final rankedMoves = _MctsNode._rankMoves(board, moves, scorer);
+      if (rankedMoves.isNotEmpty) return rankedMoves.first;
+      return moves[_rng.nextInt(moves.length)];
     }
 
     final scored = <({int moveIndex, double weight})>[];

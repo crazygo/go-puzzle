@@ -74,6 +74,7 @@ void main(List<String> args) {
     promotionThreshold: promotionThreshold,
     baseSeed: baseSeed,
     maxMoves: maxMoves,
+    openingPolicy: const AiArenaExecutor().openingPolicy,
   );
 
   final artifacts = AiArenaArtifactWriter(

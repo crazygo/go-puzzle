@@ -59,6 +59,7 @@ class AiArenaArtifactWriter {
         'rounds': manifest.rounds,
         'promotionThreshold': manifest.promotionThreshold,
         'maxMoves': manifest.maxMoves,
+        'openingPolicy': manifest.openingPolicy,
         'candidateCount': manifest.candidateIds.length,
       },
       if (completedMatches != null) 'completedMatches': completedMatches,

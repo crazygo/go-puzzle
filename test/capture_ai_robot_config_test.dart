@@ -23,9 +23,61 @@ void main() {
         isNotEmpty,
       );
       expect(
-        configs.where((config) => config.engine == CaptureAiEngine.mcts),
+        configs.where((config) =>
+            config.engine == CaptureAiEngine.hybridMcts &&
+            config.mctsPlayouts > 0),
         isNotEmpty,
       );
+    });
+
+    test('difficulty tiers preserve beginner and increase search budget',
+        () {
+      for (final style in CaptureAiStyle.values) {
+        final beginner = CaptureAiRegistry.resolveConfig(
+          style: style,
+          difficulty: DifficultyLevel.beginner,
+        );
+        final intermediate = CaptureAiRegistry.resolveConfig(
+          style: style,
+          difficulty: DifficultyLevel.intermediate,
+        );
+        final advanced = CaptureAiRegistry.resolveConfig(
+          style: style,
+          difficulty: DifficultyLevel.advanced,
+        );
+
+        expect(beginner.engine, CaptureAiEngine.heuristic);
+        expect(beginner.heuristicPlayouts, 12);
+        expect(beginner.mctsPlayouts, 0);
+        expect(beginner.mctsRolloutDepth, 0);
+
+        expect(intermediate.engine, CaptureAiEngine.hybridMcts);
+        expect(
+          intermediate.heuristicPlayouts,
+          greaterThanOrEqualTo(beginner.heuristicPlayouts),
+        );
+        expect(intermediate.mctsPlayouts, greaterThan(0));
+        expect(intermediate.mctsRolloutDepth, greaterThan(0));
+
+        expect(advanced.engine, CaptureAiEngine.hybridMcts);
+        expect(
+          advanced.heuristicPlayouts,
+          greaterThan(intermediate.heuristicPlayouts),
+        );
+        expect(advanced.mctsPlayouts, greaterThan(intermediate.mctsPlayouts));
+        expect(
+          advanced.mctsRolloutDepth,
+          greaterThan(intermediate.mctsRolloutDepth),
+        );
+        expect(
+          advanced.mctsCandidateLimit,
+          greaterThan(intermediate.mctsCandidateLimit),
+        );
+        expect(
+          advanced.rolloutTemperature,
+          lessThan(intermediate.rolloutTemperature),
+        );
+      }
     });
 
     test(

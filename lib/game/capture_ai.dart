@@ -129,7 +129,7 @@ class CaptureAiRobotConfig {
     final engine = switch (difficulty) {
       DifficultyLevel.beginner => CaptureAiEngine.heuristic,
       DifficultyLevel.intermediate => CaptureAiEngine.hybridMcts,
-      DifficultyLevel.advanced => CaptureAiEngine.mcts,
+      DifficultyLevel.advanced => CaptureAiEngine.hybridMcts,
     };
 
     return switch (difficulty) {
@@ -149,24 +149,24 @@ class CaptureAiRobotConfig {
           style: style,
           difficulty: difficulty,
           engine: engine,
-          heuristicPlayouts: 24,
-          mctsPlayouts: 16,
-          mctsRolloutDepth: 16,
-          mctsCandidateLimit: 6,
+          heuristicPlayouts: 12,
+          mctsPlayouts: 24,
+          mctsRolloutDepth: 14,
+          mctsCandidateLimit: 11,
           mctsExploration: 1.25,
-          rolloutTemperature: 3.5,
+          rolloutTemperature: 8.0,
           seed: stableSeed,
         ),
       DifficultyLevel.advanced => CaptureAiRobotConfig(
           style: style,
           difficulty: difficulty,
           engine: engine,
-          heuristicPlayouts: 96,
-          mctsPlayouts: 48,
-          mctsRolloutDepth: 36,
-          mctsCandidateLimit: 12,
+          heuristicPlayouts: 40,
+          mctsPlayouts: 72,
+          mctsRolloutDepth: 20,
+          mctsCandidateLimit: 14,
           mctsExploration: 1.05,
-          rolloutTemperature: 0,
+          rolloutTemperature: 6.0,
           seed: stableSeed,
         ),
     };
@@ -252,7 +252,92 @@ class _HybridCaptureAiAgent implements CaptureAiAgent {
 
   @override
   CaptureAiMove? chooseMove(SimBoard board) {
-    return _mctsAgent.chooseMove(board) ?? _heuristicAgent.chooseMove(board);
+    final heuristicMove = _heuristicAgent.chooseMove(board);
+    final mctsMove = _mctsAgent.chooseMove(board);
+    if (mctsMove == null) return heuristicMove;
+    if (heuristicMove == null) return mctsMove;
+    if (!_isSaferThanHeuristic(board, mctsMove, heuristicMove)) {
+      return heuristicMove;
+    }
+    return mctsMove.score >= heuristicMove.score + 30.0
+        ? mctsMove
+        : heuristicMove;
+  }
+
+  bool _isSaferThanHeuristic(
+    SimBoard board,
+    CaptureAiMove mctsMove,
+    CaptureAiMove heuristicMove,
+  ) {
+    final currentPlayer = board.currentPlayer;
+    final mctsBoard = SimBoard.copy(board);
+    final heuristicBoard = SimBoard.copy(board);
+    if (!mctsBoard.applyMove(mctsMove.position.row, mctsMove.position.col)) {
+      return false;
+    }
+    if (!heuristicBoard.applyMove(
+      heuristicMove.position.row,
+      heuristicMove.position.col,
+    )) {
+      return true;
+    }
+    return _searchMargin(mctsBoard, currentPlayer, depth: 2) >=
+        _searchMargin(heuristicBoard, currentPlayer, depth: 2);
+  }
+
+  double _searchMargin(SimBoard board, int player, {required int depth}) {
+    if (board.winner == player) return 10000;
+    if (board.winner != 0) return -10000;
+    if (depth <= 0) return _captureMargin(board, player) * 100.0;
+
+    final moves = _rankSafetyCandidates(board).take(8);
+    if (board.currentPlayer == player) {
+      var best = -double.infinity;
+      for (final moveIndex in moves) {
+        final next = SimBoard.copy(board);
+        if (!next.applyMove(moveIndex ~/ board.size, moveIndex % board.size)) {
+          continue;
+        }
+        best = math.max(best, _searchMargin(next, player, depth: depth - 1));
+      }
+      return best.isFinite ? best : _captureMargin(board, player) * 100.0;
+    }
+
+    var worst = double.infinity;
+    for (final moveIndex in moves) {
+      final next = SimBoard.copy(board);
+      if (!next.applyMove(moveIndex ~/ board.size, moveIndex % board.size)) {
+        continue;
+      }
+      worst = math.min(worst, _searchMargin(next, player, depth: depth - 1));
+    }
+    return worst.isFinite ? worst : _captureMargin(board, player) * 100.0;
+  }
+
+  int _captureMargin(SimBoard board, int player) {
+    return player == SimBoard.black
+        ? board.capturedByBlack - board.capturedByWhite
+        : board.capturedByWhite - board.capturedByBlack;
+  }
+
+  List<int> _rankSafetyCandidates(SimBoard board) {
+    final scored = <({int moveIndex, double score})>[];
+    for (final moveIndex in board.getLegalMoves()) {
+      final row = moveIndex ~/ board.size;
+      final col = moveIndex % board.size;
+      final analysis = board.analyzeMove(row, col);
+      if (!analysis.isLegal) continue;
+      scored.add((
+        moveIndex: moveIndex,
+        score: _scoreWithProfile(board, analysis, _heuristicAgent._profile),
+      ));
+    }
+    scored.sort((a, b) {
+      final byScore = b.score.compareTo(a.score);
+      if (byScore != 0) return byScore;
+      return a.moveIndex.compareTo(b.moveIndex);
+    });
+    return scored.map((entry) => entry.moveIndex).toList();
   }
 }
 
@@ -272,6 +357,10 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
 
   @override
   CaptureAiMove? chooseMove(SimBoard board) {
+    final urgentMove = _chooseUrgentMove(board);
+    if (urgentMove != null) return urgentMove;
+
+    final lookaheadMove = _chooseLookaheadMove(board);
     final engine = MctsEngine(
       maxPlayouts: _config.mctsPlayouts,
       rolloutDepth: _config.mctsRolloutDepth,
@@ -297,10 +386,224 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
       style: style,
       profile: _profile,
     ).chooseMove(board);
+    final openingBaselineMove = _chooseAdvancedOpeningBaselineMove(board);
+    if (openingBaselineMove != null) {
+      return CaptureAiMove(
+        position: openingBaselineMove.position,
+        score: (heuristicMove?.score ?? openingBaselineMove.score) + 100.0,
+      );
+    }
 
-    if (mctsMove == null) return heuristicMove;
-    if (heuristicMove == null) return mctsMove;
-    return mctsMove.score >= heuristicMove.score ? mctsMove : heuristicMove;
+    if (mctsMove == null) {
+      final candidates = [
+        if (lookaheadMove != null) lookaheadMove,
+        if (heuristicMove != null) heuristicMove,
+      ]..sort((a, b) => b.score.compareTo(a.score));
+      return candidates.isEmpty ? null : candidates.first;
+    }
+    if (heuristicMove == null) {
+      final candidates = [
+        if (lookaheadMove != null) lookaheadMove,
+        mctsMove,
+      ]..sort((a, b) => b.score.compareTo(a.score));
+      return candidates.first;
+    }
+    final candidates = [
+      if (lookaheadMove != null) lookaheadMove,
+      CaptureAiMove(
+        position: mctsMove.position,
+        score: mctsMove.score + _mctsDecisionBonus,
+      ),
+      heuristicMove,
+    ]..sort((a, b) => b.score.compareTo(a.score));
+    final heuristicSafety = _safetyScore(board, heuristicMove);
+    final safeCandidates = candidates
+        .where((move) => _safetyScore(board, move) >= heuristicSafety)
+        .toList()
+      ..sort((a, b) => b.score.compareTo(a.score));
+    if (safeCandidates.isEmpty) return heuristicMove;
+    final best = safeCandidates.first;
+    final sameAsHeuristic = best.position.row == heuristicMove.position.row &&
+        best.position.col == heuristicMove.position.col;
+    if (!sameAsHeuristic && best.score < heuristicMove.score + 30.0) {
+      return heuristicMove;
+    }
+    return best;
+  }
+
+  double get _mctsDecisionBonus {
+    return switch (_config.difficulty) {
+      DifficultyLevel.beginner => 0,
+      DifficultyLevel.intermediate => 0,
+      DifficultyLevel.advanced => 12.0,
+    };
+  }
+
+  CaptureAiMove? _chooseAdvancedOpeningBaselineMove(SimBoard board) {
+    if (_config.difficulty != DifficultyLevel.advanced) return null;
+    final stoneCount =
+        board.cells.where((cell) => cell != SimBoard.empty).length;
+    if (stoneCount > board.size * 2) return null;
+    return CaptureAiRegistry.create(
+      style: style,
+      difficulty: DifficultyLevel.intermediate,
+      seed: _config.seed,
+    ).chooseMove(SimBoard.copy(board));
+  }
+
+  CaptureAiMove? _chooseUrgentMove(SimBoard board) {
+    final legalMoves = board.getLegalMoves();
+    CaptureAiMove? best;
+    for (final moveIndex in legalMoves) {
+      final row = moveIndex ~/ board.size;
+      final col = moveIndex % board.size;
+      final analysis = board.analyzeMove(row, col);
+      if (!analysis.isLegal) continue;
+      final ownCaptureDelta = board.currentPlayer == SimBoard.black
+          ? analysis.blackCaptureDelta
+          : analysis.whiteCaptureDelta;
+      final isUrgent = ownCaptureDelta > 0 || analysis.ownRescuedStones > 0;
+      if (!isUrgent) continue;
+      final move = CaptureAiMove(
+        position: BoardPosition(row, col),
+        score: _scoreMove(board, moveIndex, analysis) +
+            ownCaptureDelta * 20 +
+            analysis.ownRescuedStones * 10,
+      );
+      if (best == null || move.score > best.score) best = move;
+    }
+    return best;
+  }
+
+  double _safetyScore(SimBoard board, CaptureAiMove move) {
+    final currentPlayer = board.currentPlayer;
+    final next = SimBoard.copy(board);
+    if (!next.applyMove(move.position.row, move.position.col)) {
+      return -double.infinity;
+    }
+    return _minimaxScore(next, currentPlayer, 2);
+  }
+
+  CaptureAiMove? _chooseLookaheadMove(SimBoard board) {
+    final legalMoves = board.getLegalMoves();
+    final scored = <({int moveIndex, double score})>[];
+    for (final moveIndex in legalMoves) {
+      final row = moveIndex ~/ board.size;
+      final col = moveIndex % board.size;
+      final analysis = board.analyzeMove(row, col);
+      if (!analysis.isLegal) continue;
+      scored.add((
+        moveIndex: moveIndex,
+        score: _scoreMove(board, moveIndex, analysis),
+      ));
+    }
+    scored.sort((a, b) {
+      final byScore = b.score.compareTo(a.score);
+      if (byScore != 0) return byScore;
+      return a.moveIndex.compareTo(b.moveIndex);
+    });
+
+    CaptureAiMove? best;
+    for (final entry in scored.take(_config.mctsCandidateLimit)) {
+      final row = entry.moveIndex ~/ board.size;
+      final col = entry.moveIndex % board.size;
+      final afterMove = SimBoard.copy(board);
+      if (!afterMove.applyMove(row, col)) continue;
+      final terminalBonus =
+          afterMove.winner == board.currentPlayer ? 1000.0 : 0.0;
+      final depth = switch (_config.difficulty) {
+        DifficultyLevel.beginner => 0,
+        DifficultyLevel.intermediate => 2,
+        DifficultyLevel.advanced => 2,
+      };
+      final lookaheadScore = entry.score +
+          terminalBonus +
+          _minimaxScore(afterMove, board.currentPlayer, depth);
+      final move = CaptureAiMove(
+        position: BoardPosition(row, col),
+        score: lookaheadScore,
+      );
+      if (best == null || move.score > best.score) best = move;
+    }
+    return best;
+  }
+
+  double _minimaxScore(SimBoard board, int rootPlayer, int depth) {
+    if (board.winner == rootPlayer) return 10000;
+    if (board.winner != 0) return -10000;
+    if (depth <= 0) return _positionScore(board, rootPlayer);
+
+    final candidates = _rankSearchCandidates(board)
+        .take(math.max(3, _config.mctsCandidateLimit ~/ 2));
+    if (board.currentPlayer == rootPlayer) {
+      var best = -double.infinity;
+      for (final moveIndex in candidates) {
+        final next = SimBoard.copy(board);
+        if (!next.applyMove(moveIndex ~/ board.size, moveIndex % board.size)) {
+          continue;
+        }
+        best = math.max(best, _minimaxScore(next, rootPlayer, depth - 1));
+      }
+      return best.isFinite ? best : _positionScore(board, rootPlayer);
+    }
+
+    var worst = double.infinity;
+    for (final moveIndex in candidates) {
+      final next = SimBoard.copy(board);
+      if (!next.applyMove(moveIndex ~/ board.size, moveIndex % board.size)) {
+        continue;
+      }
+      worst = math.min(worst, _minimaxScore(next, rootPlayer, depth - 1));
+    }
+    return worst.isFinite ? worst : _positionScore(board, rootPlayer);
+  }
+
+  List<int> _rankSearchCandidates(SimBoard board) {
+    final scored = <({int moveIndex, double score})>[];
+    for (final moveIndex in board.getLegalMoves()) {
+      final row = moveIndex ~/ board.size;
+      final col = moveIndex % board.size;
+      final analysis = board.analyzeMove(row, col);
+      if (!analysis.isLegal) continue;
+      scored.add((
+        moveIndex: moveIndex,
+        score: _scoreMove(board, moveIndex, analysis),
+      ));
+    }
+    scored.sort((a, b) {
+      final byScore = b.score.compareTo(a.score);
+      if (byScore != 0) return byScore;
+      return a.moveIndex.compareTo(b.moveIndex);
+    });
+    return scored.map((entry) => entry.moveIndex).toList();
+  }
+
+  double _positionScore(SimBoard board, int player) {
+    if (board.winner == player) return 1000;
+    if (board.winner != 0) return -1000;
+    final ownCaptures = player == SimBoard.black
+        ? board.capturedByBlack
+        : board.capturedByWhite;
+    final opponentCaptures = player == SimBoard.black
+        ? board.capturedByWhite
+        : board.capturedByBlack;
+    final captureScore = (ownCaptures - opponentCaptures) * 120.0;
+
+    var opportunityScore = 0.0;
+    for (final moveIndex in _rankSearchCandidates(board).take(16)) {
+      final row = moveIndex ~/ board.size;
+      final col = moveIndex % board.size;
+      final analysis = board.analyzeMove(row, col);
+      if (!analysis.isLegal) continue;
+      final moveScore = _scoreMove(board, moveIndex, analysis);
+      if (board.currentPlayer == player) {
+        opportunityScore = math.max(opportunityScore, moveScore);
+      } else {
+        opportunityScore = math.min(opportunityScore, -moveScore);
+      }
+    }
+
+    return captureScore + opportunityScore;
   }
 
   double _scoreMove(
@@ -308,7 +611,24 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     int moveIndex,
     SimMoveAnalysis analysis,
   ) {
-    return _scoreWithProfile(board, analysis, _profile);
+    return _scoreWithProfile(board, analysis, _profile) +
+        _sparseBoardInitiativeScore(board, analysis);
+  }
+
+  double _sparseBoardInitiativeScore(
+    SimBoard board,
+    SimMoveAnalysis analysis,
+  ) {
+    final stoneCount =
+        board.cells.where((cell) => cell != SimBoard.empty).length;
+    if (stoneCount > board.size) return 0;
+    final scale = switch (_config.difficulty) {
+      DifficultyLevel.beginner => 0.0,
+      DifficultyLevel.intermediate => 32.0,
+      DifficultyLevel.advanced => 64.0,
+    };
+    return analysis.adjacentOpponentStones * scale +
+        analysis.centerProximityScore * scale * 0.12;
   }
 
   int _boardFingerprint(SimBoard board) {
@@ -850,18 +1170,23 @@ class _CaptureAiProfile {
   _CaptureAiProfile tunedForDifficulty(DifficultyLevel difficulty) {
     final tacticalScale = switch (difficulty) {
       DifficultyLevel.beginner => 1.0,
-      DifficultyLevel.intermediate => 1.18,
+      DifficultyLevel.intermediate => 1.35,
       DifficultyLevel.advanced => 1.45,
     };
     final safetyScale = switch (difficulty) {
       DifficultyLevel.beginner => 1.0,
-      DifficultyLevel.intermediate => 1.25,
-      DifficultyLevel.advanced => 1.8,
+      DifficultyLevel.intermediate => 1.18,
+      DifficultyLevel.advanced => 1.22,
     };
     final libertyScale = switch (difficulty) {
       DifficultyLevel.beginner => 1.0,
-      DifficultyLevel.intermediate => 1.12,
-      DifficultyLevel.advanced => 1.35,
+      DifficultyLevel.intermediate => 1.1,
+      DifficultyLevel.advanced => 1.12,
+    };
+    final contactScale = switch (difficulty) {
+      DifficultyLevel.beginner => 1.0,
+      DifficultyLevel.intermediate => 1.9,
+      DifficultyLevel.advanced => 2.2,
     };
 
     return _CaptureAiProfile(
@@ -870,7 +1195,7 @@ class _CaptureAiProfile {
       ownRescueWeight: ownRescueWeight * safetyScale,
       selfAtariPenalty: selfAtariPenalty * safetyScale,
       centerWeight: centerWeight,
-      contactWeight: contactWeight,
+      contactWeight: contactWeight * contactScale,
       libertyWeight: libertyWeight * libertyScale,
       playouts: playouts,
     );

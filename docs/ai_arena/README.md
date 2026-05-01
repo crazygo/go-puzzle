@@ -5,7 +5,9 @@ ranking snapshots. Each file stores the current ordered ladder, its hash, the
 run config, and the number of completed matches in a compact form for one board
 size.
 
-The default run uses 12 games per match: 6 empty-board games and 6 twist-cross games, with colors alternated inside each opening pair.
+The default run uses 12 games per match: 4 empty-board games, 4 twist-cross
+games, and 4 deterministic random-opening games, with colors alternated inside
+each opening pair.
 
 Detailed match logs are local artifacts. They are appended to
 `build/ai_arena/matches.b<board-size>.jsonl` after each completed match, so
