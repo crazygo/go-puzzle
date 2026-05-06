@@ -26,6 +26,7 @@ jobs:
 
       - name: Configure iOS app identifiers for CI
         run: |
+          set -euo pipefail
           if [ -z "${IOS_APP_BUNDLE_ID}" ]; then
             echo "Missing IOS_APP_BUNDLE_ID secret" >&2
             exit 1
@@ -36,6 +37,11 @@ jobs:
           fi
           sed -i.bak "s|^APP_BUNDLE_IDENTIFIER =.*$|APP_BUNDLE_IDENTIFIER = ${IOS_APP_BUNDLE_ID}|" ios/Flutter/Release.xcconfig
           sed -i.bak "s|^APP_DEVELOPMENT_TEAM =.*$|APP_DEVELOPMENT_TEAM = ${IOS_DEVELOPMENT_TEAM}|" ios/Flutter/Release.xcconfig
+          rm -f ios/Flutter/Release.xcconfig.bak
+          grep -qF "APP_BUNDLE_IDENTIFIER = ${IOS_APP_BUNDLE_ID}" ios/Flutter/Release.xcconfig \
+            || { echo "Failed to set APP_BUNDLE_IDENTIFIER in Release.xcconfig" >&2; exit 1; }
+          grep -qF "APP_DEVELOPMENT_TEAM = ${IOS_DEVELOPMENT_TEAM}" ios/Flutter/Release.xcconfig \
+            || { echo "Failed to set APP_DEVELOPMENT_TEAM in Release.xcconfig" >&2; exit 1; }
           echo "Using bundle id ${IOS_APP_BUNDLE_ID} and team ${IOS_DEVELOPMENT_TEAM}"
         env:
           IOS_APP_BUNDLE_ID: ${{ secrets.IOS_APP_BUNDLE_ID }}
