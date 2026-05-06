@@ -61,14 +61,17 @@ jobs:
             --base-href /go-puzzle/
 
       - name: Setup Pages
+        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master')
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
+        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master')
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
 
       - name: Deploy to GitHub Pages
+        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master')
         id: deployment
         uses: actions/deploy-pages@v4
 
