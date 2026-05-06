@@ -40,6 +40,7 @@ void main() {
         boardSize: 9,
         captureTarget: 5,
         difficulty: DifficultyLevel.beginner,
+        minMoveDelay: Duration.zero,
       );
 
       expect(provider.suggestMoves(count: 0), isEmpty);
@@ -51,12 +52,56 @@ void main() {
         boardSize: 9,
         captureTarget: 5,
         difficulty: DifficultyLevel.beginner,
+        minMoveDelay: Duration.zero,
       );
 
       expect(provider.aiStyle, CaptureAiStyle.adaptive);
 
       provider.setAiStyle(CaptureAiStyle.counter);
       expect(provider.aiStyle, CaptureAiStyle.counter);
+    });
+
+    test('isAiThinking is true during delay and false after move completes',
+        () async {
+      final thinkingValues = <bool>[];
+      // Human plays white so AI (black) moves first when game starts.
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        humanColor: StoneColor.white,
+        minMoveDelay: const Duration(milliseconds: 50),
+        maxMoveDelay: const Duration(milliseconds: 200),
+      );
+      // Register listener before microtask queue drains so we capture every
+      // isAiThinking transition.
+      provider.addListener(() => thinkingValues.add(provider.isAiThinking));
+
+      // Wait long enough for the minimum delay plus scheduling overhead.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
+      // isAiThinking should have been true at some point (thinking started).
+      expect(thinkingValues, contains(true));
+      // And back to false once the move is placed.
+      expect(provider.isAiThinking, isFalse);
+      expect(provider.moveLog, isNotEmpty); // AI actually placed a stone
+    });
+
+    test('AI places a stone after placeStone with minMoveDelay: Duration.zero',
+        () async {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        minMoveDelay: Duration.zero,
+      );
+
+      final initialMoveCount = provider.moveLog.length;
+      await provider.placeStone(4, 4);
+
+      // Human placed one stone; AI should have responded with exactly one more.
+      expect(provider.moveLog.length, equals(initialMoveCount + 2));
+      expect(provider.isAiThinking, isFalse);
     });
   });
 
@@ -105,6 +150,7 @@ void main() {
         boardSize: 9,
         captureTarget: 5,
         difficulty: DifficultyLevel.beginner,
+        minMoveDelay: Duration.zero,
       );
       final settings = SettingsProvider();
 

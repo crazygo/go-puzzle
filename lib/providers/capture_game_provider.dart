@@ -58,6 +58,9 @@ enum CaptureGameResult { none, blackWins, whiteWins }
 enum CaptureInitialMode { twistCross, empty, setup }
 
 class CaptureGameProvider extends ChangeNotifier {
+  static const Duration _defaultMinMoveDelay = Duration(milliseconds: 800);
+  static const Duration _defaultMaxMoveDelay = Duration(milliseconds: 2500);
+
   CaptureGameProvider({
     required this.boardSize,
     required this.captureTarget,
@@ -66,6 +69,8 @@ class CaptureGameProvider extends ChangeNotifier {
     this.initialMode = CaptureInitialMode.twistCross,
     this.initialBoardOverride,
     this.initialPlayerOverride,
+    this.minMoveDelay = _defaultMinMoveDelay,
+    this.maxMoveDelay = _defaultMaxMoveDelay,
   })  : assert(
           boardSize == 9 || boardSize == 13 || boardSize == 19,
           'boardSize must be 9, 13, or 19.',
@@ -97,6 +102,17 @@ class CaptureGameProvider extends ChangeNotifier {
   final CaptureInitialMode initialMode;
   final List<List<StoneColor>>? initialBoardOverride;
   final StoneColor? initialPlayerOverride;
+
+  /// Minimum time between when the AI starts thinking and when it places its
+  /// stone. If the computation finishes before this deadline the provider waits
+  /// for the remaining time, keeping [isAiThinking] true so the UI can show a
+  /// thinking indicator. Defaults to 800 ms. Pass [Duration.zero] in tests.
+  final Duration minMoveDelay;
+
+  /// Hard upper bound on the extra wait added after computation. If computation
+  /// itself takes longer than [maxMoveDelay] no extra delay is added. Defaults
+  /// to 2500 ms.
+  final Duration maxMoveDelay;
 
   static bool _isValidBoardShape(List<List<StoneColor>>? board, int size) {
     if (board == null) return true;
@@ -308,11 +324,21 @@ class CaptureGameProvider extends ChangeNotifier {
     _isAiThinking = true;
     notifyListeners();
 
-    await Future.delayed(const Duration(milliseconds: 80));
+    final thinkingStopwatch = Stopwatch()..start();
 
     final simBoard =
         SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
     final bestMove = _activeAgent.chooseMove(simBoard)?.position;
+
+    // Ensure a minimum thinking time so the AI feels human-like. If
+    // computation finished faster than minMoveDelay, wait for the remainder
+    // (capped so total time from start never exceeds maxMoveDelay).
+    final elapsed = thinkingStopwatch.elapsed;
+    if (elapsed < minMoveDelay) {
+      final remaining = minMoveDelay - elapsed;
+      final cap = maxMoveDelay > elapsed ? maxMoveDelay - elapsed : Duration.zero;
+      await Future.delayed(remaining < cap ? remaining : cap);
+    }
 
     if (bestMove != null) {
       _undoStack.add(_gameState);
