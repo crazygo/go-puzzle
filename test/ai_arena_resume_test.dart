@@ -26,7 +26,8 @@ class _FakeExecutor {
       (i) => AiGameRecord(
         index: i,
         gameSeed: matchSeed * 1000 + i,
-        openingIndex: i % 9,
+        openingIndex: i % 2,
+        opening: i.isEven ? 'empty' : 'twistCross',
         black: i.isEven ? 'a' : 'b',
         winner: i < fixedAWins ? 'a' : (i < totalGames ? 'b' : 'draw'),
         moves: 40,
@@ -539,6 +540,20 @@ void main() {
       expect(baseManifest.isCompatibleWith(other), isFalse);
     });
 
+    test('changing openingPolicy changes the configHash', () {
+      final other = AiArenaRunManifest(
+        candidateIds: baseIds,
+        boardSize: 9,
+        captureTarget: 5,
+        rounds: 10,
+        promotionThreshold: 7,
+        baseSeed: 20260430,
+        openingPolicy: 'empty_v1',
+      );
+      expect(baseManifest.configHash, isNot(other.configHash));
+      expect(baseManifest.isCompatibleWith(other), isFalse);
+    });
+
     test('buildResumeState throws AiArenaConfigMismatchException on mismatch',
         () {
       final differentManifest = AiArenaRunManifest(
@@ -599,6 +614,7 @@ void main() {
       expect(restored.promotionThreshold, baseManifest.promotionThreshold);
       expect(restored.baseSeed, baseManifest.baseSeed);
       expect(restored.maxMoves, baseManifest.maxMoves);
+      expect(restored.openingPolicy, baseManifest.openingPolicy);
     });
   });
 
@@ -755,6 +771,7 @@ void main() {
       );
       expect(m.toJson()['configHash'], m.configHash);
       expect(m.toJson()['maxMoves'], 512);
+      expect(m.toJson()['openingPolicy'], 'empty_twist_cross_random_v1');
     });
 
     test('empty JSONL produces empty event list', () {

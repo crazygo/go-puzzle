@@ -27,6 +27,7 @@ class AiArenaRunManifest {
     required this.promotionThreshold,
     required this.baseSeed,
     this.maxMoves = 512,
+    this.openingPolicy = 'empty_twist_cross_random_v1',
     this.schemaVersion = 1,
   });
 
@@ -42,6 +43,7 @@ class AiArenaRunManifest {
   final int promotionThreshold;
   final int baseSeed;
   final int maxMoves;
+  final String openingPolicy;
 
   /// Stable hash over all configuration fields.
   String get configHash {
@@ -54,6 +56,7 @@ class AiArenaRunManifest {
       'promotionThreshold': promotionThreshold,
       'baseSeed': baseSeed,
       'maxMoves': maxMoves,
+      'openingPolicy': openingPolicy,
     });
     final bytes = utf8.encode(repr);
     return 'djb2:${_stableDjb2Hex(bytes)}';
@@ -73,6 +76,7 @@ class AiArenaRunManifest {
         'promotionThreshold': promotionThreshold,
         'baseSeed': baseSeed,
         'maxMoves': maxMoves,
+        'openingPolicy': openingPolicy,
         'configHash': configHash,
       };
 
@@ -86,6 +90,8 @@ class AiArenaRunManifest {
       promotionThreshold: json['promotionThreshold'] as int,
       baseSeed: json['baseSeed'] as int,
       maxMoves: json['maxMoves'] as int? ?? 512,
+      openingPolicy:
+          json['openingPolicy'] as String? ?? 'fixed_twist_cross_v1',
     );
   }
 }
@@ -129,8 +135,7 @@ class AiArenaInvalidJsonlEventException implements Exception {
   final FormatException? innerError;
 
   @override
-  String toString() =>
-      'AiArenaInvalidJsonlEventException: '
+  String toString() => 'AiArenaInvalidJsonlEventException: '
       'Invalid AI arena event JSONL at line $lineNumber. '
       'Repair or remove the malformed line before resuming. '
       'Line: $line';
@@ -240,8 +245,7 @@ class AiArenaCorruptedLogException implements Exception {
   final List<String> mismatches;
 
   @override
-  String toString() =>
-      'AiArenaCorruptedLogException: '
+  String toString() => 'AiArenaCorruptedLogException: '
       'JSONL log replay found ${mismatches.length} hash mismatch(es). '
       'The log may have been edited. Use --force to start fresh.\n'
       '${mismatches.join('\n')}';
