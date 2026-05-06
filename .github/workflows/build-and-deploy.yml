@@ -20,13 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.41.7"
-          channel: "stable"
+        uses: actions/checkout@v6
           cache: true
 
       - name: Enable web support
@@ -85,9 +79,7 @@ jobs:
     # The setup-xcode step below pins to a specific Xcode release for reproducibility.
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Select Xcode version
+        uses: actions/checkout@v6
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
