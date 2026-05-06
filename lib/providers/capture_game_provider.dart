@@ -80,6 +80,18 @@ class CaptureGameProvider extends ChangeNotifier {
           initialBoardOverride == null ||
               _isValidBoardShape(initialBoardOverride, boardSize),
           'initialBoardOverride must match boardSize.',
+        ),
+        assert(
+          minMoveDelay >= Duration.zero,
+          'minMoveDelay must not be negative.',
+        ),
+        assert(
+          maxMoveDelay >= Duration.zero,
+          'maxMoveDelay must not be negative.',
+        ),
+        assert(
+          maxMoveDelay >= minMoveDelay,
+          'maxMoveDelay must be >= minMoveDelay.',
         ) {
     if (initialBoardOverride != null &&
         !_isValidBoardShape(initialBoardOverride, boardSize)) {
@@ -109,9 +121,11 @@ class CaptureGameProvider extends ChangeNotifier {
   /// thinking indicator. Defaults to 800 ms. Pass [Duration.zero] in tests.
   final Duration minMoveDelay;
 
-  /// Hard upper bound on the extra wait added after computation. If computation
-  /// itself takes longer than [maxMoveDelay] no extra delay is added. Defaults
-  /// to 2500 ms.
+  /// Upper bound on the extra wait added after computation completes. Once
+  /// total elapsed time (computation + wait) would exceed this value no
+  /// additional wait is added. If computation alone already exceeds
+  /// [maxMoveDelay], the AI places its stone immediately without further delay.
+  /// Defaults to 2500 ms.
   final Duration maxMoveDelay;
 
   static bool _isValidBoardShape(List<List<StoneColor>>? board, int size) {
@@ -125,6 +139,13 @@ class CaptureGameProvider extends ChangeNotifier {
   late GameState _gameState;
   CaptureGameResult _result = CaptureGameResult.none;
   bool _isAiThinking = false;
+  bool _disposed = false;
+
+  /// Incremented every time a new game starts. In-flight [_doAiMove] tasks
+  /// capture this value on entry and bail out if it has changed by the time
+  /// the delay elapses, preventing stale moves from being applied to a new game.
+  int _gameGeneration = 0;
+
   final List<GameState> _undoStack = [];
 
   /// Every move played in the current game, in order: each entry is [row, col].
@@ -146,6 +167,12 @@ class CaptureGameProvider extends ChangeNotifier {
   }
 
   void newGame() => _startNewGame();
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 
   void setAiStyle(CaptureAiStyle style) {
     if (_aiStyle == style) return;
@@ -315,6 +342,7 @@ class CaptureGameProvider extends ChangeNotifier {
     );
     _result = CaptureGameResult.none;
     _isAiThinking = false;
+    _gameGeneration++;
     _undoStack.clear();
     _moveLog.clear();
     notifyListeners();
@@ -324,6 +352,7 @@ class CaptureGameProvider extends ChangeNotifier {
     _isAiThinking = true;
     notifyListeners();
 
+    final generation = _gameGeneration;
     final thinkingStopwatch = Stopwatch()..start();
 
     final simBoard =
@@ -331,14 +360,19 @@ class CaptureGameProvider extends ChangeNotifier {
     final bestMove = _activeAgent.chooseMove(simBoard)?.position;
 
     // Ensure a minimum thinking time so the AI feels human-like. If
-    // computation finished faster than minMoveDelay, wait for the remainder
-    // (capped so total time from start never exceeds maxMoveDelay).
+    // computation finished faster than minMoveDelay, wait for the remainder.
+    // The extra wait is capped so that elapsed + wait never exceeds
+    // maxMoveDelay; if computation alone already took longer, no wait is added.
     final elapsed = thinkingStopwatch.elapsed;
     if (elapsed < minMoveDelay) {
       final remaining = minMoveDelay - elapsed;
       final cap = maxMoveDelay > elapsed ? maxMoveDelay - elapsed : Duration.zero;
       await Future.delayed(remaining < cap ? remaining : cap);
     }
+
+    // Bail out if the provider was disposed or a new game started while we
+    // were waiting — don't apply a stale move or call notifyListeners().
+    if (_disposed || _gameGeneration != generation) return;
 
     if (bestMove != null) {
       _undoStack.add(_gameState);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/ai_rank_level.dart';
@@ -22,6 +24,72 @@ void main() {
         ),
         throwsA(isA<AssertionError>()),
       );
+    });
+
+    test('rejects negative minMoveDelay', () {
+      expect(
+        () => CaptureGameProvider(
+          boardSize: 9,
+          captureTarget: 5,
+          difficulty: DifficultyLevel.beginner,
+          minMoveDelay: const Duration(milliseconds: -1),
+          maxMoveDelay: Duration.zero,
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('rejects negative maxMoveDelay', () {
+      expect(
+        () => CaptureGameProvider(
+          boardSize: 9,
+          captureTarget: 5,
+          difficulty: DifficultyLevel.beginner,
+          minMoveDelay: Duration.zero,
+          maxMoveDelay: const Duration(milliseconds: -1),
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('rejects maxMoveDelay less than minMoveDelay', () {
+      expect(
+        () => CaptureGameProvider(
+          boardSize: 9,
+          captureTarget: 5,
+          difficulty: DifficultyLevel.beginner,
+          minMoveDelay: const Duration(milliseconds: 500),
+          maxMoveDelay: const Duration(milliseconds: 100),
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('stale AI move is discarded after new game starts during delay',
+        () async {
+      // Create provider where human is white so AI (black) goes first.
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        humanColor: StoneColor.white,
+        minMoveDelay: const Duration(milliseconds: 100),
+        maxMoveDelay: const Duration(milliseconds: 200),
+      );
+
+      // Start a new game while the first AI move is still in its delay window.
+      // The in-flight move must not be applied to the new game.
+      provider.newGame();
+      final moveCountAfterNewGame = provider.moveLog.length;
+
+      // Wait for both the old and new AI tasks to finish.
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+
+      // The new game's AI move may have run, but the old stale move must not
+      // have been written, so log should reflect at most one AI move (the one
+      // belonging to the new game).
+      expect(provider.moveLog.length, lessThanOrEqualTo(moveCountAfterNewGame + 1));
+      expect(provider.isAiThinking, isFalse);
     });
 
     test('rejects non-positive capture targets', () {
@@ -73,12 +141,18 @@ void main() {
         minMoveDelay: const Duration(milliseconds: 50),
         maxMoveDelay: const Duration(milliseconds: 200),
       );
-      // Register listener before microtask queue drains so we capture every
-      // isAiThinking transition.
-      provider.addListener(() => thinkingValues.add(provider.isAiThinking));
+      // Complete as soon as the AI finishes thinking (isAiThinking → false).
+      final doneCompleter = Completer<void>();
+      provider.addListener(() {
+        thinkingValues.add(provider.isAiThinking);
+        if (!provider.isAiThinking && !doneCompleter.isCompleted) {
+          doneCompleter.complete();
+        }
+      });
 
-      // Wait long enough for the minimum delay plus scheduling overhead.
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      // Wait deterministically for the AI move to complete, with a 5 s guard.
+      await doneCompleter.future
+          .timeout(const Duration(seconds: 5), onTimeout: () {});
 
       // isAiThinking should have been true at some point (thinking started).
       expect(thinkingValues, contains(true));
