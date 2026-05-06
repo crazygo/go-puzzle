@@ -365,8 +365,14 @@ SimBoard _openingBoard({
 }) {
   final board = SimBoard(boardSize, captureTarget: captureTarget);
   if (opening == _ProbeOpening.twistCross) {
-    final center = boardSize ~/ 2;
     const arm = 3;
+    if (boardSize < arm * 2 + 1) {
+      throw ArgumentError(
+        'Board size $boardSize is too small for the twistCross opening '
+        '(minimum ${arm * 2 + 1}).',
+      );
+    }
+    final center = boardSize ~/ 2;
     final points = switch (variant % 4) {
       0 => (
           black: [(center - arm, center), (center + arm, center)],
@@ -444,9 +450,15 @@ Map<String, String> _parseArgs(List<String> args) {
   final opts = <String, String>{};
   for (var i = 0; i < args.length; i++) {
     final arg = args[i];
-    if (arg.startsWith('--') && i + 1 < args.length) {
-      opts[arg.substring(2)] = args[i + 1];
+    if (!arg.startsWith('--')) continue;
+    final key = arg.substring(2);
+    // If the next token is a value (not another flag), consume it; otherwise
+    // treat this as a boolean flag and record it with an empty string value.
+    if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
+      opts[key] = args[i + 1];
       i++;
+    } else {
+      opts[key] = '';
     }
   }
   return opts;

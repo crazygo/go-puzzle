@@ -91,7 +91,7 @@ class AiArenaRunManifest {
       baseSeed: json['baseSeed'] as int,
       maxMoves: json['maxMoves'] as int? ?? 512,
       openingPolicy:
-          json['openingPolicy'] as String? ?? 'empty_twist_cross_random_v1',
+          json['openingPolicy'] as String? ?? 'fixed_twist_cross_v1',
     );
   }
 }

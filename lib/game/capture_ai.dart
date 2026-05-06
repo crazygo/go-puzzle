@@ -129,7 +129,7 @@ class CaptureAiRobotConfig {
     final engine = switch (difficulty) {
       DifficultyLevel.beginner => CaptureAiEngine.heuristic,
       DifficultyLevel.intermediate => CaptureAiEngine.hybridMcts,
-      DifficultyLevel.advanced => CaptureAiEngine.hybridMcts,
+      DifficultyLevel.advanced => CaptureAiEngine.mcts,
     };
 
     return switch (difficulty) {

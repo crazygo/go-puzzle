@@ -56,6 +56,9 @@ class AiArenaExecutor {
       final whiteConfig = aIsBlack ? configB : configA;
 
       final gameSeed = matchSeed * 1000 + i;
+      // Pair-based seed: both games in a color-swapped pair share the same
+      // opening board so that the random opening does not bias the result.
+      final pairSeed = matchSeed * 1000 + (i ~/ 2);
       final opening = _openingForGame(i, openingSeed);
       final openingIndex = opening.index;
       final openingVariant = _openingVariantForGame(i);
@@ -71,7 +74,7 @@ class AiArenaExecutor {
         maxMoves: maxMoves,
         initialBoard: _buildOpeningBoard(
           opening,
-          gameSeed: gameSeed,
+          pairSeed: pairSeed,
           variant: openingVariant,
         ),
       );
@@ -132,7 +135,7 @@ class AiArenaExecutor {
     // Default mixed policy: each adjacent pair shares an opening, so A and B
     // both get one black game for that opening before moving to the next pair.
     final pairIndex = gameIndex ~/ 2;
-    final pairOffset = openingSeed.isEven ? 0 : 1;
+    final pairOffset = openingSeed % _AiArenaOpening.values.length;
     final openingIndex =
         (pairIndex + pairOffset) % _AiArenaOpening.values.length;
     return _AiArenaOpening.values[openingIndex];
@@ -151,13 +154,23 @@ class AiArenaExecutor {
 
   SimBoard _buildOpeningBoard(
     _AiArenaOpening opening, {
-    required int gameSeed,
+    required int pairSeed,
     required int variant,
   }) {
     final board = SimBoard(boardSize, captureTarget: captureTarget);
     if (opening == _AiArenaOpening.twistCross) {
-      final center = boardSize ~/ 2;
       const arm = 3;
+      if (boardSize < arm * 2 + 1) {
+        // Board too small for the fixed arm length. The executor falls back to
+        // an empty opening rather than throwing so that arena ladder runs stay
+        // robust even when an unsupported board size is configured.  The
+        // capture_ai_strength_probe tool validates board size up front and throws
+        // an ArgumentError instead, which is the right behaviour for a
+        // user-facing CLI that can report the problem clearly before running.
+        board.currentPlayer = SimBoard.black;
+        return board;
+      }
+      final center = boardSize ~/ 2;
       final points = switch (variant % 4) {
         0 => (
             black: [(center - arm, center), (center + arm, center)],
@@ -184,13 +197,13 @@ class AiArenaExecutor {
       }
       board.currentPlayer = SimBoard.black;
     } else if (opening == _AiArenaOpening.random) {
-      _applyRandomOpening(board, gameSeed);
+      _applyRandomOpening(board, pairSeed);
     }
     return board;
   }
 
-  void _applyRandomOpening(SimBoard board, int gameSeed) {
-    final rng = math.Random(gameSeed ^ (_openingSeedSalt * boardSize));
+  void _applyRandomOpening(SimBoard board, int pairSeed) {
+    final rng = math.Random(pairSeed ^ (_openingSeedSalt * boardSize));
     final center = boardSize ~/ 2;
     final radius = math.max(2, boardSize ~/ 3);
     final pairCount = boardSize <= 9 ? 2 : (boardSize <= 13 ? 3 : 4);
