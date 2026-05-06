@@ -1,0 +1,9 @@
+name = "pr-review-comment-resolver"
+main = "copilot-review-thread-resolver-worker.mjs"
+compatibility_date = "2026-05-06"
+workers_dev = true
+
+[vars]
+ALLOWED_REPO = "crazygo/go-puzzle"
+COPILOT_USER_ID = "198982749"
+GITHUB_API_URL = "https://api.github.com"
