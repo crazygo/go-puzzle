@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -10,11 +11,17 @@ import 'theme/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // Lock to portrait orientation on mobile
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  // On iOS, orientation is controlled by the app's Info.plist:
+  //   - iPhone: portrait only (UISupportedInterfaceOrientations)
+  //   - iPad:   all 4 orientations (UISupportedInterfaceOrientations~ipad) for multitasking
+  // Calling setPreferredOrientations on iOS overrides the plist, so skip it there.
+  // On other platforms (Android, desktop), lock to portrait explicitly.
+  if (!kIsWeb && defaultTargetPlatform != TargetPlatform.iOS) {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
   runApp(const GoPuzzleApp());
 }
 
