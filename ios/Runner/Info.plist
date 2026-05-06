@@ -68,5 +68,7 @@
 	<false/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>用于从截屏中识别棋盘并快速进入摆棋模式。</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
