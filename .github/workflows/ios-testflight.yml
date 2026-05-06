@@ -24,6 +24,23 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Configure iOS app identifiers for CI
+        run: |
+          if [ -z "${IOS_APP_BUNDLE_ID}" ]; then
+            echo "Missing IOS_APP_BUNDLE_ID secret" >&2
+            exit 1
+          fi
+          if [ -z "${IOS_DEVELOPMENT_TEAM}" ]; then
+            echo "Missing IOS_DEVELOPMENT_TEAM secret" >&2
+            exit 1
+          fi
+          sed -i.bak "s|^APP_BUNDLE_IDENTIFIER =.*$|APP_BUNDLE_IDENTIFIER = ${IOS_APP_BUNDLE_ID}|" ios/Flutter/Release.xcconfig
+          sed -i.bak "s|^APP_DEVELOPMENT_TEAM =.*$|APP_DEVELOPMENT_TEAM = ${IOS_DEVELOPMENT_TEAM}|" ios/Flutter/Release.xcconfig
+          echo "Using bundle id ${IOS_APP_BUNDLE_ID} and team ${IOS_DEVELOPMENT_TEAM}"
+        env:
+          IOS_APP_BUNDLE_ID: ${{ secrets.IOS_APP_BUNDLE_ID }}
+          IOS_DEVELOPMENT_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}
+
       - name: Install CocoaPods
         run: |
           cd ios
@@ -42,7 +59,7 @@ jobs:
 
       - name: Fetch App Store distribution signing files
         run: |
-          app-store-connect fetch-signing-files dev.askman.gopuzzle \
+          app-store-connect fetch-signing-files "$IOS_APP_BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
 
@@ -53,6 +70,7 @@ jobs:
           APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.ASC_KEY_ID }}
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
           CERTIFICATE_PRIVATE_KEY: ${{ secrets.IOS_CERT_PRIVATE_KEY }}
+          IOS_APP_BUNDLE_ID: ${{ secrets.IOS_APP_BUNDLE_ID }}
 
       - name: Build IPA
         run: |
