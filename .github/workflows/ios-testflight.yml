@@ -48,7 +48,7 @@ jobs:
 
       - name: Install Codemagic CLI tools
         run: |
-          pipx install codemagic-cli-tools==0.56.4
+          pipx install codemagic-cli-tools==0.66.0
           pipx ensurepath
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
