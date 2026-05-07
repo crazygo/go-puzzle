@@ -348,9 +348,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(CupertinoIcons.slider_horizontal_3), findsOneWidget);
+      // Nav bar trailing button now shows the AI rank label (e.g. "22级" for rank 1).
+      final rankLabel = AiRankLevel.displayName(AiRankLevel.min);
+      expect(find.text(rankLabel), findsOneWidget);
 
-      await tester.tap(find.byIcon(CupertinoIcons.slider_horizontal_3));
+      await tester.tap(find.text(rankLabel));
       await tester.pumpAndSettle();
 
       expect(find.text('对局配置'), findsOneWidget);
