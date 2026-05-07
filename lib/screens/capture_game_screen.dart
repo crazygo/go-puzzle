@@ -18,6 +18,7 @@ import '../providers/capture_game_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/game_history_repository.dart';
 import '../services/player_rank_repository.dart';
+import '../theme/app_theme.dart';
 import '../theme/theme_context.dart';
 import '../widgets/go_board_widget.dart';
 import '../widgets/go_three_board_background.dart';
@@ -3571,7 +3572,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   bool _isLoadingHints = false;
   bool _gameSaved = false;
   bool _resultDialogShown = false;
+  bool _moveLogVisible = true;
   final Set<int> _markedMoveNumbers = <int>{};
+  final GlobalKey _operationButtonKey = GlobalKey();
 
   final _historyRepo = GameHistoryRepository();
 
@@ -3643,9 +3646,6 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
             Future.microtask(() => _saveGame(provider));
           }
 
-          final rates = provider.winRateEstimate;
-          final blackRate = (rates[StoneColor.black]! * 100).toStringAsFixed(0);
-          final whiteRate = (rates[StoneColor.white]! * 100).toStringAsFixed(0);
           final blackCaptured = provider.gameState.capturedByBlack.length;
           final whiteCaptured = provider.gameState.capturedByWhite.length;
           final aiThinking = provider.isAiThinking;
@@ -3662,6 +3662,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
           }
           final settings = context.watch<SettingsProvider?>();
           final showCaptureWarning = settings?.showCaptureWarning ?? true;
+          final palette = settings?.appTheme.palette ?? context.appPalette;
 
           return CupertinoPageScaffold(
             backgroundColor: const Color(0xFFF3F0ED),
@@ -3669,18 +3670,26 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
               backgroundColor: const Color(0xFFF3F0ED),
               border: null,
               previousPageTitle: _CaptureCopy.pageTitle,
-              middle: null,
+              middle: Text(
+                _buildGameTitle(provider, widget.humanColor),
+                style: const TextStyle(
+                  color: Color(0xFF2E2620),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               trailing: CupertinoButton(
+                key: _operationButtonKey,
                 padding: EdgeInsets.zero,
-                minSize: 0,
-                onPressed: () => _showGameConfigDialog(
+                minimumSize: Size.zero,
+                onPressed: () => _showOperationMenu(
                   context: context,
                   provider: provider,
                   settings: settings,
                 ),
                 child: Text(
-                  AiRankLevel.displayName(widget.aiRank),
-                  style: const TextStyle(
+                  '操作',
+                  style: TextStyle(
                     color: Color(0xFFC3996E),
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -3692,101 +3701,38 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    child: _PlayerSummaryRow(
-                      captureTarget: widget.captureTarget,
-                      blackCaptured: blackCaptured,
-                      whiteCaptured: whiteCaptured,
-                      result: provider.result,
-                      currentPlayer: provider.gameState.currentPlayer,
-                      isSetupMode: provider.isPlacementMode,
-                      humanColor: widget.humanColor,
-                      isAiThinking: aiThinking,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                    child: _moveLogVisible
+                        ? _MoveLogStrip(
+                            moves: provider.moveLog,
+                            boardSize: provider.boardSize,
+                            currentPlayer: provider.gameState.currentPlayer,
+                            markedMoveNumbers: _markedMoveNumbers,
+                            palette: palette,
+                            onHide: () => setState(() {
+                              _moveLogVisible = false;
+                            }),
+                          )
+                        : const SizedBox(height: 45),
                   ),
                   Expanded(
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0DFC9),
-                            borderRadius: BorderRadius.circular(26),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x14000000),
-                                blurRadius: 12,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: _TapBoard(
-                              gameState: provider.gameState,
-                              enabled: !aiThinking && !isFinished,
-                              hintMarks: _hintMarks,
-                              showCaptureWarning: showCaptureWarning,
-                              onTap: (row, col) => _handleBoardTap(
-                                provider: provider,
-                                row: row,
-                                col: col,
-                              ),
-                            ),
-                          ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                      child: _CaptureBoardArea(
+                        gameState: provider.gameState,
+                        enabled: !aiThinking && !isFinished,
+                        hintMarks: _hintMarks,
+                        showCaptureWarning: showCaptureWarning,
+                        captureTarget: widget.captureTarget,
+                        blackCaptured: blackCaptured,
+                        whiteCaptured: whiteCaptured,
+                        humanColor: widget.humanColor,
+                        onTap: (row, col) => _handleBoardTap(
+                          provider: provider,
+                          row: row,
+                          col: col,
                         ),
                       ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                    child: _BottomInfoCard(
-                      infoText: _buildInfoText(provider, widget.humanColor),
-                      blackRate: blackRate,
-                      whiteRate: whiteRate,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 22),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _DecoratedActionButton(
-                            text: '后退一手',
-                            filled: false,
-                            onPressed:
-                                provider.canUndo ? provider.undoMove : null,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _DecoratedActionButton(
-                            text: _markedMoveNumbers
-                                    .contains(provider.moveLog.length)
-                                ? '已打标'
-                                : '打标此手',
-                            filled: false,
-                            onPressed: provider.moveLog.isEmpty
-                                ? null
-                                : () => setState(() {
-                                      final moveNo = provider.moveLog.length;
-                                      if (!_markedMoveNumbers.add(moveNo)) {
-                                        _markedMoveNumbers.remove(moveNo);
-                                      }
-                                    }),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _DecoratedActionButton(
-                            text: '提示一手',
-                            filled: true,
-                            onPressed: _isLoadingHints
-                                ? null
-                                : () => _showHintsOnBoard(provider),
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ],
@@ -3798,17 +3744,129 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
     );
   }
 
-  String _buildInfoText(CaptureGameProvider provider, StoneColor humanColor) {
-    if (provider.result == CaptureGameResult.blackWins) return '对局结束：人类胜';
-    if (provider.result == CaptureGameResult.whiteWins) return '对局结束：AI 胜';
-    if (provider.isPlacementMode) return '摆棋模式：始终由你摆子，系统按黑白轮流切换。';
-    if (provider.isAiThinking) return 'AI 正在思考（${provider.aiStyle.label}）';
-    final playerName = humanColor == StoneColor.black ? '黑棋' : '白棋';
-    final aiName = humanColor == StoneColor.black ? '白棋' : '黑棋';
-    if (provider.gameState.currentPlayer != humanColor) {
-      return '轮到 AI 落子（$aiName）';
+  void _showOperationMenu({
+    required BuildContext context,
+    required CaptureGameProvider provider,
+    required SettingsProvider? settings,
+  }) {
+    final canUndo = provider.canUndo;
+    final canHint = !_isLoadingHints;
+    final canMarkMove = provider.moveLog.isNotEmpty;
+    final currentMoveMarked =
+        _markedMoveNumbers.contains(provider.moveLog.length);
+    final showCaptureWarning = settings?.showCaptureWarning ?? true;
+    final buttonContext = _operationButtonKey.currentContext ?? context;
+    final buttonBox = buttonContext.findRenderObject() as RenderBox?;
+    final overlayBox =
+        Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
+    if (buttonBox == null || overlayBox == null) return;
+
+    final buttonTopLeft = buttonBox.localToGlobal(
+      Offset.zero,
+      ancestor: overlayBox,
+    );
+    final buttonRect = buttonTopLeft & buttonBox.size;
+
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '关闭操作菜单',
+      barrierColor: CupertinoColors.black.withValues(alpha: 0.02),
+      transitionDuration: const Duration(milliseconds: 140),
+      pageBuilder: (menuContext, _, __) {
+        const menuWidth = 178.0;
+        const menuHeight = 292.0;
+        const edgePadding = 12.0;
+        final media = MediaQuery.of(menuContext);
+        final maxLeft = media.size.width - menuWidth - edgePadding;
+        final left = (buttonRect.right - menuWidth).clamp(edgePadding, maxLeft);
+        var top = buttonRect.top - menuHeight - 8;
+        final minTop = media.padding.top + edgePadding;
+        if (top < minTop) {
+          top = buttonRect.bottom + 8;
+        }
+
+        return Stack(
+          children: [
+            Positioned(
+              left: left,
+              top: top,
+              width: menuWidth,
+              child: _OperationContextMenu(
+                aiStyleLabel: provider.aiStyle.label,
+                captureWarningEnabled: showCaptureWarning,
+                moveLogVisible: _moveLogVisible,
+                currentMoveMarked: currentMoveMarked,
+                canUndo: canUndo,
+                canHint: canHint,
+                canMarkMove: canMarkMove,
+                canToggleCaptureWarning: settings != null,
+                onAiStyle: () {
+                  Navigator.of(menuContext).pop();
+                  _showStylePicker(context, provider);
+                },
+                onToggleCaptureWarning: () {
+                  Navigator.of(menuContext).pop();
+                  settings?.setShowCaptureWarning(!showCaptureWarning);
+                },
+                onToggleMoveLog: () {
+                  Navigator.of(menuContext).pop();
+                  setState(() {
+                    _moveLogVisible = !_moveLogVisible;
+                  });
+                },
+                onToggleMarkMove: () {
+                  Navigator.of(menuContext).pop();
+                  if (!canMarkMove) return;
+                  setState(() {
+                    final moveNo = provider.moveLog.length;
+                    if (!_markedMoveNumbers.add(moveNo)) {
+                      _markedMoveNumbers.remove(moveNo);
+                    }
+                  });
+                },
+                onUndo: () {
+                  Navigator.of(menuContext).pop();
+                  provider.undoMove();
+                },
+                onHint: () {
+                  Navigator.of(menuContext).pop();
+                  _showHintsOnBoard(provider);
+                },
+              ),
+            ),
+          ],
+        );
+      },
+      transitionBuilder: (_, animation, __, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+            alignment: Alignment.bottomRight,
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  String _buildGameTitle(CaptureGameProvider provider, StoneColor humanColor) {
+    if (provider.result == CaptureGameResult.blackWins) return '对局结束';
+    if (provider.result == CaptureGameResult.whiteWins) return '对局结束';
+    final colorName =
+        provider.gameState.currentPlayer == StoneColor.black ? '黑棋' : '白棋';
+    if (provider.isAiThinking ||
+        (!provider.isPlacementMode &&
+            provider.gameState.currentPlayer != humanColor)) {
+      return 'AI（$colorName）正在思考';
     }
-    return '轮到你落子（$playerName）';
+    return '轮到你（$colorName）落子';
   }
 
   Future<bool> _handleBoardTap({
@@ -3918,211 +3976,128 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
       ),
     );
   }
+}
 
-  void _showGameConfigDialog({
-    required BuildContext context,
-    required CaptureGameProvider provider,
-    required SettingsProvider? settings,
-  }) {
-    showCupertinoDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return CupertinoAlertDialog(
-          title: const Text('对局配置'),
-          content: Padding(
-            padding: const EdgeInsets.only(top: 10),
+class _CaptureBoardArea extends StatelessWidget {
+  const _CaptureBoardArea({
+    required this.gameState,
+    required this.enabled,
+    required this.hintMarks,
+    required this.showCaptureWarning,
+    required this.captureTarget,
+    required this.blackCaptured,
+    required this.whiteCaptured,
+    required this.humanColor,
+    required this.onTap,
+  });
+
+  final GameState gameState;
+  final bool enabled;
+  final List<_HintMark> hintMarks;
+  final bool showCaptureWarning;
+  final int captureTarget;
+  final int blackCaptured;
+  final int whiteCaptured;
+  final StoneColor humanColor;
+  final Future<bool> Function(int row, int col) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final aiColor = humanColor.opponent;
+    final humanCapturedAiCount =
+        humanColor == StoneColor.black ? blackCaptured : whiteCaptured;
+    final aiCapturedHumanCount =
+        aiColor == StoneColor.black ? blackCaptured : whiteCaptured;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const markerHeightEstimate = 18.0;
+        const markerGap = 8.0;
+        const markerInset = 24.0;
+        final boardExtent = min(
+          constraints.maxWidth,
+          max(
+            160.0,
+            constraints.maxHeight - markerHeightEstimate * 2 - markerGap * 2,
+          ),
+        );
+
+        return Center(
+          child: SizedBox(
+            width: boardExtent,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  '本轮配置',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF8E7157)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: markerInset),
+                    child: _PlayerSideCard(
+                      isBlack: humanColor == StoneColor.black,
+                      progress: aiCapturedHumanCount,
+                      captureTarget: captureTarget,
+                      alignEnd: true,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                _ConfigInfoRow(
-                  title: 'AI 风格',
-                  value: provider.aiStyle.label,
-                  onTap: () {
-                    Navigator.of(dialogContext).pop();
-                    _showStylePicker(context, provider);
-                  },
+                const SizedBox(height: markerGap),
+                SizedBox.square(
+                  dimension: boardExtent,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0DFC9),
+                      borderRadius: BorderRadius.circular(26),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x14000000),
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: _TapBoard(
+                        gameState: gameState,
+                        enabled: enabled,
+                        hintMarks: hintMarks,
+                        showCaptureWarning: showCaptureWarning,
+                        onTap: onTap,
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 10),
-                const Text(
-                  '全局配置',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF8E7157)),
-                ),
-                const SizedBox(height: 8),
-                _ConfigSwitchRow(
-                  title: '吃子预警',
-                  value: settings?.showCaptureWarning ?? true,
-                  onChanged: settings?.setShowCaptureWarning,
+                const SizedBox(height: markerGap),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: markerInset),
+                    child: _PlayerSideCard(
+                      isBlack: aiColor == StoneColor.black,
+                      progress: humanCapturedAiCount,
+                      captureTarget: captureTarget,
+                      alignEnd: false,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('完成'),
-            ),
-          ],
         );
       },
     );
   }
 }
 
-class _ConfigInfoRow extends StatelessWidget {
-  const _ConfigInfoRow({
-    required this.title,
-    required this.value,
-    required this.onTap,
-  });
-
-  final String title;
-  final String value;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: onTap,
-      child: Row(
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 16, color: Color(0xFF2E2620)),
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFFC3996E),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(width: 2),
-          const Icon(CupertinoIcons.chevron_right, size: 15),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConfigSwitchRow extends StatelessWidget {
-  const _ConfigSwitchRow({
-    required this.title,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String title;
-  final bool value;
-  final ValueChanged<bool>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, color: Color(0xFF2E2620)),
-        ),
-        const Spacer(),
-        CupertinoSwitch(
-          value: value,
-          onChanged: onChanged,
-        ),
-      ],
-    );
-  }
-}
-
-class _PlayerSummaryRow extends StatelessWidget {
-  const _PlayerSummaryRow({
-    required this.captureTarget,
-    required this.blackCaptured,
-    required this.whiteCaptured,
-    required this.result,
-    required this.currentPlayer,
-    required this.isSetupMode,
-    required this.humanColor,
-    required this.isAiThinking,
-  });
-
-  final int captureTarget;
-  final int blackCaptured;
-  final int whiteCaptured;
-  final CaptureGameResult result;
-  final StoneColor currentPlayer;
-  final bool isSetupMode;
-  final StoneColor humanColor;
-  final bool isAiThinking;
-
-  @override
-  Widget build(BuildContext context) {
-    String? blackTag;
-    String? whiteTag;
-
-    if (result == CaptureGameResult.none) {
-      if (currentPlayer == StoneColor.black) {
-        if (isSetupMode || humanColor == StoneColor.black) {
-          blackTag = '请落子';
-        } else if (isAiThinking) {
-          blackTag = 'AI 在思考';
-        }
-      } else if (currentPlayer == StoneColor.white) {
-        if (isSetupMode || humanColor == StoneColor.white) {
-          whiteTag = '请落子';
-        } else if (isAiThinking) {
-          whiteTag = 'AI 在思考';
-        }
-      }
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          child: _PlayerSideCard(
-            title: '黑棋',
-            isBlack: true,
-            tag: blackTag,
-            progress: blackCaptured,
-            captureTarget: captureTarget,
-            alignEnd: false,
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _PlayerSideCard(
-            title: '白棋',
-            isBlack: false,
-            tag: whiteTag,
-            progress: whiteCaptured,
-            captureTarget: captureTarget,
-            alignEnd: true,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _PlayerSideCard extends StatelessWidget {
   const _PlayerSideCard({
-    required this.title,
     required this.isBlack,
-    this.tag,
     required this.progress,
     required this.captureTarget,
     required this.alignEnd,
   });
 
-  final String title;
   final bool isBlack;
-  final String? tag;
   final int progress;
   final int captureTarget;
   final bool alignEnd;
@@ -4130,111 +4105,362 @@ class _PlayerSideCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = progress.clamp(0, captureTarget);
-    final alignment =
-        alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-
-    final titleWidget = Text(
-      title,
-      style: const TextStyle(
-        fontSize: 20,
-        color: Color(0xFF2E2620),
-        fontWeight: FontWeight.w600,
+    return Align(
+      alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+      child: Wrap(
+        spacing: 8,
+        children: List.generate(captureTarget, (index) {
+          final isActive = index < active;
+          return Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isActive
+                  ? (isBlack
+                      ? const Color(0xFF1F1F1F)
+                      : const Color(0xFFEFF1F3))
+                  : const Color(0xFFE8D6C5),
+              border: Border.all(color: const Color(0xFFD5BEA6), width: 0.6),
+              boxShadow: isActive
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x20000000),
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ]
+                  : null,
+            ),
+          );
+        }),
       ),
-    );
-
-    List<Widget> rowChildren;
-    if (tag != null) {
-      final tagBadge = Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFFEADCCB),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Text(
-          tag!,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF8E7157),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
-      rowChildren = alignEnd
-          ? [tagBadge, const SizedBox(width: 8), titleWidget]
-          : [titleWidget, const SizedBox(width: 8), tagBadge];
-    } else {
-      rowChildren = [titleWidget];
-    }
-
-    return Column(
-      crossAxisAlignment: alignment,
-      children: [
-        Row(
-          mainAxisAlignment:
-              alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
-          children: rowChildren,
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: List.generate(captureTarget, (index) {
-            final isActive = index < active;
-            return Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isActive
-                    ? (isBlack
-                        ? const Color(0xFF1F1F1F)
-                        : const Color(0xFFEFF1F3))
-                    : const Color(0xFFE8D6C5),
-                border: Border.all(color: const Color(0xFFD5BEA6), width: 0.6),
-                boxShadow: isActive
-                    ? const [
-                        BoxShadow(
-                          color: Color(0x20000000),
-                          blurRadius: 4,
-                          offset: Offset(0, 1),
-                        ),
-                      ]
-                    : null,
-              ),
-            );
-          }),
-        ),
-      ],
     );
   }
 }
 
-class _BottomInfoCard extends StatelessWidget {
-  const _BottomInfoCard({
-    required this.infoText,
-    required this.blackRate,
-    required this.whiteRate,
+String _formatBoardCoordinate(List<int> move, int boardSize) {
+  if (move.length < 2) return '-';
+  const columns = 'ABCDEFGHJKLMNOPQRST';
+  final row = move[0];
+  final col = move[1];
+  if (col < 0 || col >= columns.length || row < 0 || row >= boardSize) {
+    return '-';
+  }
+  return '${columns[col]}${boardSize - row}';
+}
+
+class _MoveLogStrip extends StatefulWidget {
+  const _MoveLogStrip({
+    required this.moves,
+    required this.boardSize,
+    required this.currentPlayer,
+    required this.markedMoveNumbers,
+    required this.palette,
+    required this.onHide,
   });
 
-  final String infoText;
-  final String blackRate;
-  final String whiteRate;
+  final List<List<int>> moves;
+  final int boardSize;
+  final StoneColor currentPlayer;
+  final Set<int> markedMoveNumbers;
+  final AppThemePalette palette;
+  final VoidCallback onHide;
+
+  @override
+  State<_MoveLogStrip> createState() => _MoveLogStripState();
+}
+
+class _MoveLogStripState extends State<_MoveLogStrip> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void didUpdateWidget(covariant _MoveLogStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.moves.length > oldWidget.moves.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final placeholderStyle = TextStyle(
+      fontSize: 12,
+      color:
+          Color.lerp(widget.palette.heroSubtitle, CupertinoColors.black, 0.08),
+      fontWeight: FontWeight.w600,
+    );
+    final placeholder =
+        widget.currentPlayer == StoneColor.black ? '等待黑棋落子' : '等待白棋落子';
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      height: 45,
+      padding: const EdgeInsets.only(left: 4, right: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F1E8),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFD8C3AE), width: 0.8),
+        color: CupertinoColors.white.withValues(alpha: 0.54),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: widget.palette.primary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        children: [
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            minimumSize: Size.zero,
+            onPressed: widget.onHide,
+            child: const SizedBox(
+              width: 28,
+              height: 36,
+              child: Icon(
+                CupertinoIcons.eye_slash,
+                size: 17,
+                color: Color(0xFF9A7B5F),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.moves.isEmpty)
+                    Text(placeholder, style: placeholderStyle)
+                  else
+                    for (var index = 0;
+                        index < widget.moves.length;
+                        index++) ...[
+                      _MoveLogChip(
+                        moveNumber: index + 1,
+                        coordinate: _formatBoardCoordinate(
+                          widget.moves[index],
+                          widget.boardSize,
+                        ),
+                        marked: widget.markedMoveNumbers.contains(index + 1),
+                        palette: widget.palette,
+                      ),
+                      if (index != widget.moves.length - 1)
+                        const SizedBox(width: 6),
+                    ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MoveLogChip extends StatelessWidget {
+  const _MoveLogChip({
+    required this.moveNumber,
+    required this.coordinate,
+    required this.marked,
+    required this.palette,
+  });
+
+  final int moveNumber;
+  final String coordinate;
+  final bool marked;
+  final AppThemePalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = marked
+        ? palette.primary.withValues(alpha: 0.16)
+        : palette.segmentTrack.withValues(alpha: 0.82);
+    final borderColor = marked
+        ? palette.primary.withValues(alpha: 0.72)
+        : palette.primary.withValues(alpha: 0.16);
+    final textColor = marked
+        ? Color.lerp(palette.primary, CupertinoColors.black, 0.16)!
+        : palette.segmentText;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: borderColor, width: marked ? 1.1 : 0.7),
       ),
       child: Text(
-        '$infoText  ·  胜率 人类$blackRate% / AI$whiteRate%',
-        style: const TextStyle(
-          fontSize: 13,
-          color: Color(0xFF6F5743),
-          fontWeight: FontWeight.w500,
+        '$moveNumber $coordinate',
+        maxLines: 1,
+        overflow: TextOverflow.visible,
+        style: TextStyle(
+          fontSize: 12,
+          height: 1,
+          color: textColor,
+          fontWeight: marked ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _OperationContextMenu extends StatelessWidget {
+  const _OperationContextMenu({
+    required this.aiStyleLabel,
+    required this.captureWarningEnabled,
+    required this.moveLogVisible,
+    required this.currentMoveMarked,
+    required this.canUndo,
+    required this.canHint,
+    required this.canMarkMove,
+    required this.canToggleCaptureWarning,
+    required this.onAiStyle,
+    required this.onToggleCaptureWarning,
+    required this.onToggleMoveLog,
+    required this.onToggleMarkMove,
+    required this.onUndo,
+    required this.onHint,
+  });
+
+  final String aiStyleLabel;
+  final bool captureWarningEnabled;
+  final bool moveLogVisible;
+  final bool currentMoveMarked;
+  final bool canUndo;
+  final bool canHint;
+  final bool canMarkMove;
+  final bool canToggleCaptureWarning;
+  final VoidCallback onAiStyle;
+  final VoidCallback onToggleCaptureWarning;
+  final VoidCallback onToggleMoveLog;
+  final VoidCallback onToggleMarkMove;
+  final VoidCallback onUndo;
+  final VoidCallback onHint;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemBackground
+            .resolveFrom(context)
+            .withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: CupertinoColors.separator
+              .resolveFrom(context)
+              .withValues(alpha: 0.24),
+          width: 0.6,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 22,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _OperationMenuItem(
+              text: 'AI 风格：$aiStyleLabel',
+              enabled: true,
+              onPressed: onAiStyle,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: captureWarningEnabled ? '吃子预警：开' : '吃子预警：关',
+              enabled: canToggleCaptureWarning,
+              onPressed: onToggleCaptureWarning,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: moveLogVisible ? '隐藏吃子记录' : '显示吃子记录',
+              enabled: true,
+              onPressed: onToggleMoveLog,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: currentMoveMarked ? '取消打标此手' : '打标此手',
+              enabled: canMarkMove,
+              onPressed: onToggleMarkMove,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: '后退一手',
+              enabled: canUndo,
+              onPressed: onUndo,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: '提示一手',
+              enabled: canHint,
+              onPressed: onHint,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OperationMenuDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 0.6,
+      margin: const EdgeInsets.only(left: 14),
+      color: CupertinoColors.separator
+          .resolveFrom(context)
+          .withValues(alpha: 0.30),
+    );
+  }
+}
+
+class _OperationMenuItem extends StatelessWidget {
+  const _OperationMenuItem({
+    required this.text,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final String text;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      onPressed: enabled ? onPressed : null,
+      child: SizedBox(
+        height: 48,
+        width: double.infinity,
+        child: Align(
+          alignment: Alignment.center,
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: enabled
+                  ? CupertinoColors.label.resolveFrom(context)
+                  : CupertinoColors.inactiveGray.resolveFrom(context),
+            ),
+          ),
         ),
       ),
     );
@@ -4259,9 +4485,9 @@ class _DecoratedActionButton extends StatelessWidget {
         filled ? const Color(0xFFC28A56) : const Color(0xFFF2EBE3);
 
     return CupertinoButton(
-      padding: const EdgeInsets.symmetric(vertical: 15),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       color: disabled ? const Color(0xFFDCD4CC) : background,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       onPressed: onPressed,
       child: Text(
         text,
@@ -4918,18 +5144,10 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
 
   String _moveCoordinate(int moveNo) {
     if (moveNo <= 0 || moveNo > widget.record.moves.length) return '-';
-    final move = widget.record.moves[moveNo - 1];
-    if (move.length < 2) return '-';
-    const columns = 'ABCDEFGHJKLMNOPQRST';
-    final row = move[0];
-    final col = move[1];
-    if (col < 0 ||
-        col >= columns.length ||
-        row < 0 ||
-        row >= widget.record.boardSize) {
-      return '-';
-    }
-    return '${columns[col]}${widget.record.boardSize - row}';
+    return _formatBoardCoordinate(
+      widget.record.moves[moveNo - 1],
+      widget.record.boardSize,
+    );
   }
 
   @override
