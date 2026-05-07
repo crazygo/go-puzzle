@@ -680,17 +680,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                             label: '指定等级',
                                           ),
                                         ],
-                                        onChanged: (value) =>
-                                            _updateSelection(
-                                                difficultyMode: value),
+                                        onChanged: (value) => _updateSelection(
+                                            difficultyMode: value),
                                       ),
                                       if (_difficultyMode == 'manual') ...[
                                         const SizedBox(height: 8),
                                         _RankPicker(
                                           selectedRank: _manualRank,
-                                          onChanged: (rank) =>
-                                              _updateSelection(
-                                                  manualRank: rank),
+                                          onChanged: (rank) => _updateSelection(
+                                              manualRank: rank),
                                         ),
                                       ],
                                       const SizedBox(height: 20),
@@ -721,9 +719,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       const SizedBox(height: 8),
                                       _AiStyleTile(
                                         selectedStyleName: _aiStyleChoice,
-                                        onChanged: (name) =>
-                                            _updateSelection(
-                                                aiStyleChoice: name),
+                                        onChanged: (name) => _updateSelection(
+                                            aiStyleChoice: name),
                                       ),
                                       const SizedBox(height: 24),
                                     ] else ...[
@@ -1222,35 +1219,40 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }) {
     _saveSelection();
 
-    final effectiveRank = _difficultyMode == 'auto' ? _computedRank : _manualRank;
+    final effectiveRank =
+        _difficultyMode == 'auto' ? _computedRank : _manualRank;
     final effectiveDifficulty = AiRankLevel.difficultyZone(effectiveRank);
 
-    Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute(
-        builder: (_) => ChangeNotifierProvider(
-          create: (_) => CaptureGameProvider(
-            boardSize: _boardSize,
-            captureTarget: _captureTarget,
-            difficulty: effectiveDifficulty,
-            humanColor: humanColor,
-            initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
-            initialBoardOverride: initialBoard,
-          )..setAiStyle(
-              CaptureAiStyle.values.firstWhere(
-                (s) => s.name == _aiStyleChoice,
-                orElse: () => CaptureAiStyle.adaptive,
+    Navigator.of(context, rootNavigator: true)
+        .push(
+          CupertinoPageRoute(
+            builder: (_) => ChangeNotifierProvider(
+              create: (_) => CaptureGameProvider(
+                boardSize: _boardSize,
+                captureTarget: _captureTarget,
+                difficulty: effectiveDifficulty,
+                humanColor: humanColor,
+                initialMode:
+                    forceSetup ? CaptureInitialMode.setup : _initialMode,
+                initialBoardOverride: initialBoard,
+              )..setAiStyle(
+                  CaptureAiStyle.values.firstWhere(
+                    (s) => s.name == _aiStyleChoice,
+                    orElse: () => CaptureAiStyle.adaptive,
+                  ),
+                ),
+              child: CaptureGamePlayScreen(
+                aiRank: effectiveRank,
+                captureTarget: _captureTarget,
+                humanColor: humanColor,
+                initialMode:
+                    forceSetup ? CaptureInitialMode.setup : _initialMode,
+                initialBoardOverride: initialBoard,
               ),
             ),
-          child: CaptureGamePlayScreen(
-            aiRank: effectiveRank,
-            captureTarget: _captureTarget,
-            humanColor: humanColor,
-            initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
-            initialBoardOverride: initialBoard,
           ),
-        ),
-      ),
-    ).then((_) => _loadHistory());
+        )
+        .then((_) => _loadHistory());
   }
 }
 
@@ -3065,9 +3067,7 @@ class _AiStyleTile extends StatelessWidget {
                 Navigator.of(ctx).pop();
               },
               child: Text(
-                s == style
-                    ? '${s.label} · 当前'
-                    : '${s.label}  ${s.summary}',
+                s == style ? '${s.label} · 当前' : '${s.label}  ${s.summary}',
               ),
             ),
         ],
@@ -3536,6 +3536,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   List<_HintMark> _hintMarks = const [];
   bool _isLoadingHints = false;
   bool _gameSaved = false;
+  bool _resultDialogShown = false;
 
   final _historyRepo = GameHistoryRepository();
 
@@ -3548,14 +3549,12 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
     if (provider.moveLog.isEmpty) return; // nothing to save
 
     final outcome = switch (provider.result) {
-      CaptureGameResult.blackWins =>
-        widget.humanColor == StoneColor.black
-            ? GameOutcome.humanWins
-            : GameOutcome.aiWins,
-      CaptureGameResult.whiteWins =>
-        widget.humanColor == StoneColor.white
-            ? GameOutcome.humanWins
-            : GameOutcome.aiWins,
+      CaptureGameResult.blackWins => widget.humanColor == StoneColor.black
+          ? GameOutcome.humanWins
+          : GameOutcome.aiWins,
+      CaptureGameResult.whiteWins => widget.humanColor == StoneColor.white
+          ? GameOutcome.humanWins
+          : GameOutcome.aiWins,
       CaptureGameResult.none => GameOutcome.abandoned,
     };
 
@@ -3604,14 +3603,22 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
           }
 
           final rates = provider.winRateEstimate;
-          final blackRate =
-              (rates[StoneColor.black]! * 100).toStringAsFixed(0);
-          final whiteRate =
-              (rates[StoneColor.white]! * 100).toStringAsFixed(0);
+          final blackRate = (rates[StoneColor.black]! * 100).toStringAsFixed(0);
+          final whiteRate = (rates[StoneColor.white]! * 100).toStringAsFixed(0);
           final blackCaptured = provider.gameState.capturedByBlack.length;
           final whiteCaptured = provider.gameState.capturedByWhite.length;
           final aiThinking = provider.isAiThinking;
           final isFinished = provider.result != CaptureGameResult.none;
+          if (!isFinished) {
+            _resultDialogShown = false;
+          }
+          if (!provider.isPlacementMode && isFinished && !_resultDialogShown) {
+            _resultDialogShown = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              _showGameResultDialog(context, provider);
+            });
+          }
           final settings = context.watch<SettingsProvider?>();
           final showCaptureWarning = settings?.showCaptureWarning ?? true;
 
@@ -3777,6 +3784,50 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
         });
       }
     }
+  }
+
+  _ResultDialogState _resultDialogState(CaptureGameProvider provider) {
+    if (provider.result == CaptureGameResult.none) {
+      throw StateError('Result dialog requires a finished game result.');
+    }
+    final humanWins = (provider.result == CaptureGameResult.blackWins &&
+            widget.humanColor == StoneColor.black) ||
+        (provider.result == CaptureGameResult.whiteWins &&
+            widget.humanColor == StoneColor.white);
+    return humanWins ? _ResultDialogState.victory : _ResultDialogState.notWin;
+  }
+
+  Future<void> _showGameResultDialog(
+    BuildContext context,
+    CaptureGameProvider provider,
+  ) async {
+    final resultState = _resultDialogState(provider);
+    await showCupertinoDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return _GameResultDialog(
+          state: resultState,
+          onPlayAgain: () {
+            provider.newGame();
+            if (mounted) {
+              setState(() {
+                _hintMarks = const [];
+                _isLoadingHints = false;
+                _gameSaved = false;
+                _resultDialogShown = false;
+              });
+            }
+            Navigator.of(dialogContext).pop();
+          },
+          onReview: () => Navigator.of(dialogContext).pop(),
+          onLeave: () {
+            Navigator.of(dialogContext).pop();
+            Navigator.of(context).maybePop();
+          },
+        );
+      },
+    );
   }
 
   void _showStylePicker(BuildContext context, CaptureGameProvider provider) {
@@ -4399,7 +4450,8 @@ class _HistoryRow extends StatelessWidget {
       onPressed: onTap,
       child: Row(
         children: [
-          _StoneCircle(isBlack: record.humanColorIndex == StoneColor.black.index),
+          _StoneCircle(
+              isBlack: record.humanColorIndex == StoneColor.black.index),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -4425,8 +4477,7 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color: outcomeColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
@@ -4749,8 +4800,8 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
       for (int r = 0; r < record.boardSize; r++) {
         for (int c = 0; c < record.boardSize; c++) {
           if (r < cells.length && c < cells[r].length) {
-            emptyBoard[r][c] = StoneColor.values[
-                cells[r][c].clamp(0, StoneColor.values.length - 1)];
+            emptyBoard[r][c] = StoneColor
+                .values[cells[r][c].clamp(0, StoneColor.values.length - 1)];
           }
         }
       }
@@ -4824,9 +4875,7 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                _index == 0
-                    ? '初始局面'
-                    : '第 $_index 手 / 共 $_totalMoves 手',
+                _index == 0 ? '初始局面' : '第 $_index 手 / 共 $_totalMoves 手',
                 style: const TextStyle(
                   fontSize: 13,
                   color: Color(0xFF8C7966),
@@ -4847,9 +4896,8 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                     child: _DecoratedActionButton(
                       text: '上一手',
                       filled: false,
-                      onPressed: isAtStart
-                          ? null
-                          : () => setState(() => _index--),
+                      onPressed:
+                          isAtStart ? null : () => setState(() => _index--),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -4857,9 +4905,8 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                     child: _DecoratedActionButton(
                       text: '下一手',
                       filled: true,
-                      onPressed: isAtEnd
-                          ? null
-                          : () => setState(() => _index++),
+                      onPressed:
+                          isAtEnd ? null : () => setState(() => _index++),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -4901,6 +4948,63 @@ class _NavIconButton extends StatelessWidget {
         color: enabled
             ? const Color(0xFFB68454)
             : const Color(0xFFB68454).withValues(alpha: 0.35),
+      ),
+    );
+  }
+}
+
+enum _ResultDialogState { victory, draw, notWin }
+
+class _GameResultDialog extends StatelessWidget {
+  const _GameResultDialog({
+    required this.state,
+    required this.onPlayAgain,
+    required this.onReview,
+    required this.onLeave,
+  });
+
+  final _ResultDialogState state;
+  final VoidCallback onPlayAgain;
+  final VoidCallback onReview;
+  final VoidCallback onLeave;
+
+  @override
+  Widget build(BuildContext context) {
+    final (title, bgColor) = switch (state) {
+      _ResultDialogState.victory => ('胜利', const Color(0xFFE6F6EA)),
+      _ResultDialogState.draw => ('和棋', const Color(0xFFF2F2F2)),
+      _ResultDialogState.notWin => ('没赢', const Color(0xFFFFEFEA)),
+    };
+
+    return CupertinoAlertDialog(
+      content: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF2E2620),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _DecoratedActionButton(
+                text: '再来一局', filled: true, onPressed: onPlayAgain),
+            const SizedBox(height: 10),
+            _DecoratedActionButton(
+                text: '复盘', filled: false, onPressed: onReview),
+            const SizedBox(height: 10),
+            _DecoratedActionButton(
+                text: '离开', filled: false, onPressed: onLeave),
+          ],
+        ),
       ),
     );
   }
