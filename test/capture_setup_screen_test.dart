@@ -45,8 +45,6 @@ void main() {
     expect(find.text('先吃5子为胜'), findsOneWidget);
   });
 
-
-
   testWidgets('selected play mode is restored after app restart',
       (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());

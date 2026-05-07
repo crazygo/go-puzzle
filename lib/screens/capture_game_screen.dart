@@ -621,18 +621,27 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       const SizedBox(height: 4),
                                       _PillSegmentControl<String>(
                                         selectedValue: _playMode,
-                                        options: const [
+                                        options: [
                                           _SegmentOption(
                                             value: _modeCapture,
-                                            label: '吃五子取胜',
+                                            label: _captureModeSegmentLabel,
                                           ),
-                                          _SegmentOption(
+                                          const _SegmentOption(
                                             value: _modeTerritory,
                                             label: '围空',
                                           ),
                                         ],
                                         onChanged: (value) =>
                                             _updateSelection(playMode: value),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '仅切换标题显示，当前规则为先吃$_captureTarget子取胜',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: CupertinoColors.secondaryLabel
+                                              .resolveFrom(context),
+                                        ),
                                       ),
                                       const SizedBox(height: 20),
                                       const _SectionLabel(title: '棋盘'),
@@ -1023,6 +1032,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
   String get _selectedModeTitle =>
       _playMode == _modeTerritory ? '围空' : '先吃$_captureTarget子为胜';
+
+  String get _captureModeSegmentLabel => '吃$_captureTarget子取胜';
 
   Future<void> _restoreSelection() async {
     final prefs = await SharedPreferences.getInstance();
