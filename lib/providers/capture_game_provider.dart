@@ -381,48 +381,62 @@ class CaptureGameProvider extends ChangeNotifier {
     final generation = _gameGeneration;
     final thinkingStopwatch = Stopwatch()..start();
 
-    final params = <String, dynamic>{
-      'boardSize': _gameState.boardSize,
-      'captureTarget': captureTarget,
-      'cells': _gameState.board.expand((row) => row.map((s) => s.index)).toList(),
-      'capturedByBlack': _gameState.capturedByBlack.length,
-      'capturedByWhite': _gameState.capturedByWhite.length,
-      'currentPlayer': _gameState.currentPlayer.index,
-      'aiStyle': _aiStyle.name,
-      'difficulty': difficulty.name,
-    };
-    final move = await compute(_runChooseAiMove, params);
-    final bestMove = move == null ? null : BoardPosition(move[0], move[1]);
+    try {
+      final params = <String, dynamic>{
+        'boardSize': _gameState.boardSize,
+        'captureTarget': captureTarget,
+        'cells': _gameState.board.expand((row) => row.map((s) => s.index)).toList(),
+        'capturedByBlack': _gameState.capturedByBlack.length,
+        'capturedByWhite': _gameState.capturedByWhite.length,
+        'currentPlayer': _gameState.currentPlayer.index,
+        'aiStyle': _aiStyle.name,
+        'difficulty': difficulty.name,
+      };
+      final move = await compute(_runChooseAiMove, params);
+      final bestMove = move == null ? null : BoardPosition(move[0], move[1]);
 
-    // Ensure a minimum thinking time so the AI feels human-like. If
-    // computation finished faster than minMoveDelay, wait for the remainder.
-    // The extra wait is capped so that elapsed + wait never exceeds
-    // maxMoveDelay; if computation alone already took longer, no wait is added.
-    final elapsed = thinkingStopwatch.elapsed;
-    if (elapsed < minMoveDelay) {
-      final remaining = minMoveDelay - elapsed;
-      final cap = maxMoveDelay > elapsed ? maxMoveDelay - elapsed : Duration.zero;
-      await Future.delayed(remaining < cap ? remaining : cap);
-    }
+      // Ensure a minimum thinking time so the AI feels human-like. If
+      // computation finished faster than minMoveDelay, wait for the remainder.
+      // The extra wait is capped so that elapsed + wait never exceeds
+      // maxMoveDelay; if computation alone already took longer, no wait is added.
+      final elapsed = thinkingStopwatch.elapsed;
+      if (elapsed < minMoveDelay) {
+        final remaining = minMoveDelay - elapsed;
+        final cap = maxMoveDelay > elapsed ? maxMoveDelay - elapsed : Duration.zero;
+        await Future.delayed(remaining < cap ? remaining : cap);
+      }
 
-    // Bail out if the provider was disposed or a new game started while we
-    // were waiting — don't apply a stale move or call notifyListeners().
-    if (_disposed || _gameGeneration != generation) return;
+      // Bail out if the provider was disposed or a new game started while we
+      // were waiting — don't apply a stale move or call notifyListeners().
+      if (!_isCurrentGame(generation)) return;
 
-    if (bestMove != null) {
-      _undoStack.add(_gameState);
-      final newState =
-          GoEngine.placeStone(_gameState, bestMove.row, bestMove.col);
-      if (newState != null) {
-        _gameState = newState;
-        _moveLog.add([bestMove.row, bestMove.col]);
-        _checkWinCondition();
+      if (bestMove != null) {
+        _undoStack.add(_gameState);
+        final newState =
+            GoEngine.placeStone(_gameState, bestMove.row, bestMove.col);
+        if (newState != null) {
+          _gameState = newState;
+          _moveLog.add([bestMove.row, bestMove.col]);
+          _checkWinCondition();
+        }
+      }
+    } finally {
+      // Always reset the thinking flag and notify listeners, unless the
+      // provider was disposed or superseded by a newer game generation (in
+      // which case the bail-out return above already fired and the provider
+      // state is either gone or owned by the new game).
+      if (_isCurrentGame(generation)) {
+        _isAiThinking = false;
+        notifyListeners();
       }
     }
-
-    _isAiThinking = false;
-    notifyListeners();
   }
+
+  /// Returns true when this provider instance is still alive and [generation]
+  /// matches the current game generation — i.e. a move computed for this
+  /// generation is still valid to apply.
+  bool _isCurrentGame(int generation) =>
+      !_disposed && _gameGeneration == generation;
 
   void _checkWinCondition() {
     if (_gameState.capturedByBlack.length >= captureTarget) {
