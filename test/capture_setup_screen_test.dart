@@ -21,7 +21,7 @@ void main() {
     // banner is present and the rest of the page copy is correct.
     expect(find.byType(PageHeroBanner), findsOneWidget);
     expect(find.text('下一盘'), findsOneWidget);
-    expect(find.text('先吃5子为胜'), findsOneWidget);
+    expect(find.text('吃 5 子取胜 · 9 路 · 十字'), findsOneWidget);
     // Default AI style is now 'adaptive' (随机).
     expect(find.text(CaptureAiStyle.adaptive.label), findsOneWidget);
     expect(find.text('中级 · 9 路 · 吃5子'), findsNothing);
@@ -41,8 +41,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     // Board size should be restored.
-    expect(find.text('13 路'), findsWidgets);
-    expect(find.text('先吃5子为胜'), findsOneWidget);
+    expect(find.text('13 路'), findsNothing);
+    expect(find.text('吃 5 子取胜 · 13 路 · 十字'), findsOneWidget);
   });
 
   testWidgets('selected play mode is restored after app restart',
@@ -55,15 +55,25 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(find.text('围空'));
+    final territoryOption = find.text('围空');
+    await tester.dragUntilVisible(
+      territoryOption,
+      find.byType(Scrollable),
+      const Offset(0, -120),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(territoryOption);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(find.text('完成'));
+    final doneButton = find.text('完成');
+    await tester.ensureVisible(doneButton);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(doneButton);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('围空'), findsOneWidget);
+    expect(find.text('围空 · 9 路 · 十字'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
@@ -72,8 +82,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('围空'), findsOneWidget);
-    expect(find.text('先吃5子为胜'), findsNothing);
+    expect(find.text('围空 · 9 路 · 十字'), findsOneWidget);
+    expect(find.text('吃 5 子取胜 · 9 路 · 十字'), findsNothing);
 
     await tester.tap(find.text('调整 ›'));
     await tester.pump();
@@ -92,8 +102,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('围空'), findsOneWidget);
-    expect(find.text('先吃5子为胜'), findsNothing);
+    expect(find.text('围空 · 9 路 · 十字'), findsOneWidget);
+    expect(find.text('吃 5 子取胜 · 9 路 · 十字'), findsNothing);
   });
   testWidgets('difficulty mode segment control updates on tap', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());

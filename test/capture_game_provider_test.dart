@@ -401,7 +401,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('轮到你（黑棋）落子'), findsOneWidget);
-      expect(find.text('等待黑棋落子'), findsOneWidget);
+      expect(find.text('等待黑棋落子'), findsNothing);
       expect(find.text('落子记录：'), findsNothing);
       expect(find.text('操作'), findsOneWidget);
       expect(find.text('后退一手'), findsNothing);
@@ -412,16 +412,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('等待黑棋落子'), findsNothing);
-      expect(find.text('1 A1'), findsOneWidget);
-      expect(find.text('2 B2'), findsOneWidget);
-      expect(
-        tester.widget<Text>(find.text('2 B2')).style?.fontWeight,
-        FontWeight.w500,
-      );
-
-      await tester.tap(find.byIcon(CupertinoIcons.eye_slash));
-      await tester.pumpAndSettle();
-
       expect(find.text('1 A1'), findsNothing);
       expect(find.text('2 B2'), findsNothing);
       expect(find.text('记录'), findsNothing);
@@ -436,6 +426,10 @@ void main() {
 
       expect(find.text('1 A1'), findsOneWidget);
       expect(find.text('2 B2'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text('2 B2')).style?.fontWeight,
+        FontWeight.w500,
+      );
 
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();

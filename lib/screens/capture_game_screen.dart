@@ -574,16 +574,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
           builder: (context, constraints) {
             const cardTop = (kPageHeroContentOffset + 8) * 2;
             final heroTitleTop = MediaQuery.of(context).padding.top + 36;
-            // The hero title widget has a fixed height of 72 (see _MotivationHeroTitle).
-            // Position the scroll view below the hero title so the hero widget sits
-            // outside the scroll view's hit-test area and can still receive taps,
-            // while remaining visually beneath the scrollable cards.
-            const heroTitleHeight = _MotivationHeroTitle.height;
-            final scrollViewTop = heroTitleTop + heroTitleHeight;
-            // Subtract the scroll view's top offset from the spacer so the first
-            // card appears at the same absolute screen position as before.
+            // Let the scrollable content cover the hero title while scrolling.
+            // The spacer preserves the first card's resting position.
             final adjustedCardTop =
-                cardTop + MediaQuery.of(context).padding.top - scrollViewTop;
+                cardTop + MediaQuery.of(context).padding.top;
 
             return Stack(
               children: [
@@ -607,7 +601,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   ),
                 ),
                 Positioned(
-                  top: scrollViewTop,
+                  top: 0,
                   left: 0,
                   right: 0,
                   bottom: 0,
@@ -644,6 +638,70 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       ),
                                       const SizedBox(height: 18),
                                       if (_isAdjusting) ...[
+                                        const _SectionLabel(title: 'AI 棋力'),
+                                        const SizedBox(height: 8),
+                                        _PillSegmentControl<String>(
+                                          selectedValue: _difficultyMode,
+                                          options: const [
+                                            _SegmentOption(
+                                              value: 'auto',
+                                              label: '不分伯仲',
+                                            ),
+                                            _SegmentOption(
+                                              value: 'manual',
+                                              label: '指定等级',
+                                            ),
+                                          ],
+                                          onChanged: (value) =>
+                                              _updateSelection(
+                                                  difficultyMode: value),
+                                        ),
+                                        if (_difficultyMode == 'manual') ...[
+                                          const SizedBox(height: 8),
+                                          _RankPicker(
+                                            selectedRank: _manualRank,
+                                            onChanged: (rank) =>
+                                                _updateSelection(
+                                                    manualRank: rank),
+                                          ),
+                                        ],
+                                        const SizedBox(height: 20),
+                                        const _SectionLabel(title: 'AI 风格'),
+                                        const SizedBox(height: 8),
+                                        _AiStyleTile(
+                                          selectedStyleName: _aiStyleChoice,
+                                          onChanged: (name) => _updateSelection(
+                                              aiStyleChoice: name),
+                                        ),
+                                        const SizedBox(height: 20),
+                                        const _SectionLabel(title: '初始'),
+                                        const SizedBox(height: 8),
+                                        _PillSegmentControl<CaptureInitialMode>(
+                                          selectedValue: _initialMode,
+                                          options: const [
+                                            _SegmentOption(
+                                              value: CaptureInitialMode.cross,
+                                              label: '十字',
+                                            ),
+                                            _SegmentOption(
+                                              value:
+                                                  CaptureInitialMode.twistCross,
+                                              label: '扭十字',
+                                            ),
+                                            _SegmentOption(
+                                              value: CaptureInitialMode.empty,
+                                              label: '空白',
+                                            ),
+                                            _SegmentOption(
+                                              value: CaptureInitialMode.setup,
+                                              label: '摆棋',
+                                            ),
+                                          ],
+                                          onChanged: (value) =>
+                                              _updateSelection(
+                                                  initialMode: value),
+                                        ),
+                                        const SizedBox(height: 20),
                                         const _SectionLabel(title: '模式'),
                                         const SizedBox(height: 4),
                                         _PillSegmentControl<String>(
@@ -663,7 +721,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
-                                          '仅切换标题显示，当前规则为先吃 $_captureTarget 子取胜',
+                                          '仅切换标题显示，当前规则为吃 $_captureTarget 子取胜',
                                           style: TextStyle(
                                             fontSize: 13,
                                             color: CupertinoColors
@@ -694,79 +752,13 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                               _updateSelection(
                                                   boardSize: value),
                                         ),
-                                        const SizedBox(height: 20),
-                                        const _SectionLabel(title: '难度'),
-                                        const SizedBox(height: 8),
-                                        _PillSegmentControl<String>(
-                                          selectedValue: _difficultyMode,
-                                          options: const [
-                                            _SegmentOption(
-                                              value: 'auto',
-                                              label: '不分伯仲',
-                                            ),
-                                            _SegmentOption(
-                                              value: 'manual',
-                                              label: '指定等级',
-                                            ),
-                                          ],
-                                          onChanged: (value) =>
-                                              _updateSelection(
-                                                  difficultyMode: value),
-                                        ),
-                                        if (_difficultyMode == 'manual') ...[
-                                          const SizedBox(height: 8),
-                                          _RankPicker(
-                                            selectedRank: _manualRank,
-                                            onChanged: (rank) =>
-                                                _updateSelection(
-                                                    manualRank: rank),
-                                          ),
-                                        ],
-                                        const SizedBox(height: 20),
-                                        const _SectionLabel(title: '初始'),
-                                        const SizedBox(height: 8),
-                                        _PillSegmentControl<CaptureInitialMode>(
-                                          selectedValue: _initialMode,
-                                          options: const [
-                                            _SegmentOption(
-                                              value: CaptureInitialMode.cross,
-                                              label: '十字',
-                                            ),
-                                            _SegmentOption(
-                                              value:
-                                                  CaptureInitialMode.twistCross,
-                                              label: '扭十字',
-                                            ),
-                                            _SegmentOption(
-                                              value: CaptureInitialMode.empty,
-                                              label: '空白',
-                                            ),
-                                            _SegmentOption(
-                                              value: CaptureInitialMode.setup,
-                                              label: '摆棋',
-                                            ),
-                                          ],
-                                          onChanged: (value) =>
-                                              _updateSelection(
-                                                  initialMode: value),
-                                        ),
-                                        const SizedBox(height: 20),
-                                        const _SectionLabel(title: 'AI 风格'),
-                                        const SizedBox(height: 8),
-                                        _AiStyleTile(
-                                          selectedStyleName: _aiStyleChoice,
-                                          onChanged: (name) => _updateSelection(
-                                              aiStyleChoice: name),
-                                        ),
                                         const SizedBox(height: 24),
                                       ] else ...[
                                         _ConfigPreview(
-                                          boardSize: _boardSize,
                                           difficultyMode: _difficultyMode,
                                           manualRank: _manualRank,
                                           computedRank: _computedRank,
                                           aiStyleChoice: _aiStyleChoice,
-                                          initialMode: _initialMode,
                                         ),
                                         const SizedBox(height: 24),
                                       ],
@@ -1056,10 +1048,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     });
   }
 
-  String get _selectedModeTitle =>
-      _playMode == _modeTerritory ? '围空' : '先吃$_captureTarget子为胜';
+  String get _selectedModeTitle {
+    final boardSizeLabel = '$_boardSize 路';
+    if (_playMode == _modeTerritory) {
+      return '围空 · $boardSizeLabel · ${_initialMode.label}';
+    }
+    return '吃 $_captureTarget 子取胜 · $boardSizeLabel · ${_initialMode.label}';
+  }
 
-  String get _captureModeSegmentLabel => '吃$_captureTarget子取胜';
+  String get _captureModeSegmentLabel => '吃 $_captureTarget 子取胜';
 
   Future<void> _restoreSelection() async {
     final prefs = await SharedPreferences.getInstance();
@@ -2648,10 +2645,6 @@ class _MotivationHeroTitleState extends State<_MotivationHeroTitle>
   }
 }
 
-String _initialModeLabel(CaptureInitialMode mode) {
-  return mode.label;
-}
-
 extension _CaptureInitialModeLabelExt on CaptureInitialMode {
   String get label {
     return switch (this) {
@@ -2877,20 +2870,16 @@ class _PracticeHeader extends StatelessWidget {
 
 class _ConfigPreview extends StatelessWidget {
   const _ConfigPreview({
-    required this.boardSize,
     required this.difficultyMode,
     required this.manualRank,
     required this.computedRank,
     required this.aiStyleChoice,
-    required this.initialMode,
   });
 
-  final int boardSize;
   final String difficultyMode;
   final int manualRank;
   final int computedRank;
   final String aiStyleChoice;
-  final CaptureInitialMode initialMode;
 
   String get _difficultyLabel {
     if (difficultyMode == 'manual') {
@@ -2921,29 +2910,17 @@ class _ConfigPreview extends StatelessWidget {
         children: [
           Expanded(
             child: _ConfigPreviewItem(
-              icon: CupertinoIcons.circle_grid_3x3_fill,
-              label: '$boardSize 路',
-            ),
-          ),
-          const _ConfigPreviewDivider(),
-          Expanded(
-            child: _ConfigPreviewItem(
               icon: CupertinoIcons.triangle_fill,
-              label: _difficultyLabel,
-            ),
-          ),
-          const _ConfigPreviewDivider(),
-          Expanded(
-            child: _ConfigPreviewItem(
-              icon: CupertinoIcons.circle_grid_3x3_fill,
-              label: _initialModeLabel(initialMode),
+              title: 'AI 棋力',
+              value: _difficultyLabel,
             ),
           ),
           const _ConfigPreviewDivider(),
           Expanded(
             child: _ConfigPreviewItem(
               icon: CupertinoIcons.star_fill,
-              label: _aiStyleLabel,
+              title: 'AI 风格',
+              value: _aiStyleLabel,
             ),
           ),
         ],
@@ -2955,32 +2932,56 @@ class _ConfigPreview extends StatelessWidget {
 class _ConfigPreviewItem extends StatelessWidget {
   const _ConfigPreviewItem({
     required this.icon,
-    required this.label,
+    required this.title,
+    required this.value,
   });
 
   final IconData icon;
-  final String label;
+  final String title;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
-          width: 48,
-          height: 48,
+          width: 44,
+          height: 44,
           decoration: const BoxDecoration(
             color: Color(0xFFF8F0E3),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: Color(0xFFB68454)),
         ),
-        const SizedBox(height: 10),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF36271E),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF9A8067),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF36271E),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -2995,7 +2996,7 @@ class _ConfigPreviewDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 1,
-      height: 68,
+      height: 54,
       margin: const EdgeInsets.symmetric(horizontal: 4),
       color: const Color(0x1ED2B28E),
     );
@@ -3572,7 +3573,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   bool _isLoadingHints = false;
   bool _gameSaved = false;
   bool _resultDialogShown = false;
-  bool _moveLogVisible = true;
+  bool _moveLogVisible = false;
   final Set<int> _markedMoveNumbers = <int>{};
   final GlobalKey _operationButtonKey = GlobalKey();
 
@@ -5370,40 +5371,241 @@ class _GameResultDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (title, bgColor) = switch (state) {
-      _ResultDialogState.victory => ('胜利', const Color(0xFFE6F6EA)),
-      _ResultDialogState.draw => ('和棋', const Color(0xFFF2F2F2)),
-      _ResultDialogState.notWin => ('没赢', const Color(0xFFFFEFEA)),
-    };
-
-    return CupertinoAlertDialog(
-      content: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(16),
+    final palette = context.appPalette;
+    final isClassic = palette.primary == AppThemePalette.classic.primary;
+    final (title, icon, accentColor) = switch (state) {
+      _ResultDialogState.victory => (
+          '胜利',
+          CupertinoIcons.star_fill,
+          isClassic ? const Color(0xFF34C759) : const Color(0xFFE4A64F),
         ),
-        child: Column(
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF2E2620),
+      _ResultDialogState.draw => (
+          '和棋',
+          CupertinoIcons.equal_circle_fill,
+          isClassic ? const Color(0xFF8E8E93) : const Color(0xFFC6A77F),
+        ),
+      _ResultDialogState.notWin => (
+          '没赢',
+          CupertinoIcons.flag_fill,
+          isClassic ? const Color(0xFFFF3B30) : const Color(0xFFC57A5E),
+        ),
+    };
+    final titleColor =
+        isClassic ? const Color(0xFF111827) : const Color(0xFF2E2620);
+    final cardGradient = isClassic
+        ? const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFFFFF), Color(0xFFF9FAFB)],
+          )
+        : const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFFFFCF7), Color(0xFFFFF4E7)],
+          );
+    final secondaryButtonColor =
+        isClassic ? const Color(0xFFF2F2F7) : const Color(0xFFF7EFE6);
+    final secondaryTextColor =
+        isClassic ? const Color(0xFF007AFF) : const Color(0xFF9B6C3D);
+
+    return Center(
+      child: FractionallySizedBox(
+        widthFactor: 0.76,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: cardGradient,
+            borderRadius: BorderRadius.circular(isClassic ? 24 : 30),
+            border: Border.all(
+              color:
+                  isClassic ? const Color(0x1F000000) : const Color(0x22C59A6D),
+              width: 0.7,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x33000000),
+                blurRadius: 28,
+                offset: Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(28, 36, 28, 34),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ResultMedallion(
+                  icon: icon,
+                  accentColor: accentColor,
+                  classic: isClassic,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
+                    color: titleColor,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                _ResultActionButton(
+                  text: '再来一局',
+                  primary: true,
+                  color: palette.primary,
+                  textColor: CupertinoColors.white,
+                  onPressed: onPlayAgain,
+                ),
+                const SizedBox(height: 14),
+                _ResultActionButton(
+                  text: '复盘',
+                  primary: false,
+                  color: secondaryButtonColor,
+                  textColor: secondaryTextColor,
+                  onPressed: onReview,
+                ),
+                const SizedBox(height: 14),
+                _ResultActionButton(
+                  text: '离开',
+                  primary: false,
+                  color: secondaryButtonColor,
+                  textColor: secondaryTextColor,
+                  onPressed: onLeave,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultMedallion extends StatelessWidget {
+  const _ResultMedallion({
+    required this.icon,
+    required this.accentColor,
+    required this.classic,
+  });
+
+  final IconData icon;
+  final Color accentColor;
+  final bool classic;
+
+  @override
+  Widget build(BuildContext context) {
+    final haloColor = accentColor.withValues(alpha: classic ? 0.12 : 0.18);
+    return SizedBox(
+      width: 112,
+      height: 92,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 104,
+            height: 44,
+            decoration: BoxDecoration(
+              color: haloColor,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: classic
+                    ? [
+                        accentColor.withValues(alpha: 0.94),
+                        Color.lerp(accentColor, CupertinoColors.black, 0.12)!,
+                      ]
+                    : const [
+                        Color(0xFFFFD68A),
+                        Color(0xFFE5A34C),
+                      ],
+              ),
+              border: Border.all(
+                color: classic
+                    ? CupertinoColors.white.withValues(alpha: 0.62)
+                    : const Color(0xFFFFE6B7),
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: accentColor.withValues(alpha: 0.28),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Icon(
+              icon,
+              color: CupertinoColors.white,
+              size: 36,
+            ),
+          ),
+          if (!classic) ...const [
+            Positioned(
+              left: 10,
+              top: 20,
+              child: Icon(
+                CupertinoIcons.sparkles,
+                size: 18,
+                color: Color(0xFFFFDFA8),
               ),
             ),
-            const SizedBox(height: 16),
-            _DecoratedActionButton(
-                text: '再来一局', filled: true, onPressed: onPlayAgain),
-            const SizedBox(height: 10),
-            _DecoratedActionButton(
-                text: '复盘', filled: false, onPressed: onReview),
-            const SizedBox(height: 10),
-            _DecoratedActionButton(
-                text: '离开', filled: false, onPressed: onLeave),
+            Positioned(
+              right: 10,
+              top: 26,
+              child: Icon(
+                CupertinoIcons.sparkles,
+                size: 14,
+                color: Color(0xFFFFDFA8),
+              ),
+            ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultActionButton extends StatelessWidget {
+  const _ResultActionButton({
+    required this.text,
+    required this.primary,
+    required this.color,
+    required this.textColor,
+    required this.onPressed,
+  });
+
+  final String text;
+  final bool primary;
+  final Color color;
+  final Color textColor;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 58,
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        color: color,
+        borderRadius: BorderRadius.circular(17),
+        onPressed: onPressed,
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: primary ? FontWeight.w700 : FontWeight.w600,
+            color: textColor,
+            decoration: TextDecoration.none,
+          ),
         ),
       ),
     );
