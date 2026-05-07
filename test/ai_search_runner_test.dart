@@ -164,7 +164,7 @@ void main() {
       runner.dispose();
     });
 
-    test('completed runner returns error result', () async {
+    test('disposed runner returns error result', () async {
       final runner = _FakeAiSearchRunner();
       runner.dispose();
 

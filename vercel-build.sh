@@ -49,7 +49,7 @@ dart compile js web/ai_search_worker.dart \
     -o web/ai_search_worker.dart.js \
     --no-source-maps
 
-# ── 4. Optionally download screenshot-test fonts ─────────────────────────────
+# ── 5. Optionally download screenshot-test fonts ─────────────────────────────
 if [ "${ENABLE_SCREENSHOT_TEST_FONTS:-}" = "1" ] || \
    [ "${ENABLE_SCREENSHOT_TEST_FONTS:-}" = "true" ]; then
   echo "▸ Ensuring screenshot-test fonts…"
@@ -58,7 +58,7 @@ else
   echo "▸ Skipping screenshot-test fonts (set ENABLE_SCREENSHOT_TEST_FONTS=1 to enable)…"
 fi
 
-# ── 5. Build ─────────────────────────────────────────────────────────────────
+# ── 6. Build ─────────────────────────────────────────────────────────────────
 echo "▸ Building Flutter web (release)…"
 flutter build web \
     --release \
