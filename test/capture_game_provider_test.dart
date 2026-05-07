@@ -12,8 +12,13 @@ import 'package:go_puzzle/providers/capture_game_provider.dart';
 import 'package:go_puzzle/providers/settings_provider.dart';
 import 'package:go_puzzle/screens/capture_game_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   group('CaptureGameProvider', () {
     test('initial cross layout uses plus-shaped stones', () {
       final provider = CaptureGameProvider(
@@ -70,8 +75,8 @@ void main() {
     test('legacy and new persisted keys reconstruct their respective layouts',
         () {
       const boardSize = 9;
-      final legacyBoard =
-          List.generate(boardSize, (_) => List.filled(boardSize, StoneColor.empty));
+      final legacyBoard = List.generate(
+          boardSize, (_) => List.filled(boardSize, StoneColor.empty));
       final newBoard = List.generate(
           boardSize, (_) => List.filled(boardSize, StoneColor.empty));
       final legacyMode = captureInitialModeFromStorageKey('twistCross');
@@ -174,7 +179,8 @@ void main() {
       // The new game's AI move may have run, but the old stale move must not
       // have been written, so log should reflect at most one AI move (the one
       // belonging to the new game).
-      expect(provider.moveLog.length, lessThanOrEqualTo(moveCountAfterNewGame + 1));
+      expect(provider.moveLog.length,
+          lessThanOrEqualTo(moveCountAfterNewGame + 1));
       expect(provider.isAiThinking, isFalse);
     });
 
@@ -272,6 +278,7 @@ void main() {
       await provider.placeStone(4, 4);
       // Human move should render immediately without waiting for AI work.
       expect(provider.moveLog.length, equals(initialMoveCount + 1));
+      expect(provider.isAiThinking, isFalse);
 
       // No onTimeout callback — let the timeout throw so the test fails fast
       // rather than silently masking a missing AI response.
@@ -348,23 +355,106 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Nav bar trailing button now shows the AI rank label (e.g. "22级" for rank 1).
-      final rankLabel = AiRankLevel.displayName(AiRankLevel.min);
-      expect(find.text(rankLabel), findsOneWidget);
+      expect(find.text('操作'), findsOneWidget);
+      expect(find.text('AI 22 级'), findsNothing);
 
-      await tester.tap(find.text(rankLabel));
+      await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      expect(find.text('对局配置'), findsOneWidget);
-      expect(find.text('随机'), findsOneWidget);
+      expect(find.text('AI 风格：随机'), findsOneWidget);
+      expect(find.text('吃子预警：开'), findsOneWidget);
 
-      await tester.tap(find.text('随机'));
+      await tester.tap(find.text('AI 风格：随机'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('稳守 · 先补强自己，再等反击'));
       await tester.pumpAndSettle();
 
       expect(provider.aiStyle, CaptureAiStyle.counter);
+    });
+
+    testWidgets('shows move coordinates above the board and highlights marks',
+        (tester) async {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        minMoveDelay: Duration.zero,
+      );
+      final settings = SettingsProvider();
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: const CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              initialMode: CaptureInitialMode.setup,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('轮到你（黑棋）落子'), findsOneWidget);
+      expect(find.text('等待黑棋落子'), findsNothing);
+      expect(find.text('落子记录：'), findsNothing);
+      expect(find.text('操作'), findsOneWidget);
+      expect(find.text('后退一手'), findsNothing);
+      expect(find.text('提示一手'), findsNothing);
+
+      await provider.placeStone(8, 0);
+      await provider.placeStone(7, 1);
+      await tester.pumpAndSettle();
+
+      expect(find.text('等待黑棋落子'), findsNothing);
+      expect(find.text('1 A1'), findsNothing);
+      expect(find.text('2 B2'), findsNothing);
+      expect(find.text('记录'), findsNothing);
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('显示吃子记录'), findsOneWidget);
+
+      await tester.tap(find.text('显示吃子记录'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 A1'), findsOneWidget);
+      expect(find.text('2 B2'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text('2 B2')).style?.fontWeight,
+        FontWeight.w500,
+      );
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('打标此手'));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<Text>(find.text('2 B2')).style?.fontWeight,
+        FontWeight.w700,
+      );
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('取消打标此手'), findsOneWidget);
+      expect(find.text('后退一手'), findsOneWidget);
+      expect(find.text('提示一手'), findsOneWidget);
+
+      await tester.tap(find.text('后退一手'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 A1'), findsOneWidget);
+      expect(find.text('2 B2'), findsNothing);
     });
   });
 }

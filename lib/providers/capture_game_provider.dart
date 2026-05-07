@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../game/ai_search_runner.dart';
@@ -120,6 +122,7 @@ void applyCaptureInitialLayout(
 class CaptureGameProvider extends ChangeNotifier {
   static const Duration _defaultMinMoveDelay = Duration(milliseconds: 1280);
   static const Duration _defaultMaxMoveDelay = Duration(milliseconds: 2500);
+  static const Duration _aiStartRenderDelay = Duration(milliseconds: 32);
 
   CaptureGameProvider({
     required this.boardSize,
@@ -165,7 +168,7 @@ class CaptureGameProvider extends ChangeNotifier {
     }
     _startNewGame();
     if (!isPlacementMode && _gameState.currentPlayer != humanColor) {
-      Future<void>.microtask(_doAiMove);
+      _scheduleAiMove();
     }
   }
 
@@ -200,6 +203,11 @@ class CaptureGameProvider extends ChangeNotifier {
 
   late final AiSearchRunner _runner;
 
+  /// Monotonically-increasing counter used to build unique request IDs.
+  /// Unlike [_gameGeneration], this is never reset so each [_doAiMove] call
+  /// gets a distinct identifier even within the same game.
+  int _requestCounter = 0;
+
   /// The request ID for the currently in-flight AI move search, or null.
   AiSearchRequestId? _pendingAiRequestId;
 
@@ -207,6 +215,7 @@ class CaptureGameProvider extends ChangeNotifier {
   CaptureGameResult _result = CaptureGameResult.none;
   bool _isAiThinking = false;
   bool _disposed = false;
+  Timer? _aiMoveTimer;
 
   /// Incremented every time a new game starts. In-flight [_doAiMove] tasks
   /// capture this value on entry and bail out if it has changed by the time
@@ -238,6 +247,7 @@ class CaptureGameProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _aiMoveTimer?.cancel();
     if (_pendingAiRequestId != null) {
       _runner.cancel(_pendingAiRequestId!);
       _pendingAiRequestId = null;
@@ -255,8 +265,9 @@ class CaptureGameProvider extends ChangeNotifier {
 
   Future<bool> placeStone(int row, int col) async {
     if (_isAiThinking || _result != CaptureGameResult.none) return false;
-    if (!isPlacementMode && _gameState.currentPlayer != humanColor)
+    if (!isPlacementMode && _gameState.currentPlayer != humanColor) {
       return false;
+    }
 
     final newState = GoEngine.placeStone(_gameState, row, col);
     if (newState == null) return false;
@@ -268,7 +279,7 @@ class CaptureGameProvider extends ChangeNotifier {
     notifyListeners();
 
     if (!isPlacementMode && _result == CaptureGameResult.none) {
-      Future<void>.microtask(_doAiMove);
+      _scheduleAiMove();
     }
     return true;
   }
@@ -310,7 +321,7 @@ class CaptureGameProvider extends ChangeNotifier {
     notifyListeners();
     // If we exhausted the stack and it's still AI's turn, kick off AI again
     if (!isPlacementMode && _gameState.currentPlayer != humanColor) {
-      Future<void>.microtask(_doAiMove);
+      _scheduleAiMove();
     }
   }
 
@@ -375,6 +386,14 @@ class CaptureGameProvider extends ChangeNotifier {
   }
 
   void _startNewGame() {
+    _aiMoveTimer?.cancel();
+    _aiMoveTimer = null;
+    // Cancel any in-flight AI request from the previous game before bumping
+    // the generation counter, so stale results are discarded immediately.
+    if (_pendingAiRequestId != null) {
+      _runner.cancel(_pendingAiRequestId!);
+      _pendingAiRequestId = null;
+    }
     final emptyBoard = List.generate(
       boardSize,
       (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
@@ -408,24 +427,52 @@ class CaptureGameProvider extends ChangeNotifier {
     );
     _result = CaptureGameResult.none;
     _isAiThinking = false;
-    // Cancel any in-flight AI request from the previous game before bumping
-    // the generation counter, so stale results are discarded immediately.
-    if (_pendingAiRequestId != null) {
-      _runner.cancel(_pendingAiRequestId!);
-      _pendingAiRequestId = null;
-    }
     _gameGeneration++;
     _undoStack.clear();
     _moveLog.clear();
     notifyListeners();
   }
 
+  void _scheduleAiMove() {
+    if (_disposed ||
+        isPlacementMode ||
+        _result != CaptureGameResult.none ||
+        _isAiThinking ||
+        _aiMoveTimer != null ||
+        _gameState.currentPlayer == humanColor) {
+      return;
+    }
+
+    final generation = _gameGeneration;
+    _aiMoveTimer = Timer(_aiStartRenderDelay, () {
+      _aiMoveTimer = null;
+      if (!_isCurrentGame(generation) ||
+          isPlacementMode ||
+          _result != CaptureGameResult.none ||
+          _isAiThinking ||
+          _gameState.currentPlayer == humanColor) {
+        return;
+      }
+      unawaited(_doAiMove());
+    });
+  }
+
   Future<void> _doAiMove() async {
+    if (_disposed ||
+        isPlacementMode ||
+        _result != CaptureGameResult.none ||
+        _isAiThinking ||
+        _gameState.currentPlayer == humanColor) {
+      return;
+    }
+
     _isAiThinking = true;
     notifyListeners();
 
     final generation = _gameGeneration;
-    final requestId = 'ai_move_$generation';
+    // Use a per-request counter to guarantee a unique ID for every AI turn,
+    // even within the same game generation.
+    final requestId = 'ai_move_${generation}_${++_requestCounter}';
     _pendingAiRequestId = requestId;
     final thinkingStopwatch = Stopwatch()..start();
 
@@ -433,7 +480,8 @@ class CaptureGameProvider extends ChangeNotifier {
       final params = <String, dynamic>{
         'boardSize': _gameState.boardSize,
         'captureTarget': captureTarget,
-        'cells': _gameState.board.expand((row) => row.map((s) => s.index)).toList(),
+        'cells':
+            _gameState.board.expand((row) => row.map((s) => s.index)).toList(),
         'capturedByBlack': _gameState.capturedByBlack.length,
         'capturedByWhite': _gameState.capturedByWhite.length,
         'currentPlayer': _gameState.currentPlayer.index,
@@ -458,7 +506,8 @@ class CaptureGameProvider extends ChangeNotifier {
       final elapsed = thinkingStopwatch.elapsed;
       if (elapsed < minMoveDelay) {
         final remaining = minMoveDelay - elapsed;
-        final cap = maxMoveDelay > elapsed ? maxMoveDelay - elapsed : Duration.zero;
+        final cap =
+            maxMoveDelay > elapsed ? maxMoveDelay - elapsed : Duration.zero;
         await Future.delayed(remaining < cap ? remaining : cap);
       }
 
