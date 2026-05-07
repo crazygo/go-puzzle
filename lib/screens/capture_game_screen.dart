@@ -648,17 +648,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                             label: '指定等级',
                                           ),
                                         ],
-                                        onChanged: (value) =>
-                                            _updateSelection(
-                                                difficultyMode: value),
+                                        onChanged: (value) => _updateSelection(
+                                            difficultyMode: value),
                                       ),
                                       if (_difficultyMode == 'manual') ...[
                                         const SizedBox(height: 8),
                                         _RankPicker(
                                           selectedRank: _manualRank,
-                                          onChanged: (rank) =>
-                                              _updateSelection(
-                                                  manualRank: rank),
+                                          onChanged: (rank) => _updateSelection(
+                                              manualRank: rank),
                                         ),
                                       ],
                                       const SizedBox(height: 20),
@@ -689,9 +687,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       const SizedBox(height: 8),
                                       _AiStyleTile(
                                         selectedStyleName: _aiStyleChoice,
-                                        onChanged: (name) =>
-                                            _updateSelection(
-                                                aiStyleChoice: name),
+                                        onChanged: (name) => _updateSelection(
+                                            aiStyleChoice: name),
                                       ),
                                       const SizedBox(height: 24),
                                     ] else ...[
@@ -1177,35 +1174,40 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }) {
     _saveSelection();
 
-    final effectiveRank = _difficultyMode == 'auto' ? _computedRank : _manualRank;
+    final effectiveRank =
+        _difficultyMode == 'auto' ? _computedRank : _manualRank;
     final effectiveDifficulty = AiRankLevel.difficultyZone(effectiveRank);
 
-    Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute(
-        builder: (_) => ChangeNotifierProvider(
-          create: (_) => CaptureGameProvider(
-            boardSize: _boardSize,
-            captureTarget: _captureTarget,
-            difficulty: effectiveDifficulty,
-            humanColor: humanColor,
-            initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
-            initialBoardOverride: initialBoard,
-          )..setAiStyle(
-              CaptureAiStyle.values.firstWhere(
-                (s) => s.name == _aiStyleChoice,
-                orElse: () => CaptureAiStyle.adaptive,
+    Navigator.of(context, rootNavigator: true)
+        .push(
+          CupertinoPageRoute(
+            builder: (_) => ChangeNotifierProvider(
+              create: (_) => CaptureGameProvider(
+                boardSize: _boardSize,
+                captureTarget: _captureTarget,
+                difficulty: effectiveDifficulty,
+                humanColor: humanColor,
+                initialMode:
+                    forceSetup ? CaptureInitialMode.setup : _initialMode,
+                initialBoardOverride: initialBoard,
+              )..setAiStyle(
+                  CaptureAiStyle.values.firstWhere(
+                    (s) => s.name == _aiStyleChoice,
+                    orElse: () => CaptureAiStyle.adaptive,
+                  ),
+                ),
+              child: CaptureGamePlayScreen(
+                aiRank: effectiveRank,
+                captureTarget: _captureTarget,
+                humanColor: humanColor,
+                initialMode:
+                    forceSetup ? CaptureInitialMode.setup : _initialMode,
+                initialBoardOverride: initialBoard,
               ),
             ),
-          child: CaptureGamePlayScreen(
-            aiRank: effectiveRank,
-            captureTarget: _captureTarget,
-            humanColor: humanColor,
-            initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
-            initialBoardOverride: initialBoard,
           ),
-        ),
-      ),
-    ).then((_) => _loadHistory());
+        )
+        .then((_) => _loadHistory());
   }
 }
 
@@ -3020,9 +3022,7 @@ class _AiStyleTile extends StatelessWidget {
                 Navigator.of(ctx).pop();
               },
               child: Text(
-                s == style
-                    ? '${s.label} · 当前'
-                    : '${s.label}  ${s.summary}',
+                s == style ? '${s.label} · 当前' : '${s.label}  ${s.summary}',
               ),
             ),
         ],
@@ -3503,14 +3503,12 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
     if (provider.moveLog.isEmpty) return; // nothing to save
 
     final outcome = switch (provider.result) {
-      CaptureGameResult.blackWins =>
-        widget.humanColor == StoneColor.black
-            ? GameOutcome.humanWins
-            : GameOutcome.aiWins,
-      CaptureGameResult.whiteWins =>
-        widget.humanColor == StoneColor.white
-            ? GameOutcome.humanWins
-            : GameOutcome.aiWins,
+      CaptureGameResult.blackWins => widget.humanColor == StoneColor.black
+          ? GameOutcome.humanWins
+          : GameOutcome.aiWins,
+      CaptureGameResult.whiteWins => widget.humanColor == StoneColor.white
+          ? GameOutcome.humanWins
+          : GameOutcome.aiWins,
       CaptureGameResult.none => GameOutcome.abandoned,
     };
 
@@ -3559,10 +3557,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
           }
 
           final rates = provider.winRateEstimate;
-          final blackRate =
-              (rates[StoneColor.black]! * 100).toStringAsFixed(0);
-          final whiteRate =
-              (rates[StoneColor.white]! * 100).toStringAsFixed(0);
+          final blackRate = (rates[StoneColor.black]! * 100).toStringAsFixed(0);
+          final whiteRate = (rates[StoneColor.white]! * 100).toStringAsFixed(0);
           final blackCaptured = provider.gameState.capturedByBlack.length;
           final whiteCaptured = provider.gameState.capturedByWhite.length;
           final aiThinking = provider.isAiThinking;
@@ -3576,20 +3572,22 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
               backgroundColor: const Color(0xFFF3F0ED),
               border: null,
               previousPageTitle: _CaptureCopy.pageTitle,
-              middle: Text(
-                '${_initialModeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${AiRankLevel.displayName(widget.aiRank)}',
-              ),
+              middle: null,
               trailing: CupertinoButton(
                 padding: EdgeInsets.zero,
+                minSize: 0,
                 onPressed: () => _showGameConfigDialog(
                   context: context,
                   provider: provider,
                   settings: settings,
                 ),
-                child: const Icon(
-                  CupertinoIcons.slider_horizontal_3,
-                  color: Color(0xFFC3996E),
-                  size: 20,
+                child: Text(
+                  AiRankLevel.displayName(widget.aiRank),
+                  style: const TextStyle(
+                    color: Color(0xFFC3996E),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -4354,7 +4352,8 @@ class _HistoryRow extends StatelessWidget {
       onPressed: onTap,
       child: Row(
         children: [
-          _StoneCircle(isBlack: record.humanColorIndex == StoneColor.black.index),
+          _StoneCircle(
+              isBlack: record.humanColorIndex == StoneColor.black.index),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -4380,8 +4379,7 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color: outcomeColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
@@ -4704,8 +4702,8 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
       for (int r = 0; r < record.boardSize; r++) {
         for (int c = 0; c < record.boardSize; c++) {
           if (r < cells.length && c < cells[r].length) {
-            emptyBoard[r][c] = StoneColor.values[
-                cells[r][c].clamp(0, StoneColor.values.length - 1)];
+            emptyBoard[r][c] = StoneColor
+                .values[cells[r][c].clamp(0, StoneColor.values.length - 1)];
           }
         }
       }
@@ -4779,9 +4777,7 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                _index == 0
-                    ? '初始局面'
-                    : '第 $_index 手 / 共 $_totalMoves 手',
+                _index == 0 ? '初始局面' : '第 $_index 手 / 共 $_totalMoves 手',
                 style: const TextStyle(
                   fontSize: 13,
                   color: Color(0xFF8C7966),
@@ -4802,9 +4798,8 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                     child: _DecoratedActionButton(
                       text: '上一手',
                       filled: false,
-                      onPressed: isAtStart
-                          ? null
-                          : () => setState(() => _index--),
+                      onPressed:
+                          isAtStart ? null : () => setState(() => _index--),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -4812,9 +4807,8 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                     child: _DecoratedActionButton(
                       text: '下一手',
                       filled: true,
-                      onPressed: isAtEnd
-                          ? null
-                          : () => setState(() => _index++),
+                      onPressed:
+                          isAtEnd ? null : () => setState(() => _index++),
                     ),
                   ),
                   const SizedBox(width: 8),
