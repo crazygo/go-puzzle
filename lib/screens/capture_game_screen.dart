@@ -566,7 +566,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         decoration: const BoxDecoration(),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            const cardTop = kPageHeroContentOffset + 8;
+            const cardTop = (kPageHeroContentOffset + 8) * 2;
             final heroTitleTop = MediaQuery.of(context).padding.top + 36;
 
             return Stack(
@@ -579,6 +579,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     title: _CaptureCopy.pageTitle,
                     titleWidget: const SizedBox.shrink(),
                     showOrbitalArt: false,
+                  ),
+                ),
+                Positioned(
+                  top: heroTitleTop,
+                  left: 24,
+                  right: 16,
+                  child: _MotivationHeroTitle(
+                    title: _CaptureCopy.pageTitle,
+                    motivation: _CaptureCopy.motivation,
                   ),
                 ),
                 SafeArea(
@@ -747,15 +756,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                         ),
                       ),
                     ],
-                  ),
-                ),
-                Positioned(
-                  top: heroTitleTop,
-                  left: 24,
-                  right: 16,
-                  child: _MotivationHeroTitle(
-                    title: _CaptureCopy.pageTitle,
-                    motivation: _CaptureCopy.motivation,
                   ),
                 ),
                 if (kIsWeb && developerMode)
