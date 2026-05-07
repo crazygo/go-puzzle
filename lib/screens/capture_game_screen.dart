@@ -3564,7 +3564,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
           final whiteCaptured = provider.gameState.capturedByWhite.length;
           final aiThinking = provider.isAiThinking;
           final isFinished = provider.result != CaptureGameResult.none;
-          if (isFinished && !_resultDialogShown) {
+          if (!isFinished) {
+            _resultDialogShown = false;
+          }
+          if (!provider.isPlacementMode && isFinished && !_resultDialogShown) {
             _resultDialogShown = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
@@ -3740,7 +3743,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
 
   _ResultDialogState _resultDialogState(CaptureGameProvider provider) {
     if (provider.result == CaptureGameResult.none) {
-      return _ResultDialogState.draw;
+      throw StateError('Result dialog requires a finished game result.');
     }
     final humanWins = (provider.result == CaptureGameResult.blackWins &&
             widget.humanColor == StoneColor.black) ||
@@ -3765,6 +3768,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
             if (mounted) {
               setState(() {
                 _hintMarks = const [];
+                _isLoadingHints = false;
+                _gameSaved = false;
                 _resultDialogShown = false;
               });
             }
