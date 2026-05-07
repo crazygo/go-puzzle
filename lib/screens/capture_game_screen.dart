@@ -571,8 +571,18 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         decoration: const BoxDecoration(),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            const cardTop = kPageHeroContentOffset + 8;
+            const cardTop = (kPageHeroContentOffset + 8) * 2;
             final heroTitleTop = MediaQuery.of(context).padding.top + 36;
+            // The hero title widget has a fixed height of 72 (see _MotivationHeroTitle).
+            // Position the scroll view below the hero title so the hero widget sits
+            // outside the scroll view's hit-test area and can still receive taps,
+            // while remaining visually beneath the scrollable cards.
+            const heroTitleHeight = _MotivationHeroTitle.height;
+            final scrollViewTop = heroTitleTop + heroTitleHeight;
+            // Subtract the scroll view's top offset from the spacer so the first
+            // card appears at the same absolute screen position as before.
+            final adjustedCardTop =
+                cardTop + MediaQuery.of(context).padding.top - scrollViewTop;
 
             return Stack(
               children: [
@@ -586,203 +596,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     showOrbitalArt: false,
                   ),
                 ),
-                SafeArea(
-                  bottom: false,
-                  child: CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: SizedBox(height: cardTop),
-                      ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const _OuterSectionTitle(
-                                title: '下一盘',
-                                isVisible: false,
-                              ),
-                              const SizedBox(height: 8),
-                              _SectionCard(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _PracticeHeader(
-                                      title: _selectedModeTitle,
-                                      isAdjusting: _isAdjusting,
-                                      onAdjustTap: () => setState(
-                                        () => _isAdjusting = !_isAdjusting,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 18),
-                                    if (_isAdjusting) ...[
-                                      const _SectionLabel(title: '模式'),
-                                      const SizedBox(height: 4),
-                                      _PillSegmentControl<String>(
-                                        selectedValue: _playMode,
-                                        options: [
-                                          _SegmentOption(
-                                            value: _modeCapture,
-                                            label: _captureModeSegmentLabel,
-                                          ),
-                                          const _SegmentOption(
-                                            value: _modeTerritory,
-                                            label: '围空',
-                                          ),
-                                        ],
-                                        onChanged: (value) =>
-                                            _updateSelection(playMode: value),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        '仅切换标题显示，当前规则为先吃 $_captureTarget 子取胜',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: CupertinoColors.secondaryLabel
-                                              .resolveFrom(context),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 20),
-                                      const _SectionLabel(title: '棋盘'),
-                                      const SizedBox(height: 4),
-                                      _PillSegmentControl<int>(
-                                        selectedValue: _boardSize,
-                                        options: const [
-                                          _SegmentOption(
-                                            value: 9,
-                                            label: '9 路',
-                                          ),
-                                          _SegmentOption(
-                                            value: 13,
-                                            label: '13 路',
-                                          ),
-                                          _SegmentOption(
-                                            value: 19,
-                                            label: '19 路',
-                                          ),
-                                        ],
-                                        onChanged: (value) =>
-                                            _updateSelection(boardSize: value),
-                                      ),
-                                      const SizedBox(height: 20),
-                                      const _SectionLabel(title: '难度'),
-                                      const SizedBox(height: 8),
-                                      _PillSegmentControl<String>(
-                                        selectedValue: _difficultyMode,
-                                        options: const [
-                                          _SegmentOption(
-                                            value: 'auto',
-                                            label: '不分伯仲',
-                                          ),
-                                          _SegmentOption(
-                                            value: 'manual',
-                                            label: '指定等级',
-                                          ),
-                                        ],
-                                        onChanged: (value) => _updateSelection(
-                                            difficultyMode: value),
-                                      ),
-                                      if (_difficultyMode == 'manual') ...[
-                                        const SizedBox(height: 8),
-                                        _RankPicker(
-                                          selectedRank: _manualRank,
-                                          onChanged: (rank) => _updateSelection(
-                                              manualRank: rank),
-                                        ),
-                                      ],
-                                      const SizedBox(height: 20),
-                                      const _SectionLabel(title: '初始'),
-                                      const SizedBox(height: 8),
-                                      _PillSegmentControl<CaptureInitialMode>(
-                                        selectedValue: _initialMode,
-                                        options: const [
-                                          _SegmentOption(
-                                            value:
-                                                CaptureInitialMode.cross,
-                                            label: '十字',
-                                          ),
-                                          _SegmentOption(
-                                            value:
-                                                CaptureInitialMode.twistCross,
-                                            label: '扭十字',
-                                          ),
-                                          _SegmentOption(
-                                            value: CaptureInitialMode.empty,
-                                            label: '空白',
-                                          ),
-                                          _SegmentOption(
-                                            value: CaptureInitialMode.setup,
-                                            label: '摆棋',
-                                          ),
-                                        ],
-                                        onChanged: (value) => _updateSelection(
-                                            initialMode: value),
-                                      ),
-                                      const SizedBox(height: 20),
-                                      const _SectionLabel(title: 'AI 风格'),
-                                      const SizedBox(height: 8),
-                                      _AiStyleTile(
-                                        selectedStyleName: _aiStyleChoice,
-                                        onChanged: (name) => _updateSelection(
-                                            aiStyleChoice: name),
-                                      ),
-                                      const SizedBox(height: 24),
-                                    ] else ...[
-                                      _ConfigPreview(
-                                        boardSize: _boardSize,
-                                        difficultyMode: _difficultyMode,
-                                        manualRank: _manualRank,
-                                        computedRank: _computedRank,
-                                        aiStyleChoice: _aiStyleChoice,
-                                        initialMode: _initialMode,
-                                      ),
-                                      const SizedBox(height: 24),
-                                    ],
-                                    if (_initialMode ==
-                                        CaptureInitialMode.setup) ...[
-                                      _PrimaryActionButton(
-                                        title: _CaptureCopy.startSetupButton,
-                                        onPressed: () => _startGame(
-                                            humanColor: StoneColor.black),
-                                      ),
-                                    ] else ...[
-                                      _PrimaryActionButton(
-                                        title: _CaptureCopy.startAsBlackButton,
-                                        onPressed: () => _startGame(
-                                            humanColor: StoneColor.black),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      _SecondaryActionButton(
-                                        title: _CaptureCopy.startAsWhiteButton,
-                                        onPressed: () => _startGame(
-                                            humanColor: StoneColor.white),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              _ImportScreenshotCard(
-                                isLoading: _isRecognizingScreenshot,
-                                onTap: _isRecognizingScreenshot
-                                    ? null
-                                    : _importBoardFromScreenshot,
-                              ),
-                              const SizedBox(height: 14),
-                              if (_history.isNotEmpty) ...[
-                                _HistorySectionCard(
-                                  history: _history,
-                                ),
-                                const SizedBox(height: 14),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 Positioned(
                   top: heroTitleTop,
                   left: 24,
@@ -790,6 +603,217 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   child: _MotivationHeroTitle(
                     title: _CaptureCopy.pageTitle,
                     motivation: _CaptureCopy.motivation,
+                  ),
+                ),
+                Positioned(
+                  top: scrollViewTop,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: SafeArea(
+                    top: false,
+                    bottom: false,
+                    child: CustomScrollView(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: SizedBox(height: adjustedCardTop),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const _OuterSectionTitle(
+                                  title: '下一盘',
+                                  isVisible: false,
+                                ),
+                                const SizedBox(height: 8),
+                                _SectionCard(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _PracticeHeader(
+                                        title: _selectedModeTitle,
+                                        isAdjusting: _isAdjusting,
+                                        onAdjustTap: () => setState(
+                                          () => _isAdjusting = !_isAdjusting,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 18),
+                                      if (_isAdjusting) ...[
+                                        const _SectionLabel(title: '模式'),
+                                        const SizedBox(height: 4),
+                                        _PillSegmentControl<String>(
+                                          selectedValue: _playMode,
+                                          options: [
+                                            _SegmentOption(
+                                              value: _modeCapture,
+                                              label: _captureModeSegmentLabel,
+                                            ),
+                                            const _SegmentOption(
+                                              value: _modeTerritory,
+                                              label: '围空',
+                                            ),
+                                          ],
+                                          onChanged: (value) =>
+                                              _updateSelection(playMode: value),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          '仅切换标题显示，当前规则为先吃 $_captureTarget 子取胜',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: CupertinoColors
+                                                .secondaryLabel
+                                                .resolveFrom(context),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 20),
+                                        const _SectionLabel(title: '棋盘'),
+                                        const SizedBox(height: 4),
+                                        _PillSegmentControl<int>(
+                                          selectedValue: _boardSize,
+                                          options: const [
+                                            _SegmentOption(
+                                              value: 9,
+                                              label: '9 路',
+                                            ),
+                                            _SegmentOption(
+                                              value: 13,
+                                              label: '13 路',
+                                            ),
+                                            _SegmentOption(
+                                              value: 19,
+                                              label: '19 路',
+                                            ),
+                                          ],
+                                          onChanged: (value) =>
+                                              _updateSelection(
+                                                  boardSize: value),
+                                        ),
+                                        const SizedBox(height: 20),
+                                        const _SectionLabel(title: '难度'),
+                                        const SizedBox(height: 8),
+                                        _PillSegmentControl<String>(
+                                          selectedValue: _difficultyMode,
+                                          options: const [
+                                            _SegmentOption(
+                                              value: 'auto',
+                                              label: '不分伯仲',
+                                            ),
+                                            _SegmentOption(
+                                              value: 'manual',
+                                              label: '指定等级',
+                                            ),
+                                          ],
+                                          onChanged: (value) =>
+                                              _updateSelection(
+                                                  difficultyMode: value),
+                                        ),
+                                        if (_difficultyMode == 'manual') ...[
+                                          const SizedBox(height: 8),
+                                          _RankPicker(
+                                            selectedRank: _manualRank,
+                                            onChanged: (rank) =>
+                                                _updateSelection(
+                                                    manualRank: rank),
+                                          ),
+                                        ],
+                                        const SizedBox(height: 20),
+                                        const _SectionLabel(title: '初始'),
+                                        const SizedBox(height: 8),
+                                        _PillSegmentControl<CaptureInitialMode>(
+                                          selectedValue: _initialMode,
+                                          options: const [
+                                            _SegmentOption(
+                                              value: CaptureInitialMode.cross,
+                                              label: '十字',
+                                            ),
+                                            _SegmentOption(
+                                              value:
+                                                  CaptureInitialMode.twistCross,
+                                              label: '扭十字',
+                                            ),
+                                            _SegmentOption(
+                                              value: CaptureInitialMode.empty,
+                                              label: '空白',
+                                            ),
+                                            _SegmentOption(
+                                              value: CaptureInitialMode.setup,
+                                              label: '摆棋',
+                                            ),
+                                          ],
+                                          onChanged: (value) =>
+                                              _updateSelection(
+                                                  initialMode: value),
+                                        ),
+                                        const SizedBox(height: 20),
+                                        const _SectionLabel(title: 'AI 风格'),
+                                        const SizedBox(height: 8),
+                                        _AiStyleTile(
+                                          selectedStyleName: _aiStyleChoice,
+                                          onChanged: (name) => _updateSelection(
+                                              aiStyleChoice: name),
+                                        ),
+                                        const SizedBox(height: 24),
+                                      ] else ...[
+                                        _ConfigPreview(
+                                          boardSize: _boardSize,
+                                          difficultyMode: _difficultyMode,
+                                          manualRank: _manualRank,
+                                          computedRank: _computedRank,
+                                          aiStyleChoice: _aiStyleChoice,
+                                          initialMode: _initialMode,
+                                        ),
+                                        const SizedBox(height: 24),
+                                      ],
+                                      if (_initialMode ==
+                                          CaptureInitialMode.setup) ...[
+                                        _PrimaryActionButton(
+                                          title: _CaptureCopy.startSetupButton,
+                                          onPressed: () => _startGame(
+                                              humanColor: StoneColor.black),
+                                        ),
+                                      ] else ...[
+                                        _PrimaryActionButton(
+                                          title:
+                                              _CaptureCopy.startAsBlackButton,
+                                          onPressed: () => _startGame(
+                                              humanColor: StoneColor.black),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        _SecondaryActionButton(
+                                          title:
+                                              _CaptureCopy.startAsWhiteButton,
+                                          onPressed: () => _startGame(
+                                              humanColor: StoneColor.white),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                _ImportScreenshotCard(
+                                  isLoading: _isRecognizingScreenshot,
+                                  onTap: _isRecognizingScreenshot
+                                      ? null
+                                      : _importBoardFromScreenshot,
+                                ),
+                                const SizedBox(height: 14),
+                                if (_history.isNotEmpty) ...[
+                                  _HistorySectionCard(
+                                    history: _history,
+                                  ),
+                                  const SizedBox(height: 14),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 if (kIsWeb && developerMode)
@@ -1031,7 +1055,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     });
   }
 
-
   String get _selectedModeTitle =>
       _playMode == _modeTerritory ? '围空' : '先吃$_captureTarget子为胜';
 
@@ -1124,7 +1147,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       prefs.setString(_aiStyleKey, _aiStyleChoice),
       prefs.setInt(_boardSizeKey, _boardSize),
       prefs.setString(_playModeKey, _playMode),
-      prefs.setString(_initialModeKey, captureInitialModeStorageKey(_initialMode)),
+      prefs.setString(
+          _initialModeKey, captureInitialModeStorageKey(_initialMode)),
     ]);
   }
 
@@ -2423,6 +2447,10 @@ class _MotivationHeroTitle extends StatefulWidget {
     required this.motivation,
   });
 
+  /// Fixed height of this widget; used by the parent Stack to position the
+  /// scroll view so its hit-test area begins below this widget.
+  static const double height = 72.0;
+
   final String title;
   final String motivation;
 
@@ -2567,7 +2595,7 @@ class _MotivationHeroTitleState extends State<_MotivationHeroTitle>
     );
 
     return SizedBox(
-      height: 72,
+      height: _MotivationHeroTitle.height,
       child: AnimatedBuilder(
         animation: _curve,
         builder: (context, _) {
@@ -3543,6 +3571,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   bool _isLoadingHints = false;
   bool _gameSaved = false;
   bool _resultDialogShown = false;
+  final Set<int> _markedMoveNumbers = <int>{};
 
   final _historyRepo = GameHistoryRepository();
 
@@ -3569,6 +3598,11 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
         : null;
 
     final now = DateTime.now();
+    final moveCount = provider.moveLog.length;
+    final validMarkedMoves = _markedMoveNumbers
+        .where((moveNo) => moveNo > 0 && moveNo <= moveCount)
+        .toList()
+      ..sort();
     final record = GameRecord(
       id: now.toIso8601String(),
       playedAt: now,
@@ -3581,6 +3615,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
       moves: List<List<int>>.from(
         provider.moveLog.map((m) => List<int>.from(m)),
       ),
+      markedMoveNumbers: validMarkedMoves,
       outcome: outcome,
       finalBoard: _boardToInts(provider.gameState.board),
       aiRank: widget.aiRank,
@@ -3634,20 +3669,22 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
               backgroundColor: const Color(0xFFF3F0ED),
               border: null,
               previousPageTitle: _CaptureCopy.pageTitle,
-              middle: Text(
-                '${_initialModeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${AiRankLevel.displayName(widget.aiRank)}',
-              ),
+              middle: null,
               trailing: CupertinoButton(
                 padding: EdgeInsets.zero,
+                minSize: 0,
                 onPressed: () => _showGameConfigDialog(
                   context: context,
                   provider: provider,
                   settings: settings,
                 ),
-                child: const Icon(
-                  CupertinoIcons.slider_horizontal_3,
-                  color: Color(0xFFC3996E),
-                  size: 20,
+                child: Text(
+                  AiRankLevel.displayName(widget.aiRank),
+                  style: const TextStyle(
+                    color: Color(0xFFC3996E),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -3719,6 +3756,24 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                             filled: false,
                             onPressed:
                                 provider.canUndo ? provider.undoMove : null,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _DecoratedActionButton(
+                            text: _markedMoveNumbers
+                                    .contains(provider.moveLog.length)
+                                ? '已打标'
+                                : '打标此手',
+                            filled: false,
+                            onPressed: provider.moveLog.isEmpty
+                                ? null
+                                : () => setState(() {
+                                      final moveNo = provider.moveLog.length;
+                                      if (!_markedMoveNumbers.add(moveNo)) {
+                                        _markedMoveNumbers.remove(moveNo);
+                                      }
+                                    }),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -4089,7 +4144,6 @@ class _PlayerSideCard extends StatelessWidget {
 
     List<Widget> rowChildren;
     if (tag != null) {
-      final resolvedTag = tag!;
       final tagBadge = Container(
         decoration: BoxDecoration(
           color: const Color(0xFFEADCCB),
@@ -4097,7 +4151,7 @@ class _PlayerSideCard extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         child: Text(
-          resolvedTag,
+          tag!,
           style: const TextStyle(
             fontSize: 13,
             color: Color(0xFF8E7157),
@@ -4592,6 +4646,8 @@ class _HistoryDetailSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
+                  _OutcomeBadge(outcome: record.outcome),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4615,7 +4671,19 @@ class _HistoryDetailSheet extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _OutcomeBadge(outcome: record.outcome),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(24, 24),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text(
+                      '关闭',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF8C7966),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -4792,6 +4860,7 @@ class _GameBrowseScreen extends StatefulWidget {
 class _GameBrowseScreenState extends State<_GameBrowseScreen> {
   late final List<GameState> _states;
   int _index = 0;
+  bool _onlyMarked = false;
 
   @override
   void initState() {
@@ -4844,11 +4913,36 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
   }
 
   int get _totalMoves => _states.length - 1;
+  Set<int> get _markedMoves => widget.record.markedMoveNumbers.toSet();
+  List<int> get _sortedMarkedMoves => _markedMoves.toList()..sort();
+
+  String _moveCoordinate(int moveNo) {
+    if (moveNo <= 0 || moveNo > widget.record.moves.length) return '-';
+    final move = widget.record.moves[moveNo - 1];
+    if (move.length < 2) return '-';
+    const columns = 'ABCDEFGHJKLMNOPQRST';
+    final row = move[0];
+    final col = move[1];
+    if (col < 0 ||
+        col >= columns.length ||
+        row < 0 ||
+        row >= widget.record.boardSize) {
+      return '-';
+    }
+    return '${columns[col]}${widget.record.boardSize - row}';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isAtStart = _index == 0;
-    final isAtEnd = _index == _totalMoves;
+    final markedMoves = _sortedMarkedMoves;
+    final hasMarkedMoves = markedMoves.isNotEmpty;
+    final markedStart = hasMarkedMoves ? markedMoves.first : 0;
+    final markedEnd = hasMarkedMoves ? markedMoves.last : _totalMoves;
+    final isAtStart =
+        _onlyMarked && hasMarkedMoves ? _index <= markedStart : _index == 0;
+    final isAtEnd = _onlyMarked && hasMarkedMoves
+        ? _index >= markedEnd
+        : _index == _totalMoves;
     final current = _states[_index];
 
     return CupertinoPageScaffold(
@@ -4885,14 +4979,63 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
             ),
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                _index == 0 ? '初始局面' : '第 $_index 手 / 共 $_totalMoves 手',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF8C7966),
-                ),
+              child: Column(
+                children: [
+                  Text(
+                    _index == 0
+                        ? '初始局面'
+                        : '第 $_index 手 / 共 $_totalMoves 手 · 坐标 ${_moveCoordinate(_index)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF8C7966),
+                    ),
+                  ),
+                  if (_index > 0 && _markedMoves.contains(_index))
+                    const Text(
+                      '⭐ 已打标手',
+                      style: TextStyle(fontSize: 12, color: Color(0xFFB68454)),
+                    ),
+                ],
               ),
             ),
+            if (hasMarkedMoves)
+              SizedBox(
+                height: 40,
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      onPressed: () =>
+                          setState(() => _onlyMarked = !_onlyMarked),
+                      child: Text(_onlyMarked ? '只看打标：开' : '只看打标：关'),
+                    ),
+                    for (final move in markedMoves)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: CupertinoButton(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          color: _index == move
+                              ? const Color(0xFFB68454)
+                              : const Color(0x1AB68454),
+                          onPressed: () => setState(
+                              () => _index = move.clamp(0, _totalMoves)),
+                          child: Text(
+                            '第$move手 ${_moveCoordinate(move)}',
+                            style: TextStyle(
+                              color: _index == move
+                                  ? const Color(0xFFFFFFFF)
+                                  : const Color(0xFF7A5A3A),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
               child: Row(
@@ -4900,15 +5043,28 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                   _NavIconButton(
                     icon: CupertinoIcons.backward_end_fill,
                     enabled: !isAtStart,
-                    onPressed: () => setState(() => _index = 0),
+                    onPressed: () => setState(() => _index =
+                        (_onlyMarked && hasMarkedMoves) ? markedStart : 0),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _DecoratedActionButton(
                       text: '上一手',
                       filled: false,
-                      onPressed:
-                          isAtStart ? null : () => setState(() => _index--),
+                      onPressed: isAtStart
+                          ? null
+                          : () => setState(() {
+                                if (_onlyMarked) {
+                                  final prev = markedMoves
+                                      .where((m) => m < _index)
+                                      .toList();
+                                  if (prev.isNotEmpty) {
+                                    _index = prev.last;
+                                  }
+                                } else {
+                                  _index--;
+                                }
+                              }),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -4916,15 +5072,30 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                     child: _DecoratedActionButton(
                       text: '下一手',
                       filled: true,
-                      onPressed:
-                          isAtEnd ? null : () => setState(() => _index++),
+                      onPressed: isAtEnd
+                          ? null
+                          : () => setState(() {
+                                if (_onlyMarked) {
+                                  final next = markedMoves
+                                      .where((m) => m > _index)
+                                      .toList();
+                                  if (next.isNotEmpty) {
+                                    _index = next.first;
+                                  }
+                                } else {
+                                  _index++;
+                                }
+                              }),
                     ),
                   ),
                   const SizedBox(width: 8),
                   _NavIconButton(
                     icon: CupertinoIcons.forward_end_fill,
                     enabled: !isAtEnd,
-                    onPressed: () => setState(() => _index = _totalMoves),
+                    onPressed: () => setState(() => _index =
+                        (_onlyMarked && hasMarkedMoves)
+                            ? markedEnd
+                            : _totalMoves),
                   ),
                 ],
               ),
