@@ -278,6 +278,7 @@ void main() {
       await provider.placeStone(4, 4);
       // Human move should render immediately without waiting for AI work.
       expect(provider.moveLog.length, equals(initialMoveCount + 1));
+      expect(provider.isAiThinking, isFalse);
 
       // No onTimeout callback — let the timeout throw so the test fails fast
       // rather than silently masking a missing AI response.
