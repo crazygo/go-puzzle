@@ -58,7 +58,7 @@ enum CaptureGameResult { none, blackWins, whiteWins }
 enum CaptureInitialMode { twistCross, empty, setup }
 
 class CaptureGameProvider extends ChangeNotifier {
-  static const Duration _defaultMinMoveDelay = Duration(milliseconds: 800);
+  static const Duration _defaultMinMoveDelay = Duration(milliseconds: 1280);
   static const Duration _defaultMaxMoveDelay = Duration(milliseconds: 2500);
 
   CaptureGameProvider({
@@ -118,7 +118,7 @@ class CaptureGameProvider extends ChangeNotifier {
   /// Minimum time between when the AI starts thinking and when it places its
   /// stone. If the computation finishes before this deadline the provider waits
   /// for the remaining time, keeping [isAiThinking] true so the UI can show a
-  /// thinking indicator. Defaults to 800 ms. Pass [Duration.zero] in tests.
+  /// thinking indicator. Defaults to 1280 ms. Pass [Duration.zero] in tests.
   final Duration minMoveDelay;
 
   /// Upper bound on the extra wait added after computation completes. Once
