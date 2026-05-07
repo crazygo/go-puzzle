@@ -1087,9 +1087,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       if (savedPlayMode == _modeCapture || savedPlayMode == _modeTerritory) {
         _playMode = savedPlayMode!;
       }
-      _initialMode = CaptureInitialMode.values.firstWhere(
-        (v) => v.name == savedInitialMode,
-        orElse: () => _initialMode,
+      _initialMode = captureInitialModeFromStorageKey(
+        savedInitialMode,
+        fallback: _initialMode,
       );
       if (savedBoardSize == 9 || savedBoardSize == 13 || savedBoardSize == 19) {
         _boardSize = savedBoardSize!;
@@ -1124,7 +1124,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       prefs.setString(_aiStyleKey, _aiStyleChoice),
       prefs.setInt(_boardSizeKey, _boardSize),
       prefs.setString(_playModeKey, _playMode),
-      prefs.setString(_initialModeKey, _initialMode.name),
+      prefs.setString(_initialModeKey, captureInitialModeStorageKey(_initialMode)),
     ]);
   }
 
@@ -3576,7 +3576,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
       captureTarget: provider.captureTarget,
       difficulty: provider.difficulty.name,
       humanColorIndex: widget.humanColor.index,
-      initialMode: widget.initialMode.name,
+      initialMode: captureInitialModeStorageKey(widget.initialMode),
       initialBoardCells: initialBoardCells,
       moves: List<List<int>>.from(
         provider.moveLog.map((m) => List<int>.from(m)),
@@ -4811,22 +4811,12 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
           }
         }
       }
-    } else if (record.initialMode == 'cross' ||
-        record.initialMode == 'twistCross') {
-      final center = record.boardSize ~/ 2;
-      if (center > 0 && center < record.boardSize - 1) {
-        if (record.initialMode == 'cross') {
-          emptyBoard[center - 1][center] = StoneColor.black;
-          emptyBoard[center + 1][center] = StoneColor.black;
-          emptyBoard[center][center - 1] = StoneColor.white;
-          emptyBoard[center][center + 1] = StoneColor.white;
-        } else {
-          emptyBoard[center][center] = StoneColor.black;
-          emptyBoard[center][center + 1] = StoneColor.white;
-          emptyBoard[center - 1][center] = StoneColor.white;
-          emptyBoard[center - 1][center + 1] = StoneColor.black;
-        }
-      }
+    } else {
+      final initialMode = captureInitialModeFromStorageKey(
+        record.initialMode,
+        fallback: CaptureInitialMode.empty,
+      );
+      applyCaptureInitialLayout(emptyBoard, initialMode);
     }
 
     var state = GameState(
