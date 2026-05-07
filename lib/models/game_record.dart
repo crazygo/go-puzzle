@@ -39,6 +39,7 @@ class GameRecord {
     required this.humanColorIndex,
     required this.initialMode,
     required this.moves,
+    this.markedMoveNumbers = const [],
     required this.outcome,
     this.initialBoardCells,
     this.finalBoard,
@@ -71,6 +72,9 @@ class GameRecord {
   /// All moves in order: each element is [row, col].
   final List<List<int>> moves;
 
+  /// Marked move numbers (1-based) for later review.
+  final List<int> markedMoveNumbers;
+
   /// Who won the game.
   final GameOutcome outcome;
 
@@ -97,10 +101,9 @@ class GameRecord {
       DifficultyLevel.values.firstWhere((v) => v.name == difficulty,
           orElse: () => DifficultyLevel.intermediate);
 
-  StoneColor get humanColor =>
-      humanColorIndex < StoneColor.values.length
-          ? StoneColor.values[humanColorIndex]
-          : StoneColor.black;
+  StoneColor get humanColor => humanColorIndex < StoneColor.values.length
+      ? StoneColor.values[humanColorIndex]
+      : StoneColor.black;
 
   int get totalMoves => moves.length;
 
@@ -118,6 +121,8 @@ class GameRecord {
         'initialMode': initialMode,
         'initialBoardCells': initialBoardCells,
         'moves': moves,
+        if (markedMoveNumbers.isNotEmpty)
+          'markedMoveNumbers': markedMoveNumbers,
         'outcome': outcome.name,
         'finalBoard': finalBoard,
         if (aiRank != null) 'aiRank': aiRank,
@@ -128,8 +133,8 @@ class GameRecord {
     List<List<int>>? parseBoard(dynamic raw) {
       if (raw == null) return null;
       return (raw as List)
-          .map<List<int>>(
-              (row) => (row as List).map<int>((v) => (v as num).toInt()).toList())
+          .map<List<int>>((row) =>
+              (row as List).map<int>((v) => (v as num).toInt()).toList())
           .toList();
     }
 
@@ -143,6 +148,13 @@ class GameRecord {
       initialMode: json['initialMode'] as String,
       initialBoardCells: parseBoard(json['initialBoardCells']),
       moves: parseBoard(json['moves']) ?? const [],
+      markedMoveNumbers:
+          ((json['markedMoveNumbers'] as List<dynamic>?) ?? const [])
+              .map((v) => (v as num).toInt())
+              .where((v) => v > 0)
+              .toSet()
+              .toList()
+            ..sort(),
       outcome: GameOutcome.values.firstWhere(
         (v) => v.name == json['outcome'],
         orElse: () => GameOutcome.abandoned,

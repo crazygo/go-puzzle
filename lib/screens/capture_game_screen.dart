@@ -648,17 +648,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                             label: '指定等级',
                                           ),
                                         ],
-                                        onChanged: (value) =>
-                                            _updateSelection(
-                                                difficultyMode: value),
+                                        onChanged: (value) => _updateSelection(
+                                            difficultyMode: value),
                                       ),
                                       if (_difficultyMode == 'manual') ...[
                                         const SizedBox(height: 8),
                                         _RankPicker(
                                           selectedRank: _manualRank,
-                                          onChanged: (rank) =>
-                                              _updateSelection(
-                                                  manualRank: rank),
+                                          onChanged: (rank) => _updateSelection(
+                                              manualRank: rank),
                                         ),
                                       ],
                                       const SizedBox(height: 20),
@@ -689,9 +687,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       const SizedBox(height: 8),
                                       _AiStyleTile(
                                         selectedStyleName: _aiStyleChoice,
-                                        onChanged: (name) =>
-                                            _updateSelection(
-                                                aiStyleChoice: name),
+                                        onChanged: (name) => _updateSelection(
+                                            aiStyleChoice: name),
                                       ),
                                       const SizedBox(height: 24),
                                     ] else ...[
@@ -1177,35 +1174,40 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }) {
     _saveSelection();
 
-    final effectiveRank = _difficultyMode == 'auto' ? _computedRank : _manualRank;
+    final effectiveRank =
+        _difficultyMode == 'auto' ? _computedRank : _manualRank;
     final effectiveDifficulty = AiRankLevel.difficultyZone(effectiveRank);
 
-    Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute(
-        builder: (_) => ChangeNotifierProvider(
-          create: (_) => CaptureGameProvider(
-            boardSize: _boardSize,
-            captureTarget: _captureTarget,
-            difficulty: effectiveDifficulty,
-            humanColor: humanColor,
-            initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
-            initialBoardOverride: initialBoard,
-          )..setAiStyle(
-              CaptureAiStyle.values.firstWhere(
-                (s) => s.name == _aiStyleChoice,
-                orElse: () => CaptureAiStyle.adaptive,
+    Navigator.of(context, rootNavigator: true)
+        .push(
+          CupertinoPageRoute(
+            builder: (_) => ChangeNotifierProvider(
+              create: (_) => CaptureGameProvider(
+                boardSize: _boardSize,
+                captureTarget: _captureTarget,
+                difficulty: effectiveDifficulty,
+                humanColor: humanColor,
+                initialMode:
+                    forceSetup ? CaptureInitialMode.setup : _initialMode,
+                initialBoardOverride: initialBoard,
+              )..setAiStyle(
+                  CaptureAiStyle.values.firstWhere(
+                    (s) => s.name == _aiStyleChoice,
+                    orElse: () => CaptureAiStyle.adaptive,
+                  ),
+                ),
+              child: CaptureGamePlayScreen(
+                aiRank: effectiveRank,
+                captureTarget: _captureTarget,
+                humanColor: humanColor,
+                initialMode:
+                    forceSetup ? CaptureInitialMode.setup : _initialMode,
+                initialBoardOverride: initialBoard,
               ),
             ),
-          child: CaptureGamePlayScreen(
-            aiRank: effectiveRank,
-            captureTarget: _captureTarget,
-            humanColor: humanColor,
-            initialMode: forceSetup ? CaptureInitialMode.setup : _initialMode,
-            initialBoardOverride: initialBoard,
           ),
-        ),
-      ),
-    ).then((_) => _loadHistory());
+        )
+        .then((_) => _loadHistory());
   }
 }
 
@@ -3020,9 +3022,7 @@ class _AiStyleTile extends StatelessWidget {
                 Navigator.of(ctx).pop();
               },
               child: Text(
-                s == style
-                    ? '${s.label} · 当前'
-                    : '${s.label}  ${s.summary}',
+                s == style ? '${s.label} · 当前' : '${s.label}  ${s.summary}',
               ),
             ),
         ],
@@ -3491,6 +3491,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   List<_HintMark> _hintMarks = const [];
   bool _isLoadingHints = false;
   bool _gameSaved = false;
+  final Set<int> _markedMoveNumbers = <int>{};
 
   final _historyRepo = GameHistoryRepository();
 
@@ -3503,14 +3504,12 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
     if (provider.moveLog.isEmpty) return; // nothing to save
 
     final outcome = switch (provider.result) {
-      CaptureGameResult.blackWins =>
-        widget.humanColor == StoneColor.black
-            ? GameOutcome.humanWins
-            : GameOutcome.aiWins,
-      CaptureGameResult.whiteWins =>
-        widget.humanColor == StoneColor.white
-            ? GameOutcome.humanWins
-            : GameOutcome.aiWins,
+      CaptureGameResult.blackWins => widget.humanColor == StoneColor.black
+          ? GameOutcome.humanWins
+          : GameOutcome.aiWins,
+      CaptureGameResult.whiteWins => widget.humanColor == StoneColor.white
+          ? GameOutcome.humanWins
+          : GameOutcome.aiWins,
       CaptureGameResult.none => GameOutcome.abandoned,
     };
 
@@ -3531,6 +3530,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
       moves: List<List<int>>.from(
         provider.moveLog.map((m) => List<int>.from(m)),
       ),
+      markedMoveNumbers: _markedMoveNumbers.toList()..sort(),
       outcome: outcome,
       finalBoard: _boardToInts(provider.gameState.board),
       aiRank: widget.aiRank,
@@ -3559,10 +3559,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
           }
 
           final rates = provider.winRateEstimate;
-          final blackRate =
-              (rates[StoneColor.black]! * 100).toStringAsFixed(0);
-          final whiteRate =
-              (rates[StoneColor.white]! * 100).toStringAsFixed(0);
+          final blackRate = (rates[StoneColor.black]! * 100).toStringAsFixed(0);
+          final whiteRate = (rates[StoneColor.white]! * 100).toStringAsFixed(0);
           final blackCaptured = provider.gameState.capturedByBlack.length;
           final whiteCaptured = provider.gameState.capturedByWhite.length;
           final aiThinking = provider.isAiThinking;
@@ -3661,6 +3659,24 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                             filled: false,
                             onPressed:
                                 provider.canUndo ? provider.undoMove : null,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _DecoratedActionButton(
+                            text: _markedMoveNumbers
+                                    .contains(provider.moveLog.length)
+                                ? '已打标'
+                                : '打标此手',
+                            filled: false,
+                            onPressed: provider.moveLog.isEmpty
+                                ? null
+                                : () => setState(() {
+                                      final moveNo = provider.moveLog.length;
+                                      if (!_markedMoveNumbers.add(moveNo)) {
+                                        _markedMoveNumbers.remove(moveNo);
+                                      }
+                                    }),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -4354,7 +4370,8 @@ class _HistoryRow extends StatelessWidget {
       onPressed: onTap,
       child: Row(
         children: [
-          _StoneCircle(isBlack: record.humanColorIndex == StoneColor.black.index),
+          _StoneCircle(
+              isBlack: record.humanColorIndex == StoneColor.black.index),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -4380,8 +4397,7 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color: outcomeColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
@@ -4483,6 +4499,8 @@ class _HistoryDetailSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
+                  _OutcomeBadge(outcome: record.outcome),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4506,7 +4524,19 @@ class _HistoryDetailSheet extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _OutcomeBadge(outcome: record.outcome),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(24, 24),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text(
+                      '关闭',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF8C7966),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -4683,6 +4713,7 @@ class _GameBrowseScreen extends StatefulWidget {
 class _GameBrowseScreenState extends State<_GameBrowseScreen> {
   late final List<GameState> _states;
   int _index = 0;
+  bool _onlyMarked = false;
 
   @override
   void initState() {
@@ -4704,8 +4735,8 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
       for (int r = 0; r < record.boardSize; r++) {
         for (int c = 0; c < record.boardSize; c++) {
           if (r < cells.length && c < cells[r].length) {
-            emptyBoard[r][c] = StoneColor.values[
-                cells[r][c].clamp(0, StoneColor.values.length - 1)];
+            emptyBoard[r][c] = StoneColor
+                .values[cells[r][c].clamp(0, StoneColor.values.length - 1)];
           }
         }
       }
@@ -4737,6 +4768,23 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
   }
 
   int get _totalMoves => _states.length - 1;
+  Set<int> get _markedMoves => widget.record.markedMoveNumbers.toSet();
+
+  String _moveCoordinate(int moveNo) {
+    if (moveNo <= 0 || moveNo > widget.record.moves.length) return '-';
+    final move = widget.record.moves[moveNo - 1];
+    if (move.length < 2) return '-';
+    const columns = 'ABCDEFGHJKLMNOPQRST';
+    final row = move[0];
+    final col = move[1];
+    if (col < 0 ||
+        col >= columns.length ||
+        row < 0 ||
+        row >= widget.record.boardSize) {
+      return '-';
+    }
+    return '${columns[col]}${widget.record.boardSize - row}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -4778,16 +4826,63 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
             ),
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                _index == 0
-                    ? '初始局面'
-                    : '第 $_index 手 / 共 $_totalMoves 手',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF8C7966),
-                ),
+              child: Column(
+                children: [
+                  Text(
+                    _index == 0
+                        ? '初始局面'
+                        : '第 $_index 手 / 共 $_totalMoves 手 · 坐标 ${_moveCoordinate(_index)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF8C7966),
+                    ),
+                  ),
+                  if (_index > 0 && _markedMoves.contains(_index))
+                    const Text(
+                      '⭐ 已打标手',
+                      style: TextStyle(fontSize: 12, color: Color(0xFFB68454)),
+                    ),
+                ],
               ),
             ),
+            if (_markedMoves.isNotEmpty)
+              SizedBox(
+                height: 40,
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      onPressed: () =>
+                          setState(() => _onlyMarked = !_onlyMarked),
+                      child: Text(_onlyMarked ? '只看打标：开' : '只看打标：关'),
+                    ),
+                    for (final move in widget.record.markedMoveNumbers)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: CupertinoButton(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          color: _index == move
+                              ? const Color(0xFFB68454)
+                              : const Color(0x1AB68454),
+                          onPressed: () => setState(
+                              () => _index = move.clamp(0, _totalMoves)),
+                          child: Text(
+                            '第$move手 ${_moveCoordinate(move)}',
+                            style: TextStyle(
+                              color: _index == move
+                                  ? const Color(0xFFFFFFFF)
+                                  : const Color(0xFF7A5A3A),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
               child: Row(
@@ -4804,7 +4899,15 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                       filled: false,
                       onPressed: isAtStart
                           ? null
-                          : () => setState(() => _index--),
+                          : () => setState(() {
+                                _index--;
+                                if (_onlyMarked) {
+                                  final prev = widget.record.markedMoveNumbers
+                                      .where((m) => m <= _index)
+                                      .toList();
+                                  if (prev.isNotEmpty) _index = prev.last;
+                                }
+                              }),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -4814,7 +4917,15 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                       filled: true,
                       onPressed: isAtEnd
                           ? null
-                          : () => setState(() => _index++),
+                          : () => setState(() {
+                                _index++;
+                                if (_onlyMarked) {
+                                  final next = widget.record.markedMoveNumbers
+                                      .where((m) => m >= _index)
+                                      .toList();
+                                  if (next.isNotEmpty) _index = next.first;
+                                }
+                              }),
                     ),
                   ),
                   const SizedBox(width: 8),
