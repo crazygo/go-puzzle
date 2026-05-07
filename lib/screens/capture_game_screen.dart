@@ -4151,7 +4151,7 @@ class _PlayerSideCard extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         child: Text(
-          tag,
+          tag!,
           style: const TextStyle(
             fontSize: 13,
             color: Color(0xFF8E7157),
