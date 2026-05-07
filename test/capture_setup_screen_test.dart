@@ -45,6 +45,58 @@ void main() {
     expect(find.text('先吃5子为胜'), findsOneWidget);
   });
 
+
+
+  testWidgets('selected play mode is restored after app restart',
+      (tester) async {
+    await tester.pumpWidget(const GoPuzzleApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('调整 ›'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('围空'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('完成'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('围空'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    await tester.pumpWidget(const GoPuzzleApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('围空'), findsOneWidget);
+    expect(find.text('先吃5子为胜'), findsNothing);
+
+    await tester.tap(find.text('调整 ›'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('围空'), findsWidgets);
+  });
+
+  testWidgets('capture setup reflects selected play mode in header',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'capture_setup.play_mode': 'territory',
+    });
+
+    await tester.pumpWidget(const GoPuzzleApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('围空'), findsOneWidget);
+    expect(find.text('先吃5子为胜'), findsNothing);
+  });
   testWidgets('difficulty mode segment control updates on tap', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());
     await tester.pump();
