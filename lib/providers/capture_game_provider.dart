@@ -55,7 +55,7 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
 
 enum CaptureGameResult { none, blackWins, whiteWins }
 
-enum CaptureInitialMode { twistCross, empty, setup }
+enum CaptureInitialMode { cross, twistCross, empty, setup }
 
 class CaptureGameProvider extends ChangeNotifier {
   static const Duration _defaultMinMoveDelay = Duration(milliseconds: 800);
@@ -66,7 +66,7 @@ class CaptureGameProvider extends ChangeNotifier {
     required this.captureTarget,
     required this.difficulty,
     this.humanColor = StoneColor.black,
-    this.initialMode = CaptureInitialMode.twistCross,
+    this.initialMode = CaptureInitialMode.cross,
     this.initialBoardOverride,
     this.initialPlayerOverride,
     this.minMoveDelay = _defaultMinMoveDelay,
@@ -325,13 +325,21 @@ class CaptureGameProvider extends ChangeNotifier {
           emptyBoard[r][c] = source[r][c];
         }
       }
-    } else if (initialMode == CaptureInitialMode.twistCross) {
+    } else if (initialMode == CaptureInitialMode.cross) {
       final center = boardSize ~/ 2;
       if (center > 0 && center < boardSize - 1) {
         emptyBoard[center - 1][center] = StoneColor.black;
         emptyBoard[center + 1][center] = StoneColor.black;
         emptyBoard[center][center - 1] = StoneColor.white;
         emptyBoard[center][center + 1] = StoneColor.white;
+      }
+    } else if (initialMode == CaptureInitialMode.twistCross) {
+      final center = boardSize ~/ 2;
+      if (center > 0 && center < boardSize - 1) {
+        emptyBoard[center][center] = StoneColor.black;
+        emptyBoard[center][center + 1] = StoneColor.white;
+        emptyBoard[center - 1][center] = StoneColor.white;
+        emptyBoard[center - 1][center + 1] = StoneColor.black;
       }
     }
 
