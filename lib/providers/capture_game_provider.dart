@@ -122,6 +122,8 @@ void applyCaptureInitialLayout(
 class CaptureGameProvider extends ChangeNotifier {
   static const Duration _defaultMinMoveDelay = Duration(milliseconds: 1280);
   static const Duration _defaultMaxMoveDelay = Duration(milliseconds: 2500);
+  // ~2 frames at 60 fps: just long enough for Flutter to render the human
+  // stone before the AI starts thinking.
   static const Duration _aiStartRenderDelay = Duration(milliseconds: 32);
 
   CaptureGameProvider({
@@ -206,6 +208,8 @@ class CaptureGameProvider extends ChangeNotifier {
   /// Monotonically-increasing counter used to build unique request IDs.
   /// Unlike [_gameGeneration], this is never reset so each [_doAiMove] call
   /// gets a distinct identifier even within the same game.
+  /// Dart's int is 64-bit; overflow is not a practical concern for a game app
+  /// (would require ~9.2 × 10¹⁸ AI turns).
   int _requestCounter = 0;
 
   /// The request ID for the currently in-flight AI move search, or null.

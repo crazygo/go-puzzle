@@ -14,6 +14,10 @@
 
 // ignore: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:html';
+// dart:js_util is a web-only library (only available when dart.library.html is
+// true).  The analyzer running in a non-web context does not resolve it, hence
+// the uri_does_not_exist suppression.  At web compile time (dart compile js or
+// flutter build web) the import resolves correctly.
 // ignore: avoid_web_libraries_in_flutter, deprecated_member_use, uri_does_not_exist
 import 'dart:js_util' as js_util;
 

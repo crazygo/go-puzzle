@@ -256,8 +256,9 @@ void main() {
           runner: blockingRunner,
         );
 
-        // Wait for the render-delay timer (~32 ms) to fire and for _doAiMove()
-        // to start and call search().
+        // Wait for the render-delay timer (CaptureGameProvider._aiStartRenderDelay,
+        // currently 32 ms) to fire and for _doAiMove() to start and call search().
+        // Using 100 ms gives ample headroom across slower CI environments.
         await Future<void>.delayed(const Duration(milliseconds: 100));
 
         // The search is now blocking.  Start a new game — this must cancel
@@ -291,8 +292,9 @@ void main() {
         runner: blockingRunner,
       );
 
-      // Wait for the render-delay timer (~32 ms) to fire and for _doAiMove()
-      // to start and call search().
+      // Wait for the render-delay timer (CaptureGameProvider._aiStartRenderDelay,
+      // currently 32 ms) to fire and for _doAiMove() to start and call search().
+      // Using 100 ms gives ample headroom across slower CI environments.
       await Future<void>.delayed(const Duration(milliseconds: 100));
       provider.dispose();
 
