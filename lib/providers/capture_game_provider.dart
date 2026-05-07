@@ -53,6 +53,32 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
   return suggestions;
 }
 
+List<int>? _runChooseAiMove(Map<String, dynamic> params) {
+  final boardSize = params['boardSize'] as int;
+  final captureTarget = params['captureTarget'] as int;
+  final cells = List<int>.from(params['cells'] as List);
+  final capturedByBlack = params['capturedByBlack'] as int;
+  final capturedByWhite = params['capturedByWhite'] as int;
+  final currentPlayer = params['currentPlayer'] as int;
+  final aiStyle = CaptureAiStyle.values.byName(params['aiStyle'] as String);
+  final difficulty =
+      DifficultyLevel.values.byName(params['difficulty'] as String);
+
+  final sim = SimBoard(boardSize, captureTarget: captureTarget);
+  for (int i = 0; i < cells.length; i++) {
+    sim.cells[i] = cells[i];
+  }
+  sim.capturedByBlack = capturedByBlack;
+  sim.capturedByWhite = capturedByWhite;
+  sim.currentPlayer = currentPlayer;
+
+  final move = CaptureAiRegistry.create(style: aiStyle, difficulty: difficulty)
+      .chooseMove(sim)
+      ?.position;
+  if (move == null) return null;
+  return [move.row, move.col];
+}
+
 enum CaptureGameResult { none, blackWins, whiteWins }
 
 enum CaptureInitialMode { twistCross, empty, setup }
@@ -196,7 +222,7 @@ class CaptureGameProvider extends ChangeNotifier {
     notifyListeners();
 
     if (!isPlacementMode && _result == CaptureGameResult.none) {
-      await _doAiMove();
+      Future<void>.microtask(_doAiMove);
     }
     return true;
   }
@@ -355,9 +381,18 @@ class CaptureGameProvider extends ChangeNotifier {
     final generation = _gameGeneration;
     final thinkingStopwatch = Stopwatch()..start();
 
-    final simBoard =
-        SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
-    final bestMove = _activeAgent.chooseMove(simBoard)?.position;
+    final params = <String, dynamic>{
+      'boardSize': _gameState.boardSize,
+      'captureTarget': captureTarget,
+      'cells': _gameState.board.expand((row) => row.map((s) => s.index)).toList(),
+      'capturedByBlack': _gameState.capturedByBlack.length,
+      'capturedByWhite': _gameState.capturedByWhite.length,
+      'currentPlayer': _gameState.currentPlayer.index,
+      'aiStyle': _aiStyle.name,
+      'difficulty': difficulty.name,
+    };
+    final move = await compute(_runChooseAiMove, params);
+    final bestMove = move == null ? null : BoardPosition(move[0], move[1]);
 
     // Ensure a minimum thinking time so the AI feels human-like. If
     // computation finished faster than minMoveDelay, wait for the remainder.

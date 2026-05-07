@@ -172,6 +172,19 @@ void main() {
 
       final initialMoveCount = provider.moveLog.length;
       await provider.placeStone(4, 4);
+      // Human move should render immediately without waiting for AI work.
+      expect(provider.moveLog.length, equals(initialMoveCount + 1));
+
+      final doneCompleter = Completer<void>();
+      provider.addListener(() {
+        if (!provider.isAiThinking &&
+            provider.moveLog.length >= initialMoveCount + 2 &&
+            !doneCompleter.isCompleted) {
+          doneCompleter.complete();
+        }
+      });
+      await doneCompleter.future
+          .timeout(const Duration(seconds: 5), onTimeout: () {});
 
       // Human placed one stone; AI should have responded with exactly one more.
       expect(provider.moveLog.length, equals(initialMoveCount + 2));
