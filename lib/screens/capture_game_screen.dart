@@ -4145,7 +4145,11 @@ String _formatBoardCoordinate(List<int> move, int boardSize) {
   const columns = 'ABCDEFGHJKLMNOPQRST';
   final row = move[0];
   final col = move[1];
-  if (col < 0 || col >= columns.length || row < 0 || row >= boardSize) {
+  if (col < 0 ||
+      col >= boardSize ||
+      col >= columns.length ||
+      row < 0 ||
+      row >= boardSize) {
     return '-';
   }
   return '${columns[col]}${boardSize - row}';
