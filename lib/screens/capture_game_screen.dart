@@ -479,8 +479,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const _difficultyModeKey = 'capture_setup.difficulty_mode';
   static const _manualRankKey = 'capture_setup.manual_rank';
   static const _aiStyleKey = 'capture_setup.ai_style';
+  static const _playModeKey = 'capture_setup.play_mode';
   // ─────────────────────────────────────────────────────────────────────────────
   static const _captureTarget = 5;
+
+  static const _modeCapture = 'capture';
+  static const _modeTerritory = 'territory';
 
   /// 'auto' = system matches rank from history; 'manual' = player picks rank.
   String _difficultyMode = 'auto';
@@ -494,6 +498,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   /// Rank computed from recent history; refreshed on [_restoreSelection].
   int _computedRank = AiRankLevel.defaultRank;
   int _boardSize = 9;
+  String _playMode = _modeCapture;
   CaptureInitialMode _initialMode = CaptureInitialMode.twistCross;
   bool _isAdjusting = false;
   bool _isRecognizingScreenshot = false;
@@ -604,7 +609,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     _PracticeHeader(
-                                      title: '先吃$_captureTarget子为胜',
+                                      title: _selectedModeTitle,
                                       isAdjusting: _isAdjusting,
                                       onAdjustTap: () => setState(
                                         () => _isAdjusting = !_isAdjusting,
@@ -612,6 +617,33 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                     ),
                                     const SizedBox(height: 18),
                                     if (_isAdjusting) ...[
+                                      const _SectionLabel(title: '模式'),
+                                      const SizedBox(height: 4),
+                                      _PillSegmentControl<String>(
+                                        selectedValue: _playMode,
+                                        options: [
+                                          _SegmentOption(
+                                            value: _modeCapture,
+                                            label: _captureModeSegmentLabel,
+                                          ),
+                                          const _SegmentOption(
+                                            value: _modeTerritory,
+                                            label: '围空',
+                                          ),
+                                        ],
+                                        onChanged: (value) =>
+                                            _updateSelection(playMode: value),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '仅切换标题显示，当前规则为先吃 $_captureTarget 子取胜',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: CupertinoColors.secondaryLabel
+                                              .resolveFrom(context),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 20),
                                       const _SectionLabel(title: '棋盘'),
                                       const SizedBox(height: 4),
                                       _PillSegmentControl<int>(
@@ -997,6 +1029,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     });
   }
 
+
+  String get _selectedModeTitle =>
+      _playMode == _modeTerritory ? '围空' : '先吃$_captureTarget子为胜';
+
+  String get _captureModeSegmentLabel => '吃$_captureTarget子取胜';
+
   Future<void> _restoreSelection() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
@@ -1029,6 +1067,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     manualRank = manualRank.clamp(AiRankLevel.min, AiRankLevel.max).toInt();
 
     final savedAiStyle = prefs.getString(_aiStyleKey);
+    final savedPlayMode = prefs.getString(_playModeKey);
 
     // Compute rank from history for 'auto' mode.
     final history = await GameHistoryRepository().loadAllChronological();
@@ -1042,6 +1081,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       if (savedAiStyle != null &&
           CaptureAiStyle.values.any((s) => s.name == savedAiStyle)) {
         _aiStyleChoice = savedAiStyle;
+      }
+      if (savedPlayMode == _modeCapture || savedPlayMode == _modeTerritory) {
+        _playMode = savedPlayMode!;
       }
       _initialMode = CaptureInitialMode.values.firstWhere(
         (v) => v.name == savedInitialMode,
@@ -1059,12 +1101,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     String? aiStyleChoice,
     int? boardSize,
     CaptureInitialMode? initialMode,
+    String? playMode,
   }) {
     setState(() {
       if (difficultyMode != null) _difficultyMode = difficultyMode;
       if (manualRank != null) _manualRank = manualRank;
       if (aiStyleChoice != null) _aiStyleChoice = aiStyleChoice;
       _boardSize = boardSize ?? _boardSize;
+      if (playMode != null) _playMode = playMode;
       _initialMode = initialMode ?? _initialMode;
     });
     _saveSelection();
@@ -1077,6 +1121,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       prefs.setInt(_manualRankKey, _manualRank),
       prefs.setString(_aiStyleKey, _aiStyleChoice),
       prefs.setInt(_boardSizeKey, _boardSize),
+      prefs.setString(_playModeKey, _playMode),
       prefs.setString(_initialModeKey, _initialMode.name),
     ]);
   }
