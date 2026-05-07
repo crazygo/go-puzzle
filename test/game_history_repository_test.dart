@@ -53,10 +53,8 @@ void main() {
     test('loadAll returns records newest-first', () async {
       final repo = GameHistoryRepository();
 
-      await repo.save(_makeRecord(
-          id: 'old', playedAt: DateTime(2024, 1, 1)));
-      await repo.save(_makeRecord(
-          id: 'new', playedAt: DateTime(2024, 6, 1)));
+      await repo.save(_makeRecord(id: 'old', playedAt: DateTime(2024, 1, 1)));
+      await repo.save(_makeRecord(id: 'new', playedAt: DateTime(2024, 6, 1)));
 
       final loaded = await repo.loadAll();
       expect(loaded.map((r) => r.id).toList(), ['new', 'old']);
@@ -138,6 +136,31 @@ void main() {
       expect(record.moves, [
         [0, 1]
       ]);
+    });
+
+    test('fromJson filters and normalizes markedMoveNumbers', () {
+      final json = {
+        'id': '2024-01-01T00:00:00.000',
+        'playedAt': '2024-01-01T00:00:00.000',
+        'boardSize': 9,
+        'captureTarget': 5,
+        'difficulty': 'beginner',
+        'humanColorIndex': 1,
+        'initialMode': 'twistCross',
+        'moves': [
+          [0, 1],
+          [1, 1],
+          [2, 1],
+        ],
+        'markedMoveNumbers': [3, 2, 2.0, 0, -1, 4, 'bad'],
+        'outcome': 'humanWins',
+        'finalBoard': null,
+        'initialBoardCells': null,
+      };
+
+      final record = GameRecord.fromJson(json);
+      expect(record.markedMoveNumbers, [2, 3]);
+      expect(GameRecord.fromJson(record.toJson()).markedMoveNumbers, [2, 3]);
     });
   });
 }
