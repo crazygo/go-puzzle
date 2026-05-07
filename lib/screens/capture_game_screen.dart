@@ -499,7 +499,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   int _computedRank = AiRankLevel.defaultRank;
   int _boardSize = 9;
   String _playMode = _modeCapture;
-  CaptureInitialMode _initialMode = CaptureInitialMode.twistCross;
+  CaptureInitialMode _initialMode = CaptureInitialMode.cross;
   bool _isAdjusting = false;
   bool _isRecognizingScreenshot = false;
   bool _homeTuningSheetVisible = false;
@@ -697,6 +697,11 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       _PillSegmentControl<CaptureInitialMode>(
                                         selectedValue: _initialMode,
                                         options: const [
+                                          _SegmentOption(
+                                            value:
+                                                CaptureInitialMode.cross,
+                                            label: '十字',
+                                          ),
                                           _SegmentOption(
                                             value:
                                                 CaptureInitialMode.twistCross,
@@ -2621,6 +2626,7 @@ String _initialModeLabel(CaptureInitialMode mode) {
 extension _CaptureInitialModeLabelExt on CaptureInitialMode {
   String get label {
     return switch (this) {
+      CaptureInitialMode.cross => '十字',
       CaptureInitialMode.twistCross => '扭十字',
       CaptureInitialMode.empty => '空白',
       CaptureInitialMode.setup => '摆棋',
@@ -3516,7 +3522,7 @@ class CaptureGamePlayScreen extends StatefulWidget {
     required this.aiRank,
     required this.captureTarget,
     this.humanColor = StoneColor.black,
-    this.initialMode = CaptureInitialMode.twistCross,
+    this.initialMode = CaptureInitialMode.cross,
     this.initialBoardOverride,
   });
 
@@ -4805,13 +4811,21 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
           }
         }
       }
-    } else if (record.initialMode == 'twistCross') {
+    } else if (record.initialMode == 'cross' ||
+        record.initialMode == 'twistCross') {
       final center = record.boardSize ~/ 2;
       if (center > 0 && center < record.boardSize - 1) {
-        emptyBoard[center - 1][center] = StoneColor.black;
-        emptyBoard[center + 1][center] = StoneColor.black;
-        emptyBoard[center][center - 1] = StoneColor.white;
-        emptyBoard[center][center + 1] = StoneColor.white;
+        if (record.initialMode == 'cross') {
+          emptyBoard[center - 1][center] = StoneColor.black;
+          emptyBoard[center + 1][center] = StoneColor.black;
+          emptyBoard[center][center - 1] = StoneColor.white;
+          emptyBoard[center][center + 1] = StoneColor.white;
+        } else {
+          emptyBoard[center][center] = StoneColor.black;
+          emptyBoard[center][center + 1] = StoneColor.white;
+          emptyBoard[center - 1][center] = StoneColor.white;
+          emptyBoard[center - 1][center + 1] = StoneColor.black;
+        }
       }
     }
 
