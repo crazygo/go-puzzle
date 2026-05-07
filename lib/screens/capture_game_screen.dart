@@ -4089,6 +4089,7 @@ class _PlayerSideCard extends StatelessWidget {
 
     List<Widget> rowChildren;
     if (tag != null) {
+      final resolvedTag = tag!;
       final tagBadge = Container(
         decoration: BoxDecoration(
           color: const Color(0xFFEADCCB),
@@ -4096,7 +4097,7 @@ class _PlayerSideCard extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         child: Text(
-          tag,
+          resolvedTag,
           style: const TextStyle(
             fontSize: 13,
             color: Color(0xFF8E7157),
