@@ -18,6 +18,11 @@
 - For local iPhone testing from the home screen, install a Release or Profile build. A Debug iOS build requires Flutter tooling/Xcode attached and will exit when launched directly from the device.
 - Keep Apple signing details machine-local. Store per-developer bundle IDs and team IDs in ignored local config, not committed project files.
 
+## Git worktrees
+- Feature branch worktrees live inside the repo at `.worktree/<short-name>/`.
+- Create with: `git worktree add .worktree/<short-name> -b <branch-name>`
+- The `.worktree/` directory is git-ignored; never commit files from within a worktree to the main tree.
+
 ## Unit test requirement alignment
 - Unit tests must be validated against the **current product/feature requirements** (acceptance criteria, PR description, issue context), not merely adjusted to pass the latest implementation.
 - When requirements change, update both production code and tests together; explicitly verify each changed requirement still has a corresponding test assertion.
