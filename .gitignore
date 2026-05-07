@@ -69,3 +69,6 @@ ios/Flutter/ephemeral/
 
 # Node.js dependencies
 node_modules/
+
+# Web Worker compiled output (built from web/ai_search_worker.dart at build time)
+web/ai_search_worker.dart.js
