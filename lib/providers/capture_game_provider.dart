@@ -84,7 +84,12 @@ void applyCaptureInitialLayout(
   CaptureInitialMode mode,
 ) {
   final boardSize = board.length;
-  if (boardSize < 2 || board.any((row) => row.length != boardSize)) {
+  assert(
+    board.every((row) => row.length == boardSize),
+    'board must be a square matrix.',
+  );
+  // Keep a runtime guard for production builds where asserts are disabled.
+  if (board.any((row) => row.length != boardSize)) {
     return;
   }
 

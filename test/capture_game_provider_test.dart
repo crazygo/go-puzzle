@@ -15,7 +15,7 @@ import 'package:provider/provider.dart';
 
 void main() {
   group('CaptureGameProvider', () {
-    test('initial cross layout keeps legacy plus-shaped stones', () {
+    test('initial cross layout uses plus-shaped stones', () {
       final provider = CaptureGameProvider(
         boardSize: 9,
         captureTarget: 5,
@@ -67,28 +67,35 @@ void main() {
       );
     });
 
-    test('legacy and new persisted keys reconstruct matching opening layout',
+    test('legacy and new persisted keys reconstruct their respective layouts',
         () {
+      const boardSize = 9;
       final legacyBoard =
-          List.generate(9, (_) => List.filled(9, StoneColor.empty));
-      final newBoard = List.generate(9, (_) => List.filled(9, StoneColor.empty));
+          List.generate(boardSize, (_) => List.filled(boardSize, StoneColor.empty));
+      final newBoard = List.generate(
+          boardSize, (_) => List.filled(boardSize, StoneColor.empty));
+      final legacyMode = captureInitialModeFromStorageKey('twistCross');
+      final newMode = captureInitialModeFromStorageKey('twistCross2x2');
 
       applyCaptureInitialLayout(
         legacyBoard,
-        captureInitialModeFromStorageKey('twistCross'),
+        legacyMode,
       );
       applyCaptureInitialLayout(
         newBoard,
-        captureInitialModeFromStorageKey('twistCross2x2'),
+        newMode,
       );
 
       const center = 4;
+      expect(legacyMode, CaptureInitialMode.cross);
+      expect(newMode, CaptureInitialMode.twistCross);
+      expect(legacyBoard[center][center], StoneColor.empty);
       expect(legacyBoard[center - 1][center], StoneColor.black);
       expect(legacyBoard[center + 1][center], StoneColor.black);
       expect(legacyBoard[center][center - 1], StoneColor.white);
       expect(legacyBoard[center][center + 1], StoneColor.white);
-
       expect(newBoard[center][center], StoneColor.black);
+      expect(newBoard[center + 1][center], StoneColor.empty);
       expect(newBoard[center][center + 1], StoneColor.white);
       expect(newBoard[center - 1][center], StoneColor.white);
       expect(newBoard[center - 1][center + 1], StoneColor.black);
