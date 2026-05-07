@@ -57,6 +57,59 @@ enum CaptureGameResult { none, blackWins, whiteWins }
 
 enum CaptureInitialMode { cross, twistCross, empty, setup }
 
+String captureInitialModeStorageKey(CaptureInitialMode mode) {
+  return switch (mode) {
+    CaptureInitialMode.cross => 'twistCross',
+    CaptureInitialMode.twistCross => 'twistCross2x2',
+    CaptureInitialMode.empty => 'empty',
+    CaptureInitialMode.setup => 'setup',
+  };
+}
+
+CaptureInitialMode captureInitialModeFromStorageKey(
+  String? key, {
+  CaptureInitialMode fallback = CaptureInitialMode.cross,
+}) {
+  return switch (key) {
+    'twistCross' || 'cross' => CaptureInitialMode.cross,
+    'twistCross2x2' => CaptureInitialMode.twistCross,
+    'empty' => CaptureInitialMode.empty,
+    'setup' => CaptureInitialMode.setup,
+    _ => fallback,
+  };
+}
+
+void applyCaptureInitialLayout(
+  List<List<StoneColor>> board,
+  CaptureInitialMode mode,
+) {
+  final boardSize = board.length;
+  if (boardSize < 2 || board.any((row) => row.length != boardSize)) {
+    return;
+  }
+
+  final center = boardSize ~/ 2;
+  if (center <= 0 || center >= boardSize - 1) return;
+
+  switch (mode) {
+    case CaptureInitialMode.cross:
+      board[center - 1][center] = StoneColor.black;
+      board[center + 1][center] = StoneColor.black;
+      board[center][center - 1] = StoneColor.white;
+      board[center][center + 1] = StoneColor.white;
+      break;
+    case CaptureInitialMode.twistCross:
+      board[center][center] = StoneColor.black;
+      board[center][center + 1] = StoneColor.white;
+      board[center - 1][center] = StoneColor.white;
+      board[center - 1][center + 1] = StoneColor.black;
+      break;
+    case CaptureInitialMode.empty:
+    case CaptureInitialMode.setup:
+      break;
+  }
+}
+
 class CaptureGameProvider extends ChangeNotifier {
   static const Duration _defaultMinMoveDelay = Duration(milliseconds: 800);
   static const Duration _defaultMaxMoveDelay = Duration(milliseconds: 2500);
@@ -325,22 +378,8 @@ class CaptureGameProvider extends ChangeNotifier {
           emptyBoard[r][c] = source[r][c];
         }
       }
-    } else if (initialMode == CaptureInitialMode.cross) {
-      final center = boardSize ~/ 2;
-      if (center > 0 && center < boardSize - 1) {
-        emptyBoard[center - 1][center] = StoneColor.black;
-        emptyBoard[center + 1][center] = StoneColor.black;
-        emptyBoard[center][center - 1] = StoneColor.white;
-        emptyBoard[center][center + 1] = StoneColor.white;
-      }
-    } else if (initialMode == CaptureInitialMode.twistCross) {
-      final center = boardSize ~/ 2;
-      if (center > 0 && center < boardSize - 1) {
-        emptyBoard[center][center] = StoneColor.black;
-        emptyBoard[center][center + 1] = StoneColor.white;
-        emptyBoard[center - 1][center] = StoneColor.white;
-        emptyBoard[center - 1][center + 1] = StoneColor.black;
-      }
+    } else {
+      applyCaptureInitialLayout(emptyBoard, initialMode);
     }
 
     _gameState = GameState(
