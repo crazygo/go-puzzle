@@ -636,7 +636,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        '仅切换标题显示，当前规则为先吃$_captureTarget子取胜',
+                                        '仅切换标题显示，当前规则为先吃 $_captureTarget 子取胜',
                                         style: TextStyle(
                                           fontSize: 13,
                                           color: CupertinoColors.secondaryLabel
