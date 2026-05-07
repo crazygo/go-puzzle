@@ -572,7 +572,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
             // Position the scroll view below the hero title so the hero widget sits
             // outside the scroll view's hit-test area and can still receive taps,
             // while remaining visually beneath the scrollable cards.
-            const heroTitleHeight = 72.0;
+            const heroTitleHeight = _MotivationHeroTitle.height;
             final scrollViewTop = heroTitleTop + heroTitleHeight;
             // Subtract the scroll view's top offset from the spacer so the first
             // card appears at the same absolute screen position as before.
@@ -2388,6 +2388,10 @@ class _MotivationHeroTitle extends StatefulWidget {
     required this.motivation,
   });
 
+  /// Fixed height of this widget; used by the parent Stack to position the
+  /// scroll view so its hit-test area begins below this widget.
+  static const double height = 72.0;
+
   final String title;
   final String motivation;
 
@@ -2532,7 +2536,7 @@ class _MotivationHeroTitleState extends State<_MotivationHeroTitle>
     );
 
     return SizedBox(
-      height: 72,
+      height: _MotivationHeroTitle.height,
       child: AnimatedBuilder(
         animation: _curve,
         builder: (context, _) {
