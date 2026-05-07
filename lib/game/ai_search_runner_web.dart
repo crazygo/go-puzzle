@@ -8,6 +8,8 @@
 
 // ignore: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:html' as html;
+// ignore: avoid_web_libraries_in_flutter, deprecated_member_use, uri_does_not_exist
+import 'dart:js_util' as js_util;
 
 import 'dart:async';
 
@@ -56,26 +58,46 @@ class _WebWorkerAiSearchRunner implements AiSearchRunner {
     final raw = event.data;
     if (raw == null) return;
 
-    // The worker sends back a plain JS object; dart:html exposes it as a
-    // JsObject / Map-like object.  Convert to a typed map via jsify/dartify.
-    final data = Map<String, dynamic>.from(raw as dynamic);
+    // event.data arrives as a JS object; use dart:js_util.dartify() to
+    // convert it recursively to Dart Maps/Lists, then validate the shape.
+    // If anything goes wrong (unexpected type, missing field, etc.) complete
+    // the matching pending request with an error so the Future never hangs.
+    try {
+      final dartified = js_util.dartify(raw);
+      if (dartified is! Map) return;
+      final data = Map<String, dynamic>.from(dartified);
 
-    final requestId = data['requestId'] as String?;
-    if (requestId == null) return;
+      final requestId = data['requestId'] as String?;
+      if (requestId == null) return;
 
-    final completer = _pending.remove(requestId);
-    if (completer == null || completer.isCompleted) return;
+      final completer = _pending.remove(requestId);
+      if (completer == null || completer.isCompleted) return;
 
-    final error = data['error'];
-    if (error != null) {
-      completer.complete(
-        AiSearchResult(requestId: requestId, error: error.toString()),
-      );
-    } else {
-      final moveRaw = data['move'];
-      final move =
-          moveRaw == null ? null : List<int>.from(moveRaw as Iterable);
-      completer.complete(AiSearchResult(requestId: requestId, move: move));
+      final error = data['error'];
+      if (error != null) {
+        completer.complete(
+          AiSearchResult(requestId: requestId, error: error.toString()),
+        );
+      } else {
+        final moveRaw = data['move'];
+        final move =
+            moveRaw == null ? null : List<int>.from(moveRaw as Iterable);
+        completer.complete(AiSearchResult(requestId: requestId, move: move));
+      }
+    } catch (e) {
+      // Decode failure: complete all pending requests with the error so
+      // no Future hangs indefinitely.
+      for (final entry in Map.of(_pending).entries) {
+        _pending.remove(entry.key);
+        if (!entry.value.isCompleted) {
+          entry.value.complete(
+            AiSearchResult(
+              requestId: entry.key,
+              error: 'Failed to decode worker message: $e',
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -118,10 +140,20 @@ class _WebWorkerAiSearchRunner implements AiSearchRunner {
     final completer = Completer<AiSearchResult>();
     _pending[request.id] = completer;
 
-    _getOrCreateWorker().postMessage({
-      'requestId': request.id,
-      'params': request.params,
-    });
+    try {
+      _getOrCreateWorker().postMessage({
+        'requestId': request.id,
+        'params': request.params,
+      });
+    } catch (e) {
+      // Worker creation or postMessage failed (e.g. worker script missing,
+      // structured-clone failure).  Complete immediately with an error so the
+      // caller never hangs.
+      _pending.remove(request.id);
+      if (!completer.isCompleted) {
+        completer.complete(AiSearchResult(requestId: request.id, error: e));
+      }
+    }
 
     return completer.future;
   }

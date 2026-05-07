@@ -14,6 +14,8 @@
 
 // ignore: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:html';
+// ignore: avoid_web_libraries_in_flutter, deprecated_member_use, uri_does_not_exist
+import 'dart:js_util' as js_util;
 
 import 'package:go_puzzle/game/ai_search_entry.dart';
 
@@ -21,29 +23,47 @@ void main() {
   final scope = DedicatedWorkerGlobalScope.instance;
 
   scope.onMessage.listen((MessageEvent event) {
-    final raw = event.data;
-    if (raw == null) return;
-
-    // The main thread sends a plain JS object; convert to a typed Dart map.
-    final data = Map<String, dynamic>.from(raw as dynamic);
-    final requestId = data['requestId'] as String?;
-    if (requestId == null) return;
-
-    final rawParams = data['params'];
-    if (rawParams == null) {
-      scope.postMessage({
-        'requestId': requestId,
-        'error': 'Missing params',
-      });
-      return;
-    }
-    final params = Map<String, dynamic>.from(rawParams as dynamic);
-
+    // All message decoding is wrapped so that any error sends a structured
+    // {requestId, error} reply rather than silently hanging the main thread.
+    String? requestId;
     try {
+      final raw = event.data;
+      if (raw == null) return;
+
+      // event.data arrives as a JS object; use dart:js_util.dartify() to
+      // convert it recursively to Dart Maps/Lists.
+      final dartified = js_util.dartify(raw);
+      if (dartified is! Map) {
+        return; // malformed message; no requestId to reply to
+      }
+      final data = Map<String, dynamic>.from(dartified);
+      requestId = data['requestId'] as String?;
+      if (requestId == null) return;
+
+      final rawParams = data['params'];
+      if (rawParams == null) {
+        scope.postMessage({'requestId': requestId, 'error': 'Missing params'});
+        return;
+      }
+
+      final dartifiedParams = js_util.dartify(rawParams as Object);
+      if (dartifiedParams is! Map) {
+        scope.postMessage({
+          'requestId': requestId,
+          'error': 'params must be a map',
+        });
+        return;
+      }
+      final params = Map<String, dynamic>.from(dartifiedParams);
+
       final move = runChooseAiMove(params);
       scope.postMessage({'requestId': requestId, 'move': move});
     } catch (e) {
-      scope.postMessage({'requestId': requestId, 'error': e.toString()});
+      // Send the error back so the main-thread Future completes rather than
+      // hanging indefinitely.
+      if (requestId != null) {
+        scope.postMessage({'requestId': requestId, 'error': e.toString()});
+      }
     }
   });
 }

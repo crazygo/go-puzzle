@@ -44,10 +44,7 @@ flutter pub get
 # The worker is a standalone Dart program that runs inside a browser
 # DedicatedWorker.  It must be compiled before `flutter build web` so that
 # Flutter copies the resulting JS to build/web/.
-echo "▸ Compiling AI search web worker (web/ai_search_worker.dart)…"
-dart compile js web/ai_search_worker.dart \
-    -o web/ai_search_worker.dart.js \
-    --no-source-maps
+bash scripts/compile-web-worker.sh
 
 # ── 5. Optionally download screenshot-test fonts ─────────────────────────────
 if [ "${ENABLE_SCREENSHOT_TEST_FONTS:-}" = "1" ] || \

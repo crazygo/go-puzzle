@@ -256,8 +256,9 @@ void main() {
           runner: blockingRunner,
         );
 
-        // Allow the first _doAiMove microtask to run and call search().
-        await Future<void>.microtask(() {});
+        // Wait for the render-delay timer (~32 ms) to fire and for _doAiMove()
+        // to start and call search().
+        await Future<void>.delayed(const Duration(milliseconds: 100));
 
         // The search is now blocking.  Start a new game — this must cancel
         // the in-flight request.
@@ -267,7 +268,7 @@ void main() {
         expect(blockingRunner.cancelledIds, isNotEmpty);
 
         // Allow any pending microtasks to flush.
-        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
 
         // moveLog should be empty — the stale AI move must NOT be applied.
         expect(provider.moveLog, isEmpty);
@@ -290,7 +291,9 @@ void main() {
         runner: blockingRunner,
       );
 
-      await Future<void>.microtask(() {});
+      // Wait for the render-delay timer (~32 ms) to fire and for _doAiMove()
+      // to start and call search().
+      await Future<void>.delayed(const Duration(milliseconds: 100));
       provider.dispose();
 
       expect(blockingRunner.cancelledIds, isNotEmpty);
