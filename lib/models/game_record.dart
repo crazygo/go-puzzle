@@ -61,7 +61,7 @@ class GameRecord {
   /// StoneColor.index for the human player (1 = black, 2 = white).
   final int humanColorIndex;
 
-  /// CaptureInitialMode.name, e.g. "twistCross".
+  /// Stable persisted key for the opening mode, e.g. "twistCross".
   final String initialMode;
 
   /// Serialised initial board for setup-mode games; null otherwise.

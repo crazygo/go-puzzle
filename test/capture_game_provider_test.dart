@@ -15,6 +15,92 @@ import 'package:provider/provider.dart';
 
 void main() {
   group('CaptureGameProvider', () {
+    test('initial cross layout uses plus-shaped stones', () {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+      );
+      final board = provider.gameState.board;
+      const center = 4;
+      expect(board[center - 1][center], StoneColor.black);
+      expect(board[center + 1][center], StoneColor.black);
+      expect(board[center][center - 1], StoneColor.white);
+      expect(board[center][center + 1], StoneColor.white);
+    });
+
+    test('initial twistCross layout uses twisted 2x2 stones', () {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.twistCross,
+      );
+      final board = provider.gameState.board;
+      const center = 4;
+      expect(board[center][center], StoneColor.black);
+      expect(board[center][center + 1], StoneColor.white);
+      expect(board[center - 1][center], StoneColor.white);
+      expect(board[center - 1][center + 1], StoneColor.black);
+    });
+
+    test('persisted opening keys keep legacy twistCross compatibility', () {
+      expect(
+        captureInitialModeStorageKey(CaptureInitialMode.cross),
+        'twistCross',
+      );
+      expect(
+        captureInitialModeStorageKey(CaptureInitialMode.twistCross),
+        'twistCross2x2',
+      );
+      expect(
+        captureInitialModeFromStorageKey('twistCross'),
+        CaptureInitialMode.cross,
+      );
+      expect(
+        captureInitialModeFromStorageKey('cross'),
+        CaptureInitialMode.cross,
+      );
+      expect(
+        captureInitialModeFromStorageKey('twistCross2x2'),
+        CaptureInitialMode.twistCross,
+      );
+    });
+
+    test('legacy and new persisted keys reconstruct their respective layouts',
+        () {
+      const boardSize = 9;
+      final legacyBoard =
+          List.generate(boardSize, (_) => List.filled(boardSize, StoneColor.empty));
+      final newBoard = List.generate(
+          boardSize, (_) => List.filled(boardSize, StoneColor.empty));
+      final legacyMode = captureInitialModeFromStorageKey('twistCross');
+      final newMode = captureInitialModeFromStorageKey('twistCross2x2');
+
+      applyCaptureInitialLayout(
+        legacyBoard,
+        legacyMode,
+      );
+      applyCaptureInitialLayout(
+        newBoard,
+        newMode,
+      );
+
+      const center = 4;
+      expect(legacyMode, CaptureInitialMode.cross);
+      expect(newMode, CaptureInitialMode.twistCross);
+      expect(legacyBoard[center][center], StoneColor.empty);
+      expect(legacyBoard[center - 1][center], StoneColor.black);
+      expect(legacyBoard[center + 1][center], StoneColor.black);
+      expect(legacyBoard[center][center - 1], StoneColor.white);
+      expect(legacyBoard[center][center + 1], StoneColor.white);
+      expect(newBoard[center][center], StoneColor.black);
+      expect(newBoard[center + 1][center], StoneColor.empty);
+      expect(newBoard[center][center + 1], StoneColor.white);
+      expect(newBoard[center - 1][center], StoneColor.white);
+      expect(newBoard[center - 1][center + 1], StoneColor.black);
+    });
+
     test('rejects unsupported board sizes', () {
       expect(
         () => CaptureGameProvider(

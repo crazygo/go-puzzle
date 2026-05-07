@@ -55,7 +55,65 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
 
 enum CaptureGameResult { none, blackWins, whiteWins }
 
-enum CaptureInitialMode { twistCross, empty, setup }
+enum CaptureInitialMode { cross, twistCross, empty, setup }
+
+String captureInitialModeStorageKey(CaptureInitialMode mode) {
+  return switch (mode) {
+    CaptureInitialMode.cross => 'twistCross',
+    CaptureInitialMode.twistCross => 'twistCross2x2',
+    CaptureInitialMode.empty => 'empty',
+    CaptureInitialMode.setup => 'setup',
+  };
+}
+
+CaptureInitialMode captureInitialModeFromStorageKey(
+  String? key, {
+  CaptureInitialMode fallback = CaptureInitialMode.cross,
+}) {
+  return switch (key) {
+    'twistCross' || 'cross' => CaptureInitialMode.cross,
+    'twistCross2x2' => CaptureInitialMode.twistCross,
+    'empty' => CaptureInitialMode.empty,
+    'setup' => CaptureInitialMode.setup,
+    _ => fallback,
+  };
+}
+
+void applyCaptureInitialLayout(
+  List<List<StoneColor>> board,
+  CaptureInitialMode mode,
+) {
+  final boardSize = board.length;
+  assert(
+    board.every((row) => row.length == boardSize),
+    'board must be a square matrix.',
+  );
+  // Keep a runtime guard for production builds where asserts are disabled.
+  if (board.any((row) => row.length != boardSize)) {
+    return;
+  }
+
+  final center = boardSize ~/ 2;
+  if (center <= 0 || center >= boardSize - 1) return;
+
+  switch (mode) {
+    case CaptureInitialMode.cross:
+      board[center - 1][center] = StoneColor.black;
+      board[center + 1][center] = StoneColor.black;
+      board[center][center - 1] = StoneColor.white;
+      board[center][center + 1] = StoneColor.white;
+      break;
+    case CaptureInitialMode.twistCross:
+      board[center][center] = StoneColor.black;
+      board[center][center + 1] = StoneColor.white;
+      board[center - 1][center] = StoneColor.white;
+      board[center - 1][center + 1] = StoneColor.black;
+      break;
+    case CaptureInitialMode.empty:
+    case CaptureInitialMode.setup:
+      break;
+  }
+}
 
 class CaptureGameProvider extends ChangeNotifier {
   static const Duration _defaultMinMoveDelay = Duration(milliseconds: 800);
@@ -66,7 +124,7 @@ class CaptureGameProvider extends ChangeNotifier {
     required this.captureTarget,
     required this.difficulty,
     this.humanColor = StoneColor.black,
-    this.initialMode = CaptureInitialMode.twistCross,
+    this.initialMode = CaptureInitialMode.cross,
     this.initialBoardOverride,
     this.initialPlayerOverride,
     this.minMoveDelay = _defaultMinMoveDelay,
@@ -325,14 +383,8 @@ class CaptureGameProvider extends ChangeNotifier {
           emptyBoard[r][c] = source[r][c];
         }
       }
-    } else if (initialMode == CaptureInitialMode.twistCross) {
-      final center = boardSize ~/ 2;
-      if (center > 0 && center < boardSize - 1) {
-        emptyBoard[center - 1][center] = StoneColor.black;
-        emptyBoard[center + 1][center] = StoneColor.black;
-        emptyBoard[center][center - 1] = StoneColor.white;
-        emptyBoard[center][center + 1] = StoneColor.white;
-      }
+    } else {
+      applyCaptureInitialLayout(emptyBoard, initialMode);
     }
 
     _gameState = GameState(
