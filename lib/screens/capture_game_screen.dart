@@ -3982,6 +3982,25 @@ class _PlayerSideCard extends StatelessWidget {
           mainAxisAlignment:
               alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
           children: [
+            if (alignEnd && tag != null) ...[
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEADCCB),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                child: Text(
+                  tag!,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF8E7157),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
             Text(
               title,
               style: const TextStyle(
@@ -3990,7 +4009,7 @@ class _PlayerSideCard extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            if (tag != null) ...[
+            if (!alignEnd && tag != null) ...[
               const SizedBox(width: 8),
               Container(
                 decoration: BoxDecoration(
