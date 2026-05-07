@@ -571,8 +571,18 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         decoration: const BoxDecoration(),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            const cardTop = kPageHeroContentOffset + 8;
+            const cardTop = (kPageHeroContentOffset + 8) * 2;
             final heroTitleTop = MediaQuery.of(context).padding.top + 36;
+            // The hero title widget has a fixed height of 72 (see _MotivationHeroTitle).
+            // Position the scroll view below the hero title so the hero widget sits
+            // outside the scroll view's hit-test area and can still receive taps,
+            // while remaining visually beneath the scrollable cards.
+            const heroTitleHeight = _MotivationHeroTitle.height;
+            final scrollViewTop = heroTitleTop + heroTitleHeight;
+            // Subtract the scroll view's top offset from the spacer so the first
+            // card appears at the same absolute screen position as before.
+            final adjustedCardTop =
+                cardTop + MediaQuery.of(context).padding.top - scrollViewTop;
 
             return Stack(
               children: [
@@ -586,13 +596,28 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     showOrbitalArt: false,
                   ),
                 ),
-                SafeArea(
-                  bottom: false,
-                  child: CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: SizedBox(height: cardTop),
-                      ),
+                Positioned(
+                  top: heroTitleTop,
+                  left: 24,
+                  right: 16,
+                  child: _MotivationHeroTitle(
+                    title: _CaptureCopy.pageTitle,
+                    motivation: _CaptureCopy.motivation,
+                  ),
+                ),
+                Positioned(
+                  top: scrollViewTop,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: SafeArea(
+                    top: false,
+                    bottom: false,
+                    child: CustomScrollView(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: SizedBox(height: adjustedCardTop),
+                        ),
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -783,14 +808,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     ],
                   ),
                 ),
-                Positioned(
-                  top: heroTitleTop,
-                  left: 24,
-                  right: 16,
-                  child: _MotivationHeroTitle(
-                    title: _CaptureCopy.pageTitle,
-                    motivation: _CaptureCopy.motivation,
-                  ),
                 ),
                 if (kIsWeb && developerMode)
                   SafeArea(
@@ -2423,6 +2440,10 @@ class _MotivationHeroTitle extends StatefulWidget {
     required this.motivation,
   });
 
+  /// Fixed height of this widget; used by the parent Stack to position the
+  /// scroll view so its hit-test area begins below this widget.
+  static const double height = 72.0;
+
   final String title;
   final String motivation;
 
@@ -2567,7 +2588,7 @@ class _MotivationHeroTitleState extends State<_MotivationHeroTitle>
     );
 
     return SizedBox(
-      height: 72,
+      height: _MotivationHeroTitle.height,
       child: AnimatedBuilder(
         animation: _curve,
         builder: (context, _) {
