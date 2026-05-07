@@ -4077,41 +4077,47 @@ class _PlayerSideCard extends StatelessWidget {
     final active = progress.clamp(0, captureTarget);
     final alignment =
         alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+
+    final titleWidget = Text(
+      title,
+      style: const TextStyle(
+        fontSize: 20,
+        color: Color(0xFF2E2620),
+        fontWeight: FontWeight.w600,
+      ),
+    );
+
+    List<Widget> rowChildren;
+    if (tag != null) {
+      final tagBadge = Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFEADCCB),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Text(
+          tag,
+          style: const TextStyle(
+            fontSize: 13,
+            color: Color(0xFF8E7157),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+      rowChildren = alignEnd
+          ? [tagBadge, const SizedBox(width: 8), titleWidget]
+          : [titleWidget, const SizedBox(width: 8), tagBadge];
+    } else {
+      rowChildren = [titleWidget];
+    }
+
     return Column(
       crossAxisAlignment: alignment,
       children: [
         Row(
           mainAxisAlignment:
               alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color(0xFF2E2620),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (tag != null) ...[
-              const SizedBox(width: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEADCCB),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                child: Text(
-                  tag!,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF8E7157),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ],
+          children: rowChildren,
         ),
         const SizedBox(height: 8),
         Wrap(
