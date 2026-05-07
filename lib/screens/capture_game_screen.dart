@@ -3655,20 +3655,22 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
               backgroundColor: const Color(0xFFF3F0ED),
               border: null,
               previousPageTitle: _CaptureCopy.pageTitle,
-              middle: Text(
-                '${_initialModeLabel(widget.initialMode)} · 吃${widget.captureTarget}子 · ${AiRankLevel.displayName(widget.aiRank)}',
-              ),
+              middle: null,
               trailing: CupertinoButton(
                 padding: EdgeInsets.zero,
+                minSize: 0,
                 onPressed: () => _showGameConfigDialog(
                   context: context,
                   provider: provider,
                   settings: settings,
                 ),
-                child: const Icon(
-                  CupertinoIcons.slider_horizontal_3,
-                  color: Color(0xFFC3996E),
-                  size: 20,
+                child: Text(
+                  AiRankLevel.displayName(widget.aiRank),
+                  style: const TextStyle(
+                    color: Color(0xFFC3996E),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
