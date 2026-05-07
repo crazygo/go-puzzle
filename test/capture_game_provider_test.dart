@@ -257,7 +257,25 @@ void main() {
       );
 
       final initialMoveCount = provider.moveLog.length;
+
+      // Register the listener BEFORE triggering the action so we don't miss
+      // any state transitions that fire before or immediately after await.
+      final doneCompleter = Completer<void>();
+      provider.addListener(() {
+        if (!provider.isAiThinking &&
+            provider.moveLog.length >= initialMoveCount + 2 &&
+            !doneCompleter.isCompleted) {
+          doneCompleter.complete();
+        }
+      });
+
       await provider.placeStone(4, 4);
+      // Human move should render immediately without waiting for AI work.
+      expect(provider.moveLog.length, equals(initialMoveCount + 1));
+
+      // No onTimeout callback — let the timeout throw so the test fails fast
+      // rather than silently masking a missing AI response.
+      await doneCompleter.future.timeout(const Duration(seconds: 5));
 
       // Human placed one stone; AI should have responded with exactly one more.
       expect(provider.moveLog.length, equals(initialMoveCount + 2));
