@@ -226,7 +226,6 @@ class CaptureAiTacticalOracle {
     );
     final rankedMoves = <CaptureAiOracleMove>[];
 
-    final rootDeepSearchLimit = math.max(1, config.candidateHorizon);
     for (var i = 0; i < legalMoves.length; i++) {
       final moveIndex = legalMoves[i];
       final row = moveIndex ~/ board.size;
@@ -238,20 +237,20 @@ class CaptureAiTacticalOracle {
       if (!next.applyMove(row, col)) continue;
 
       final tacticalScore = _scoreMoveForPlayer(board, moveIndex, analysis);
-      final score = i < rootDeepSearchLimit
-          ? _minimax(
-                next,
-                rootPlayer: board.currentPlayer,
-                depth: math.max(0, config.depth - 1),
-                alpha: -double.infinity,
-                beta: double.infinity,
-                stats: stats,
-              ) +
-              tacticalScore * 0.03 +
-              _stableTieBreaker(moveIndex)
-          : tacticalScore +
-              _rootUrgencyScore(board, board.currentPlayer, analysis) +
-              _stableTieBreaker(moveIndex);
+      final opponentCanReachTarget =
+          next.winner == 0 && _currentPlayerCanReachCaptureTarget(next);
+      final searchScore = opponentCanReachTarget
+          ? -100000.0
+          : _minimax(
+              next,
+              rootPlayer: board.currentPlayer,
+              depth: math.max(0, config.depth - 1),
+              alpha: -double.infinity,
+              beta: double.infinity,
+              stats: stats,
+            );
+      final score =
+          searchScore + tacticalScore * 0.03 + _stableTieBreaker(moveIndex);
       rankedMoves.add(
         CaptureAiOracleMove(
           position: BoardPosition(row, col),
@@ -417,6 +416,25 @@ class CaptureAiTacticalOracle {
       moves.add(_OracleLegalMove(moveIndex, analysis));
     }
     return moves;
+  }
+
+  bool _currentPlayerCanReachCaptureTarget(SimBoard board) {
+    final player = board.currentPlayer;
+    final capturesBefore = player == SimBoard.black
+        ? board.capturedByBlack
+        : board.capturedByWhite;
+    if (capturesBefore >= board.captureTarget) return true;
+    if (capturesBefore < board.captureTarget - 1) return false;
+
+    for (final move in _generateOracleLegalMoves(board)) {
+      final captureDelta = player == SimBoard.black
+          ? move.analysis.blackCaptureDelta
+          : move.analysis.whiteCaptureDelta;
+      if (capturesBefore + captureDelta >= board.captureTarget) {
+        return true;
+      }
+    }
+    return false;
   }
 
   double _scoreMoveForPlayer(
