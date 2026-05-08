@@ -53,6 +53,9 @@ jobs:
           path: ${{ runner.temp }}/go-puzzle-screenshots
           if-no-files-found: error
 
+      - name: Compile AI search Web Worker
+        run: bash scripts/compile-web-worker.sh
+
       - name: Build web (release)
         run: |
           flutter build web \

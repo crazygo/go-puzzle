@@ -40,7 +40,13 @@ flutter config --enable-web
 echo "▸ flutter pub get…"
 flutter pub get
 
-# ── 4. Optionally download screenshot-test fonts ─────────────────────────────
+# ── 4. Compile the AI search Web Worker ──────────────────────────────────────
+# The worker is a standalone Dart program that runs inside a browser
+# DedicatedWorker.  It must be compiled before `flutter build web` so that
+# Flutter copies the resulting JS to build/web/.
+bash scripts/compile-web-worker.sh
+
+# ── 5. Optionally download screenshot-test fonts ─────────────────────────────
 if [ "${ENABLE_SCREENSHOT_TEST_FONTS:-}" = "1" ] || \
    [ "${ENABLE_SCREENSHOT_TEST_FONTS:-}" = "true" ]; then
   echo "▸ Ensuring screenshot-test fonts…"
@@ -49,7 +55,7 @@ else
   echo "▸ Skipping screenshot-test fonts (set ENABLE_SCREENSHOT_TEST_FONTS=1 to enable)…"
 fi
 
-# ── 5. Build ─────────────────────────────────────────────────────────────────
+# ── 6. Build ─────────────────────────────────────────────────────────────────
 echo "▸ Building Flutter web (release)…"
 flutter build web \
     --release \

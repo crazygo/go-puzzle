@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../game/ai_search_runner.dart';
 import '../game/capture_ai.dart';
 import '../game/difficulty_level.dart';
 import '../game/go_engine.dart';
@@ -9,10 +10,11 @@ import '../game/mcts_engine.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 
+export '../game/ai_search_runner.dart' show AiSearchRunner;
 export '../game/difficulty_level.dart';
 
 // ---------------------------------------------------------------------------
-// Top-level function required by compute() – runs in a background isolate.
+// Top-level function required by compute() for hint suggestions.
 // ---------------------------------------------------------------------------
 
 List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
@@ -53,32 +55,6 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
     }
   }
   return suggestions;
-}
-
-List<int>? _runChooseAiMove(Map<String, dynamic> params) {
-  final boardSize = params['boardSize'] as int;
-  final captureTarget = params['captureTarget'] as int;
-  final cells = List<int>.from(params['cells'] as List);
-  final capturedByBlack = params['capturedByBlack'] as int;
-  final capturedByWhite = params['capturedByWhite'] as int;
-  final currentPlayer = params['currentPlayer'] as int;
-  final aiStyle = CaptureAiStyle.values.byName(params['aiStyle'] as String);
-  final difficulty =
-      DifficultyLevel.values.byName(params['difficulty'] as String);
-
-  final sim = SimBoard(boardSize, captureTarget: captureTarget);
-  for (int i = 0; i < cells.length; i++) {
-    sim.cells[i] = cells[i];
-  }
-  sim.capturedByBlack = capturedByBlack;
-  sim.capturedByWhite = capturedByWhite;
-  sim.currentPlayer = currentPlayer;
-
-  final move = CaptureAiRegistry.create(style: aiStyle, difficulty: difficulty)
-      .chooseMove(sim)
-      ?.position;
-  if (move == null) return null;
-  return [move.row, move.col];
 }
 
 enum CaptureGameResult { none, blackWins, whiteWins }
@@ -146,6 +122,8 @@ void applyCaptureInitialLayout(
 class CaptureGameProvider extends ChangeNotifier {
   static const Duration _defaultMinMoveDelay = Duration(milliseconds: 1280);
   static const Duration _defaultMaxMoveDelay = Duration(milliseconds: 2500);
+  // ~2 frames at 60 fps: just long enough for Flutter to render the human
+  // stone before the AI starts thinking.
   static const Duration _aiStartRenderDelay = Duration(milliseconds: 32);
 
   CaptureGameProvider({
@@ -158,6 +136,7 @@ class CaptureGameProvider extends ChangeNotifier {
     this.initialPlayerOverride,
     this.minMoveDelay = _defaultMinMoveDelay,
     this.maxMoveDelay = _defaultMaxMoveDelay,
+    AiSearchRunner? runner,
   })  : assert(
           boardSize == 9 || boardSize == 13 || boardSize == 19,
           'boardSize must be 9, 13, or 19.',
@@ -180,6 +159,7 @@ class CaptureGameProvider extends ChangeNotifier {
           maxMoveDelay >= minMoveDelay,
           'maxMoveDelay must be >= minMoveDelay.',
         ) {
+    _runner = runner ?? createAiSearchRunner();
     if (initialBoardOverride != null &&
         !_isValidBoardShape(initialBoardOverride, boardSize)) {
       throw ArgumentError.value(
@@ -223,6 +203,18 @@ class CaptureGameProvider extends ChangeNotifier {
   CaptureAiStyle _aiStyle = CaptureAiStyle.adaptive;
   CaptureAiAgent? _cachedAgent;
 
+  late final AiSearchRunner _runner;
+
+  /// Monotonically-increasing counter used to build unique request IDs.
+  /// Unlike [_gameGeneration], this is never reset so each [_doAiMove] call
+  /// gets a distinct identifier even within the same game.
+  /// Dart's int is 64-bit; overflow is not a practical concern for a game app
+  /// (would require ~9.2 × 10¹⁸ AI turns).
+  int _requestCounter = 0;
+
+  /// The request ID for the currently in-flight AI move search, or null.
+  AiSearchRequestId? _pendingAiRequestId;
+
   late GameState _gameState;
   CaptureGameResult _result = CaptureGameResult.none;
   bool _isAiThinking = false;
@@ -260,6 +252,11 @@ class CaptureGameProvider extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _aiMoveTimer?.cancel();
+    if (_pendingAiRequestId != null) {
+      _runner.cancel(_pendingAiRequestId!);
+      _pendingAiRequestId = null;
+    }
+    _runner.dispose();
     super.dispose();
   }
 
@@ -395,6 +392,12 @@ class CaptureGameProvider extends ChangeNotifier {
   void _startNewGame() {
     _aiMoveTimer?.cancel();
     _aiMoveTimer = null;
+    // Cancel any in-flight AI request from the previous game before bumping
+    // the generation counter, so stale results are discarded immediately.
+    if (_pendingAiRequestId != null) {
+      _runner.cancel(_pendingAiRequestId!);
+      _pendingAiRequestId = null;
+    }
     final emptyBoard = List.generate(
       boardSize,
       (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
@@ -471,6 +474,10 @@ class CaptureGameProvider extends ChangeNotifier {
     notifyListeners();
 
     final generation = _gameGeneration;
+    // Use a per-request counter to guarantee a unique ID for every AI turn,
+    // even within the same game generation.
+    final requestId = 'ai_move_${generation}_${++_requestCounter}';
+    _pendingAiRequestId = requestId;
     final thinkingStopwatch = Stopwatch()..start();
 
     try {
@@ -485,7 +492,15 @@ class CaptureGameProvider extends ChangeNotifier {
         'aiStyle': _aiStyle.name,
         'difficulty': difficulty.name,
       };
-      final move = await compute(_runChooseAiMove, params);
+      final result = await _runner.search(
+        AiSearchRequest(id: requestId, params: params),
+      );
+
+      // Clear the pending ID if it still matches (it may have been reset by
+      // a cancel in _startNewGame / dispose).
+      if (_pendingAiRequestId == requestId) _pendingAiRequestId = null;
+
+      final move = result.move;
       final bestMove = move == null ? null : BoardPosition(move[0], move[1]);
 
       // Ensure a minimum thinking time so the AI feels human-like. If
@@ -504,7 +519,7 @@ class CaptureGameProvider extends ChangeNotifier {
       // were waiting — don't apply a stale move or call notifyListeners().
       if (!_isCurrentGame(generation)) return;
 
-      if (bestMove != null) {
+      if (bestMove != null && !result.hasError) {
         _undoStack.add(_gameState);
         final newState =
             GoEngine.placeStone(_gameState, bestMove.row, bestMove.col);
