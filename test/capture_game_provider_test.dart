@@ -420,9 +420,9 @@ void main() {
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      expect(find.text('显示吃子记录'), findsOneWidget);
+      expect(find.text('显示棋谱'), findsOneWidget);
 
-      await tester.tap(find.text('显示吃子记录'));
+      await tester.tap(find.text('显示棋谱'));
       await tester.pumpAndSettle();
 
       expect(find.text('1 A1'), findsOneWidget);
