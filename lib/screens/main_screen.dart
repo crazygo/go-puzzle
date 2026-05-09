@@ -7,8 +7,8 @@ import '../providers/settings_provider.dart';
 import '../theme/theme_context.dart';
 import '../widgets/go_three_board_background.dart';
 import 'capture_game_screen.dart';
-import 'daily_puzzle_screen.dart';
 import 'settings_screen.dart';
+import 'skills_screen.dart';
 
 /// Main screen with a Cupertino tab bar at the bottom.
 class MainScreen extends StatelessWidget {
@@ -99,7 +99,7 @@ class _MainTabScaffoldState extends State<_MainTabScaffold> {
                   onLeafShadowOffsetZChanged: (value) =>
                       setState(() => _leafShadowOffsetZ = value),
                 ),
-                const DailyPuzzleScreen(),
+                const SkillsScreen(),
                 const SettingsScreen(),
               ],
             ),

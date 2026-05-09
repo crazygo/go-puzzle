@@ -1,9 +1,16 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/capture_ai_tactics.dart';
+import 'package:go_puzzle/main.dart';
+import 'package:go_puzzle/screens/daily_puzzle_screen.dart';
 import 'package:go_puzzle/screens/skills_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   final problems = [
     CaptureAiTacticsProblem.fromJson(
       {
@@ -107,5 +114,15 @@ void main() {
     expect(find.text('AI 建议'), findsOneWidget);
     expect(find.text('Oracle 参考'), findsOneWidget);
     expect(find.text('点棋盘上的空点，可以临时试下一手。绿色标记默认显示 AI 首选。'), findsOneWidget);
+  });
+
+  testWidgets('main puzzle tab is wired to tactics dataset screen',
+      (tester) async {
+    await tester.pumpWidget(const GoPuzzleApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(SkillsScreen, skipOffstage: false), findsOneWidget);
+    expect(find.byType(DailyPuzzleScreen, skipOffstage: false), findsNothing);
   });
 }
