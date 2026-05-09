@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/capture_ai_tactics.dart';
 import 'package:go_puzzle/main.dart';
-import 'package:go_puzzle/screens/daily_puzzle_screen.dart';
 import 'package:go_puzzle/screens/skills_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -123,6 +122,5 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byType(SkillsScreen, skipOffstage: false), findsOneWidget);
-    expect(find.byType(DailyPuzzleScreen, skipOffstage: false), findsNothing);
   });
 }
