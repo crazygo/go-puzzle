@@ -361,10 +361,10 @@ void main() {
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      expect(find.text('AI 风格：随机'), findsOneWidget);
+      expect(find.text('AI 风格：战力优先'), findsOneWidget);
       expect(find.text('吃子预警：开'), findsOneWidget);
 
-      await tester.tap(find.text('AI 风格：随机'));
+      await tester.tap(find.text('AI 风格：战力优先'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('稳守 · 先补强自己，再等反击'));

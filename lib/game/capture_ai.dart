@@ -19,7 +19,7 @@ extension CaptureAiStyleExt on CaptureAiStyle {
   String get label {
     switch (this) {
       case CaptureAiStyle.adaptive:
-        return '随机';
+        return '战力优先';
       case CaptureAiStyle.hunter:
         return '猎杀';
       case CaptureAiStyle.trapper:

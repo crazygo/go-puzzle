@@ -22,7 +22,7 @@ void main() {
     expect(find.byType(PageHeroBanner), findsOneWidget);
     expect(find.text('下一盘'), findsOneWidget);
     expect(find.text('吃 5 子取胜 · 9 路 · 十字'), findsOneWidget);
-    // Default AI style is now 'adaptive' (随机).
+    // Default AI style is now 'adaptive' (战力优先).
     expect(find.text(CaptureAiStyle.adaptive.label), findsOneWidget);
     expect(find.text('中级 · 9 路 · 吃5子'), findsNothing);
 
