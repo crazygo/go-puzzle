@@ -4390,7 +4390,7 @@ class _OperationContextMenu extends StatelessWidget {
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
-              text: moveLogVisible ? '隐藏吃子记录' : '显示吃子记录',
+              text: moveLogVisible ? '隐藏棋谱' : '显示棋谱',
               enabled: true,
               onPressed: onToggleMoveLog,
             ),
