@@ -2672,7 +2672,7 @@ class _PrimaryActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final isClassic = palette.primary == AppThemePalette.classic.primary;
+    final isClassic = identical(palette, AppThemePalette.classic);
     final primaryEnd = isClassic
         ? palette.primary
         : Color.lerp(palette.primary, CupertinoColors.black, 0.20)!;
@@ -2722,7 +2722,7 @@ class _SecondaryActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final isClassic = palette.primary == AppThemePalette.classic.primary;
+    final isClassic = identical(palette, AppThemePalette.classic);
     final secondaryFill = isClassic
         ? CupertinoColors.systemGrey5.resolveFrom(context)
         : palette.primary.withValues(alpha: 0.10);
@@ -2758,7 +2758,7 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final isClassic = palette.primary == AppThemePalette.classic.primary;
+    final isClassic = identical(palette, AppThemePalette.classic);
     final cardBackground = isClassic
         ? CupertinoColors.systemBackground.resolveFrom(context)
         : const Color(0xF7FFFDF9);
@@ -3347,7 +3347,7 @@ class _ImportScreenshotCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final isClassic = palette.primary == AppThemePalette.classic.primary;
+    final isClassic = identical(palette, AppThemePalette.classic);
     final iconContainerColor = isClassic
         ? CupertinoColors.systemIndigo.resolveFrom(context).withValues(alpha: 0.16)
         : const Color(0xFFECE4FF);
@@ -5412,7 +5412,7 @@ class _GameResultDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final isClassic = palette.primary == AppThemePalette.classic.primary;
+    final isClassic = identical(palette, AppThemePalette.classic);
     final (title, icon, accentColor) = switch (state) {
       _ResultDialogState.victory => (
           '胜利',
