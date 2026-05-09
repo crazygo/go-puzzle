@@ -1,4 +1,4 @@
-name = "pr-review-comment-resolver"
+name = "go-puzzle-github-webhook"
 main = "copilot-review-thread-resolver-worker.mjs"
 compatibility_date = "2026-05-06"
 workers_dev = true
