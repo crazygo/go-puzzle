@@ -1,6 +1,10 @@
+import reviewCuePromptTemplate from './copilot-review-cue.prompt';
+
 /**
- * Cloudflare Worker: auto-resolve outdated GitHub PR review threads for crazygo/go-puzzle
- * Trigger source: GitHub issue_comment webhook (created on pull requests)
+ * Cloudflare Worker: automate GitHub PR review follow-up for crazygo/go-puzzle
+ * Trigger sources:
+ * - GitHub issue_comment webhook (created on pull requests)
+ * - GitHub pull_request_review webhook (submitted)
  *
  * Required secrets:
  * - GITHUB_WEBHOOK_SECRET
@@ -8,13 +12,15 @@
  *
  * Optional env vars:
  * - GITHUB_API_URL (default: https://api.github.com)
- * - COPILOT_USER_ID (default: 198982749)
+ * - COPILOT_USER_ID (default: 175728472)
  * - ALLOWED_REPO (default: crazygo/go-puzzle)
+ * - REVIEW_COMMENT_SETTLE_MS (default: 5000)
  */
 
 const DEFAULT_GITHUB_API_URL = 'https://api.github.com';
-const DEFAULT_COPILOT_USER_ID = 198982749;
+const DEFAULT_COPILOT_USER_ID = 175728472;
 const DEFAULT_ALLOWED_REPO = 'crazygo/go-puzzle';
+const DEFAULT_REVIEW_COMMENT_SETTLE_MS = 5000;
 
 const QUERY_REVIEW_THREADS = `
   query($owner:String!, $repo:String!, $pr:Int!, $cursor:String) {
@@ -89,50 +95,282 @@ export default {
       return json({ ok: true, deliveryId, event: eventName, zen: payload.zen ?? null });
     }
 
-    if (eventName !== 'issue_comment') {
-      return json({ ok: true, deliveryId, event: eventName, ignored: 'unsupported_event' });
+    try {
+      if (eventName === 'issue_comment') {
+        const result = await handleIssueCommentCreated(payload, env);
+        return json({ ok: true, deliveryId, event: eventName, ...result });
+      }
+
+      if (eventName === 'pull_request_review') {
+        const result = await handlePullRequestReviewSubmitted(payload, env);
+        return json({ ok: true, deliveryId, event: eventName, ...result });
+      }
+    } catch (error) {
+      return json({ ok: false, deliveryId, event: eventName, error: String(error?.message ?? error) }, 500);
     }
 
-    if (payload.action !== 'created') {
-      return json({ ok: true, deliveryId, event: eventName, ignored: 'issue_comment_action_not_created' });
-    }
-
-    if (!payload.issue?.pull_request) {
-      return json({ ok: true, deliveryId, event: eventName, ignored: 'comment_not_on_pull_request' });
-    }
-
-    if (!isCopilotComment(payload, env)) {
-      return json({
-        ok: true,
-        deliveryId,
-        event: eventName,
-        ignored: 'comment_not_from_copilot',
-        commenter: payload.comment?.user?.login ?? null,
-      });
-    }
-
-    const repoFullName = `${payload.repository?.owner?.login ?? ''}/${payload.repository?.name ?? ''}`;
-    const allowedRepo = env.ALLOWED_REPO || DEFAULT_ALLOWED_REPO;
-    if (repoFullName !== allowedRepo) {
-      return json({ ok: true, deliveryId, event: eventName, ignored: 'repo_not_allowed', repoFullName, allowedRepo });
-    }
-
-    if (!env.GITHUB_TOKEN) {
-      return json({ ok: false, error: 'Missing GITHUB_TOKEN' }, 500);
-    }
-
-    const result = await resolveOutdatedThreads(payload, env);
-    return json({ ok: true, deliveryId, event: eventName, ...result });
+    return json({ ok: true, deliveryId, event: eventName, ignored: 'unsupported_event' });
   },
 };
 
-function isCopilotComment(payload, env) {
-  const commentUserId = Number(payload.comment?.user?.id ?? 0);
-  const expectedUserId = Number(env.COPILOT_USER_ID || DEFAULT_COPILOT_USER_ID);
-  const userType = payload.comment?.user?.type;
-  const userLogin = payload.comment?.user?.login;
+async function handleIssueCommentCreated(payload, env) {
+  if (payload.action !== 'created') {
+    return { ignored: 'issue_comment_action_not_created' };
+  }
 
-  return commentUserId === expectedUserId || (userLogin === 'Copilot' && userType === 'Bot');
+  if (!payload.issue?.pull_request) {
+    return { ignored: 'comment_not_on_pull_request' };
+  }
+
+  if (!isCopilotUser(payload.comment?.user, env)) {
+    return {
+      ignored: 'comment_not_from_copilot',
+      userMatchDebug: buildCopilotUserMatchDebug(payload.comment?.user, env),
+    };
+  }
+
+  const repoCheck = validateAllowedRepo(payload, env);
+  if (repoCheck.ignored) {
+    return repoCheck;
+  }
+
+  if (!env.GITHUB_TOKEN) {
+    throw new Error('Missing GITHUB_TOKEN');
+  }
+
+  return resolveOutdatedThreads(payload, env);
+}
+
+async function handlePullRequestReviewSubmitted(payload, env) {
+  if (payload.action !== 'submitted') {
+    return { ignored: 'pull_request_review_action_not_submitted' };
+  }
+
+  if (!payload.pull_request) {
+    return { ignored: 'review_not_on_pull_request' };
+  }
+
+  if (!isCopilotUser(payload.review?.user, env)) {
+    return {
+      ignored: 'review_not_from_copilot',
+      userMatchDebug: buildCopilotUserMatchDebug(payload.review?.user, env),
+    };
+  }
+
+  const repoCheck = validateAllowedRepo(payload, env);
+  if (repoCheck.ignored) {
+    return repoCheck;
+  }
+
+  if (!env.GITHUB_TOKEN) {
+    throw new Error('Missing GITHUB_TOKEN');
+  }
+
+  const owner = payload.repository?.owner?.login;
+  const repo = payload.repository?.name;
+  const pullNumber = payload.pull_request?.number;
+  const reviewId = payload.review?.id;
+  const reviewUrl = payload.review?.html_url ?? payload.pull_request?.html_url;
+
+  if (!owner || !repo || !pullNumber || !reviewId || !reviewUrl) {
+    throw new Error('Missing owner/repo/pull number/review id/review url in payload.');
+  }
+
+  const apiUrl = env.GITHUB_API_URL || DEFAULT_GITHUB_API_URL;
+  const token = env.GITHUB_TOKEN;
+  const settleMs = Number(env.REVIEW_COMMENT_SETTLE_MS || DEFAULT_REVIEW_COMMENT_SETTLE_MS);
+  if (settleMs > 0) {
+    await sleep(settleMs);
+  }
+
+  const reviewComments = await fetchReviewComments({
+    owner,
+    repo,
+    pullNumber,
+    reviewId,
+    token,
+    apiUrl,
+  });
+
+  if (reviewComments.length === 0) {
+    return {
+      repository: `${owner}/${repo}`,
+      pullNumber,
+      reviewId,
+      reviewUrl,
+      reviewCommentCount: 0,
+      ignored: 'review_has_no_comments',
+    };
+  }
+
+  const existingCue = await findExistingCueComment({
+    owner,
+    repo,
+    pullNumber,
+    reviewUrl,
+    token,
+    apiUrl,
+  });
+
+  if (existingCue) {
+    return {
+      repository: `${owner}/${repo}`,
+      pullNumber,
+      reviewId,
+      reviewUrl,
+      reviewCommentCount: reviewComments.length,
+      cueCommentPosted: false,
+      existingCueCommentUrl: existingCue.html_url ?? null,
+      ignored: 'cue_comment_already_exists',
+    };
+  }
+
+  const cueComment = await createIssueComment({
+    owner,
+    repo,
+    pullNumber,
+    body: renderTemplate(reviewCuePromptTemplate, { review_url: reviewUrl }),
+    token,
+    apiUrl,
+  });
+
+  return {
+    repository: `${owner}/${repo}`,
+    pullNumber,
+    reviewId,
+    reviewUrl,
+    reviewCommentCount: reviewComments.length,
+    cueCommentPosted: true,
+    cueCommentUrl: cueComment.html_url ?? null,
+  };
+}
+
+function validateAllowedRepo(payload, env) {
+  const repoFullName = `${payload.repository?.owner?.login ?? ''}/${payload.repository?.name ?? ''}`;
+  const allowedRepo = env.ALLOWED_REPO || DEFAULT_ALLOWED_REPO;
+  if (repoFullName !== allowedRepo) {
+    return { ignored: 'repo_not_allowed', repoFullName, allowedRepo };
+  }
+
+  return { repoFullName, allowedRepo };
+}
+
+function isCopilotUser(user, env) {
+  const userId = Number(user?.id ?? 0);
+  const expectedUserId = Number(env.COPILOT_USER_ID || DEFAULT_COPILOT_USER_ID);
+  const userType = user?.type;
+  const userLogin = user?.login;
+
+  return userId === expectedUserId || (userLogin === 'Copilot' && userType === 'Bot');
+}
+
+function buildCopilotUserMatchDebug(user, env) {
+  const expectedUserId = Number(env.COPILOT_USER_ID || DEFAULT_COPILOT_USER_ID);
+  return {
+    expected: {
+      id: expectedUserId,
+      fallbackLogin: 'Copilot',
+      fallbackType: 'Bot',
+    },
+    observed: {
+      login: user?.login ?? null,
+      id: user?.id ?? null,
+      nodeId: user?.node_id ?? null,
+      type: user?.type ?? null,
+      userViewType: user?.user_view_type ?? null,
+      htmlUrl: user?.html_url ?? null,
+    },
+  };
+}
+
+function renderTemplate(template, values) {
+  let output = template;
+  for (const [key, value] of Object.entries(values)) {
+    output = output.replaceAll(`{{${key}}}`, String(value));
+  }
+  return output.trim();
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function fetchReviewComments({ owner, repo, pullNumber, reviewId, token, apiUrl }) {
+  return fetchPaginatedRest({
+    apiUrl,
+    token,
+    path: `/repos/${owner}/${repo}/pulls/${pullNumber}/reviews/${reviewId}/comments`,
+  });
+}
+
+async function findExistingCueComment({ owner, repo, pullNumber, reviewUrl, token, apiUrl }) {
+  const comments = await fetchPaginatedRest({
+    apiUrl,
+    token,
+    path: `/repos/${owner}/${repo}/issues/${pullNumber}/comments`,
+  });
+
+  return comments.find((comment) => {
+    const body = comment.body ?? '';
+    return body.includes('@copilot') && body.includes(reviewUrl);
+  });
+}
+
+async function createIssueComment({ owner, repo, pullNumber, body, token, apiUrl }) {
+  return githubRest({
+    apiUrl,
+    token,
+    method: 'POST',
+    path: `/repos/${owner}/${repo}/issues/${pullNumber}/comments`,
+    body: { body },
+  });
+}
+
+async function fetchPaginatedRest({ apiUrl, token, path }) {
+  const all = [];
+  let page = 1;
+
+  while (true) {
+    const pageItems = await githubRest({
+      apiUrl,
+      token,
+      path: `${path}?per_page=100&page=${page}`,
+    });
+
+    if (!Array.isArray(pageItems)) {
+      return all;
+    }
+
+    all.push(...pageItems);
+    if (pageItems.length < 100) {
+      return all;
+    }
+
+    page += 1;
+  }
+}
+
+async function githubRest({ apiUrl, token, path, method = 'GET', body }) {
+  const response = await fetch(`${apiUrl}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'pr-review-comment-resolver',
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  const textBody = await response.text();
+  const jsonBody = textBody ? JSON.parse(textBody) : null;
+  if (!response.ok) {
+    throw new Error(`GitHub REST failed: status=${response.status}, body=${textBody}`);
+  }
+  return jsonBody;
 }
 
 async function resolveOutdatedThreads(payload, env) {
