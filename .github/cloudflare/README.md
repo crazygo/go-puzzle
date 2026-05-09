@@ -9,8 +9,11 @@ Cloudflare Worker that listens to GitHub PR review webhooks for `crazygo/go-puzz
 - On `issue_comment.created`:
   - Only handles comments created on pull requests.
   - When comment author matches Copilot reviewer identity, resolves review threads where `isOutdated=true` and `isResolved=false`.
-  - When comment author matches Copilot SWE Agent identity and the body reports completed commits, marks the PR as fixed.
+  - When comment author matches Copilot SWE Agent identity, checks whether a Copilot SWE Agent commit landed after `ai-review: fix-requested`; if so, marks the PR as fixed.
   - Does **not** post summary comment to PR (per current requirement).
+- On `pull_request.synchronize`:
+  - Checks whether a Copilot SWE Agent commit landed after `ai-review: fix-requested`.
+  - If yes, applies `ai-review: fix-completed`.
 - On `pull_request_review.submitted`:
   - Only acts when review author matches Copilot bot identity.
   - Applies `ai-review: waiting-comments` before waiting for inline comments.
@@ -29,7 +32,7 @@ The worker treats these labels as mutually exclusive automation states and does 
 - `ai-review: waiting-comments` — review submission accepted; waiting for inline review comments to settle.
 - `ai-review: fix-requested` — inline review comments exist and a Copilot fix request was posted or already exists.
 - `ai-review: no-comments` — review submission had no inline review comments after the wait.
-- `ai-review: fix-completed` — Copilot SWE Agent posted a completion comment such as `Done in commits ...`.
+- `ai-review: fix-completed` — a Copilot SWE Agent commit was pushed after the latest `ai-review: fix-requested` label event.
 - `ai-review: stale-resolved` — outdated review threads were resolved after a Copilot follow-up comment.
 
 ## Required Secrets
@@ -80,4 +83,4 @@ Repository settings → Webhooks:
 - Payload URL: your deployed Worker URL
 - Content type: `application/json`
 - Secret: same value as `GITHUB_WEBHOOK_SECRET`
-- Events: `Issue comments`, `Pull request reviews`
+- Events: `Issue comments`, `Pull request reviews`, `Pull requests`
