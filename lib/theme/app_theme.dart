@@ -38,6 +38,15 @@ class AppThemePalette {
     required this.boardTop,
     required this.boardLine,
     required this.coordinateText,
+    required this.setupPanelBackground,
+    required this.setupPanelBorder,
+    required this.setupTitleText,
+    required this.setupActionText,
+    required this.setupIconBackground,
+    required this.setupIconForeground,
+    required this.setupLabelText,
+    required this.setupValueText,
+    required this.setupDivider,
   });
 
   final Color primary;
@@ -55,6 +64,15 @@ class AppThemePalette {
   final Color boardTop;
   final Color boardLine;
   final Color coordinateText;
+  final Color setupPanelBackground;
+  final Color setupPanelBorder;
+  final Color setupTitleText;
+  final Color setupActionText;
+  final Color setupIconBackground;
+  final Color setupIconForeground;
+  final Color setupLabelText;
+  final Color setupValueText;
+  final Color setupDivider;
 
   static const agarwood = AppThemePalette(
     primary: Color(0xFFB87A3C),
@@ -72,6 +90,15 @@ class AppThemePalette {
     boardTop: Color(0xFFE8C98E),
     boardLine: Color(0xFF7A5C36),
     coordinateText: Color(0xFF5C3A0A),
+    setupPanelBackground: Color(0xFFFFFFFF),
+    setupPanelBorder: Color(0x26D8C1A4),
+    setupTitleText: Color(0xFF3A2A1F),
+    setupActionText: Color(0xFFB68454),
+    setupIconBackground: Color(0xFFF8F0E3),
+    setupIconForeground: Color(0xFFB68454),
+    setupLabelText: Color(0xFF9A8067),
+    setupValueText: Color(0xFF36271E),
+    setupDivider: Color(0x1ED2B28E),
   );
 
   static const classic = AppThemePalette(
@@ -90,5 +117,14 @@ class AppThemePalette {
     boardTop: Color(0xFFE2B86F),
     boardLine: Color(0xFF4B3420),
     coordinateText: Color(0xFF3F2B18),
+    setupPanelBackground: Color(0xFFFFFFFF),
+    setupPanelBorder: Color(0x1A3C3C43),
+    setupTitleText: Color(0xFF111827),
+    setupActionText: Color(0xFF007AFF),
+    setupIconBackground: Color(0xFFE9EDF4),
+    setupIconForeground: Color(0xFF6B7280),
+    setupLabelText: Color(0xFF6B7280),
+    setupValueText: Color(0xFF111827),
+    setupDivider: Color(0x1A3C3C43),
   );
 }
