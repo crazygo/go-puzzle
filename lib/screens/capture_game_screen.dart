@@ -3349,11 +3349,13 @@ class _ImportScreenshotCard extends StatelessWidget {
     final palette = context.appPalette;
     final isClassic = identical(palette, AppThemePalette.classic);
     final iconContainerColor = isClassic
-        ? CupertinoColors.systemIndigo.resolveFrom(context).withValues(alpha: 0.16)
-        : const Color(0xFFECE4FF);
+        ? CupertinoColors.systemIndigo
+            .resolveFrom(context)
+            .withValues(alpha: 0.16)
+        : palette.primary.withValues(alpha: 0.16);
     final iconColor = isClassic
         ? CupertinoColors.systemIndigo.resolveFrom(context)
-        : const Color(0xFF7A63C8);
+        : palette.primary;
     final titleColor = isClassic
         ? CupertinoColors.label.resolveFrom(context)
         : const Color(0xFF36271E);
