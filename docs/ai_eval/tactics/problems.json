@@ -1,0 +1,4007 @@
+{
+  "version": 1,
+  "problems": [
+    {
+      "id": "gf-9-001",
+      "category": "group_fate",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 3,
+      "capturedByWhite": 2,
+      "diagram": [
+        "..W......",
+        ".WB.B....",
+        "..B......",
+        "...BWB...",
+        "...BWB...",
+        "....B....",
+        ".....W...",
+        "....B....",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's center group can settle by taking the two-stone white chain before White turns the outside liberties into a capture race."
+    },
+    {
+      "id": "gf-9-002",
+      "category": "group_fate",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".........",
+        "..B......",
+        ".BW.W....",
+        "..W......",
+        "...WBW...",
+        "...WBW...",
+        "....W....",
+        "..B......",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White has a cramped center group and can decide the local fate immediately by capturing the black pair in atari."
+    },
+    {
+      "id": "gf-9-003",
+      "category": "group_fate",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".........",
+        ".B.......",
+        "..W......",
+        "...BBB...",
+        "...WWWB..",
+        "...BBB...",
+        ".....W...",
+        "..B......",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "The lower black stones are short on time; capturing the white three-stone string clarifies whether the group lives or collapses."
+    },
+    {
+      "id": "gf-13-001",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 1,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "...B.........",
+        "..BW.W.......",
+        "...W.........",
+        ".............",
+        ".....WBW.....",
+        ".....WBW.....",
+        ".....WBW.....",
+        "......W......",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White's center-left shape is under pressure, but the black vertical chain has one liberty and a decisive capture stabilizes the fight."
+    },
+    {
+      "id": "gf-13-002",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".........W...",
+        ".......B.WB..",
+        ".........B...",
+        ".............",
+        ".....BWB.....",
+        ".....BWB.....",
+        ".....BWB.....",
+        "......B......",
+        "...W.........",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's central stones can convert a fragile connection into a clean capture of the white chain before the outside stones close in."
+    },
+    {
+      "id": "gf-13-003",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        "....W........",
+        ".............",
+        "....WWW......",
+        "....BBBW.....",
+        "....WWW......",
+        ".......B.....",
+        "......W......",
+        ".........B...",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White has one forcing liberty against the black horizontal chain; resolving that capture decides the fate of the surrounding groups."
+    },
+    {
+      "id": "cr-9-001",
+      "category": "capture_race",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 4,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".........",
+        "..BWB....",
+        "..BWB....",
+        "...B.....",
+        ".W.BW....",
+        "..W......",
+        "..B......",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Both sides are one capture from the target; Black must finish the white pair in atari before White captures on the lower side."
+    },
+    {
+      "id": "cr-9-002",
+      "category": "capture_race",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".........",
+        "..WBW....",
+        "..WBW....",
+        "...W.....",
+        "....B.W..",
+        ".....B...",
+        ".....W...",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White is also one capture from the target and has to win the central race before the black stones on the right get the next tempo."
+    },
+    {
+      "id": "cr-9-003",
+      "category": "capture_race",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".B.......",
+        "..W.W....",
+        "...B.....",
+        "...BBB...",
+        "...WWWB..",
+        "...BBB...",
+        "..W......",
+        "....B....",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White threatens to reach the target next move, so Black needs the three-stone capture that swings the race immediately."
+    },
+    {
+      "id": "cr-13-001",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        "....B........",
+        ".............",
+        "...WBW.......",
+        "...WBW.......",
+        "....W........",
+        ".............",
+        ".......B.W...",
+        "........W....",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black is already at seven captures; White has a narrow capture-race answer against the two black stones in atari."
+    },
+    {
+      "id": "cr-13-002",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 3,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        "........W....",
+        ".............",
+        ".......BWB...",
+        ".......BWB...",
+        "........B....",
+        "....W........",
+        "...W.B.......",
+        "....B........",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White threatens the target, and Black's only urgent race move is to capture the white pair in the upper-right fight."
+    },
+    {
+      "id": "cr-13-003",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        "....B........",
+        ".............",
+        "....WWW......",
+        "....BBBW.....",
+        "....WWW......",
+        ".......B.....",
+        ".....B.W.....",
+        "......W......",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White can catch up in the race by taking three black stones; delaying gives Black time to collect the lower forcing capture."
+    },
+    {
+      "id": "ex-9-001",
+      "category": "exchange",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 3,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".........",
+        ".WWB.....",
+        ".WB......",
+        "..BWB....",
+        "..BWB....",
+        "...B.....",
+        ".....W...",
+        "....B....",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black can take the center pair, but the surrounding white stones make this an exchange where the capture count matters more than shape."
+    },
+    {
+      "id": "ex-9-002",
+      "category": "exchange",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".........",
+        ".BBW.....",
+        ".BW......",
+        "..WBW....",
+        "..WBW....",
+        "...W.....",
+        ".....B...",
+        "....W....",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White can force an exchange by capturing the black pair before Black turns the lower contact stones into counterplay."
+    },
+    {
+      "id": "ex-9-003",
+      "category": "exchange",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".........",
+        "...W.....",
+        "..B.WB...",
+        "...BBB...",
+        "...WWWB..",
+        "...BBB...",
+        ".....W...",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "The visible exchange is a three-stone white chain against scattered black outside stones, making move order decisive."
+    },
+    {
+      "id": "ex-13-001",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        "...BB........",
+        "...BWW.......",
+        ".....WBW.....",
+        ".....WBW.....",
+        ".....WBW.....",
+        "......W......",
+        ".......B.....",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White can cash in the black pair, but the surrounding black stones mean the exchange must be evaluated against the target race."
+    },
+    {
+      "id": "ex-13-002",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        ".......WW....",
+        ".......BW....",
+        ".....BWB.....",
+        ".....BWB.....",
+        ".....BWB.....",
+        "......B......",
+        "....W........",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's capture of the white pair is the forcing exchange; choosing a quiet liberty lets White reverse the count nearby."
+    },
+    {
+      "id": "ex-13-003",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 1,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        ".........B...",
+        "....W........",
+        "....WWW......",
+        "....BBBW.....",
+        "....WWW......",
+        ".......B.....",
+        "......W......",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White's three-stone capture reaches the target in a crowded exchange where the surrounding black stones threaten recapture."
+    },
+    {
+      "id": "mt-9-001",
+      "category": "multi_threat",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 3,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".........",
+        "..BWB....",
+        "..BWB....",
+        "...B.....",
+        "...W.....",
+        ".WW.B.W..",
+        "..B...B..",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's capture in the upper fight also leaves threats against two loose white stones, creating a concrete multi-threat training case."
+    },
+    {
+      "id": "mt-9-002",
+      "category": "multi_threat",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".........",
+        "..WBW....",
+        "..WBW....",
+        "...W.....",
+        "...B.....",
+        ".BB.W.B..",
+        "..W...W..",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White's upper capture also attacks two separated black groups, so the position rewards the forcing move that keeps both threats."
+    },
+    {
+      "id": "mt-9-003",
+      "category": "multi_threat",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".........",
+        "...W.W...",
+        "....B....",
+        "...BBB...",
+        "...WWWB..",
+        "...BBB...",
+        ".W.....W.",
+        "..B...B..",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Capturing the central chain creates threats on both flanks while also pulling Black ahead in the capture count."
+    },
+    {
+      "id": "mt-13-001",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 1,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        "...B.....B...",
+        "....W...W....",
+        ".............",
+        ".....WBW.....",
+        ".....WBW.....",
+        ".....WBW.....",
+        "......W......",
+        "...B.....B...",
+        "....W...W....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White's capture of the vertical black chain also points at loose black stones on both wings."
+    },
+    {
+      "id": "mt-13-002",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        "...W.....W...",
+        "....B...B....",
+        ".............",
+        ".....BWB.....",
+        ".....BWB.....",
+        ".....BWB.....",
+        "......B......",
+        "...W.....W...",
+        "....B...B....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black can capture the vertical white chain while preserving threats against both white side formations."
+    },
+    {
+      "id": "mt-13-003",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        ".....B.B.....",
+        "......W......",
+        "....WWW......",
+        "....BBBW.....",
+        "....WWW......",
+        "......W......",
+        ".....B.B.....",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White can take three black stones and keep pressure against two remaining black points above and below."
+    },
+    {
+      "id": "tr-9-001",
+      "category": "trap",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 4,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".........",
+        ".WWW.....",
+        ".W.B.....",
+        "..BWB....",
+        "..BWB....",
+        "...B.....",
+        ".W.B.....",
+        ".WWW.....",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White's frame invites slow escape, but Black can avoid the trap by taking the one-liberty chain and reaching the target."
+    },
+    {
+      "id": "tr-9-002",
+      "category": "trap",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".........",
+        ".BBB.....",
+        ".B.W.....",
+        "..WBW....",
+        "..WBW....",
+        "...W.....",
+        ".B.W.....",
+        ".BBB.....",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's surrounding stones make several moves look natural, but White can spring the trap by capturing the central pair."
+    },
+    {
+      "id": "tr-9-003",
+      "category": "trap",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".........",
+        ".WWW.....",
+        ".W.B.....",
+        "...BBB...",
+        "...WWWB..",
+        "...BBB...",
+        ".W.B.....",
+        ".WWW.....",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White threatens to finish the match; Black must see through the surrounding trap and take the three stones immediately."
+    },
+    {
+      "id": "tr-13-001",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        ".............",
+        "....BBB......",
+        "....B........",
+        ".....WBW.....",
+        ".....WBW.....",
+        "......W......",
+        "....B........",
+        "....BBB......",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's shell is a trap because Black already has seven captures; White has to capture the center pair now."
+    },
+    {
+      "id": "tr-13-002",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 3,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        ".............",
+        "....WWW......",
+        "....W........",
+        ".....BWB.....",
+        ".....BWB.....",
+        "......B......",
+        "....W........",
+        "....WWW......",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White is one capture from the target, so Black must reject slow escape moves and take the trapped white pair."
+    },
+    {
+      "id": "tr-13-003",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        "....BBBB.....",
+        "....B..B.....",
+        ".....WWW.....",
+        ".....BBBW....",
+        ".....WWW.....",
+        "........B....",
+        ".....B.W.....",
+        "......W......",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "The black wall baits a loose chase, while White's concrete capture of the center chain is the clear tactical escape from the trap."
+    },
+    {
+      "id": "gf-9-004",
+      "category": "group_fate",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".WW......",
+        "WBB......",
+        ".WW......",
+        "....BB...",
+        "...BWW...",
+        "....BB...",
+        ".........",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's group is nearly dead, but the obvious two-stone capture is poisoned because White is one capture from the target; the training point is to block the capture point first."
+    },
+    {
+      "id": "gf-13-004",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".BB..........",
+        "BWW..........",
+        ".BB..........",
+        ".............",
+        "......WW.....",
+        ".....WBB.....",
+        "......WW.....",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White's upper-left chain must settle before Black cashes the target capture; the central two-stone capture is a losing distraction."
+    },
+    {
+      "id": "cr-9-004",
+      "category": "capture_race",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".........",
+        ".WW......",
+        "WBB......",
+        ".WW......",
+        "...BWW...",
+        "....BB...",
+        ".........",
+        "..B...W..",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "The race is not won by taking the nearby pair; Black must spend the move on the opponent's capture point because White already needs only one more capture."
+    },
+    {
+      "id": "cr-13-004",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".BB..........",
+        "BWW..........",
+        ".BB..........",
+        ".....WBB.....",
+        "......WW.....",
+        ".............",
+        "...W.....B...",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White is behind in the capture race; the only way to continue is to block Black's target capture instead of grabbing the tempting center stones."
+    },
+    {
+      "id": "ex-9-004",
+      "category": "exchange",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".WW......",
+        "WBB......",
+        ".WW......",
+        ".........",
+        "..BWW....",
+        "...BB....",
+        "....W....",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "A two-stone capture is available, but the exchange loses because White's reply reaches the target; Black has to tenuki from the capture and cover the threatened group."
+    },
+    {
+      "id": "ex-13-004",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".BB..........",
+        "BWW..........",
+        ".BB..........",
+        ".............",
+        ".....WBB.....",
+        "......WW.....",
+        ".......B.....",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White can win a local exchange in the middle, but that capture allows Black's target capture; the correct exchange starts by covering the upper-left stones."
+    },
+    {
+      "id": "mt-9-004",
+      "category": "multi_threat",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".WW......",
+        "WBB......",
+        ".WW......",
+        "....BB...",
+        "...BWW...",
+        "....BB...",
+        ".W.....W.",
+        "..B...B..",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "The central capture creates flank threats, but White's target threat is stronger; Black's best move chooses defense over the noisy multi-threat capture."
+    },
+    {
+      "id": "mt-13-004",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".BB..........",
+        "BWW..........",
+        ".BB..........",
+        ".............",
+        "......WW.....",
+        ".....WBB.....",
+        "......WW.....",
+        ".............",
+        "...W.....W...",
+        "....B...B....",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White has a capture that would leave two follow-up threats, but Black's near-target capture means White must first block the endangered chain."
+    },
+    {
+      "id": "tr-9-004",
+      "category": "trap",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".WW......",
+        "WBB......",
+        ".WW......",
+        "..WWWW...",
+        "..WB.W...",
+        "..WWWW...",
+        "....B....",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White offers a poisoned one-stone capture inside a shell; taking it ignores the target threat, so Black must avoid the trap and reinforce the upper-left chain."
+    },
+    {
+      "id": "tr-13-004",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".BB..........",
+        "BWW..........",
+        ".BB..........",
+        "....BBBB.....",
+        "....BW.B.....",
+        "....BBBB.....",
+        "......W......",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's shell baits White into an immediate capture, but the target count makes that capture poisoned; White has to cover the threatened chain first."
+    },
+    {
+      "id": "gf-13-005",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        "...WW........",
+        "..WBB........",
+        "...WW........",
+        ".............",
+        "......BWB....",
+        "......BWB....",
+        ".......B.....",
+        "..W.....W....",
+        "...B...B.....",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's upper group is one liberty from giving White the target; the central capture is tempting but Black must first decide the group's fate under target pressure."
+    },
+    {
+      "id": "gf-13-006",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        "........BB...",
+        "........WWB..",
+        "........BB...",
+        ".............",
+        "....WBW......",
+        "....WBW......",
+        ".....W.......",
+        ".....B..B....",
+        "......W......",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White has a local capture shape, but Black is one capture from the target; White must stabilize the right-side chain before cashing anything else."
+    },
+    {
+      "id": "gf-13-007",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 3,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        "....WW.......",
+        "...WBB.......",
+        "....WW.......",
+        ".............",
+        ".....BBB.....",
+        ".....WWW.....",
+        "....B...W....",
+        ".............",
+        ".......W.B...",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black can save the upper stones or chase the center; the hard point is that a sacrifice in the center may be needed to keep White from converting the upper capture."
+    },
+    {
+      "id": "gf-13-008",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        ".............",
+        ".....BB......",
+        "....BWW......",
+        ".....BB......",
+        ".............",
+        "...WWWB......",
+        "...BBBW......",
+        "....W........",
+        "........B....",
+        "...W.........",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White's central group has a false-looking capture nearby, but the real task is a two-ply settle-and-block sequence before Black's target race threat lands."
+    },
+    {
+      "id": "gf-13-009",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        ".............",
+        "....WW.......",
+        "...WBB.......",
+        "....WW.......",
+        ".............",
+        ".......WBW...",
+        ".......WB....",
+        "........W....",
+        "....B.....W..",
+        ".....W...B...",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black must cover a near-target capture while preserving a lower forcing threat; grabbing the right-side bait leaves the upper group dead."
+    },
+    {
+      "id": "gf-13-010",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "....BB.......",
+        "...BWW.......",
+        "....BB.......",
+        ".............",
+        "......WWW....",
+        "......BBB....",
+        ".....W...B...",
+        ".............",
+        "...B......W..",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White's life-and-death problem is entangled with a central exchange; the capture that looks biggest is poisoned unless the upper chain is secured first."
+    },
+    {
+      "id": "gf-13-011",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 4,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".....WW......",
+        "....WBB......",
+        ".....WW......",
+        ".............",
+        "..W..........",
+        "...BWB.......",
+        "...BWB.......",
+        "....B........",
+        "........W....",
+        ".........B...",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black is near the target but cannot treat every capture as equivalent; the upper group needs a precise block while the left fight remains a follow-up."
+    },
+    {
+      "id": "gf-13-012",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        ".............",
+        "...BB........",
+        "..BWW........",
+        "...BB........",
+        ".............",
+        "......BWB....",
+        "......BW.....",
+        ".......B.....",
+        "..B......W...",
+        "...W.........",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White is close to winning but the atari on the upper chain is a trap unless White first prevents Black's counter-capture from changing the group fate."
+    },
+    {
+      "id": "gf-13-013",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        "......WW.....",
+        ".....WBB.....",
+        "......WW.....",
+        ".............",
+        "....BWB......",
+        "....BWB......",
+        ".....B.......",
+        ".............",
+        "..W.....W....",
+        "...B...B.....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black is behind and must find a setup that both saves the top group and keeps pressure on the middle chain; a plain capture does not solve both."
+    },
+    {
+      "id": "gf-13-014",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".....BB......",
+        "....BWW......",
+        ".....BB......",
+        ".............",
+        ".......WBW...",
+        ".......WBW...",
+        "........W....",
+        ".............",
+        "...B.....B...",
+        "....W...W....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White is far behind in captures, so the group-fate move must create an attack as well as life; the obvious defensive point is too slow."
+    },
+    {
+      "id": "cr-13-005",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 3,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        "...WW........",
+        "..WBB........",
+        "...WW........",
+        ".............",
+        "......BWB....",
+        "......BWB....",
+        ".......B.....",
+        ".............",
+        "...W.....B...",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White threatens the target on the upper pair; Black must block the race first, even though a center capture would pull Black closer."
+    },
+    {
+      "id": "cr-13-006",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        "........BB...",
+        "........WWB..",
+        "........BB...",
+        ".............",
+        "....WBW......",
+        "....WBW......",
+        ".....W.......",
+        ".............",
+        "...B.....W...",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Both sides are one capture from serious target pressure; White's best race move blocks Black's target capture before starting the left-side harvest."
+    },
+    {
+      "id": "cr-13-007",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        "....WW.......",
+        "...WBB.......",
+        "....WW.......",
+        ".............",
+        ".....BBB.....",
+        "....WWWB.....",
+        ".....BBB.....",
+        ".............",
+        "..W.....W....",
+        "...B...B.....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "The race includes a three-stone capture and a fragile upper group; Black has to choose the sequence that avoids giving White the next target capture."
+    },
+    {
+      "id": "cr-13-008",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".....BB......",
+        "....BWW......",
+        ".....BB......",
+        ".............",
+        "......WWW....",
+        ".....BBBW....",
+        "......WWW....",
+        ".............",
+        "...B.....B...",
+        "....W...W....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White can race through the central chain only after handling the upper target threat; the wrong move order lets Black reach eight first."
+    },
+    {
+      "id": "cr-13-009",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        "......WW.....",
+        ".....WBB.....",
+        "......WW.....",
+        ".............",
+        "....BWB......",
+        "....BWB......",
+        ".....B.......",
+        ".............",
+        "........W....",
+        "....B........",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White is already at seven captures, so Black must spend tempo on the endangered top chain while keeping the left race alive."
+    },
+    {
+      "id": "cr-13-010",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        "...BB........",
+        "..BWW........",
+        "...BB........",
+        ".............",
+        ".......WBW...",
+        ".......WBW...",
+        "........W....",
+        ".............",
+        "....B.....W..",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White is behind but cannot ignore Black's one-capture target threat; the race hinges on blocking first, then using the right-side forcing chain."
+    },
+    {
+      "id": "cr-13-011",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 4,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        "........WW...",
+        "........BBW..",
+        "........WW...",
+        ".............",
+        "...BWB.......",
+        "...BWB.......",
+        "....B........",
+        ".............",
+        "..W......B...",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black can reach the target with the wrong-looking race move only if the upper group is protected from White's immediate counter-capture."
+    },
+    {
+      "id": "cr-13-012",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        "..BB.........",
+        ".BWW.........",
+        "..BB.........",
+        ".............",
+        "......WWW....",
+        "......BBB....",
+        ".....W...B...",
+        ".............",
+        "...B......W..",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White is one clean sequence from the target, but the poisoned capture on the left allows Black's central reply; the race needs a preparatory block."
+    },
+    {
+      "id": "cr-13-013",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        "....WW.......",
+        "...WBB.......",
+        "....WW.......",
+        ".............",
+        ".....BBB.....",
+        "....WWWB.....",
+        "....W.BB.....",
+        ".............",
+        "...W....B....",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black is behind by count, so the hard race answer is a sacrifice setup that threatens a larger capture while still covering the endangered pair."
+    },
+    {
+      "id": "cr-13-014",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        "......BB.....",
+        ".....BWW.....",
+        "......BB.....",
+        ".............",
+        "....WBW......",
+        "....WBW......",
+        ".....W.......",
+        ".............",
+        "..B.....B....",
+        "...W...W.....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White must pick between a slow block and a forcing capture race; the correct plan uses the block as a two-ply setup for the left chain."
+    },
+    {
+      "id": "ex-13-005",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        "...WW........",
+        "..WBB........",
+        "...WW........",
+        ".............",
+        ".....BWW.....",
+        "......BB.....",
+        ".......W.....",
+        ".............",
+        "...B.....W...",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "The local exchange favors Black only after the upper group is covered; taking the central stones immediately gives White the target."
+    },
+    {
+      "id": "ex-13-006",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "........BB...",
+        "........WWB..",
+        "........BB...",
+        ".............",
+        "....WBB......",
+        "....WW.......",
+        ".....B.......",
+        ".............",
+        "...W.....B...",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White's capture exchange is poisoned by Black's near-target reply; the hard move is to tenuki from profit and cover the right group."
+    },
+    {
+      "id": "ex-13-007",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 3,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "....WW.......",
+        "...WBB.......",
+        "....WW.......",
+        ".............",
+        ".....BBB.....",
+        "....WWWB.....",
+        ".....BBW.....",
+        ".............",
+        "..W.......B..",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black can trade the upper group for a larger center capture, but only if the exchange order prevents White from reaching eight first."
+    },
+    {
+      "id": "ex-13-008",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        ".....BB......",
+        "....BWW......",
+        ".....BB......",
+        ".............",
+        "......WWW....",
+        ".....BBBW....",
+        ".....BWW.....",
+        ".............",
+        "...B.......W.",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "The central exchange contains a snapback-like punishment; White has to reject the first capture unless it also blocks Black's target path."
+    },
+    {
+      "id": "ex-13-009",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        "......WW.....",
+        ".....WBB.....",
+        "......WW.....",
+        ".............",
+        "...BWW.......",
+        "....BB.......",
+        ".....W.......",
+        ".............",
+        "...W.....B...",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's profitable exchange is delayed by a target-count emergency; playing the obvious capture first leaves the top stones as White's winning reply."
+    },
+    {
+      "id": "ex-13-010",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        "...BB........",
+        "..BWW........",
+        "...BB........",
+        ".............",
+        ".......WBB...",
+        ".......WW....",
+        "........B....",
+        ".............",
+        "....B.....W..",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White is behind and needs the exchange to create a second threat; the poisoned left capture fails because Black answers on the right."
+    },
+    {
+      "id": "ex-13-011",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 4,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        "........WW...",
+        "........BBW..",
+        "........WW...",
+        ".............",
+        "....BWW......",
+        ".....BB......",
+        "......W......",
+        ".............",
+        "..W.....B....",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black is one capture from the target, but the direct exchange gives White a larger reply; Black must set up the exchange with a quiet block."
+    },
+    {
+      "id": "ex-13-012",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 1,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        "..BB.........",
+        ".BWW.........",
+        "..BB.........",
+        ".............",
+        "......WBB....",
+        "......WW.....",
+        ".......B.....",
+        ".............",
+        "...B......W..",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White's count lead hides a tactical risk: the exchange capture is good only if it also denies Black the target capture on the next ply."
+    },
+    {
+      "id": "ex-13-013",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "....WW.......",
+        "...WBB.......",
+        "....WW.......",
+        ".............",
+        "......BWW....",
+        ".......BB....",
+        "........W....",
+        ".............",
+        "..W......B...",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Equal counts make move order decisive; Black has to see that the immediate right-side capture is poisoned unless the upper pair is saved first."
+    },
+    {
+      "id": "ex-13-014",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        "......BB.....",
+        ".....BWW.....",
+        "......BB.....",
+        ".............",
+        "...WBB.......",
+        "...WW........",
+        "....B........",
+        ".............",
+        "...B......W..",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White must play the exchange as defense first, because Black is one capture from eight and the apparent profit loses to a target-count reply."
+    },
+    {
+      "id": "mt-13-005",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        "...WW........",
+        "..WBB........",
+        "...WW........",
+        ".............",
+        ".....W.W.....",
+        "......B......",
+        "...B..B..B...",
+        ".....W.W.....",
+        ".............",
+        "..W.......W..",
+        "...B.....B...",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black can create threats on both wings, but only after covering White's near-target capture; the hard choice is defense over noisy multi-threat play."
+    },
+    {
+      "id": "mt-13-006",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        "........BB...",
+        "........WWB..",
+        "........BB...",
+        ".............",
+        ".....B.B.....",
+        "......W......",
+        "...W..W..W...",
+        ".....B.B.....",
+        ".............",
+        "..B.......B..",
+        "...W.....W...",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White has a central multi-threat move, but Black's target count makes the right-side block urgent before either wing threat matters."
+    },
+    {
+      "id": "mt-13-007",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 3,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "....WW.......",
+        "...WBB.......",
+        "....WW.......",
+        ".............",
+        "....B.W.B....",
+        ".....BWB.....",
+        "....B.W.B....",
+        ".............",
+        "..W.......W..",
+        "...B.....B...",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black can choose between saving the upper pair and setting two center threats; the best continuation uses a sacrifice threat to make both areas work."
+    },
+    {
+      "id": "mt-13-008",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        ".....BB......",
+        "....BWW......",
+        ".....BB......",
+        ".............",
+        "....W.B.W....",
+        ".....WBW.....",
+        "....W.B.W....",
+        ".............",
+        "..B.......B..",
+        "...W.....W...",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White's center play threatens two black groups, but the upper chain must be handled in the same sequence or the target race flips."
+    },
+    {
+      "id": "mt-13-009",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 4,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "......WW.....",
+        ".....WBB.....",
+        "......WW.....",
+        ".............",
+        "...W.....W...",
+        "....B.B.B....",
+        ".....W.W.....",
+        ".............",
+        "...B.....B...",
+        "....W...W....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black is near the target and has several attractive threats; the hard move keeps White from cashing the upper capture while maintaining a double attack."
+    },
+    {
+      "id": "mt-13-010",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        "...BB........",
+        "..BWW........",
+        "...BB........",
+        ".............",
+        "...B.....B...",
+        "....W.W.W....",
+        ".....B.B.....",
+        ".............",
+        "...W.....W...",
+        "....B...B....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White can start a double attack, but the left group is also a target-count liability; the right first move must work as both block and threat."
+    },
+    {
+      "id": "mt-13-011",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        "........WW...",
+        "........BBW..",
+        "........WW...",
+        ".............",
+        "....B.W......",
+        "...B.W.B.....",
+        "....B.W......",
+        ".............",
+        "..W.......W..",
+        "...B.....B...",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black is behind and needs a multi-threat comeback, but the right-side chain cannot be left to White's target capture."
+    },
+    {
+      "id": "mt-13-012",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        "..BB.........",
+        ".BWW.........",
+        "..BB.........",
+        ".............",
+        "......W.B....",
+        ".....W.B.W...",
+        "......W.B....",
+        ".............",
+        "...B.....B...",
+        "....W...W....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White needs more than a local save; the correct setup threatens both the center and the lower stones while covering the near-target capture."
+    },
+    {
+      "id": "mt-13-013",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "....WW.......",
+        "...WBB.......",
+        "....WW.......",
+        ".............",
+        "...W...W.....",
+        "....BBB......",
+        "...W...W.....",
+        ".............",
+        ".......W.W...",
+        "......B...B..",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "At equal captures, Black's best move must compare two promising attacks and reject the one that leaves the upper pair as poisoned bait."
+    },
+    {
+      "id": "mt-13-014",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "......BB.....",
+        ".....BWW.....",
+        "......BB.....",
+        ".............",
+        ".....B...B...",
+        "......WWW....",
+        ".....B...B...",
+        ".............",
+        "...B.B.......",
+        "....W...W....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's near-target count makes White's obvious double attack too slow unless it starts with a block that also threatens the central stones."
+    },
+    {
+      "id": "tr-13-005",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        "...WW........",
+        "..WBB........",
+        "...WW........",
+        ".............",
+        "....WWWW.....",
+        "....WB.W.....",
+        "....WWWW.....",
+        "......B......",
+        "..W.......B..",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White offers a poisoned inside capture while already threatening the target; Black must avoid the trap and cover the upper pair first."
+    },
+    {
+      "id": "tr-13-006",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        "........BB...",
+        "........WWB..",
+        "........BB...",
+        ".............",
+        "....BBBB.....",
+        "....BW.B.....",
+        "....BBBB.....",
+        "......W......",
+        "..B.......W..",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "The shell invites White to take a stone, but that capture is poisoned by Black's target threat; White has to block before springing the trap."
+    },
+    {
+      "id": "tr-13-007",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 3,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "....WW.......",
+        "...WBB.......",
+        "....WW.......",
+        ".............",
+        "..WWWWW......",
+        "..W.B.W......",
+        "..WWWWW......",
+        "....B........",
+        "........W....",
+        ".........B...",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black is baited by an isolated stone inside the trap, but the actual hard move is a two-ply setup that saves the upper group and threatens the shell."
+    },
+    {
+      "id": "tr-13-008",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        ".....BB......",
+        "....BWW......",
+        ".....BB......",
+        ".............",
+        "......BBBB...",
+        "......B.WB...",
+        "......BBBB...",
+        "........W....",
+        "..B.......W..",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White can take the baited stone, but the surrounding shape is a trap unless the upper target capture is neutralized first."
+    },
+    {
+      "id": "tr-13-009",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 4,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "......WW.....",
+        ".....WBB.....",
+        "......WW.....",
+        ".............",
+        "....WWWW.....",
+        "....WB.W.....",
+        "....WWWW.....",
+        "......B......",
+        "..W.....B....",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's near-target count makes the bait look decisive, but taking it abandons the top group; the winning trap avoidance starts with defense."
+    },
+    {
+      "id": "tr-13-010",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 4,
+      "diagram": [
+        ".............",
+        "...BB........",
+        "..BWW........",
+        "...BB........",
+        ".............",
+        "...BBBB......",
+        "...BW.B......",
+        "...BBBB......",
+        ".....W.......",
+        "........B....",
+        "....W........",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White is close to the target, but the inside capture is poisoned by a recapture threat; White needs the blocking move that keeps both threats alive."
+    },
+    {
+      "id": "tr-13-011",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".............",
+        "........WW...",
+        "........BBW..",
+        "........WW...",
+        ".............",
+        ".....WWWW....",
+        ".....WB.W....",
+        ".....WWWW....",
+        ".......B.....",
+        "..W.......B..",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black is behind, so the trap cannot be answered with greed; the right-side rescue must precede any capture inside White's shell."
+    },
+    {
+      "id": "tr-13-012",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 3,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        "..BB.........",
+        ".BWW.........",
+        "..BB.........",
+        ".............",
+        "......BBBB...",
+        "......B.WB...",
+        "......BBBB...",
+        "........W....",
+        "...B.....B...",
+        "....W...W....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "White needs a comeback threat, but the baited stone is a trap; the best first move covers the left group and prepares a later capture."
+    },
+    {
+      "id": "tr-13-013",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "....WW.......",
+        "...WBB.......",
+        "....WW.......",
+        ".............",
+        "...WWWWW.....",
+        "...W.B.W.....",
+        "...WWWWW.....",
+        ".....B.......",
+        ".......W.W...",
+        "......B...B..",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "The equal-count trap asks Black to compare bait, block, and sacrifice; the capture inside the shell fails if White reaches the upper target capture."
+    },
+    {
+      "id": "tr-13-014",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 4,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        "......BB.....",
+        ".....BWW.....",
+        "......BB.....",
+        ".............",
+        "....BBBB.....",
+        "....BW.B.....",
+        "....BBBB.....",
+        "......W......",
+        "...B.B.......",
+        "....W...W....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 6
+      },
+      "notes": "Black's target pressure makes White's inside capture a losing trap; White has to play the blocking setup that later turns the shell into a threat."
+    },
+    {
+      "id": "nt-ladder-9-001",
+      "category": "capture_race",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".........",
+        "..B......",
+        ".BW......",
+        "..BW.....",
+        "...BW....",
+        "....B....",
+        ".....BW..",
+        ".......B.",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black can start the ladder, but the distant white stone makes the forcing chase a reading problem rather than a one-move capture.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "ladder"
+      }
+    },
+    {
+      "id": "nt-ladder-13-001",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        "....B........",
+        "...BW........",
+        "....BW.......",
+        ".....BB......",
+        ".......W.....",
+        ".............",
+        "........B....",
+        "..B......W...",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black has the ladder shape on the white pair; the evaluation should prefer the chase only if the diagonal breaker is too late.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "ladder"
+      }
+    },
+    {
+      "id": "nt-ladder-13-002",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 0,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        "..W..........",
+        ".......W.....",
+        ".......BW....",
+        "......BW.....",
+        ".....WW......",
+        "....B........",
+        "...B.........",
+        ".............",
+        ".........B...",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White attacks a black diagonal runner, and the best line depends on whether the lower-left ladder breaker already works.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "ladder"
+      }
+    },
+    {
+      "id": "nt-ladder-13-003",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".......W.....",
+        "........B....",
+        "...B.........",
+        "..BW.........",
+        "...BW........",
+        "....BB.......",
+        "......W......",
+        ".........W...",
+        "......B......",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "The left-side ladder can be continued or abandoned for an outside capture race; Black must read the forcing sequence.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "ladder"
+      }
+    },
+    {
+      "id": "nt-ladder-13-004",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        "........W....",
+        "........BW...",
+        ".......BW....",
+        "......BW.....",
+        ".....BW......",
+        ".....W.......",
+        ".............",
+        "....B........",
+        "..........W..",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White has the ladder attack from the upper side, with a nearby black stone threatening to turn the chase if White misorders moves.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "ladder"
+      }
+    },
+    {
+      "id": "nt-ladder-13-005",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "..........W..",
+        ".........B...",
+        "....W........",
+        "......B......",
+        ".....BW......",
+        "......BW.....",
+        ".......BB....",
+        ".........W...",
+        "...B.........",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black can drive the lower group in a ladder, but the outside white support creates a non-terminal tactical race.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "ladder"
+      }
+    },
+    {
+      "id": "nt-net-9-001",
+      "category": "trap",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".........",
+        ".........",
+        "....B.W..",
+        "...B.B...",
+        "....WW...",
+        "...B..B..",
+        "....B.W..",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black should contain the two-stone white runner with a geta-style net instead of chasing it into extra liberties.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "net_geta"
+      }
+    },
+    {
+      "id": "nt-net-13-001",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".....B..W....",
+        "....B..B.....",
+        ".....WW......",
+        "....B..B.....",
+        ".....B.W.....",
+        "........B....",
+        "....W........",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "The center white stones look mobile, but Black has a net that keeps the capture threat after White extends.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "net_geta"
+      }
+    },
+    {
+      "id": "nt-net-13-002",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 1,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".....B.W.....",
+        "......W..W...",
+        ".......BB....",
+        "......W..W...",
+        "....B..W.....",
+        "........B....",
+        ".........W...",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White can seal the black pair with a quiet net; direct atari lets Black run toward the right-side support.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "net_geta"
+      }
+    },
+    {
+      "id": "nt-net-13-003",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        "......B..W...",
+        ".....B..B....",
+        "......WW.....",
+        ".....B..B....",
+        "......B......",
+        ".......W.....",
+        ".............",
+        "...B.........",
+        ".....W.......",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black has a geta around the upper-center pair, but the side stones make a simple contact move an overplay.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "net_geta"
+      }
+    },
+    {
+      "id": "nt-net-13-004",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        "........W....",
+        ".............",
+        "...B.W.......",
+        "....W.W......",
+        "....BB.......",
+        "...W..W......",
+        ".....WB......",
+        "....B........",
+        "..........B..",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White can net the black runners by occupying shape points; chasing from behind gives Black an escape route.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "net_geta"
+      }
+    },
+    {
+      "id": "nt-net-13-005",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        "......W......",
+        "...B..B......",
+        "..B.WW.......",
+        "....B..B.....",
+        ".....B.W.....",
+        ".....W.......",
+        "..B..........",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "The lower-side white pair is catchable by net, with the correct move preserving outside liberties for the follow-up.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "net_geta"
+      }
+    },
+    {
+      "id": "nt-snapback-9-001",
+      "category": "exchange",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".........",
+        ".........",
+        "....W....",
+        "...BWB...",
+        "..B.W....",
+        "...BWB...",
+        "....B.W..",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black has a snapback resource: the first capture is not final because the recapture would remove the compact white chain.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "snapback"
+      }
+    },
+    {
+      "id": "nt-snapback-13-001",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "......W......",
+        ".....BWB.....",
+        "....B.W......",
+        ".....BWB.....",
+        "......B.W....",
+        ".............",
+        ".........B...",
+        "....W........",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "The center exchange invites a snapback; Black must value the sacrifice sequence instead of only counting the first captured stone.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "snapback"
+      }
+    },
+    {
+      "id": "nt-snapback-13-002",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 1,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".........W...",
+        ".....B.......",
+        ".....WBW.....",
+        "....W.B......",
+        ".....WBW.....",
+        "......W.B....",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White can engineer snapback against the vertical black stones, but only if the initial throwaway stone leaves Black short of liberties.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "snapback"
+      }
+    },
+    {
+      "id": "nt-snapback-13-003",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "......B.W....",
+        ".....BWB.....",
+        ".....WBW.....",
+        ".....BWB.....",
+        ".............",
+        "...B.........",
+        ".....W.......",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "A tempting white capture in the middle is a snapback liability, so Black should choose the move that forces that exchange.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "snapback"
+      }
+    },
+    {
+      "id": "nt-snapback-13-004",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 0,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".......W.....",
+        "....WWB......",
+        "....BBB......",
+        "....W.W......",
+        "....BW.......",
+        "........B....",
+        "...W.........",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White has a lower-center snapback if the order preserves the recapture point and avoids a loose outside fight.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "snapback"
+      }
+    },
+    {
+      "id": "nt-snapback-13-005",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "...B.........",
+        ".........W...",
+        "........B....",
+        ".......BWB...",
+        ".......WBW...",
+        ".......BWB...",
+        ".............",
+        "......W......",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black can turn the right-side exchange into snapback; a plain atari wins less and may give White the target race.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "snapback"
+      }
+    },
+    {
+      "id": "nt-throw-in-9-001",
+      "category": "exchange",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".........",
+        ".........",
+        "....W....",
+        "...WBW...",
+        "...B.B...",
+        "...WBW...",
+        "....W.B..",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White can use a throw-in to reduce the black liberties before capturing; immediate outside moves miss the forcing exchange.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "throw_in"
+      }
+    },
+    {
+      "id": "nt-throw-in-13-001",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "......B.W....",
+        ".....B.B.....",
+        ".....WWW.....",
+        ".....B.B.....",
+        "......B.W....",
+        ".............",
+        ".........B...",
+        "....W........",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black has a throw-in at the vital point that turns the white three-stone chain into a shortage after the forced capture.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "throw_in"
+      }
+    },
+    {
+      "id": "nt-throw-in-13-002",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 1,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".........W...",
+        "....W.WB.....",
+        "....BBB......",
+        "....W.W......",
+        ".....WB......",
+        "........B....",
+        "...W.........",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White must play the throw-in before closing liberties; reversing the order lets Black connect out.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "throw_in"
+      }
+    },
+    {
+      "id": "nt-throw-in-13-003",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "........B....",
+        ".............",
+        "......W......",
+        "...BWB.......",
+        "...WBW.......",
+        "...BWB.......",
+        "....B........",
+        ".....W.......",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "The lower-side fight has a throw-in that makes White capture into a worse shape, setting up the second capture.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "throw_in"
+      }
+    },
+    {
+      "id": "nt-throw-in-13-004",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 0,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "......WBW....",
+        "......B.B....",
+        "......WBW....",
+        "......BWB....",
+        ".......W.....",
+        "...B.........",
+        ".........W...",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White can throw in inside the upper-right cluster, forcing Black to fill liberties before the decisive capture.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "throw_in"
+      }
+    },
+    {
+      "id": "nt-throw-in-13-005",
+      "category": "exchange",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "......W......",
+        "....BWB......",
+        "...BW.W......",
+        "....BWB......",
+        ".....B.......",
+        ".....W.......",
+        "..W..........",
+        ".......B.....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black has a central throw-in sequence; the first stone may be sacrificed but it changes the liberty count for the follow-up.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "throw_in"
+      }
+    },
+    {
+      "id": "nt-shortage-9-001",
+      "category": "capture_race",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 3,
+      "diagram": [
+        ".........",
+        ".........",
+        "...B.W...",
+        "..B.BW...",
+        "...BWW...",
+        "...BW....",
+        "...W.B...",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black can exploit White shortage of liberties in the shared fight; direct capture attempts fail if the outside liberties are miscounted.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "shortage_of_liberties"
+      }
+    },
+    {
+      "id": "nt-shortage-13-001",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".....W.......",
+        ".....BB......",
+        "....WBW......",
+        "....W.BW.....",
+        ".....BW......",
+        "........B....",
+        "....W........",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White has fewer stones in danger but more outside liberties, making the shortage tactic stronger than a simple capture race count.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "shortage_of_liberties"
+      }
+    },
+    {
+      "id": "nt-shortage-13-002",
+      "category": "capture_race",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "...B.........",
+        ".............",
+        ".....WBW.....",
+        ".....BWB.....",
+        ".....WBW.....",
+        ".....B.B.....",
+        "......W......",
+        ".........W...",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black can force White into shortage of liberties in the center, but the outside peep must be timed before the final atari.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "shortage_of_liberties"
+      }
+    },
+    {
+      "id": "nt-shortage-13-003",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 0,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "......WBW....",
+        "......B.B....",
+        "......WBW....",
+        "......WB.....",
+        ".......W.....",
+        ".....W.......",
+        "...B.........",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White can save group fate by making the black shape short of liberties, not by running into the open side.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "shortage_of_liberties"
+      }
+    },
+    {
+      "id": "nt-shortage-13-004",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".........W...",
+        ".............",
+        "....W........",
+        "...BWB.......",
+        "...WBW.......",
+        "...BWB.......",
+        "....BW.......",
+        "......B......",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "The lower black group survives by using White shortage of liberties as a capture threat before connecting.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "shortage_of_liberties"
+      }
+    },
+    {
+      "id": "nt-shortage-13-005",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 1,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        "........W....",
+        ".......WBW...",
+        ".......B.B...",
+        ".......WBW...",
+        ".......WB....",
+        "........W....",
+        ".....B.......",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White has a shortage-of-liberties tactic around the right-side group, where a contact move outperforms immediate atari.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "shortage_of_liberties"
+      }
+    },
+    {
+      "id": "nt-oiotoshi-9-001",
+      "category": "multi_threat",
+      "boardSize": 9,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".........",
+        ".........",
+        "...BW....",
+        "..BWWB...",
+        "...BWB...",
+        "...WBW...",
+        "......B..",
+        ".........",
+        "........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black can create connect-and-die pressure: White may connect the groups, but the merged chain loses liberties to the next threat.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "connect_and_die_oiotoshi"
+      }
+    },
+    {
+      "id": "nt-oiotoshi-13-001",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".....BWWB....",
+        "....B.WB.....",
+        ".....BWWB....",
+        "......BW.....",
+        ".......B.....",
+        "....W........",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black can force oiotoshi: connecting the white stones makes a larger chain, but the combined liberties collapse.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "connect_and_die_oiotoshi"
+      }
+    },
+    {
+      "id": "nt-oiotoshi-13-002",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".....W.W.....",
+        "....WBB......",
+        ".....BW.W....",
+        ".....WBB.....",
+        "......W......",
+        ".........B...",
+        "....W........",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White has the connect-and-die tactic against the black links; a capture on one side threatens the joined chain on the other.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "connect_and_die_oiotoshi"
+      }
+    },
+    {
+      "id": "nt-oiotoshi-13-003",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "......BW.....",
+        ".....BW.B....",
+        "......BW.....",
+        ".....BW.B....",
+        "......WBW....",
+        ".............",
+        "...B.........",
+        ".......W.....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black can attack two white fragments so that their natural connection becomes the losing oiotoshi shape.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "connect_and_die_oiotoshi"
+      }
+    },
+    {
+      "id": "nt-oiotoshi-13-004",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 0,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "........W....",
+        ".............",
+        "...W.W.......",
+        "...BB.W......",
+        "...WB.W......",
+        "....WB.......",
+        ".....BW......",
+        "........B....",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White should set connect-and-die threats on the lower side; Black connecting outward still leaves the enlarged chain capturable.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "connect_and_die_oiotoshi"
+      }
+    },
+    {
+      "id": "nt-oiotoshi-13-005",
+      "category": "multi_threat",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 2,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        "........BW...",
+        ".......BW.B..",
+        "........BW...",
+        ".......BWWB..",
+        "........WB...",
+        "......B......",
+        "..........W..",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black can turn the right-side split into oiotoshi by forcing White to choose between connecting and preserving liberties.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "connect_and_die_oiotoshi"
+      }
+    },
+    {
+      "id": "nt-edge-corner-13-001",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 0,
+      "diagram": [
+        "..WB.........",
+        ".WBW.........",
+        ".BWB.........",
+        "..B..........",
+        "..W..........",
+        ".....B.......",
+        ".......W.....",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black can use the top edge to reduce White liberties; the corner shape requires reading the follow-up instead of only the first atari.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "edge_corner_capture"
+      }
+    },
+    {
+      "id": "nt-edge-corner-13-002",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 1,
+      "capturedByWhite": 0,
+      "diagram": [
+        "........WBW..",
+        ".......WB.B..",
+        "........WBW..",
+        ".........WB..",
+        ".............",
+        ".......B.....",
+        "....W........",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White has a corner capture pattern on the top side, using the board edge as an extra wall in the liberty count.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "edge_corner_capture"
+      }
+    },
+    {
+      "id": "nt-edge-corner-13-003",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        "......W......",
+        "....B........",
+        ".............",
+        "WBW..........",
+        "BWB..........",
+        "WBW..........",
+        ".WB.........."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "The lower-left corner group is short of eye space; Black must use the edge capture sequence rather than chasing outward.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "edge_corner_capture"
+      }
+    },
+    {
+      "id": "nt-edge-corner-13-004",
+      "category": "group_fate",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".......W.....",
+        "..........BW.",
+        ".........BWB.",
+        ".........WBW.",
+        ".........BW..",
+        ".........WB.."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White can punish the right-corner shape with an edge capture, but only after accounting for the bottom-side liberty.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "edge_corner_capture"
+      }
+    },
+    {
+      "id": "nt-self-atari-13-001",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 1,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        "......W......",
+        ".....B.B.....",
+        "....BWWW.....",
+        ".....B.B.....",
+        "......B......",
+        "......W......",
+        ".........B...",
+        "....W........",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White has a tempting cut that is self-atari; Black should leave the bait and punish the resulting short-liberty chain.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "self_atari_punishment"
+      }
+    },
+    {
+      "id": "nt-self-atari-13-002",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 0,
+      "capturedByWhite": 1,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        "......W......",
+        ".....WBW.....",
+        ".....B.B.....",
+        ".....WBW.....",
+        ".....WB......",
+        "........B....",
+        "...W.........",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black appears to have a cut, but it self-ataris; White should answer by tightening liberties instead of defending passively.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "self_atari_punishment"
+      }
+    },
+    {
+      "id": "nt-self-atari-13-003",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "black",
+      "capturedByBlack": 0,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".......WBW...",
+        ".......B.B...",
+        ".......WBW...",
+        ".......BWB...",
+        "........B....",
+        "........W....",
+        "....W........",
+        ".............",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "Black can punish White self-atari on the upper-right contact point, turning a local exchange into a capture threat.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "self_atari_punishment"
+      }
+    },
+    {
+      "id": "nt-self-atari-13-004",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 2,
+      "capturedByWhite": 0,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".......W.....",
+        ".............",
+        "....W........",
+        "...BBW.......",
+        "...WWB.......",
+        "...WBB.......",
+        "....W........",
+        "......B......",
+        ".............",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 8
+      },
+      "notes": "White should recognize Black's apparent peep as self-atari and punish the shortage rather than connecting automatically.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "self_atari_punishment"
+      }
+    }
+  ]
+}
