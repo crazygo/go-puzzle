@@ -2672,8 +2672,10 @@ class _PrimaryActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final primaryEnd =
-        Color.lerp(palette.primary, CupertinoColors.black, 0.20)!;
+    final isClassic = identical(palette, AppThemePalette.classic);
+    final primaryEnd = isClassic
+        ? palette.primary
+        : Color.lerp(palette.primary, CupertinoColors.black, 0.20)!;
 
     return SizedBox(
       width: double.infinity,
@@ -2687,9 +2689,9 @@ class _PrimaryActionButton extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: palette.primary.withValues(alpha: 0.24),
-              blurRadius: 18,
-              offset: Offset(0, 8),
+              color: palette.primary.withValues(alpha: isClassic ? 0.20 : 0.24),
+              blurRadius: isClassic ? 12 : 18,
+              offset: Offset(0, isClassic ? 4 : 8),
             ),
           ],
         ),
@@ -2720,20 +2722,27 @@ class _SecondaryActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
+    final isClassic = identical(palette, AppThemePalette.classic);
+    final secondaryFill = isClassic
+        ? CupertinoColors.systemGrey5.resolveFrom(context)
+        : palette.primary.withValues(alpha: 0.10);
+    final secondaryText = isClassic
+        ? CupertinoColors.systemBlue.resolveFrom(context)
+        : Color.lerp(palette.primary, CupertinoColors.black, 0.18);
 
     return SizedBox(
       width: double.infinity,
       child: CupertinoButton(
         padding: const EdgeInsets.symmetric(vertical: 12),
         borderRadius: BorderRadius.circular(14),
-        color: palette.primary.withValues(alpha: 0.10),
+        color: secondaryFill,
         onPressed: onPressed,
         child: Text(
           title,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Color.lerp(palette.primary, CupertinoColors.black, 0.18),
+            color: secondaryText,
           ),
         ),
       ),
@@ -2748,17 +2757,26 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final isClassic = identical(palette, AppThemePalette.classic);
+    final cardBackground = isClassic
+        ? CupertinoColors.systemBackground.resolveFrom(context)
+        : const Color(0xF7FFFDF9);
+    final cardBorder = isClassic
+        ? CupertinoColors.systemGrey5.resolveFrom(context)
+        : const Color(0x26D8C1A4);
+
     return Container(
       padding: kPageSectionCardPadding,
       decoration: BoxDecoration(
-        color: const Color(0xF7FFFDF9),
+        color: cardBackground,
         borderRadius: BorderRadius.circular(kPageSectionCardRadius),
-        border: Border.all(color: const Color(0x26D8C1A4)),
-        boxShadow: const [
+        border: Border.all(color: cardBorder),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 24,
-            offset: Offset(0, 10),
+            color: const Color(0x0A000000),
+            blurRadius: isClassic ? 12 : 24,
+            offset: Offset(0, isClassic ? 4 : 10),
           ),
         ],
       ),
@@ -3328,6 +3346,26 @@ class _ImportScreenshotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final isClassic = identical(palette, AppThemePalette.classic);
+    final iconContainerColor = isClassic
+        ? CupertinoColors.systemIndigo
+            .resolveFrom(context)
+            .withValues(alpha: 0.16)
+        : palette.primary.withValues(alpha: 0.16);
+    final iconColor = isClassic
+        ? CupertinoColors.systemIndigo.resolveFrom(context)
+        : palette.primary;
+    final titleColor = isClassic
+        ? CupertinoColors.label.resolveFrom(context)
+        : const Color(0xFF36271E);
+    final subtitleColor = isClassic
+        ? CupertinoColors.secondaryLabel.resolveFrom(context)
+        : const Color(0xFF897564);
+    final chevronColor = isClassic
+        ? CupertinoColors.tertiaryLabel.resolveFrom(context)
+        : const Color(0xFFC09468);
+
     return _SectionCard(
       child: CupertinoButton(
         padding: EdgeInsets.zero,
@@ -3338,15 +3376,15 @@ class _ImportScreenshotCard extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: const Color(0xFFECE4FF),
+                color: iconContainerColor,
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.center,
               child: isLoading
                   ? const CupertinoActivityIndicator(radius: 10)
-                  : const Icon(
+                  : Icon(
                       CupertinoIcons.photo_on_rectangle,
-                      color: Color(0xFF7A63C8),
+                      color: iconColor,
                     ),
             ),
             const SizedBox(width: 12),
@@ -3356,26 +3394,26 @@ class _ImportScreenshotCard extends StatelessWidget {
                 children: [
                   Text(
                     isLoading ? '识别中...' : '导入截屏摆棋',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF36271E),
+                      color: titleColor,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  const Text(
+                  Text(
                     '自动识别棋盘和棋子，预览后微调进入摆棋',
                     style: TextStyle(
                       fontSize: 11.5,
-                      color: Color(0xFF897564),
+                      color: subtitleColor,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               CupertinoIcons.chevron_right,
-              color: Color(0xFFC09468),
+              color: chevronColor,
               size: 18,
             ),
           ],
@@ -5376,7 +5414,7 @@ class _GameResultDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final isClassic = palette.primary == AppThemePalette.classic.primary;
+    final isClassic = identical(palette, AppThemePalette.classic);
     final (title, icon, accentColor) = switch (state) {
       _ResultDialogState.victory => (
           '胜利',
