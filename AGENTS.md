@@ -4,6 +4,7 @@
 - `bash scripts/init-dev.sh` initializes the Flutter/Dart development environment for new contributors and Codex/container environments.
 - If Flutter is required in this repo, run `bash scripts/init-dev.sh` (or `npm run init-dev`) explicitly; do not rely on npm `postinstall` to provision Flutter.
 - After dependency or environment changes, run checks from the repo root: `flutter pub get`, `flutter analyze --no-fatal-infos --no-fatal-warnings`, and `flutter test`.
+- If `dart`/`flutter` is missing in shell PATH (`command not found`), run `bash scripts/init-dev.sh` first, then use the repo-local SDK path for the current session: `export PATH="$PWD/.local/flutter/bin:$PATH"`.
 
 ## Planning
 - When an implementation plan is requested, write it in English and include these sections in order:
@@ -28,4 +29,3 @@
 - When requirements change, update both production code and tests together; explicitly verify each changed requirement still has a corresponding test assertion.
 - Before finalizing, perform a “requirements-to-tests” check: list the key requirements and map each to concrete test cases. If a requirement has no test, add or revise tests.
 - Do not treat “tests pass” as sufficient proof. Prioritize tests that reflect real expected behavior, even if that means failing fast until implementation catches up.
-
