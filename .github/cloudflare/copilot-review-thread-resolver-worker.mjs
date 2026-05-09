@@ -142,6 +142,11 @@ export default {
         const result = await handlePullRequestReviewSubmitted(payload, env);
         return json({ ok: true, deliveryId, event: eventName, ...result });
       }
+
+      if (eventName === 'pull_request') {
+        const result = await handlePullRequestEvent(payload, env);
+        return json({ ok: true, deliveryId, event: eventName, ...result });
+      }
     } catch (error) {
       return serverError(
         { ok: false, deliveryId, event: eventName, error: String(error?.message ?? error) },
@@ -181,13 +186,6 @@ async function handleIssueCommentCreated(payload, env) {
   }
 
   if (isSweAgent) {
-    if (!isCopilotSweAgentCompletionComment(payload.comment)) {
-      return {
-        ignored: 'copilot_swe_agent_comment_not_completion',
-        commenter: payload.comment?.user?.login ?? null,
-      };
-    }
-
     const owner = payload.repository?.owner?.login;
     const repo = payload.repository?.name;
     const pullNumber = payload.issue?.number;
@@ -196,6 +194,24 @@ async function handleIssueCommentCreated(payload, env) {
     }
 
     const apiUrl = env.GITHUB_API_URL || DEFAULT_GITHUB_API_URL;
+    const completion = await findFixRequestedCopilotCommit({
+      owner,
+      repo,
+      pullNumber,
+      token: env.GITHUB_TOKEN,
+      apiUrl,
+      env,
+    });
+    if (!completion.completed) {
+      return {
+        repository: `${owner}/${repo}`,
+        pullNumber,
+        ignored: 'copilot_swe_agent_comment_without_post_fix_request_commit',
+        commentUrl: payload.comment?.html_url ?? null,
+        completion,
+      };
+    }
+
     const labelResult = await setAiReviewLabelState({
       owner,
       repo,
@@ -211,6 +227,7 @@ async function handleIssueCommentCreated(payload, env) {
       fixCompletedDetected: true,
       labelState: AI_REVIEW_FIX_COMPLETED_LABEL,
       labelResult,
+      completion,
       commentUrl: payload.comment?.html_url ?? null,
     };
   }
@@ -231,6 +248,65 @@ async function handleIssueCommentCreated(payload, env) {
     ...result,
     labelState: AI_REVIEW_STALE_RESOLVED_LABEL,
     labelResult,
+  };
+}
+
+async function handlePullRequestEvent(payload, env) {
+  if (payload.action !== 'synchronize') {
+    return { ignored: 'pull_request_action_not_synchronize' };
+  }
+
+  const repoCheck = validateAllowedRepo(payload, env);
+  if (repoCheck.ignored) {
+    return repoCheck;
+  }
+
+  if (!env.GITHUB_TOKEN) {
+    throw new Error('Missing GITHUB_TOKEN');
+  }
+
+  const owner = payload.repository?.owner?.login;
+  const repo = payload.repository?.name;
+  const pullNumber = payload.pull_request?.number;
+  if (!owner || !repo || !pullNumber) {
+    throw new Error('Missing owner/repo/pull number in payload.');
+  }
+
+  const apiUrl = env.GITHUB_API_URL || DEFAULT_GITHUB_API_URL;
+  const completion = await findFixRequestedCopilotCommit({
+    owner,
+    repo,
+    pullNumber,
+    token: env.GITHUB_TOKEN,
+    apiUrl,
+    env,
+  });
+
+  if (!completion.completed) {
+    return {
+      repository: `${owner}/${repo}`,
+      pullNumber,
+      ignored: 'no_post_fix_request_copilot_commit',
+      completion,
+    };
+  }
+
+  const labelResult = await setAiReviewLabelState({
+    owner,
+    repo,
+    pullNumber,
+    stateLabel: AI_REVIEW_FIX_COMPLETED_LABEL,
+    token: env.GITHUB_TOKEN,
+    apiUrl,
+  });
+
+  return {
+    repository: `${owner}/${repo}`,
+    pullNumber,
+    fixCompletedDetected: true,
+    labelState: AI_REVIEW_FIX_COMPLETED_LABEL,
+    labelResult,
+    completion,
   };
 }
 
@@ -401,13 +477,8 @@ function isCopilotReviewerUser(user, env) {
 function isCopilotSweAgentUser(user, env) {
   const userId = Number(user?.id ?? 0);
   const expectedUserId = Number(env.COPILOT_SWE_AGENT_USER_ID || DEFAULT_COPILOT_SWE_AGENT_USER_ID);
-  const userType = user?.type;
-  const userLogin = user?.login;
-  const htmlUrl = user?.html_url;
 
-  return userId === expectedUserId ||
-      (userLogin === 'copilot-swe-agent[bot]' && userType === 'Bot') ||
-      htmlUrl === 'https://github.com/apps/copilot-swe-agent';
+  return userId === expectedUserId;
 }
 
 function buildCopilotUserMatchDebug(user, env) {
@@ -435,14 +506,6 @@ function buildCopilotUserMatchDebug(user, env) {
       htmlUrl: user?.html_url ?? null,
     },
   };
-}
-
-function isCopilotSweAgentCompletionComment(comment) {
-  const body = comment?.body ?? '';
-  if (!body) return false;
-  return /\bDone in commits?\b/i.test(body) ||
-      /\bReview comments addressed\b/i.test(body) ||
-      (/\bDone\b/i.test(body) && /\bcommits?\b/i.test(body));
 }
 
 function renderTemplate(template, values) {
@@ -487,6 +550,98 @@ async function createIssueComment({ owner, repo, pullNumber, body, token, apiUrl
     method: 'POST',
     path: `/repos/${owner}/${repo}/issues/${pullNumber}/comments`,
     body: { body },
+  });
+}
+
+async function findFixRequestedCopilotCommit({ owner, repo, pullNumber, token, apiUrl, env }) {
+  const fixRequestedAt = await findLatestFixRequestedAt({
+    owner,
+    repo,
+    pullNumber,
+    token,
+    apiUrl,
+  });
+  if (fixRequestedAt == null) {
+    return {
+      completed: false,
+      reason: 'fix_requested_event_not_found',
+      fixRequestedAt: null,
+      copilotCommit: null,
+    };
+  }
+
+  const commits = await fetchPullRequestCommits({
+    owner,
+    repo,
+    pullNumber,
+    token,
+    apiUrl,
+  });
+  const expectedUserId = Number(env.COPILOT_SWE_AGENT_USER_ID || DEFAULT_COPILOT_SWE_AGENT_USER_ID);
+  const matchingCommits = commits
+      .filter((commit) => Number(commit.author?.id ?? 0) === expectedUserId)
+      .filter((commit) => {
+        const committedAt = commit.commit?.committer?.date ?? commit.commit?.author?.date;
+        return committedAt != null && Date.parse(committedAt) > Date.parse(fixRequestedAt);
+      })
+      .sort((a, b) => {
+        const aTime = Date.parse(a.commit?.committer?.date ?? a.commit?.author?.date ?? '');
+        const bTime = Date.parse(b.commit?.committer?.date ?? b.commit?.author?.date ?? '');
+        return aTime - bTime;
+      });
+
+  const copilotCommit = matchingCommits[0] ?? null;
+  return {
+    completed: copilotCommit != null,
+    reason: copilotCommit == null ? 'copilot_commit_after_fix_requested_not_found' : 'matched',
+    fixRequestedAt,
+    copilotCommit: copilotCommit == null
+        ? null
+        : {
+            sha: copilotCommit.sha,
+            htmlUrl: copilotCommit.html_url ?? null,
+            committedAt: copilotCommit.commit?.committer?.date ??
+                copilotCommit.commit?.author?.date ??
+                null,
+            authorId: copilotCommit.author?.id ?? null,
+            authorLogin: copilotCommit.author?.login ?? null,
+          },
+  };
+}
+
+async function findLatestFixRequestedAt({ owner, repo, pullNumber, token, apiUrl }) {
+  const events = await fetchIssueEvents({
+    owner,
+    repo,
+    pullNumber,
+    token,
+    apiUrl,
+  });
+  const fixRequestedEvents = events
+      .filter((event) => event.event === 'labeled')
+      .filter((event) => event.label?.name === AI_REVIEW_FIX_REQUESTED_LABEL)
+      .map((event) => event.created_at)
+      .filter(Boolean)
+      .sort();
+
+  return fixRequestedEvents.length === 0
+      ? null
+      : fixRequestedEvents[fixRequestedEvents.length - 1];
+}
+
+async function fetchIssueEvents({ owner, repo, pullNumber, token, apiUrl }) {
+  return fetchPaginatedRest({
+    apiUrl,
+    token,
+    path: `/repos/${owner}/${repo}/issues/${pullNumber}/events`,
+  });
+}
+
+async function fetchPullRequestCommits({ owner, repo, pullNumber, token, apiUrl }) {
+  return fetchPaginatedRest({
+    apiUrl,
+    token,
+    path: `/repos/${owner}/${repo}/pulls/${pullNumber}/commits`,
   });
 }
 
