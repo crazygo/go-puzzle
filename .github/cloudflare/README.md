@@ -22,6 +22,9 @@ Cloudflare Worker that listens to GitHub PR review webhooks for `crazygo/go-puzz
   - If no review comments exist, applies `ai-review: no-comments`.
   - If at least one review comment exists, posts a PR comment cueing `@copilot` to address the review and applies `ai-review: fix-requested`.
   - Skips posting if a cue comment for the same review URL already exists.
+- On `pull_request_review.edited`:
+  - Uses the same comment-count and label logic as `submitted`, without the waiting label or settle delay.
+  - This is a fallback for Copilot reviews that later edit their summary body after submitting, so a clean review with no inline comments still receives `ai-review: no-comments` if the `submitted` delivery was missed or not processed.
 
 The `@copilot` cue text lives in `copilot-review-cue.prompt`. Edit that file to change the prompt body.
 

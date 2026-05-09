@@ -4,7 +4,7 @@ import reviewCuePromptTemplate from './copilot-review-cue.prompt';
  * Cloudflare Worker: automate GitHub PR review follow-up for crazygo/go-puzzle
  * Trigger sources:
  * - GitHub issue_comment webhook (created on pull requests)
- * - GitHub pull_request_review webhook (submitted)
+ * - GitHub pull_request_review webhook (submitted, edited fallback)
  *
  * Required secrets:
  * - GITHUB_WEBHOOK_SECRET
@@ -311,8 +311,10 @@ async function handlePullRequestEvent(payload, env) {
 }
 
 async function handlePullRequestReviewSubmitted(payload, env) {
-  if (payload.action !== 'submitted') {
-    return { ignored: 'pull_request_review_action_not_submitted' };
+  const isSubmitted = payload.action === 'submitted';
+  const isEditedFallback = payload.action === 'edited';
+  if (!isSubmitted && !isEditedFallback) {
+    return { ignored: 'pull_request_review_action_not_submitted_or_edited' };
   }
 
   if (!payload.pull_request) {
@@ -347,17 +349,20 @@ async function handlePullRequestReviewSubmitted(payload, env) {
 
   const apiUrl = env.GITHUB_API_URL || DEFAULT_GITHUB_API_URL;
   const token = env.GITHUB_TOKEN;
-  const waitingLabelResult = await setAiReviewLabelState({
-    owner,
-    repo,
-    pullNumber,
-    stateLabel: AI_REVIEW_WAITING_COMMENTS_LABEL,
-    token,
-    apiUrl,
-  });
-  const settleMs = Number(env.REVIEW_COMMENT_SETTLE_MS || DEFAULT_REVIEW_COMMENT_SETTLE_MS);
-  if (settleMs > 0) {
-    await sleep(settleMs);
+  let waitingLabelResult = null;
+  if (isSubmitted) {
+    waitingLabelResult = await setAiReviewLabelState({
+      owner,
+      repo,
+      pullNumber,
+      stateLabel: AI_REVIEW_WAITING_COMMENTS_LABEL,
+      token,
+      apiUrl,
+    });
+    const settleMs = Number(env.REVIEW_COMMENT_SETTLE_MS || DEFAULT_REVIEW_COMMENT_SETTLE_MS);
+    if (settleMs > 0) {
+      await sleep(settleMs);
+    }
   }
 
   const reviewComments = await fetchReviewComments({
@@ -383,6 +388,8 @@ async function handlePullRequestReviewSubmitted(payload, env) {
       pullNumber,
       reviewId,
       reviewUrl,
+      reviewAction: payload.action,
+      editedFallback: isEditedFallback,
       reviewCommentCount: 0,
       labelState: AI_REVIEW_NO_COMMENTS_LABEL,
       waitingLabelResult,
@@ -414,6 +421,8 @@ async function handlePullRequestReviewSubmitted(payload, env) {
       pullNumber,
       reviewId,
       reviewUrl,
+      reviewAction: payload.action,
+      editedFallback: isEditedFallback,
       reviewCommentCount: reviewComments.length,
       cueCommentPosted: false,
       existingCueCommentUrl: existingCue.html_url ?? null,
@@ -446,6 +455,8 @@ async function handlePullRequestReviewSubmitted(payload, env) {
     pullNumber,
     reviewId,
     reviewUrl,
+    reviewAction: payload.action,
+    editedFallback: isEditedFallback,
     reviewCommentCount: reviewComments.length,
     cueCommentPosted: true,
     cueCommentUrl: cueComment.html_url ?? null,
