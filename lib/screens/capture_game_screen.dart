@@ -2845,6 +2845,7 @@ class _PracticeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -2857,10 +2858,10 @@ class _PracticeHeader extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF3A2A1F),
+                    color: palette.setupTitleText,
                   ),
                 ),
               ),
@@ -2874,10 +2875,10 @@ class _PracticeHeader extends StatelessWidget {
           onPressed: onAdjustTap,
           child: Text(
             isAdjusting ? '完成' : '调整 ›',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Color(0xFFB68454),
+              color: palette.setupActionText,
             ),
           ),
         ),
@@ -2917,12 +2918,13 @@ class _ConfigPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: palette.setupPanelBackground,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x26D8C1A4)),
+        border: Border.all(color: palette.setupPanelBorder),
       ),
       child: Row(
         children: [
@@ -2960,17 +2962,18 @@ class _ConfigPreviewItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
           width: 44,
           height: 44,
-          decoration: const BoxDecoration(
-            color: Color(0xFFF8F0E3),
+          decoration: BoxDecoration(
+            color: palette.setupIconBackground,
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: Color(0xFFB68454)),
+          child: Icon(icon, color: palette.setupIconForeground),
         ),
         const SizedBox(width: 10),
         Flexible(
@@ -2982,10 +2985,10 @@ class _ConfigPreviewItem extends StatelessWidget {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF9A8067),
+                  color: palette.setupLabelText,
                 ),
               ),
               const SizedBox(height: 4),
@@ -2993,10 +2996,10 @@ class _ConfigPreviewItem extends StatelessWidget {
                 value,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF36271E),
+                  color: palette.setupValueText,
                 ),
               ),
             ],
@@ -3012,11 +3015,12 @@ class _ConfigPreviewDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     return Container(
       width: 1,
       height: 54,
       margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: const Color(0x1ED2B28E),
+      color: palette.setupDivider,
     );
   }
 }
