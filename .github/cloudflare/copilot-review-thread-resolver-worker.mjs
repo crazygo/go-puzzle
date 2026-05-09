@@ -4,6 +4,7 @@ import reviewCuePromptTemplate from './copilot-review-cue.prompt';
  * Cloudflare Worker: automate GitHub PR review follow-up for crazygo/go-puzzle
  * Trigger sources:
  * - GitHub issue_comment webhook (created on pull requests)
+ * - GitHub pull_request webhook (review_requested, synchronize)
  * - GitHub pull_request_review webhook (submitted, edited fallback)
  *
  * Required secrets:
@@ -24,12 +25,14 @@ const DEFAULT_COPILOT_SWE_AGENT_USER_ID = 198982749;
 const DEFAULT_ALLOWED_REPO = 'crazygo/go-puzzle';
 const DEFAULT_REVIEW_COMMENT_SETTLE_MS = 5000;
 const SECRET_DEBUG_NAMES = ['GITHUB_WEBHOOK_SECRET', 'GITHUB_TOKEN'];
+const AI_REVIEW_REVIEW_REQUESTED_LABEL = 'ai-review: review-requested';
 const AI_REVIEW_WAITING_COMMENTS_LABEL = 'ai-review: waiting-comments';
 const AI_REVIEW_FIX_REQUESTED_LABEL = 'ai-review: fix-requested';
 const AI_REVIEW_NO_COMMENTS_LABEL = 'ai-review: no-comments';
 const AI_REVIEW_FIX_COMPLETED_LABEL = 'ai-review: fix-completed';
 const AI_REVIEW_STALE_RESOLVED_LABEL = 'ai-review: stale-resolved';
 const AI_REVIEW_LABELS = [
+  AI_REVIEW_REVIEW_REQUESTED_LABEL,
   AI_REVIEW_WAITING_COMMENTS_LABEL,
   AI_REVIEW_FIX_REQUESTED_LABEL,
   AI_REVIEW_NO_COMMENTS_LABEL,
@@ -37,6 +40,10 @@ const AI_REVIEW_LABELS = [
   AI_REVIEW_STALE_RESOLVED_LABEL,
 ];
 const AI_REVIEW_LABEL_DEFINITIONS = {
+  [AI_REVIEW_REVIEW_REQUESTED_LABEL]: {
+    color: 'BFD4F2',
+    description: 'Copilot PR review was requested; waiting for the review submission.',
+  },
   [AI_REVIEW_WAITING_COMMENTS_LABEL]: {
     color: 'FBCA04',
     description: 'AI review webhook accepted; waiting for inline review comments.',
@@ -252,6 +259,10 @@ async function handleIssueCommentCreated(payload, env) {
 }
 
 async function handlePullRequestEvent(payload, env) {
+  if (payload.action === 'review_requested') {
+    return handlePullRequestReviewRequested(payload, env);
+  }
+
   if (payload.action !== 'synchronize') {
     return { ignored: 'pull_request_action_not_synchronize' };
   }
@@ -307,6 +318,55 @@ async function handlePullRequestEvent(payload, env) {
     labelState: AI_REVIEW_FIX_COMPLETED_LABEL,
     labelResult,
     completion,
+  };
+}
+
+async function handlePullRequestReviewRequested(payload, env) {
+  if (!payload.pull_request) {
+    return { ignored: 'review_request_not_on_pull_request' };
+  }
+
+  if (!isCopilotReviewerUser(payload.requested_reviewer, env)) {
+    return {
+      ignored: 'review_requested_not_for_copilot',
+      userMatchDebug: buildCopilotUserMatchDebug(payload.requested_reviewer, env),
+    };
+  }
+
+  const repoCheck = validateAllowedRepo(payload, env);
+  if (repoCheck.ignored) {
+    return repoCheck;
+  }
+
+  if (!env.GITHUB_TOKEN) {
+    throw new Error('Missing GITHUB_TOKEN');
+  }
+
+  const owner = payload.repository?.owner?.login;
+  const repo = payload.repository?.name;
+  const pullNumber = payload.pull_request?.number;
+  if (!owner || !repo || !pullNumber) {
+    throw new Error('Missing owner/repo/pull number in review_requested payload.');
+  }
+
+  const labelResult = await setAiReviewLabelState({
+    owner,
+    repo,
+    pullNumber,
+    stateLabel: AI_REVIEW_REVIEW_REQUESTED_LABEL,
+    token: env.GITHUB_TOKEN,
+    apiUrl: env.GITHUB_API_URL || DEFAULT_GITHUB_API_URL,
+  });
+
+  return {
+    repository: `${owner}/${repo}`,
+    pullNumber,
+    requestedReviewer: {
+      login: payload.requested_reviewer?.login ?? null,
+      id: payload.requested_reviewer?.id ?? null,
+    },
+    labelState: AI_REVIEW_REVIEW_REQUESTED_LABEL,
+    labelResult,
   };
 }
 

@@ -14,6 +14,9 @@ Cloudflare Worker that listens to GitHub PR review webhooks for `crazygo/go-puzz
 - On `pull_request.synchronize`:
   - Checks whether a Copilot SWE Agent commit landed after `ai-review: fix-requested`.
   - If yes, applies `ai-review: fix-completed`.
+- On `pull_request.review_requested`:
+  - Only acts when the requested reviewer matches Copilot bot identity.
+  - Applies `ai-review: review-requested` so the PR list shows that Copilot review has been requested and is pending submission.
 - On `pull_request_review.submitted`:
   - Only acts when review author matches Copilot bot identity.
   - Applies `ai-review: waiting-comments` before waiting for inline comments.
@@ -32,6 +35,7 @@ The `@copilot` cue text lives in `copilot-review-cue.prompt`. Edit that file to 
 
 The worker treats these labels as mutually exclusive automation states and does not replace unrelated labels:
 
+- `ai-review: review-requested` — Copilot review was requested and the worker is waiting for the review submission.
 - `ai-review: waiting-comments` — review submission accepted; waiting for inline review comments to settle.
 - `ai-review: fix-requested` — inline review comments exist and a Copilot fix request was posted or already exists.
 - `ai-review: no-comments` — review submission had no inline review comments after the wait.
