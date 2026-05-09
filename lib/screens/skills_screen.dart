@@ -4,6 +4,14 @@ import '../data/tactics_problem_repository.dart';
 import '../game/capture_ai_tactics.dart';
 import 'tactics_problem_screen.dart';
 
+const _categoryOrder = [
+  'group_fate',
+  'capture_race',
+  'exchange',
+  'multi_threat',
+  'trap',
+];
+
 class SkillsScreen extends StatefulWidget {
   const SkillsScreen({
     super.key,
@@ -47,6 +55,9 @@ class _SkillsScreenState extends State<SkillsScreen> {
                   : problems
                       .where((problem) => problem.category == _selectedCategory)
                       .toList();
+          final groupedProblems = problems == null
+              ? const <String, List<CaptureAiTacticsProblem>>{}
+              : _groupByCategory(visibleProblems, categories);
 
           return CustomScrollView(
             slivers: [
@@ -79,16 +90,10 @@ class _SkillsScreenState extends State<SkillsScreen> {
                     },
                   ),
                 ),
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final problem = visibleProblems[index];
-                      return _TacticsProblemCard(
-                        problem: problem,
-                        onTap: () => _openProblem(context, problem),
-                      );
-                    },
-                    childCount: visibleProblems.length,
+                SliverToBoxAdapter(
+                  child: _ProblemSections(
+                    groupedProblems: groupedProblems,
+                    onOpenProblem: (problem) => _openProblem(context, problem),
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 28)),
@@ -101,9 +106,28 @@ class _SkillsScreenState extends State<SkillsScreen> {
   }
 
   List<String> _categories(List<CaptureAiTacticsProblem> problems) {
-    final categories =
-        problems.map((problem) => problem.category).toSet().toList()..sort();
+    final categorySet = problems.map((problem) => problem.category).toSet();
+    final categories = [
+      for (final category in _categoryOrder)
+        if (categorySet.remove(category)) category,
+      ...categorySet.toList()..sort(),
+    ];
     return categories;
+  }
+
+  Map<String, List<CaptureAiTacticsProblem>> _groupByCategory(
+    List<CaptureAiTacticsProblem> problems,
+    List<String> categories,
+  ) {
+    final grouped = <String, List<CaptureAiTacticsProblem>>{
+      for (final category in categories) category: <CaptureAiTacticsProblem>[],
+    };
+    for (final problem in problems) {
+      grouped.putIfAbsent(problem.category, () => <CaptureAiTacticsProblem>[]);
+      grouped[problem.category]!.add(problem);
+    }
+    grouped.removeWhere((_, problems) => problems.isEmpty);
+    return grouped;
   }
 
   Map<String, int> _categoryCounts(List<CaptureAiTacticsProblem> problems) {
@@ -118,6 +142,84 @@ class _SkillsScreenState extends State<SkillsScreen> {
     Navigator.of(context).push(
       CupertinoPageRoute(
         builder: (context) => TacticsProblemScreen(problem: problem),
+      ),
+    );
+  }
+}
+
+class _ProblemSections extends StatelessWidget {
+  const _ProblemSections({
+    required this.groupedProblems,
+    required this.onOpenProblem,
+  });
+
+  final Map<String, List<CaptureAiTacticsProblem>> groupedProblems;
+  final ValueChanged<CaptureAiTacticsProblem> onOpenProblem;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final entry in groupedProblems.entries)
+          _ProblemCategorySection(
+            category: entry.key,
+            problems: entry.value,
+            onOpenProblem: onOpenProblem,
+          ),
+      ],
+    );
+  }
+}
+
+class _ProblemCategorySection extends StatelessWidget {
+  const _ProblemCategorySection({
+    required this.category,
+    required this.problems,
+    required this.onOpenProblem,
+  });
+
+  final String category;
+  final List<CaptureAiTacticsProblem> problems;
+  final ValueChanged<CaptureAiTacticsProblem> onOpenProblem;
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _categoryName(category),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: CupertinoColors.label.resolveFrom(context),
+                  ),
+                ),
+              ),
+              Text(
+                '${problems.length} 题',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: secondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final problem in problems)
+            _TacticsProblemCard(
+              problem: problem,
+              onTap: () => onOpenProblem(problem),
+            ),
+        ],
       ),
     );
   }
@@ -259,7 +361,7 @@ class _TacticsProblemCard extends StatelessWidget {
     final tactic = problem.metadata['tactic']?.toString();
     final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.only(top: 8),
       child: CupertinoButton(
         padding: EdgeInsets.zero,
         onPressed: onTap,
