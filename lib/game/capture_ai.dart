@@ -649,7 +649,7 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
         safeAnalysis.ownRescuedStones > tacticalAnalysis.ownRescuedStones;
     if (!safeIsMoreConcrete) return false;
 
-    return tacticalSearchMove.score >=
+    return tacticalSearchMove.score <
         safeMove.score + _advancedTacticalDecisionBonus * 0.75;
   }
 

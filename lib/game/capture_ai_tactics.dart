@@ -186,7 +186,8 @@ class CaptureAiTacticalOracleConfig {
     this.topNAccepted,
     this.maxAcceptedMoveRatio = 0.25,
     this.minConfidenceGap = 300,
-  });
+  }) : assert(topNAccepted == null || topNAccepted >= 1,
+            'topNAccepted must be null or >= 1');
 
   final int depth;
   final int candidateHorizon;
@@ -1646,6 +1647,7 @@ _AcceptedBandMetrics _acceptedBandMetrics(
     if (topNAccepted != null && acceptedMoveCount >= topNAccepted) break;
     acceptedMoveCount++;
   }
+  if (acceptedMoveCount == 0) return const _AcceptedBandMetrics.empty();
 
   final firstRejected = acceptedMoveCount < rankedMoves.length
       ? rankedMoves[acceptedMoveCount]

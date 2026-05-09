@@ -165,8 +165,9 @@ void main(List<String> args) {
       'acceptedRate': _round(accepted / problems.length),
       'authoritativeAccepted': authoritativeAccepted,
       'authoritativeTotal': authoritativeTotal,
-      'authoritativeAcceptedRate':
-          _round(authoritativeAccepted / authoritativeTotal),
+      'authoritativeAcceptedRate': authoritativeTotal == 0
+          ? null
+          : _round(authoritativeAccepted / authoritativeTotal),
       'topOneRate': _round(topOne / problems.length),
       'topThreeRate': _round(topThree / problems.length),
       'severeBlunders': severe,
@@ -188,7 +189,9 @@ void main(List<String> args) {
     'oracleTiming': _timingSummary(oracleTimes),
     'configs': summaries,
   };
-  File(outputPath).writeAsStringSync(
+  final outputFile = File(outputPath);
+  outputFile.parent.createSync(recursive: true);
+  outputFile.writeAsStringSync(
     const JsonEncoder.withIndent('  ').convert(output),
   );
   print('Oracle timing: ${jsonEncode(output['oracleTiming'])}');
@@ -264,7 +267,7 @@ List<int> _parseIntList(String value) {
 int _parsePositiveInt(String? value, {required int fallback}) {
   if (value == null || value.isEmpty) return fallback;
   final parsed = int.parse(value);
-  if (parsed < 0) throw FormatException('Expected non-negative int: $value');
+  if (parsed < 1) throw FormatException('Expected positive int: $value');
   return parsed;
 }
 

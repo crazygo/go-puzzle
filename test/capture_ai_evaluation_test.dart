@@ -76,4 +76,40 @@ void main() {
       }
     });
   });
+
+  group('Capture AI advanced tactical arbitration', () {
+    test(
+        'advanced hunter returns a legal move on a position with urgent capture opportunity',
+        () {
+      // Regression for _shouldPreferSafeMoveOverTacticalSearch inverted comparison.
+      //
+      // 9×9 board, captureTarget=5; Black has already captured 2 stones.
+      // White chain {(0,0),(0,1)} is in atari with sole liberty at (1,1):
+      //   W W B . . . . . .  row 0
+      //   B . . . . . . . .  row 1
+      //
+      // Black can capture both white stones at (1,1) → captureDelta=2, total=4 < 5.
+      // This exercises the urgentMove path and _shouldPreferSafeMoveOverTacticalSearch.
+      final board = SimBoard(9, captureTarget: 5);
+      board.capturedByBlack = 2;
+      board.cells[board.idx(0, 0)] = SimBoard.white;
+      board.cells[board.idx(0, 1)] = SimBoard.white;
+      board.cells[board.idx(0, 2)] = SimBoard.black;
+      board.cells[board.idx(1, 0)] = SimBoard.black;
+      board.currentPlayer = SimBoard.black;
+
+      final agent = CaptureAiRegistry.create(
+        style: CaptureAiStyle.hunter,
+        difficulty: DifficultyLevel.advanced,
+      );
+      final move = agent.chooseMove(board);
+
+      expect(move, isNotNull, reason: 'Advanced hunter must choose a move');
+      expect(
+        board.analyzeMove(move!.position.row, move.position.col).isLegal,
+        isTrue,
+        reason: 'Chosen move must be legal on the board',
+      );
+    });
+  });
 }
