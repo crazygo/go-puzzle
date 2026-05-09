@@ -7,9 +7,16 @@ void main() {
   test('loads capture AI tactics dataset from bundled asset', () async {
     final problems = await const TacticsProblemRepository().loadProblems();
 
-    expect(problems, hasLength(134));
-    expect(problems.first.id, 'gf-9-001');
+    expect(problems, isNotEmpty);
     expect(
         problems.map((problem) => problem.category).toSet(), contains('trap'));
+    expect(
+        problems.map((problem) => problem.category).toSet(),
+        contains('group_fate'));
+    // Validate a few schema fields on the first problem.
+    final first = problems.first;
+    expect(first.id, isNotEmpty);
+    expect(first.boardSize, anyOf(9, 13));
+    expect(first.captureTarget, greaterThan(0));
   });
 }

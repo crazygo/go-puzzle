@@ -8,6 +8,7 @@ import '../game/difficulty_level.dart';
 import '../game/mcts_engine.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
+import '../ui/tactics_labels.dart';
 import '../widgets/go_board_widget.dart';
 
 class TacticsProblemScreen extends StatefulWidget {
@@ -30,7 +31,7 @@ class _TacticsProblemScreenState extends State<TacticsProblemScreen> {
   @override
   void initState() {
     super.initState();
-    _adviceFuture = _buildAdvice(widget.problem);
+    _adviceFuture = Future.microtask(() => _buildAdvice(widget.problem));
     _adviceFuture.then((advice) {
       if (!mounted) return;
       setState(() => _aiHint = advice.primaryMove);
@@ -73,6 +74,7 @@ class _TacticsProblemScreenState extends State<TacticsProblemScreen> {
             _SelectedMovePanel(
               selectedMove: _selectedMove,
               analysis: selectedAnalysis,
+              boardSize: widget.problem.boardSize,
               onReset: _selectedMove == null
                   ? null
                   : () => setState(() => _selectedMove = null),
@@ -98,7 +100,10 @@ class _TacticsProblemScreenState extends State<TacticsProblemScreen> {
                     ),
                   );
                 }
-                return _AdvicePanel(advice: snapshot.data!);
+                return _AdvicePanel(
+                  advice: snapshot.data!,
+                  boardSize: widget.problem.boardSize,
+                );
               },
             ),
           ],
@@ -124,16 +129,16 @@ class _ProblemHeader extends StatelessWidget {
           spacing: 7,
           runSpacing: 7,
           children: [
-            _Badge(label: _categoryName(problem.category)),
+            _Badge(label: categoryName(problem.category)),
             if (tactic != null && tactic.isNotEmpty)
-              _Badge(label: _tacticName(tactic)),
+              _Badge(label: tacticName(tactic)),
             _Badge(label: '${problem.boardSize}路'),
             _Badge(label: '目标 ${problem.captureTarget} 子'),
           ],
         ),
         const SizedBox(height: 10),
         Text(
-          '先手：${_playerName(problem.currentPlayer)}   提子：黑 ${problem.capturedByBlack} / 白 ${problem.capturedByWhite}',
+          '先手：${playerName(problem.currentPlayer)}   提子：黑 ${problem.capturedByBlack} / 白 ${problem.capturedByWhite}',
           style: TextStyle(fontSize: 14, color: secondary),
         ),
         if (problem.notes.isNotEmpty) ...[
@@ -182,11 +187,13 @@ class _SelectedMovePanel extends StatelessWidget {
   const _SelectedMovePanel({
     required this.selectedMove,
     required this.analysis,
+    required this.boardSize,
     required this.onReset,
   });
 
   final BoardPosition? selectedMove;
   final SimMoveAnalysis? analysis;
+  final int boardSize;
   final VoidCallback? onReset;
 
   @override
@@ -211,7 +218,7 @@ class _SelectedMovePanel extends StatelessWidget {
             child: Text(
               move == null || currentAnalysis == null
                   ? '点棋盘上的空点，可以临时试下一手。绿色标记默认显示 AI 首选。'
-                  : '试下 ${_formatPosition(move)}：${currentAnalysis.isLegal ? '合法' : '非法'}，'
+                  : '试下 ${formatPosition(move.row, move.col, boardSize)}：${currentAnalysis.isLegal ? '合法' : '非法'}，'
                       '黑提 +${currentAnalysis.blackCaptureDelta}，'
                       '白提 +${currentAnalysis.whiteCaptureDelta}，'
                       '己方被打吃 ${currentAnalysis.ownAtariStones} 子。',
@@ -234,9 +241,10 @@ class _SelectedMovePanel extends StatelessWidget {
 }
 
 class _AdvicePanel extends StatelessWidget {
-  const _AdvicePanel({required this.advice});
+  const _AdvicePanel({required this.advice, required this.boardSize});
 
   final _TacticsAdvice advice;
+  final int boardSize;
 
   @override
   Widget build(BuildContext context) {
@@ -253,7 +261,7 @@ class _AdvicePanel extends StatelessWidget {
             title: suggestion.style.label,
             detail: suggestion.move == null
                 ? '无合法建议'
-                : '${_formatPosition(suggestion.move!)}  score ${suggestion.score!.toStringAsFixed(1)}',
+                : '${formatPosition(suggestion.move!.row, suggestion.move!.col, boardSize)}  score ${suggestion.score!.toStringAsFixed(1)}',
           ),
         const SizedBox(height: 16),
         _SectionTitle(
@@ -267,7 +275,7 @@ class _AdvicePanel extends StatelessWidget {
           _SuggestionRow(
             title: '#${i + 1}',
             detail:
-                '${_formatPosition(advice.oracle.rankedMoves[i].position)}  score ${advice.oracle.rankedMoves[i].score.toStringAsFixed(1)}',
+                '${formatPosition(advice.oracle.rankedMoves[i].position.row, advice.oracle.rankedMoves[i].position.col, boardSize)}  score ${advice.oracle.rankedMoves[i].score.toStringAsFixed(1)}',
           ),
         if (advice.oracle.rankedMoves.isEmpty)
           const _SuggestionRow(title: 'Oracle', detail: '无可用排序'),
@@ -416,14 +424,15 @@ class _AiSuggestion {
   final double? score;
 }
 
-Future<_TacticsAdvice> _buildAdvice(CaptureAiTacticsProblem problem) async {
+_TacticsAdvice _buildAdvice(CaptureAiTacticsProblem problem) {
+  final baseBoard = problem.toBoard();
   final aiSuggestions = <_AiSuggestion>[];
   for (final style in CaptureAiStyle.values) {
     final agent = CaptureAiRegistry.create(
       style: style,
       difficulty: DifficultyLevel.advanced,
     );
-    final move = agent.chooseMove(SimBoard.copy(problem.toBoard()));
+    final move = agent.chooseMove(SimBoard.copy(baseBoard));
     aiSuggestions.add(
       _AiSuggestion(
         style: style,
@@ -493,45 +502,4 @@ GameState _gameStateFromBoard(SimBoard board, {BoardPosition? lastMove}) {
     ),
     lastMove: lastMove,
   );
-}
-
-String _formatPosition(BoardPosition position) {
-  const columns = 'ABCDEFGHJKLMNOPQRST';
-  final col = position.col >= 0 && position.col < columns.length
-      ? columns[position.col]
-      : '?';
-  return '$col${position.row + 1}';
-}
-
-String _categoryName(String category) {
-  return switch (category) {
-    'group_fate' => '棋形生死',
-    'capture_race' => '对杀',
-    'exchange' => '转换',
-    'multi_threat' => '多重威胁',
-    'trap' => '陷阱',
-    _ => category,
-  };
-}
-
-String _tacticName(String tactic) {
-  return switch (tactic) {
-    'ladder' => '征子',
-    'net_geta' => '枷吃',
-    'snapback' => '倒扑',
-    'throw_in' => '扑',
-    'shortage_of_liberties' => '气紧',
-    'connect_and_die_oiotoshi' => '滚打包收',
-    'edge_corner_capture' => '边角吃子',
-    'self_atari_punishment' => '惩罚自紧气',
-    _ => tactic,
-  };
-}
-
-String _playerName(int player) {
-  return switch (player) {
-    SimBoard.black => '黑',
-    SimBoard.white => '白',
-    _ => '-',
-  };
 }

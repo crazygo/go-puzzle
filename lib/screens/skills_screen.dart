@@ -2,7 +2,10 @@ import 'package:flutter/cupertino.dart';
 
 import '../data/tactics_problem_repository.dart';
 import '../game/capture_ai_tactics.dart';
+import '../ui/tactics_labels.dart';
 import 'tactics_problem_screen.dart';
+
+const _allFilter = 'all';
 
 const _categoryOrder = [
   'group_fate',
@@ -25,7 +28,6 @@ class SkillsScreen extends StatefulWidget {
 }
 
 class _SkillsScreenState extends State<SkillsScreen> {
-  static const _allFilter = 'all';
 
   late final Future<List<CaptureAiTacticsProblem>> _problemsFuture;
   String _selectedCategory = _allFilter;
@@ -195,7 +197,7 @@ class _ProblemCategorySection extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  _categoryName(category),
+                  categoryName(category),
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -278,7 +280,7 @@ class _CategoryFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labels = ['all', ...categories];
+    final labels = [_allFilter, ...categories];
     return SizedBox(
       height: 44,
       child: ListView.separated(
@@ -288,7 +290,7 @@ class _CategoryFilterBar extends StatelessWidget {
           final category = labels[index];
           final active = category == selected;
           return _FilterChip(
-            label: category == 'all' ? '全部' : _categoryName(category),
+            label: category == _allFilter ? '全部' : categoryName(category),
             count: counts[category] ?? 0,
             active: active,
             onTap: () => onSelected(category),
@@ -403,10 +405,10 @@ class _TacticsProblemCard extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  _MiniTag(label: _categoryName(problem.category)),
+                  _MiniTag(label: categoryName(problem.category)),
                   if (tactic != null && tactic.isNotEmpty)
-                    _MiniTag(label: _tacticName(tactic)),
-                  _MiniTag(label: '先手 ${_playerName(problem.currentPlayer)}'),
+                    _MiniTag(label: tacticName(tactic)),
+                  _MiniTag(label: '先手 ${playerName(problem.currentPlayer)}'),
                   _MiniTag(
                     label:
                         '提子 ${problem.capturedByBlack}:${problem.capturedByWhite}',
@@ -475,37 +477,4 @@ class _ErrorState extends StatelessWidget {
       ),
     );
   }
-}
-
-String _categoryName(String category) {
-  return switch (category) {
-    'group_fate' => '棋形生死',
-    'capture_race' => '对杀',
-    'exchange' => '转换',
-    'multi_threat' => '多重威胁',
-    'trap' => '陷阱',
-    _ => category,
-  };
-}
-
-String _tacticName(String tactic) {
-  return switch (tactic) {
-    'ladder' => '征子',
-    'net_geta' => '枷吃',
-    'snapback' => '倒扑',
-    'throw_in' => '扑',
-    'shortage_of_liberties' => '气紧',
-    'connect_and_die_oiotoshi' => '滚打包收',
-    'edge_corner_capture' => '边角吃子',
-    'self_atari_punishment' => '惩罚自紧气',
-    _ => tactic,
-  };
-}
-
-String _playerName(int player) {
-  return switch (player) {
-    1 => '黑',
-    2 => '白',
-    _ => '-',
-  };
 }

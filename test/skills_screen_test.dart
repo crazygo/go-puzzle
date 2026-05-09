@@ -70,12 +70,7 @@ void main() {
 
   Future<void> pumpTacticsList(WidgetTester tester) async {
     await tester.pumpWidget(app());
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-      if (find.text('AI 测试题集').evaluate().isNotEmpty) {
-        break;
-      }
-    }
+    await tester.pumpAndSettle();
   }
 
   testWidgets('skills tab loads tactics dataset and filters by category',
@@ -103,11 +98,16 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
+    // Scroll down to bring the AI panel into view (lazy ListView).
     await tester.drag(
       find.byType(CustomScrollView).last,
       const Offset(0, -500),
       warnIfMissed: false,
     );
+    // One pump brings the FutureBuilder into the viewport; a second pump lets
+    // it process the now-completed _buildAdvice future and rebuild to show the
+    // advice panel.
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('AI 建议'), findsOneWidget);
