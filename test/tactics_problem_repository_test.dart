@@ -16,7 +16,7 @@ void main() {
     // Validate a few schema fields on the first problem.
     final first = problems.first;
     expect(first.id, isNotEmpty);
-    expect(first.boardSize, anyOf(9, 13));
+    expect(first.boardSize, anyOf(equals(9), equals(13)));
     expect(first.captureTarget, greaterThan(0));
   });
 }
