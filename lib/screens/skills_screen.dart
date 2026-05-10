@@ -1,232 +1,480 @@
 import 'package:flutter/cupertino.dart';
-import 'package:provider/provider.dart';
 
-import '../data/skill_puzzles.dart';
-import '../models/puzzle.dart';
-import '../providers/game_provider.dart';
-import '../widgets/puzzle_card.dart';
-import 'puzzle_screen.dart';
+import '../data/tactics_problem_repository.dart';
+import '../game/capture_ai_tactics.dart';
+import '../ui/tactics_labels.dart';
+import 'tactics_problem_screen.dart';
 
-/// Skills/training tab with categorized puzzle lists.
+const _allFilter = 'all';
+
+const _categoryOrder = [
+  'group_fate',
+  'capture_race',
+  'exchange',
+  'multi_threat',
+  'trap',
+];
+
 class SkillsScreen extends StatefulWidget {
-  const SkillsScreen({super.key});
+  const SkillsScreen({
+    super.key,
+    Future<List<CaptureAiTacticsProblem>>? problemsFuture,
+  }) : _problemsFutureOverride = problemsFuture;
+
+  final Future<List<CaptureAiTacticsProblem>>? _problemsFutureOverride;
 
   @override
   State<SkillsScreen> createState() => _SkillsScreenState();
 }
 
 class _SkillsScreenState extends State<SkillsScreen> {
-  // Map of puzzle ID → completed status (in-memory for now)
-  final Set<String> _completedPuzzleIds = {};
 
-  // Top-level groups for segmented control
-  static const List<String> _groups = ['入门', '规则', '技巧'];
-  int _selectedGroupIndex = 0;
+  late final Future<List<CaptureAiTacticsProblem>> _problemsFuture;
+  String _selectedCategory = _allFilter;
 
-  // Skills sub-categories
-  static const List<PuzzleCategory> _skillCategories = [
-    PuzzleCategory.capture,
-    PuzzleCategory.ko,
-    PuzzleCategory.ladder,
-    PuzzleCategory.net,
-    PuzzleCategory.doubleAtari,
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _problemsFuture = widget._problemsFutureOverride ??
+        const TacticsProblemRepository().loadProblems();
+  }
 
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      child: CustomScrollView(
-        slivers: [
-          CupertinoSliverNavigationBar(
-            largeTitle: const Text('技巧训练'),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: CupertinoSlidingSegmentedControl<int>(
-                groupValue: _selectedGroupIndex,
-                children: {
-                  for (int i = 0; i < _groups.length; i++) i: Text(_groups[i]),
-                },
-                onValueChanged: (v) {
-                  if (v != null) setState(() => _selectedGroupIndex = v);
-                },
+      child: FutureBuilder<List<CaptureAiTacticsProblem>>(
+        future: _problemsFuture,
+        builder: (context, snapshot) {
+          final problems = snapshot.data;
+          final isLoading = snapshot.connectionState != ConnectionState.done;
+          final hasError = snapshot.hasError;
+          final categories =
+              problems == null ? const <String>[] : _categories(problems);
+          final visibleProblems = problems == null
+              ? const <CaptureAiTacticsProblem>[]
+              : _selectedCategory == _allFilter
+                  ? problems
+                  : problems
+                      .where((problem) => problem.category == _selectedCategory)
+                      .toList();
+          final groupedProblems = problems == null
+              ? const <String, List<CaptureAiTacticsProblem>>{}
+              : _groupByCategory(visibleProblems, categories);
+
+          return CustomScrollView(
+            slivers: [
+              const CupertinoSliverNavigationBar(
+                largeTitle: Text('谜题'),
               ),
-            ),
-          ),
-          SliverToBoxAdapter(child: _buildContent(context)),
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
-        ],
+              if (isLoading)
+                const SliverFillRemaining(
+                  child: Center(child: CupertinoActivityIndicator()),
+                )
+              else if (hasError)
+                SliverFillRemaining(
+                  child: _ErrorState(error: snapshot.error),
+                )
+              else ...[
+                SliverToBoxAdapter(
+                  child: _SummaryHeader(
+                    total: problems!.length,
+                    visible: visibleProblems.length,
+                    categories: categories.length,
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: _CategoryFilterBar(
+                    categories: categories,
+                    selected: _selectedCategory,
+                    counts: _categoryCounts(problems),
+                    onSelected: (category) {
+                      setState(() => _selectedCategory = category);
+                    },
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: _ProblemSections(
+                    groupedProblems: groupedProblems,
+                    onOpenProblem: (problem) => _openProblem(context, problem),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 28)),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildContent(BuildContext context) {
-    switch (_selectedGroupIndex) {
-      case 0:
-        return _buildPuzzleList(
-          context,
-          SkillPuzzles.beginnerPuzzles,
-          PuzzleCategory.beginner,
-        );
-      case 1:
-        return _buildPuzzleList(
-          context,
-          SkillPuzzles.rulesPuzzles,
-          PuzzleCategory.rules,
-        );
-      case 2:
-        return _buildSkillsContent(context);
-      default:
-        return const SizedBox.shrink();
+  List<String> _categories(List<CaptureAiTacticsProblem> problems) {
+    final categorySet = problems.map((problem) => problem.category).toSet();
+    final categories = [
+      for (final category in _categoryOrder)
+        if (categorySet.remove(category)) category,
+      ...categorySet.toList()..sort(),
+    ];
+    return categories;
+  }
+
+  Map<String, List<CaptureAiTacticsProblem>> _groupByCategory(
+    List<CaptureAiTacticsProblem> problems,
+    List<String> categories,
+  ) {
+    final grouped = <String, List<CaptureAiTacticsProblem>>{
+      for (final category in categories) category: <CaptureAiTacticsProblem>[],
+    };
+    for (final problem in problems) {
+      grouped.putIfAbsent(problem.category, () => <CaptureAiTacticsProblem>[]);
+      grouped[problem.category]!.add(problem);
     }
+    grouped.removeWhere((_, problems) => problems.isEmpty);
+    return grouped;
   }
 
-  Widget _buildSkillsContent(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final category in _skillCategories)
-          _buildCategorySection(
-            context,
-            category,
-            SkillPuzzles.allByCategory[category] ?? [],
-          ),
-      ],
-    );
-  }
-
-  Widget _buildCategorySection(
-    BuildContext context,
-    PuzzleCategory category,
-    List<Puzzle> puzzles,
-  ) {
-    final completedCount =
-        puzzles.where((p) => _completedPuzzleIds.contains(p.id)).length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionHeader(context, category, completedCount, puzzles.length),
-        _buildPuzzleList(context, puzzles, category),
-        const SizedBox(height: 8),
-      ],
-    );
-  }
-
-  Widget _buildSectionHeader(
-    BuildContext context,
-    PuzzleCategory category,
-    int completed,
-    int total,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: _categoryColor(category).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              category.displayName,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: _categoryColor(category),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              category.description,
-              style: TextStyle(
-                fontSize: 12,
-                color: CupertinoColors.secondaryLabel.resolveFrom(context),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '$completed/$total',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: completed == total && total > 0
-                  ? CupertinoColors.systemGreen
-                  : CupertinoColors.secondaryLabel.resolveFrom(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPuzzleList(
-    BuildContext context,
-    List<Puzzle> puzzles,
-    PuzzleCategory category,
-  ) {
-    if (puzzles.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child:
-              Text('暂无题目', style: TextStyle(color: CupertinoColors.systemGrey)),
-        ),
-      );
+  Map<String, int> _categoryCounts(List<CaptureAiTacticsProblem> problems) {
+    final counts = <String, int>{_allFilter: problems.length};
+    for (final problem in problems) {
+      counts[problem.category] = (counts[problem.category] ?? 0) + 1;
     }
-
-    return Column(
-      children: [
-        for (final puzzle in puzzles)
-          PuzzleCard(
-            puzzle: puzzle,
-            isCompleted: _completedPuzzleIds.contains(puzzle.id),
-            onTap: () => _openPuzzle(context, puzzle),
-          ),
-      ],
-    );
+    return counts;
   }
 
-  void _openPuzzle(BuildContext context, Puzzle puzzle) {
-    Navigator.of(context)
-        .push(
+  void _openProblem(BuildContext context, CaptureAiTacticsProblem problem) {
+    Navigator.of(context).push(
       CupertinoPageRoute(
-        builder: (context) => ChangeNotifierProvider(
-          create: (_) => GameProvider(),
-          child: PuzzleScreen(puzzle: puzzle),
+        builder: (context) => TacticsProblemScreen(problem: problem),
+      ),
+    );
+  }
+}
+
+class _ProblemSections extends StatelessWidget {
+  const _ProblemSections({
+    required this.groupedProblems,
+    required this.onOpenProblem,
+  });
+
+  final Map<String, List<CaptureAiTacticsProblem>> groupedProblems;
+  final ValueChanged<CaptureAiTacticsProblem> onOpenProblem;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final entry in groupedProblems.entries)
+          _ProblemCategorySection(
+            category: entry.key,
+            problems: entry.value,
+            onOpenProblem: onOpenProblem,
+          ),
+      ],
+    );
+  }
+}
+
+class _ProblemCategorySection extends StatelessWidget {
+  const _ProblemCategorySection({
+    required this.category,
+    required this.problems,
+    required this.onOpenProblem,
+  });
+
+  final String category;
+  final List<CaptureAiTacticsProblem> problems;
+  final ValueChanged<CaptureAiTacticsProblem> onOpenProblem;
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  categoryName(category),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: CupertinoColors.label.resolveFrom(context),
+                  ),
+                ),
+              ),
+              Text(
+                '${problems.length} 题',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: secondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final problem in problems)
+            _TacticsProblemCard(
+              problem: problem,
+              onTap: () => onOpenProblem(problem),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryHeader extends StatelessWidget {
+  const _SummaryHeader({
+    required this.total,
+    required this.visible,
+    required this.categories,
+  });
+
+  final int total;
+  final int visible;
+  final int categories;
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'AI 测试题集',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: CupertinoColors.label.resolveFrom(context),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '共 $total 题，当前显示 $visible 题，覆盖 $categories 个分类。进入题目后可复盘棋盘并查看 AI 建议。',
+            style: TextStyle(fontSize: 14, color: secondary, height: 1.35),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryFilterBar extends StatelessWidget {
+  const _CategoryFilterBar({
+    required this.categories,
+    required this.selected,
+    required this.counts,
+    required this.onSelected,
+  });
+
+  final List<String> categories;
+  final String selected;
+  final Map<String, int> counts;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = [_allFilter, ...categories];
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (context, index) {
+          final category = labels[index];
+          final active = category == selected;
+          return _FilterChip(
+            label: category == _allFilter ? '全部' : categoryName(category),
+            count: counts[category] ?? 0,
+            active: active,
+            onTap: () => onSelected(category),
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemCount: labels.length,
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.count,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeColor = CupertinoColors.activeBlue.resolveFrom(context);
+    final borderColor =
+        active ? activeColor : CupertinoColors.separator.resolveFrom(context);
+    final textColor =
+        active ? activeColor : CupertinoColors.label.resolveFrom(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: active
+              ? activeColor.withValues(alpha: 0.12)
+              : CupertinoColors.systemBackground.resolveFrom(context),
+          border: Border.all(color: borderColor),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          '$label $count',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+          ),
         ),
       ),
-    )
-        .then((_) {
-      // Check if the puzzle was solved (via game provider result)
-      // For simplicity, mark any visited puzzle as "in progress"
-      // In a real app this would be persisted
-    });
+    );
   }
+}
 
-  Color _categoryColor(PuzzleCategory category) {
-    switch (category) {
-      case PuzzleCategory.beginner:
-        return CupertinoColors.systemGreen;
-      case PuzzleCategory.rules:
-        return CupertinoColors.systemBlue;
-      case PuzzleCategory.capture:
-        return CupertinoColors.systemOrange;
-      case PuzzleCategory.ko:
-        return CupertinoColors.systemPurple;
-      case PuzzleCategory.ladder:
-        return CupertinoColors.systemRed;
-      case PuzzleCategory.net:
-        return CupertinoColors.systemTeal;
-      case PuzzleCategory.doubleAtari:
-        return CupertinoColors.systemIndigo;
-    }
+class _TacticsProblemCard extends StatelessWidget {
+  const _TacticsProblemCard({
+    required this.problem,
+    required this.onTap,
+  });
+
+  final CaptureAiTacticsProblem problem;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tactic = problem.metadata['tactic']?.toString();
+    final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color:
+                CupertinoColors.secondarySystemBackground.resolveFrom(context),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: CupertinoColors.separator.resolveFrom(context),
+              width: 0.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      problem.id,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: CupertinoColors.label.resolveFrom(context),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${problem.boardSize}路',
+                    style: TextStyle(fontSize: 12, color: secondary),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _MiniTag(label: categoryName(problem.category)),
+                  if (tactic != null && tactic.isNotEmpty)
+                    _MiniTag(label: tacticName(tactic)),
+                  _MiniTag(label: '先手 ${playerName(problem.currentPlayer)}'),
+                  _MiniTag(
+                    label:
+                        '提子 ${problem.capturedByBlack}:${problem.capturedByWhite}',
+                  ),
+                ],
+              ),
+              if (problem.notes.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  problem.notes,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: secondary, height: 1.3),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniTag extends StatelessWidget {
+  const _MiniTag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemGrey5.resolveFrom(context),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: CupertinoColors.secondaryLabel.resolveFrom(context),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.error});
+
+  final Object? error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          '测试题集加载失败\n$error',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: CupertinoColors.destructiveRed.resolveFrom(context),
+          ),
+        ),
+      ),
+    );
   }
 }

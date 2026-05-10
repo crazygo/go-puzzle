@@ -3,19 +3,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/go_engine.dart';
 import 'package:go_puzzle/models/board_position.dart';
 import 'package:go_puzzle/models/game_state.dart';
-import 'package:go_puzzle/models/puzzle.dart';
 
 void main() {
   group('GoEngine', () {
     test('adjacentPositions returns correct neighbors for interior point', () {
       final adj = GoEngine.adjacentPositions(4, 4, 9);
       expect(adj.length, 4);
-      expect(adj, containsAll([
-        const BoardPosition(3, 4),
-        const BoardPosition(5, 4),
-        const BoardPosition(4, 3),
-        const BoardPosition(4, 5),
-      ]));
+      expect(
+          adj,
+          containsAll([
+            const BoardPosition(3, 4),
+            const BoardPosition(5, 4),
+            const BoardPosition(4, 3),
+            const BoardPosition(4, 5),
+          ]));
     });
 
     test('adjacentPositions returns 2 neighbors for corner', () {
@@ -61,14 +62,7 @@ void main() {
     });
 
     test('isSuicide returns false for capture move', () {
-      // White stone surrounded by black, placing black captures it (not suicide)
       final board = List.generate(9, (_) => List.filled(9, StoneColor.empty));
-      board[0][0] = StoneColor.white;
-      board[0][1] = StoneColor.black;
-      board[1][0] = StoneColor.black;
-      // Placing black at (0,0) would capture white, not suicide
-      final suicide = GoEngine.isSuicide(board, 0, 1, StoneColor.black, 9);
-      // (0,1) already has a stone, so test a different scenario:
       // White at (4,4), surrounded by black on 3 sides, black plays to capture
       board[4][4] = StoneColor.white;
       board[3][4] = StoneColor.black;
@@ -79,32 +73,6 @@ void main() {
     });
 
     test('placeStone captures opponent with no liberties', () {
-      final puzzle = Puzzle(
-        id: 'test',
-        title: 'Test',
-        description: '',
-        boardSize: 9,
-        initialStones: [
-          const Stone(position: BoardPosition(0, 0), color: StoneColor.white),
-          const Stone(position: BoardPosition(0, 1), color: StoneColor.black),
-          const Stone(position: BoardPosition(1, 0), color: StoneColor.black),
-        ],
-        targetCaptures: [const BoardPosition(0, 0)],
-        solutions: [],
-        category: PuzzleCategory.beginner,
-      );
-
-      final state = GameState.initial(
-        boardSize: 9,
-        initialStones: puzzle.initialStones,
-        targetCaptures: puzzle.targetCaptures,
-      );
-
-      // White at (0,0) has liberties at... nothing (corner surrounded by black)
-      // Place black somewhere valid that captures white
-      // Actually (0,0) already only has black neighbors, so placing black anywhere
-      // won't capture since white isn't surrounded yet. Let's test proper capture:
-
       // New state: white at (4,4), black at (3,4),(4,3),(5,4) - 3 libs captured
       final board = List.generate(9, (_) => List.filled(9, StoneColor.empty));
       board[4][4] = StoneColor.white;
