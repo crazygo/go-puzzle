@@ -9,7 +9,7 @@ Cloudflare Worker that listens to GitHub PR review webhooks for `crazygo/go-puzz
 - On `issue_comment.created`:
   - Only handles comments created on pull requests.
   - When comment author matches Copilot reviewer identity, resolves review threads where `isOutdated=true` and `isResolved=false`.
-  - When comment author matches Copilot SWE Agent identity, checks whether a Copilot SWE Agent commit landed after `ai-review: fix-requested`; if so, marks the PR as fixed.
+  - When comment author matches Copilot SWE Agent identity, checks whether a Copilot SWE Agent commit landed after `ai-review: fix-requested`; if so, marks the PR as fixed and resolves outdated review threads while keeping `ai-review: fix-completed`.
   - Does **not** post summary comment to PR (per current requirement).
 - On `pull_request.synchronize`:
   - Checks whether a Copilot SWE Agent commit landed after `ai-review: fix-requested`.

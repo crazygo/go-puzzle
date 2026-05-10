@@ -227,6 +227,7 @@ async function handleIssueCommentCreated(payload, env) {
       token: env.GITHUB_TOKEN,
       apiUrl,
     });
+    const outdatedResolveResult = await resolveOutdatedThreads(payload, env);
 
     return {
       repository: `${owner}/${repo}`,
@@ -234,6 +235,7 @@ async function handleIssueCommentCreated(payload, env) {
       fixCompletedDetected: true,
       labelState: AI_REVIEW_FIX_COMPLETED_LABEL,
       labelResult,
+      outdatedResolveResult,
       completion,
       commentUrl: payload.comment?.html_url ?? null,
     };
