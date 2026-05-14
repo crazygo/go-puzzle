@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 enum BoardSizeOption {
   nine(9, '9路吃子'),
   thirteen(13, '13路吃子'),
-  nineteen(19, '19路围空');
+  nineteen(19, '19路圍空');
 
   final int size;
   final String label;

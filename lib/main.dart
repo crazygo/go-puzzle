@@ -35,14 +35,16 @@ class GoPuzzleApp extends StatelessWidget {
 
     return ChangeNotifierProvider(
       create: (_) => SettingsProvider(),
-      child: Selector<SettingsProvider, AppThemePalette>(
-        selector: (_, settings) => settings.appTheme.palette,
-        builder: (context, palette, _) {
+      child: Selector<SettingsProvider, AppVisualTheme>(
+        selector: (_, settings) => settings.appTheme,
+        builder: (context, appTheme, _) {
+          final palette = appTheme.palette;
           return CupertinoApp(
-            title: '小闲围棋',
+            title: 'Baduk Puzzle',
             theme: CupertinoThemeData(
               primaryColor: palette.primary,
-              brightness: Brightness.light,
+              brightness:
+                  appTheme == AppVisualTheme.classic ? null : Brightness.light,
               textTheme: CupertinoTextThemeData(
                 textStyle: const TextStyle(
                   fontSize: 17,

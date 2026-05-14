@@ -77,13 +77,13 @@ void main() {
       (tester) async {
     await pumpTacticsList(tester);
 
-    expect(find.text('谜题'), findsWidgets);
-    expect(find.text('AI 测试题集'), findsOneWidget);
+    expect(find.text('謎題'), findsWidgets);
+    expect(find.text('AI 測試題集'), findsOneWidget);
     expect(find.text('全部 2'), findsOneWidget);
     expect(find.text('棋形生死 1'), findsOneWidget);
     expect(find.text('gf-9-001'), findsOneWidget);
 
-    await tester.tap(find.text('对杀 1'));
+    await tester.tap(find.text('對殺 1'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -110,9 +110,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('AI 建议'), findsOneWidget);
-    expect(find.text('Oracle 参考'), findsOneWidget);
-    expect(find.text('点棋盘上的空点，可以临时试下一手。绿色标记默认显示 AI 首选。'), findsOneWidget);
+    expect(find.text('AI 建議'), findsOneWidget);
+    expect(find.text('Oracle 參考'), findsOneWidget);
+    expect(find.text('點棋盤上的空點，可以暫時試下一手。綠色標記預設顯示 AI 首選。'), findsOneWidget);
   });
 
   testWidgets('main puzzle tab is wired to tactics dataset screen',

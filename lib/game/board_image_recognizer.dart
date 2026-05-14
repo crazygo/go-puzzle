@@ -22,7 +22,7 @@ class BoardImageRecognizer {
 
   static BoardRecognitionResult recognize(Uint8List bytes) {
     final decoded = img.decodeImage(bytes);
-    if (decoded == null) throw const FormatException('无法解析图片');
+    if (decoded == null) throw const FormatException('無法解析圖片');
     final scaled = _scaleForAnalysis(decoded);
     final lumaMap = _LumaMap.fromImage(scaled);
     final candidate = _findBestGridCandidate(scaled, lumaMap);

@@ -8,6 +8,7 @@ import '../game/difficulty_level.dart';
 import '../game/mcts_engine.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
+import '../theme/theme_context.dart';
 import '../ui/tactics_labels.dart';
 import '../widgets/go_board_widget.dart';
 
@@ -40,6 +41,7 @@ class _TacticsProblemScreenState extends State<TacticsProblemScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     final displayState =
         _gameStateFor(widget.problem, selectedMove: _selectedMove);
     final selectedAnalysis = _selectedMove == null
@@ -50,6 +52,7 @@ class _TacticsProblemScreenState extends State<TacticsProblemScreen> {
             );
 
     return CupertinoPageScaffold(
+      backgroundColor: palette.pageBackground,
       navigationBar: CupertinoNavigationBar(
         middle: Text(widget.problem.id),
       ),
@@ -93,7 +96,7 @@ class _TacticsProblemScreenState extends State<TacticsProblemScreen> {
                 }
                 if (snapshot.hasError) {
                   return Text(
-                    'AI 建议计算失败：${snapshot.error}',
+                    'AI 建議計算失敗：${snapshot.error}',
                     style: TextStyle(
                       color:
                           CupertinoColors.destructiveRed.resolveFrom(context),
@@ -133,7 +136,7 @@ class _ProblemHeader extends StatelessWidget {
             if (tactic != null && tactic.isNotEmpty)
               _Badge(label: tacticName(tactic)),
             _Badge(label: '${problem.boardSize}路'),
-            _Badge(label: '目标 ${problem.captureTarget} 子'),
+            _Badge(label: '目標 ${problem.captureTarget} 子'),
           ],
         ),
         const SizedBox(height: 10),
@@ -198,16 +201,17 @@ class _SelectedMovePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
     final move = selectedMove;
     final currentAnalysis = analysis;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
+        color: palette.setupPanelBackground,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: CupertinoColors.separator.resolveFrom(context),
+          color: palette.setupPanelBorder,
           width: 0.5,
         ),
       ),
@@ -217,11 +221,11 @@ class _SelectedMovePanel extends StatelessWidget {
           Expanded(
             child: Text(
               move == null || currentAnalysis == null
-                  ? '点棋盘上的空点，可以临时试下一手。绿色标记默认显示 AI 首选。'
-                  : '试下 ${formatPosition(move.row, move.col, boardSize)}：${currentAnalysis.isLegal ? '合法' : '非法'}，'
+                  ? '點棋盤上的空點，可以暫時試下一手。綠色標記預設顯示 AI 首選。'
+                  : '試下 ${formatPosition(move.row, move.col, boardSize)}：${currentAnalysis.isLegal ? '合法' : '非法'}，'
                       '黑提 +${currentAnalysis.blackCaptureDelta}，'
                       '白提 +${currentAnalysis.whiteCaptureDelta}，'
-                      '己方被打吃 ${currentAnalysis.ownAtariStones} 子。',
+                      '己方被叫吃 ${currentAnalysis.ownAtariStones} 子。',
               style: TextStyle(fontSize: 13, height: 1.35, color: secondary),
             ),
           ),
@@ -231,7 +235,7 @@ class _SelectedMovePanel extends StatelessWidget {
               padding: EdgeInsets.zero,
               minimumSize: const Size(28, 28),
               onPressed: onReset,
-              child: const Text('重置'),
+              child: const Text('重設'),
             ),
           ],
         ],
@@ -252,20 +256,20 @@ class _AdvicePanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _SectionTitle(
-          title: 'AI 建议',
-          subtitle: 'advanced 档，各 style 独立计算',
+          title: 'AI 建議',
+          subtitle: 'advanced 檔，各 style 獨立計算',
         ),
         const SizedBox(height: 8),
         for (final suggestion in advice.aiSuggestions)
           _SuggestionRow(
             title: suggestion.style.label,
             detail: suggestion.move == null
-                ? '无合法建议'
+                ? '無合法建議'
                 : '${formatPosition(suggestion.move!.row, suggestion.move!.col, boardSize)}  score ${suggestion.score!.toStringAsFixed(1)}',
           ),
         const SizedBox(height: 16),
         _SectionTitle(
-          title: 'Oracle 参考',
+          title: 'Oracle 參考',
           subtitle: advice.oracle.authoritative
               ? 'authoritative'
               : 'non-authoritative',
@@ -278,7 +282,7 @@ class _AdvicePanel extends StatelessWidget {
                 '${formatPosition(advice.oracle.rankedMoves[i].position.row, advice.oracle.rankedMoves[i].position.col, boardSize)}  score ${advice.oracle.rankedMoves[i].score.toStringAsFixed(1)}',
           ),
         if (advice.oracle.rankedMoves.isEmpty)
-          const _SuggestionRow(title: 'Oracle', detail: '无可用排序'),
+          const _SuggestionRow(title: 'Oracle', detail: '無可用排序'),
       ],
     );
   }
