@@ -95,6 +95,12 @@ class SettingsScreen extends StatelessWidget {
               value: settings.showCaptureWarning,
               onChanged: settings.setShowCaptureWarning,
             ),
+            _SwitchRow(
+              title: '显示棋谱',
+              subtitle: '新对局开始时默认显示棋谱',
+              value: settings.showMoveLog,
+              onChanged: settings.setShowMoveLog,
+            ),
           ],
         );
       },

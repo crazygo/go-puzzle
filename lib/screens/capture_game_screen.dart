@@ -3925,9 +3925,20 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   bool _gameSaved = false;
   bool _resultDialogShown = false;
   bool _moveLogVisible = false;
+  bool _moveLogInitialized = false;
   final Set<int> _markedMoveNumbers = <int>{};
 
   final _historyRepo = GameHistoryRepository();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_moveLogInitialized) {
+      _moveLogInitialized = true;
+      final settings = context.read<SettingsProvider?>();
+      _moveLogVisible = settings?.showMoveLog ?? false;
+    }
+  }
 
   /// Converts a board of [StoneColor] to a list of int indices.
   static List<List<int>> _boardToInts(List<List<StoneColor>> board) =>

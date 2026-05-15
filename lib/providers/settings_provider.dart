@@ -34,6 +34,7 @@ class SettingsProvider extends ChangeNotifier {
   static const _developerModeKey = 'settings.developer_mode';
   static const _screenshotRecognitionAlgorithmKey =
       'settings.screenshot_recognition_algorithm';
+  static const _showMoveLogKey = 'settings.show_move_log';
 
   AppVisualTheme _appTheme = AppVisualTheme.agarwood;
   BoardSizeOption _boardSize = BoardSizeOption.nine;
@@ -45,6 +46,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _developerMode = false;
   ScreenshotRecognitionAlgorithm _screenshotRecognitionAlgorithm =
       ScreenshotRecognitionAlgorithm.rules;
+  bool _showMoveLog = false;
 
   AppVisualTheme get appTheme => _appTheme;
   BoardSizeOption get boardSize => _boardSize;
@@ -56,6 +58,7 @@ class SettingsProvider extends ChangeNotifier {
   bool get developerMode => _developerMode;
   ScreenshotRecognitionAlgorithm get screenshotRecognitionAlgorithm =>
       _screenshotRecognitionAlgorithm;
+  bool get showMoveLog => _showMoveLog;
 
   SettingsProvider() {
     _restorePreferences();
@@ -73,15 +76,18 @@ class SettingsProvider extends ChangeNotifier {
         ScreenshotRecognitionAlgorithm.fromStorageValue(
       prefs.getString(_screenshotRecognitionAlgorithmKey),
     );
+    final restoredShowMoveLog = prefs.getBool(_showMoveLogKey) ?? false;
     if (restoredTheme == _appTheme &&
         restoredDeveloperMode == _developerMode &&
-        restoredRecognitionAlgorithm == _screenshotRecognitionAlgorithm) {
+        restoredRecognitionAlgorithm == _screenshotRecognitionAlgorithm &&
+        restoredShowMoveLog == _showMoveLog) {
       return;
     }
 
     _appTheme = restoredTheme;
     _developerMode = restoredDeveloperMode;
     _screenshotRecognitionAlgorithm = restoredRecognitionAlgorithm;
+    _showMoveLog = restoredShowMoveLog;
     notifyListeners();
   }
 
@@ -148,5 +154,15 @@ class SettingsProvider extends ChangeNotifier {
       _screenshotRecognitionAlgorithmKey,
       value.storageValue,
     );
+  }
+
+  Future<void> setShowMoveLog(bool value) async {
+    if (_showMoveLog == value) return;
+
+    _showMoveLog = value;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showMoveLogKey, value);
   }
 }
