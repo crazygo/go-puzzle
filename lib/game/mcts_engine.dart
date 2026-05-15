@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'game_mode.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 
@@ -42,26 +43,31 @@ class SimBoard {
 
   final int size;
   final int captureTarget;
+  final GameMode gameMode;
   final List<int> cells;
   int capturedByBlack;
   int capturedByWhite;
   int currentPlayer;
+  int consecutivePasses;
   int _koIndex; // flat index of the forbidden ko point, -1 if none
 
-  SimBoard(this.size, {this.captureTarget = 5})
+  SimBoard(this.size, {this.captureTarget = 5, this.gameMode = GameMode.capture})
       : cells = List.filled(size * size, 0),
         capturedByBlack = 0,
         capturedByWhite = 0,
         currentPlayer = black,
+        consecutivePasses = 0,
         _koIndex = -1;
 
   SimBoard._internal({
     required this.size,
     required this.captureTarget,
+    required this.gameMode,
     required List<int> cells,
     required this.capturedByBlack,
     required this.capturedByWhite,
     required this.currentPlayer,
+    required this.consecutivePasses,
     required int koIndex,
   })  : cells = List<int>.from(cells),
         _koIndex = koIndex;
@@ -69,16 +75,22 @@ class SimBoard {
   factory SimBoard.copy(SimBoard other) => SimBoard._internal(
         size: other.size,
         captureTarget: other.captureTarget,
+        gameMode: other.gameMode,
         cells: other.cells,
         capturedByBlack: other.capturedByBlack,
         capturedByWhite: other.capturedByWhite,
         currentPlayer: other.currentPlayer,
+        consecutivePasses: other.consecutivePasses,
         koIndex: other._koIndex,
       );
 
   /// Creates a SimBoard from a GameState, setting [aiPlayer] as [white].
   factory SimBoard.fromGameState(GameState state, {int captureTarget = 5}) {
-    final sb = SimBoard(state.boardSize, captureTarget: captureTarget);
+    final sb = SimBoard(
+      state.boardSize,
+      captureTarget: captureTarget,
+      gameMode: state.gameMode,
+    );
     for (int r = 0; r < state.boardSize; r++) {
       for (int c = 0; c < state.boardSize; c++) {
         final color = state.board[r][c];
@@ -92,6 +104,7 @@ class SimBoard {
     sb.capturedByBlack = state.capturedByBlack.length;
     sb.capturedByWhite = state.capturedByWhite.length;
     sb.currentPlayer = state.currentPlayer == StoneColor.black ? black : white;
+    sb.consecutivePasses = state.consecutivePasses;
     return sb;
   }
 
@@ -149,6 +162,7 @@ class SimBoard {
     final opponent = color == black ? white : black;
 
     cells[i] = color;
+    consecutivePasses = 0;
 
     // Determine all opponent groups to capture simultaneously.
     final captured = <int>[];
@@ -191,6 +205,12 @@ class SimBoard {
     _koIndex = captured.length == 1 ? captured[0] : -1;
     currentPlayer = opponent;
     return true;
+  }
+
+  void applyPass() {
+    _koIndex = -1;
+    consecutivePasses++;
+    currentPlayer = currentPlayer == black ? white : black;
   }
 
   SimMoveAnalysis analyzeMove(int r, int c) {
@@ -242,13 +262,119 @@ class SimBoard {
   }
 
   bool get isTerminal =>
-      capturedByBlack >= captureTarget || capturedByWhite >= captureTarget;
+      gameMode == GameMode.capture
+          ? capturedByBlack >= captureTarget || capturedByWhite >= captureTarget
+          : consecutivePasses >= 2;
 
   /// Returns [black], [white], or 0 (no winner yet).
   int get winner {
-    if (capturedByBlack >= captureTarget) return black;
-    if (capturedByWhite >= captureTarget) return white;
-    return 0;
+    if (gameMode == GameMode.capture) {
+      if (capturedByBlack >= captureTarget) return black;
+      if (capturedByWhite >= captureTarget) return white;
+      return 0;
+    }
+    if (consecutivePasses < 2) return 0;
+    final blackArea = areaScore(black);
+    final whiteArea = areaScore(white);
+    if (blackArea == whiteArea) return 0;
+    return blackArea > whiteArea ? black : white;
+  }
+
+  int areaScore(int player) {
+    var stones = 0;
+    var territory = 0;
+    final visited = <int>{};
+    for (var i = 0; i < cells.length; i++) {
+      final color = cells[i];
+      if (color == player) {
+        stones++;
+        continue;
+      }
+      if (color != empty || visited.contains(i)) continue;
+      final queue = <int>[i];
+      final region = <int>{i};
+      visited.add(i);
+      final borders = <int>{};
+      while (queue.isNotEmpty) {
+        final cur = queue.removeLast();
+        for (final adj in _adjacent(cur)) {
+          final adjColor = cells[adj];
+          if (adjColor == empty) {
+            if (visited.add(adj)) {
+              region.add(adj);
+              queue.add(adj);
+            }
+          } else {
+            borders.add(adjColor);
+          }
+        }
+      }
+      if (borders.length == 1 && borders.contains(player)) {
+        territory += region.length;
+      }
+    }
+    return stones + territory;
+  }
+
+  int estimateAreaDifference({required int forPlayer}) {
+    final playerScore = areaScore(forPlayer);
+    final opponentScore = areaScore(forPlayer == black ? white : black);
+    return playerScore - opponentScore;
+  }
+
+  double estimateTerritoryInfluence({required int forPlayer}) {
+    final opponent = forPlayer == black ? white : black;
+    var score = 0.0;
+    for (var i = 0; i < cells.length; i++) {
+      final color = cells[i];
+      if (color == forPlayer) {
+        score += 1.6;
+        continue;
+      }
+      if (color == opponent) {
+        score -= 1.6;
+        continue;
+      }
+      var playerDist = 999;
+      var opponentDist = 999;
+      for (final adj in _adjacentWithinRadius(i, radius: 3)) {
+        final adjColor = cells[adj];
+        if (adjColor == forPlayer) {
+          playerDist = math.min(playerDist, _distance(i, adj));
+        } else if (adjColor == opponent) {
+          opponentDist = math.min(opponentDist, _distance(i, adj));
+        }
+      }
+      if (playerDist == opponentDist) continue;
+      if (playerDist < opponentDist) {
+        score += 1.0 / playerDist;
+      } else if (opponentDist < playerDist) {
+        score -= 1.0 / opponentDist;
+      }
+    }
+    return score;
+  }
+
+  Iterable<int> _adjacentWithinRadius(int i, {required int radius}) sync* {
+    final row = i ~/ size;
+    final col = i % size;
+    for (var dr = -radius; dr <= radius; dr++) {
+      for (var dc = -radius; dc <= radius; dc++) {
+        final nr = row + dr;
+        final nc = col + dc;
+        if (nr < 0 || nr >= size || nc < 0 || nc >= size) continue;
+        if (dr == 0 && dc == 0) continue;
+        yield idx(nr, nc);
+      }
+    }
+  }
+
+  int _distance(int a, int b) {
+    final ar = a ~/ size;
+    final ac = a % size;
+    final br = b ~/ size;
+    final bc = b % size;
+    return (ar - br).abs() + (ac - bc).abs();
   }
 
   /// Returns candidate legal moves focused within 2 intersections of existing
