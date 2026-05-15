@@ -3617,6 +3617,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   bool _resultDialogShown = false;
   bool _moveLogVisible = false;
   final Set<int> _markedMoveNumbers = <int>{};
+  int? _reviewMoveIndex;
+  List<GameState>? _reviewStates;
   final GlobalKey _operationButtonKey = GlobalKey();
 
   final _historyRepo = GameHistoryRepository();
@@ -3707,6 +3709,27 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
           final showCaptureWarning = settings?.showCaptureWarning ?? true;
           final palette = settings?.appTheme.palette ?? context.appPalette;
 
+          // Resolve review mode state.
+          final moveLogLen = provider.moveLog.length;
+          if (_reviewMoveIndex != null && _reviewMoveIndex! > moveLogLen) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  _reviewMoveIndex = null;
+                  _reviewStates = null;
+                });
+              }
+            });
+          }
+          final inReviewMode = _reviewMoveIndex != null &&
+              _reviewMoveIndex! >= 1 &&
+              _reviewMoveIndex! <= moveLogLen;
+          final reviewGameState = (inReviewMode &&
+                  _reviewStates != null &&
+                  _reviewMoveIndex! < _reviewStates!.length)
+              ? _reviewStates![_reviewMoveIndex!]
+              : null;
+
           return CupertinoPageScaffold(
             backgroundColor: const Color(0xFFF3F0ED),
             navigationBar: CupertinoNavigationBar(
@@ -3741,43 +3764,111 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
               ),
             ),
             child: SafeArea(
-              child: Column(
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                    child: _moveLogVisible
-                        ? _MoveLogStrip(
-                            moves: provider.moveLog,
-                            boardSize: provider.boardSize,
-                            currentPlayer: provider.gameState.currentPlayer,
-                            markedMoveNumbers: _markedMoveNumbers,
-                            palette: palette,
-                            onHide: () => setState(() {
-                              _moveLogVisible = false;
-                            }),
-                          )
-                        : const SizedBox(height: 45),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-                      child: _CaptureBoardArea(
-                        gameState: provider.gameState,
-                        enabled: !aiThinking && !isFinished,
-                        hintMarks: _hintMarks,
-                        showCaptureWarning: showCaptureWarning,
-                        captureTarget: widget.captureTarget,
-                        blackCaptured: blackCaptured,
-                        whiteCaptured: whiteCaptured,
-                        humanColor: widget.humanColor,
-                        onTap: (row, col) => _handleBoardTap(
-                          provider: provider,
-                          row: row,
-                          col: col,
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                        child: (_moveLogVisible || inReviewMode)
+                            ? _MoveLogStrip(
+                                moves: provider.moveLog,
+                                boardSize: provider.boardSize,
+                                currentPlayer:
+                                    provider.gameState.currentPlayer,
+                                markedMoveNumbers: _markedMoveNumbers,
+                                palette: palette,
+                                reviewMoveIndex: _reviewMoveIndex,
+                                onMoveTap: (moveNumber) =>
+                                    _handleMoveTap(moveNumber, provider),
+                                onHide: () => setState(() {
+                                  _moveLogVisible = false;
+                                  _reviewMoveIndex = null;
+                                }),
+                              )
+                            : const SizedBox(height: 45),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                          child: _CaptureBoardArea(
+                            gameState: reviewGameState ?? provider.gameState,
+                            enabled: !aiThinking &&
+                                !isFinished &&
+                                !inReviewMode,
+                            hintMarks:
+                                inReviewMode ? const [] : _hintMarks,
+                            showCaptureWarning: showCaptureWarning,
+                            captureTarget: widget.captureTarget,
+                            blackCaptured: reviewGameState
+                                    ?.capturedByBlack.length ??
+                                blackCaptured,
+                            whiteCaptured: reviewGameState
+                                    ?.capturedByWhite.length ??
+                                whiteCaptured,
+                            humanColor: widget.humanColor,
+                            onTap: (row, col) => _handleBoardTap(
+                              provider: provider,
+                              row: row,
+                              col: col,
+                            ),
+                            onReviewTap:
+                                inReviewMode ? _showReviewModeTip : null,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
+                  if (inReviewMode)
+                    Positioned(
+                      right: 16,
+                      bottom: 24,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CupertinoButton(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            color: const Color(0xFFF2EBE3),
+                            borderRadius: BorderRadius.circular(14),
+                            onPressed: () => setState(() {
+                              _reviewMoveIndex = null;
+                              _hintMarks = const [];
+                            }),
+                            child: const Text(
+                              '最新',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF8F7359),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          CupertinoButton(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            color: const Color(0xFFC28A56),
+                            borderRadius: BorderRadius.circular(14),
+                            onPressed: () =>
+                                unawaited(_handleFork(provider)),
+                            child: const Text(
+                              '分叉',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: CupertinoColors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -3982,7 +4073,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
             }
             Navigator.of(dialogContext).pop();
           },
-          onReview: () => Navigator.of(dialogContext).pop(),
+          onReview: () {
+            Navigator.of(dialogContext).pop();
+            if (mounted) setState(() => _moveLogVisible = true);
+          },
           onLeave: () {
             Navigator.of(dialogContext).pop();
             Navigator.of(context).maybePop();
@@ -4019,6 +4113,105 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
       ),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Review mode helpers
+  // ---------------------------------------------------------------------------
+
+  static List<GameState> _buildReviewStates(CaptureGameProvider provider) {
+    final emptyBoard = List.generate(
+      provider.boardSize,
+      (_) => List<StoneColor>.filled(provider.boardSize, StoneColor.empty),
+    );
+    if (provider.initialBoardOverride != null) {
+      final src = provider.initialBoardOverride!;
+      for (int r = 0; r < provider.boardSize; r++) {
+        for (int c = 0; c < provider.boardSize; c++) {
+          emptyBoard[r][c] = src[r][c];
+        }
+      }
+    } else {
+      applyCaptureInitialLayout(emptyBoard, provider.initialMode);
+    }
+    var state = GameState(
+      boardSize: provider.boardSize,
+      board: emptyBoard,
+      currentPlayer: StoneColor.black,
+    );
+    final states = <GameState>[state];
+    for (final move in provider.moveLog) {
+      if (move.length < 2) break;
+      final next = GoEngine.placeStone(state, move[0], move[1]);
+      if (next == null) break;
+      state = next;
+      states.add(state);
+    }
+    return states;
+  }
+
+  void _handleMoveTap(int moveNumber, CaptureGameProvider provider) {
+    final moveLog = provider.moveLog;
+    if (moveLog.isEmpty) return;
+    if (_reviewStates == null ||
+        _reviewStates!.length != moveLog.length + 1) {
+      _reviewStates = _buildReviewStates(provider);
+    }
+    setState(() {
+      _reviewMoveIndex = moveNumber.clamp(1, moveLog.length);
+      _hintMarks = const [];
+    });
+  }
+
+  Future<void> _handleFork(CaptureGameProvider provider) async {
+    if (_reviewMoveIndex == null ||
+        _reviewStates == null ||
+        _reviewMoveIndex! >= _reviewStates!.length) {
+      return;
+    }
+    final forkState = _reviewStates![_reviewMoveIndex!];
+    final forkBoard =
+        forkState.board.map((row) => List<StoneColor>.from(row)).toList();
+    final nextPlayer = forkState.currentPlayer;
+    await _saveGame(provider);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      CupertinoPageRoute<void>(
+        builder: (_) => ChangeNotifierProvider(
+          create: (_) => CaptureGameProvider(
+            boardSize: provider.boardSize,
+            captureTarget: provider.captureTarget,
+            difficulty: provider.difficulty,
+            humanColor: provider.humanColor,
+            initialMode: widget.initialMode,
+            initialBoardOverride: forkBoard,
+            initialPlayerOverride: nextPlayer,
+          )..setAiStyle(provider.aiStyle),
+          child: CaptureGamePlayScreen(
+            aiRank: widget.aiRank,
+            captureTarget: widget.captureTarget,
+            humanColor: widget.humanColor,
+            initialMode: widget.initialMode,
+            initialBoardOverride: forkBoard,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showReviewModeTip() {
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        content: const Text('请使用「分叉」从此处开始游戏'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('好'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _CaptureBoardArea extends StatelessWidget {
@@ -4032,6 +4225,7 @@ class _CaptureBoardArea extends StatelessWidget {
     required this.whiteCaptured,
     required this.humanColor,
     required this.onTap,
+    this.onReviewTap,
   });
 
   final GameState gameState;
@@ -4043,6 +4237,7 @@ class _CaptureBoardArea extends StatelessWidget {
   final int whiteCaptured;
   final StoneColor humanColor;
   final Future<bool> Function(int row, int col) onTap;
+  final VoidCallback? onReviewTap;
 
   @override
   Widget build(BuildContext context) {
@@ -4106,6 +4301,7 @@ class _CaptureBoardArea extends StatelessWidget {
                         hintMarks: hintMarks,
                         showCaptureWarning: showCaptureWarning,
                         onTap: onTap,
+                        onDisabledTap: onReviewTap,
                       ),
                     ),
                   ),
@@ -4205,6 +4401,8 @@ class _MoveLogStrip extends StatefulWidget {
     required this.markedMoveNumbers,
     required this.palette,
     required this.onHide,
+    this.reviewMoveIndex,
+    this.onMoveTap,
   });
 
   final List<List<int>> moves;
@@ -4213,6 +4411,8 @@ class _MoveLogStrip extends StatefulWidget {
   final Set<int> markedMoveNumbers;
   final AppThemePalette palette;
   final VoidCallback onHide;
+  final int? reviewMoveIndex;
+  final void Function(int moveNumber)? onMoveTap;
 
   @override
   State<_MoveLogStrip> createState() => _MoveLogStripState();
@@ -4298,6 +4498,10 @@ class _MoveLogStripState extends State<_MoveLogStrip> {
                         ),
                         marked: widget.markedMoveNumbers.contains(index + 1),
                         palette: widget.palette,
+                        isReviewing: widget.reviewMoveIndex == index + 1,
+                        onTap: widget.onMoveTap != null
+                            ? () => widget.onMoveTap!(index + 1)
+                            : null,
                       ),
                       if (index != widget.moves.length - 1)
                         const SizedBox(width: 6),
@@ -4318,31 +4522,44 @@ class _MoveLogChip extends StatelessWidget {
     required this.coordinate,
     required this.marked,
     required this.palette,
+    this.isReviewing = false,
+    this.onTap,
   });
 
   final int moveNumber;
   final String coordinate;
   final bool marked;
   final AppThemePalette palette;
+  final bool isReviewing;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final background = marked
-        ? palette.primary.withValues(alpha: 0.16)
-        : palette.segmentTrack.withValues(alpha: 0.82);
-    final borderColor = marked
-        ? palette.primary.withValues(alpha: 0.72)
-        : palette.primary.withValues(alpha: 0.16);
-    final textColor = marked
-        ? Color.lerp(palette.primary, CupertinoColors.black, 0.16)!
-        : palette.segmentText;
+    final background = isReviewing
+        ? palette.primary.withValues(alpha: 0.88)
+        : (marked
+            ? palette.primary.withValues(alpha: 0.16)
+            : palette.segmentTrack.withValues(alpha: 0.82));
+    final borderColor = isReviewing
+        ? palette.primary
+        : (marked
+            ? palette.primary.withValues(alpha: 0.72)
+            : palette.primary.withValues(alpha: 0.16));
+    final textColor = isReviewing
+        ? CupertinoColors.white
+        : (marked
+            ? Color.lerp(palette.primary, CupertinoColors.black, 0.16)!
+            : palette.segmentText);
 
-    return Container(
+    final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: borderColor, width: marked ? 1.1 : 0.7),
+        border: Border.all(
+          color: borderColor,
+          width: (marked || isReviewing) ? 1.1 : 0.7,
+        ),
       ),
       child: Text(
         '$moveNumber $coordinate',
@@ -4352,10 +4569,15 @@ class _MoveLogChip extends StatelessWidget {
           fontSize: 12,
           height: 1,
           color: textColor,
-          fontWeight: marked ? FontWeight.w700 : FontWeight.w500,
+          fontWeight: (marked || isReviewing) ? FontWeight.w700 : FontWeight.w500,
         ),
       ),
     );
+
+    if (onTap != null) {
+      return GestureDetector(onTap: onTap, child: chip);
+    }
+    return chip;
   }
 }
 
@@ -4625,6 +4847,7 @@ class _TapBoard extends StatelessWidget {
     required this.hintMarks,
     required this.showCaptureWarning,
     required this.onTap,
+    this.onDisabledTap,
   });
 
   final GameState gameState;
@@ -4632,6 +4855,7 @@ class _TapBoard extends StatelessWidget {
   final List<_HintMark> hintMarks;
   final bool showCaptureWarning;
   final Future<bool> Function(int row, int col) onTap;
+  final VoidCallback? onDisabledTap;
 
   @override
   Widget build(BuildContext context) {
@@ -4639,8 +4863,9 @@ class _TapBoard extends StatelessWidget {
       builder: (context, constraints) {
         final boardSizePx = constraints.biggest.shortestSide;
         return GestureDetector(
-          onTapUp:
-              enabled ? (d) => _handleTap(d.localPosition, boardSizePx) : null,
+          onTapUp: enabled
+              ? (d) => _handleTap(d.localPosition, boardSizePx)
+              : (onDisabledTap != null ? (_) => onDisabledTap!() : null),
           child: SizedBox(
             width: boardSizePx,
             height: boardSizePx,
