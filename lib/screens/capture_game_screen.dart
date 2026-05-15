@@ -3616,20 +3616,24 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   bool _gameSaved = false;
   bool _resultDialogShown = false;
   bool _moveLogVisible = false;
-  bool _moveLogInitialized = false;
   final Set<int> _markedMoveNumbers = <int>{};
   final GlobalKey _operationButtonKey = GlobalKey();
 
   final _historyRepo = GameHistoryRepository();
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_moveLogInitialized) {
-      _moveLogInitialized = true;
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final settings = context.read<SettingsProvider?>();
-      _moveLogVisible = settings?.showMoveLog ?? false;
-    }
+      final initialValue = settings?.showMoveLog ?? false;
+      if (initialValue != _moveLogVisible) {
+        setState(() {
+          _moveLogVisible = initialValue;
+        });
+      }
+    });
   }
 
   /// Converts a board of [StoneColor] to a list of int indices.
