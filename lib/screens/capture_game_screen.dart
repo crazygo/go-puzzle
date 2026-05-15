@@ -12,6 +12,7 @@ import '../game/board_image_recognizer.dart';
 import '../game/model_board_image_recognizer.dart';
 import '../game/capture_ai.dart';
 import '../game/ai_rank_level.dart';
+import '../game/game_mode.dart';
 import '../game/go_engine.dart';
 import '../models/board_position.dart';
 import '../models/game_record.dart';
@@ -734,11 +735,20 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                         const SizedBox(height: 20),
                                         const _SectionLabel(title: 'AI 風格'),
                                         const SizedBox(height: 8),
-                                        _AiStyleTile(
-                                          selectedStyleName: _aiStyleChoice,
-                                          onChanged: (name) => _updateSelection(
-                                              aiStyleChoice: name),
-                                        ),
+                                        if (_playMode == _modeTerritory)
+                                          _ModeHintText(
+                                            text: kIsWeb
+                                                ? '围空模式在 Web 端不生效；请在 iPhone 或 iPad 上使用。'
+                                                : '围空模式固定使用围空引擎，风格选项不生效；仅难度生效。',
+                                          )
+                                        else
+                                          _AiStyleTile(
+                                            selectedStyleName: _aiStyleChoice,
+                                            onChanged: (name) =>
+                                                _updateSelection(
+                                              aiStyleChoice: name,
+                                            ),
+                                          ),
                                         const SizedBox(height: 20),
                                         const _SectionLabel(title: '初始'),
                                         const SizedBox(height: 8),
@@ -786,14 +796,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                               _updateSelection(playMode: value),
                                         ),
                                         const SizedBox(height: 8),
-                                        Text(
-                                          '僅切換標題顯示，目前規則為吃 $_captureTarget 子取勝',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: CupertinoColors
-                                                .secondaryLabel
-                                                .resolveFrom(context),
-                                          ),
+                                        _ModeHintText(
+                                          text: _playMode == _modeTerritory
+                                              ? '圍空模式為真實數子對局：雙方連續停一手後按地盤結算。'
+                                              : '吃子模式仍為先吃 $_captureTarget 子取勝。',
                                         ),
                                         const SizedBox(height: 20),
                                         const _SectionLabel(title: '棋盤'),
@@ -825,6 +831,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                           manualRank: _manualRank,
                                           computedRank: _computedRank,
                                           aiStyleChoice: _aiStyleChoice,
+                                          isTerritoryMode: _isTerritoryMode,
                                           onTap: () => setState(
                                             () => _isAdjusting = true,
                                           ),
@@ -1138,6 +1145,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }
 
   String get _captureModeSegmentLabel => '吃 $_captureTarget 子取勝';
+  bool get _isTerritoryMode => _playMode == _modeTerritory;
+  GameMode get _selectedGameMode =>
+      _isTerritoryMode ? GameMode.territory : GameMode.capture;
 
   Future<void> _restoreSelection() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1379,6 +1389,22 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     bool forceSetup = false,
     List<List<StoneColor>>? initialBoard,
   }) {
+    if (kIsWeb && _isTerritoryMode) {
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: const Text('Web 暂不支持'),
+          content: const Text('围空模式当前仅支持原生端运行，Web 端此选项不生效。'),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('知道了'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     _saveSelection();
 
     final effectiveRank =
@@ -1393,6 +1419,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                 boardSize: _boardSize,
                 captureTarget: _captureTarget,
                 difficulty: effectiveDifficulty,
+                gameMode: _selectedGameMode,
                 humanColor: humanColor,
                 initialMode:
                     forceSetup ? CaptureInitialMode.setup : _initialMode,
@@ -1406,6 +1433,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
               child: CaptureGamePlayScreen(
                 aiRank: effectiveRank,
                 captureTarget: _captureTarget,
+                gameMode: _selectedGameMode,
                 humanColor: humanColor,
                 initialMode:
                     forceSetup ? CaptureInitialMode.setup : _initialMode,
@@ -3078,12 +3106,30 @@ class _PracticeHeader extends StatelessWidget {
   }
 }
 
+class _ModeHintText extends StatelessWidget {
+  const _ModeHintText({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 13,
+        color: CupertinoColors.secondaryLabel.resolveFrom(context),
+      ),
+    );
+  }
+}
+
 class _ConfigPreview extends StatelessWidget {
   const _ConfigPreview({
     required this.difficultyMode,
     required this.manualRank,
     required this.computedRank,
     required this.aiStyleChoice,
+    required this.isTerritoryMode,
     required this.onTap,
   });
 
@@ -3091,6 +3137,7 @@ class _ConfigPreview extends StatelessWidget {
   final int manualRank;
   final int computedRank;
   final String aiStyleChoice;
+  final bool isTerritoryMode;
   final VoidCallback onTap;
 
   String get _difficultyLabel {
@@ -3101,6 +3148,7 @@ class _ConfigPreview extends StatelessWidget {
   }
 
   String get _aiStyleLabel {
+    if (isTerritoryMode) return '固定圍空引擎';
     return CaptureAiStyle.values
         .firstWhere(
           (s) => s.name == aiStyleChoice,
@@ -3978,6 +4026,7 @@ class CaptureGamePlayScreen extends StatefulWidget {
     super.key,
     required this.aiRank,
     required this.captureTarget,
+    required this.gameMode,
     this.humanColor = StoneColor.black,
     this.initialMode = CaptureInitialMode.cross,
     this.initialBoardOverride,
@@ -3987,6 +4036,7 @@ class CaptureGamePlayScreen extends StatefulWidget {
 
   final int aiRank;
   final int captureTarget;
+  final GameMode gameMode;
   final StoneColor humanColor;
   final CaptureInitialMode initialMode;
 
@@ -4061,6 +4111,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
       CaptureGameResult.whiteWins => widget.humanColor == StoneColor.white
           ? GameOutcome.humanWins
           : GameOutcome.aiWins,
+      CaptureGameResult.draw => GameOutcome.draw,
       CaptureGameResult.none => GameOutcome.abandoned,
     };
 
@@ -4080,6 +4131,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
       boardSize: provider.boardSize,
       captureTarget: provider.captureTarget,
       difficulty: provider.difficulty.name,
+      gameMode: widget.gameMode,
       humanColorIndex: widget.humanColor.index,
       initialMode: captureInitialModeStorageKey(widget.initialMode),
       initialBoardCells: initialBoardCells,
@@ -4117,6 +4169,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
 
           final blackCaptured = provider.gameState.capturedByBlack.length;
           final whiteCaptured = provider.gameState.capturedByWhite.length;
+          final territoryScore = provider.territoryScore;
           final aiThinking = provider.isAiThinking;
           final isFinished = provider.result != CaptureGameResult.none;
           if (!isFinished) {
@@ -4222,6 +4275,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
                           child: _CaptureBoardArea(
+                            gameMode: widget.gameMode,
                             gameState: reviewGameState ?? provider.gameState,
                             coordinateSystem: settings?.boardCoordinateSystem ??
                                 BoardCoordinateSystem.chinese,
@@ -4236,6 +4290,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                             whiteCaptured:
                                 reviewGameState?.capturedByWhite.length ??
                                     whiteCaptured,
+                            territoryScore: territoryScore,
                             humanColor: widget.humanColor,
                             rippleMove: _rippleMove,
                             rippleAnimation: _rippleController,
@@ -4322,6 +4377,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     final canCopyMoveLog = provider.moveLog.isNotEmpty ||
         widget.inheritedMoves.isNotEmpty ||
         _initialPositionMoves(provider).isNotEmpty;
+    final canPass = provider.isTerritoryMode &&
+        !provider.isAiThinking &&
+        provider.result == CaptureGameResult.none &&
+        provider.gameState.currentPlayer == widget.humanColor;
     final currentMoveMarked =
         _markedMoveNumbers.contains(provider.moveLog.length);
     final showCaptureWarning = settings?.showCaptureWarning ?? true;
@@ -4338,10 +4397,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     );
     final buttonRect = buttonTopLeft & buttonBox.size;
     const menuWidth = 178.0;
-    // 8 items × 48 px each + 7 dividers × 0.6 px each
+    // 9 items x 48 px each + 8 dividers x 0.6 px each
     const menuItemHeight = 48.0;
     const menuDividerHeight = 0.6;
-    const menuItemCount = 8;
+    const menuItemCount = 9;
     const menuHeight = menuItemCount * menuItemHeight +
         (menuItemCount - 1) * menuDividerHeight;
     const edgePadding = 12.0;
@@ -4374,7 +4433,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
               top: top,
               width: menuWidth,
               child: _OperationContextMenu(
-                aiStyleLabel: provider.aiStyle.label,
+                aiStyleLabel:
+                    provider.isTerritoryMode ? '固定圍空引擎' : provider.aiStyle.label,
+                canChangeAiStyle: !provider.isTerritoryMode,
                 captureWarningEnabled: showCaptureWarning,
                 moveLogVisible: _moveLogVisible,
                 currentMoveMarked: currentMoveMarked,
@@ -4382,10 +4443,13 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                 canHint: canHint,
                 canMarkMove: canMarkMove,
                 canCopyMoveLog: canCopyMoveLog,
+                canPass: canPass,
                 canToggleCaptureWarning: settings != null,
                 onAiStyle: () {
                   Navigator.of(menuContext).pop();
-                  _showStylePicker(context, provider);
+                  if (!provider.isTerritoryMode) {
+                    _showStylePicker(context, provider);
+                  }
                 },
                 onToggleCaptureWarning: () {
                   Navigator.of(menuContext).pop();
@@ -4421,6 +4485,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                   Navigator.of(menuContext).pop();
                   _showHintsOnBoard(provider);
                 },
+                onPass: () async {
+                  Navigator.of(menuContext).pop();
+                  await provider.passTurn();
+                },
                 onCopyText: () {
                   Navigator.of(menuContext).pop();
                   _copyMovesAsText(provider, coordinateSystem);
@@ -4455,6 +4523,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   String _buildGameTitle(CaptureGameProvider provider, StoneColor humanColor) {
     if (provider.result == CaptureGameResult.blackWins) return '對局結束';
     if (provider.result == CaptureGameResult.whiteWins) return '對局結束';
+    if (provider.result == CaptureGameResult.draw) return '對局結束';
     final colorName =
         provider.gameState.currentPlayer == StoneColor.black ? '黑棋' : '白棋';
     if (provider.isAiThinking ||
@@ -4489,6 +4558,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
       final firstColor = provider.gameState.currentPlayer;
       setState(() {
         _hintMarks = hints
+            .where((pos) => pos.row >= 0 && pos.col >= 0)
             .map((pos) => _HintMark(position: pos, color: firstColor))
             .toList();
       });
@@ -4509,6 +4579,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
             widget.humanColor == StoneColor.black) ||
         (provider.result == CaptureGameResult.whiteWins &&
             widget.humanColor == StoneColor.white);
+    if (provider.result == CaptureGameResult.draw) {
+      return _ResultDialogState.draw;
+    }
     return humanWins ? _ResultDialogState.victory : _ResultDialogState.notWin;
   }
 
@@ -5021,6 +5094,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
 
 class _CaptureBoardArea extends StatelessWidget {
   const _CaptureBoardArea({
+    required this.gameMode,
     required this.gameState,
     required this.coordinateSystem,
     required this.enabled,
@@ -5029,6 +5103,7 @@ class _CaptureBoardArea extends StatelessWidget {
     required this.captureTarget,
     required this.blackCaptured,
     required this.whiteCaptured,
+    required this.territoryScore,
     required this.humanColor,
     required this.onTap,
     this.onReviewTap,
@@ -5036,6 +5111,7 @@ class _CaptureBoardArea extends StatelessWidget {
     this.rippleAnimation,
   });
 
+  final GameMode gameMode;
   final GameState gameState;
   final BoardCoordinateSystem coordinateSystem;
   final bool enabled;
@@ -5044,6 +5120,7 @@ class _CaptureBoardArea extends StatelessWidget {
   final int captureTarget;
   final int blackCaptured;
   final int whiteCaptured;
+  final TerritoryScore territoryScore;
   final StoneColor humanColor;
   final Future<bool> Function(int row, int col) onTap;
   final VoidCallback? onReviewTap;
@@ -5057,6 +5134,10 @@ class _CaptureBoardArea extends StatelessWidget {
         humanColor == StoneColor.black ? blackCaptured : whiteCaptured;
     final aiCapturedHumanCount =
         aiColor == StoneColor.black ? blackCaptured : whiteCaptured;
+    final humanArea =
+        humanColor == StoneColor.black ? territoryScore.blackArea : territoryScore.whiteArea;
+    final aiArea =
+        aiColor == StoneColor.black ? territoryScore.blackArea : territoryScore.whiteArea;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -5081,12 +5162,19 @@ class _CaptureBoardArea extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: Padding(
                     padding: const EdgeInsets.only(right: markerInset),
-                    child: _PlayerSideCard(
-                      isBlack: humanColor == StoneColor.black,
-                      progress: aiCapturedHumanCount,
-                      captureTarget: captureTarget,
-                      alignEnd: true,
-                    ),
+                    child: gameMode == GameMode.territory
+                        ? _TerritoryScoreCard(
+                            isBlack: humanColor == StoneColor.black,
+                            score: humanArea,
+                            alignEnd: true,
+                            label: '你',
+                          )
+                        : _PlayerSideCard(
+                            isBlack: humanColor == StoneColor.black,
+                            progress: aiCapturedHumanCount,
+                            captureTarget: captureTarget,
+                            alignEnd: true,
+                          ),
                   ),
                 ),
                 const SizedBox(height: markerGap),
@@ -5125,12 +5213,19 @@ class _CaptureBoardArea extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Padding(
                     padding: const EdgeInsets.only(left: markerInset),
-                    child: _PlayerSideCard(
-                      isBlack: aiColor == StoneColor.black,
-                      progress: humanCapturedAiCount,
-                      captureTarget: captureTarget,
-                      alignEnd: false,
-                    ),
+                    child: gameMode == GameMode.territory
+                        ? _TerritoryScoreCard(
+                            isBlack: aiColor == StoneColor.black,
+                            score: aiArea,
+                            alignEnd: false,
+                            label: 'AI',
+                          )
+                        : _PlayerSideCard(
+                            isBlack: aiColor == StoneColor.black,
+                            progress: humanCapturedAiCount,
+                            captureTarget: captureTarget,
+                            alignEnd: false,
+                          ),
                   ),
                 ),
               ],
@@ -5192,6 +5287,52 @@ class _PlayerSideCard extends StatelessWidget {
   }
 }
 
+class _TerritoryScoreCard extends StatelessWidget {
+  const _TerritoryScoreCard({
+    required this.isBlack,
+    required this.score,
+    required this.alignEnd,
+    required this.label,
+  });
+
+  final bool isBlack;
+  final int score;
+  final bool alignEnd;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = isBlack ? const Color(0xFF2A2A2A) : const Color(0xFFF7F2EA);
+    final textColor = isBlack ? CupertinoColors.white : const Color(0xFF4A3A2A);
+    return Align(
+      alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFD5BEA6), width: 0.8),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Text(
+          '$label · $score 目',
+          style: TextStyle(
+            color: textColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 String _formatBoardCoordinate(
   List<int> move,
   int boardSize,
@@ -5200,6 +5341,7 @@ String _formatBoardCoordinate(
   if (move.length < 2) return '-';
   final row = move[0];
   final col = move[1];
+  if (row == -1 && col == -1) return '停一手';
   if (col < 0 || col >= boardSize || row < 0 || row >= boardSize) {
     return '-';
   }
@@ -5530,6 +5672,7 @@ class _MoveLogChip extends StatelessWidget {
 class _OperationContextMenu extends StatelessWidget {
   const _OperationContextMenu({
     required this.aiStyleLabel,
+    required this.canChangeAiStyle,
     required this.captureWarningEnabled,
     required this.moveLogVisible,
     required this.currentMoveMarked,
@@ -5537,6 +5680,7 @@ class _OperationContextMenu extends StatelessWidget {
     required this.canHint,
     required this.canMarkMove,
     required this.canCopyMoveLog,
+    required this.canPass,
     required this.canToggleCaptureWarning,
     required this.onAiStyle,
     required this.onToggleCaptureWarning,
@@ -5544,11 +5688,13 @@ class _OperationContextMenu extends StatelessWidget {
     required this.onToggleMarkMove,
     required this.onUndo,
     required this.onHint,
+    required this.onPass,
     required this.onCopyText,
     required this.onCopySgf,
   });
 
   final String aiStyleLabel;
+  final bool canChangeAiStyle;
   final bool captureWarningEnabled;
   final bool moveLogVisible;
   final bool currentMoveMarked;
@@ -5556,6 +5702,7 @@ class _OperationContextMenu extends StatelessWidget {
   final bool canHint;
   final bool canMarkMove;
   final bool canCopyMoveLog;
+  final bool canPass;
   final bool canToggleCaptureWarning;
   final VoidCallback onAiStyle;
   final VoidCallback onToggleCaptureWarning;
@@ -5563,6 +5710,7 @@ class _OperationContextMenu extends StatelessWidget {
   final VoidCallback onToggleMarkMove;
   final VoidCallback onUndo;
   final VoidCallback onHint;
+  final VoidCallback onPass;
   final VoidCallback onCopyText;
   final VoidCallback onCopySgf;
 
@@ -5595,7 +5743,7 @@ class _OperationContextMenu extends StatelessWidget {
           children: [
             _OperationMenuItem(
               text: 'AI 風格：$aiStyleLabel',
-              enabled: true,
+              enabled: canChangeAiStyle,
               onPressed: onAiStyle,
             ),
             _OperationMenuDivider(),
@@ -5621,6 +5769,12 @@ class _OperationContextMenu extends StatelessWidget {
               text: '後退一手',
               enabled: canUndo,
               onPressed: onUndo,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: '停一手',
+              enabled: canPass,
+              onPressed: onPass,
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
@@ -6099,6 +6253,7 @@ class _HistoryRow extends StatelessWidget {
   static const _outcomeColors = {
     GameOutcome.humanWins: Color(0xFF4A7C59),
     GameOutcome.aiWins: Color(0xFF8B3A3A),
+    GameOutcome.draw: Color(0xFF8C7966),
     GameOutcome.abandoned: Color(0xFF8C7966),
   };
 
@@ -6109,6 +6264,7 @@ class _HistoryRow extends StatelessWidget {
     final date = _formatDate(record.playedAt);
     final boardLabel = '${record.boardSize} 路';
     final diffLabel = record.difficultyLevel.displayName;
+    final modeLabel = record.gameMode.historyLabel;
     final outcomeLabel = record.outcome.displayName;
     final outcomeColor = isClassic
         ? switch (record.outcome) {
@@ -6135,7 +6291,7 @@ class _HistoryRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$boardLabel · $diffLabel · ${record.totalMoves} 手',
+                  '$boardLabel · $modeLabel · $diffLabel · ${record.totalMoves} 手',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -6279,7 +6435,9 @@ class _HistoryDetailSheet extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${record.boardSize} 路 · 吃${record.captureTarget}子 · ${record.difficultyLevel.displayName}',
+                          record.gameMode == GameMode.territory
+                              ? '${record.boardSize} 路 · 圍空 · ${record.difficultyLevel.displayName}'
+                              : '${record.boardSize} 路 · 吃${record.captureTarget}子 · ${record.difficultyLevel.displayName}',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,

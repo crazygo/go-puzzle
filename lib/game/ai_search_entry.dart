@@ -7,7 +7,9 @@
 
 import 'capture_ai.dart';
 import 'difficulty_level.dart';
+import 'game_mode.dart';
 import 'mcts_engine.dart';
+import 'territory_ai.dart';
 
 /// Runs the AI move search from a serialised [params] map.
 ///
@@ -20,6 +22,7 @@ import 'mcts_engine.dart';
 /// - `currentPlayer`  : int  (StoneColor.index)
 /// - `aiStyle`        : String  (CaptureAiStyle.name)
 /// - `difficulty`     : String  (DifficultyLevel.name)
+/// - `gameMode`       : String  (GameMode.storageKey)
 ///
 /// Returns `[row, col]` of the chosen move, or `null` if no move was found.
 List<int>? runChooseAiMove(Map<String, dynamic> params) {
@@ -32,18 +35,29 @@ List<int>? runChooseAiMove(Map<String, dynamic> params) {
   final aiStyle = CaptureAiStyle.values.byName(params['aiStyle'] as String);
   final difficulty =
       DifficultyLevel.values.byName(params['difficulty'] as String);
+  final gameMode = GameModeExt.fromStorageKey(params['gameMode'] as String?);
 
-  final sim = SimBoard(boardSize, captureTarget: captureTarget);
+  final sim = SimBoard(
+    boardSize,
+    captureTarget: captureTarget,
+    gameMode: gameMode,
+  );
   for (int i = 0; i < cells.length; i++) {
     sim.cells[i] = cells[i];
   }
   sim.capturedByBlack = capturedByBlack;
   sim.capturedByWhite = capturedByWhite;
   sim.currentPlayer = currentPlayer;
+  sim.consecutivePasses = (params['consecutivePasses'] as int?) ?? 0;
 
-  final move = CaptureAiRegistry.create(style: aiStyle, difficulty: difficulty)
-      .chooseMove(sim)
-      ?.position;
+  final move = switch (gameMode) {
+    GameMode.capture => CaptureAiRegistry.create(
+        style: aiStyle,
+        difficulty: difficulty,
+      ).chooseMove(sim)?.position,
+    GameMode.territory =>
+      TerritoryAiEngine(difficulty: difficulty).chooseMove(sim),
+  };
   if (move == null) return null;
   return [move.row, move.col];
 }

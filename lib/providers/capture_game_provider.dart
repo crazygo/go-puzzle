@@ -5,8 +5,10 @@ import 'package:flutter/foundation.dart';
 import '../game/ai_search_runner.dart';
 import '../game/capture_ai.dart';
 import '../game/difficulty_level.dart';
+import '../game/game_mode.dart';
 import '../game/go_engine.dart';
 import '../game/mcts_engine.dart';
+import '../game/territory_ai.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 
@@ -28,36 +30,60 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
   final difficulty =
       DifficultyLevel.values.byName(params['difficulty'] as String);
   final count = params['count'] as int;
+  final gameMode = GameModeExt.fromStorageKey(params['gameMode'] as String?);
+  final consecutivePasses = (params['consecutivePasses'] as int?) ?? 0;
 
-  final sim = SimBoard(boardSize, captureTarget: captureTarget);
+  final sim = SimBoard(
+    boardSize,
+    captureTarget: captureTarget,
+    gameMode: gameMode,
+  );
   for (int i = 0; i < cells.length; i++) {
     sim.cells[i] = cells[i];
   }
   sim.capturedByBlack = capturedByBlack;
   sim.capturedByWhite = capturedByWhite;
   sim.currentPlayer = currentPlayer;
+  sim.consecutivePasses = consecutivePasses;
 
   final suggestions = <List<int>>[];
-  final primaryAgent =
-      CaptureAiRegistry.create(style: aiStyle, difficulty: difficulty);
-  final replyAgent = CaptureAiRegistry.create(
-    style: CaptureAiStyle.counter,
-    difficulty: DifficultyLevel.beginner,
-  );
+  final territoryEngine = TerritoryAiEngine(difficulty: difficulty);
+  final primaryAgent = gameMode == GameMode.capture
+      ? CaptureAiRegistry.create(style: aiStyle, difficulty: difficulty)
+      : null;
+  final replyAgent = gameMode == GameMode.capture
+      ? CaptureAiRegistry.create(
+          style: CaptureAiStyle.counter,
+          difficulty: DifficultyLevel.beginner,
+        )
+      : null;
   for (int i = 0; i < count; i++) {
-    final move = primaryAgent.chooseMove(sim)?.position;
+    final move = gameMode == GameMode.capture
+        ? primaryAgent?.chooseMove(sim)?.position
+        : territoryEngine.chooseMove(sim);
     if (move == null) break;
     suggestions.add([move.row, move.col]);
-    if (!sim.applyMove(move.row, move.col)) break;
-    final whiteReply = replyAgent.chooseMove(sim)?.position;
-    if (whiteReply == null || !sim.applyMove(whiteReply.row, whiteReply.col)) {
+    if (move == territoryPassMove) {
+      sim.applyPass();
+    } else if (!sim.applyMove(move.row, move.col)) {
+      break;
+    }
+    final whiteReply = gameMode == GameMode.capture
+        ? replyAgent?.chooseMove(sim)?.position
+        : territoryEngine.chooseMove(sim);
+    if (whiteReply == null) {
+      break;
+    }
+    if (whiteReply == territoryPassMove) {
+      sim.applyPass();
+    } else if (!sim.applyMove(whiteReply.row, whiteReply.col)) {
       break;
     }
   }
   return suggestions;
 }
 
-enum CaptureGameResult { none, blackWins, whiteWins }
+enum CaptureGameResult { none, blackWins, whiteWins, draw }
 
 enum CaptureInitialMode { cross, twistCross, empty, setup }
 
@@ -130,6 +156,7 @@ class CaptureGameProvider extends ChangeNotifier {
     required this.boardSize,
     required this.captureTarget,
     required this.difficulty,
+    this.gameMode = GameMode.capture,
     this.humanColor = StoneColor.black,
     this.initialMode = CaptureInitialMode.cross,
     this.initialBoardOverride,
@@ -177,6 +204,7 @@ class CaptureGameProvider extends ChangeNotifier {
   final int boardSize;
   final int captureTarget;
   final DifficultyLevel difficulty;
+  final GameMode gameMode;
   final StoneColor humanColor;
   final CaptureInitialMode initialMode;
   final List<List<StoneColor>>? initialBoardOverride;
@@ -236,6 +264,8 @@ class CaptureGameProvider extends ChangeNotifier {
   bool get isAiThinking => _isAiThinking;
   bool get canUndo => _undoStack.isNotEmpty && !_isAiThinking;
   CaptureAiStyle get aiStyle => _aiStyle;
+  GameMode get mode => gameMode;
+  bool get isTerritoryMode => gameMode == GameMode.territory;
   bool get isPlacementMode => initialMode == CaptureInitialMode.setup;
 
   /// An unmodifiable view of the current game's move sequence.
@@ -245,6 +275,8 @@ class CaptureGameProvider extends ChangeNotifier {
     return _cachedAgent ??=
         CaptureAiRegistry.create(style: _aiStyle, difficulty: difficulty);
   }
+
+  TerritoryScore get territoryScore => GoEngine.computeTerritoryScore(_gameState);
 
   void newGame() => _startNewGame();
 
@@ -261,6 +293,7 @@ class CaptureGameProvider extends ChangeNotifier {
   }
 
   void setAiStyle(CaptureAiStyle style) {
+    if (isTerritoryMode) return;
     if (_aiStyle == style) return;
     _aiStyle = style;
     _cachedAgent = null;
@@ -283,6 +316,27 @@ class CaptureGameProvider extends ChangeNotifier {
     notifyListeners();
 
     if (!isPlacementMode && _result == CaptureGameResult.none) {
+      _scheduleAiMove();
+    }
+    return true;
+  }
+
+  Future<bool> passTurn() async {
+    if (!isTerritoryMode ||
+        _isAiThinking ||
+        _result != CaptureGameResult.none ||
+        isPlacementMode ||
+        _gameState.currentPlayer != humanColor) {
+      return false;
+    }
+    final newState = GoEngine.passTurn(_gameState);
+    if (newState == null) return false;
+    _undoStack.add(_gameState);
+    _gameState = newState;
+    _moveLog.add(const [-1, -1]);
+    _checkWinCondition();
+    notifyListeners();
+    if (_result == CaptureGameResult.none) {
       _scheduleAiMove();
     }
     return true;
@@ -335,21 +389,35 @@ class CaptureGameProvider extends ChangeNotifier {
     final suggestions = <BoardPosition>[];
     final sim =
         SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
-    final replyAgent = CaptureAiRegistry.create(
-      style: CaptureAiStyle.counter,
-      difficulty: DifficultyLevel.beginner,
-    );
+    final territoryEngine = TerritoryAiEngine(difficulty: difficulty);
+    final replyAgent = isTerritoryMode
+        ? null
+        : CaptureAiRegistry.create(
+            style: CaptureAiStyle.counter,
+            difficulty: DifficultyLevel.beginner,
+          );
 
     for (int i = 0; i < count; i++) {
-      final move = _activeAgent.chooseMove(sim)?.position;
+      final move = isTerritoryMode
+          ? territoryEngine.chooseMove(sim)
+          : _activeAgent.chooseMove(sim)?.position;
       if (move == null) break;
       suggestions.add(BoardPosition(move.row, move.col));
 
-      // apply as black suggestion then let white respond lightly for diversity
-      if (!sim.applyMove(move.row, move.col)) break;
-      final whiteReply = replyAgent.chooseMove(sim)?.position;
-      if (whiteReply == null ||
-          !sim.applyMove(whiteReply.row, whiteReply.col)) {
+      if (move == territoryPassMove) {
+        sim.applyPass();
+      } else if (!sim.applyMove(move.row, move.col)) {
+        break;
+      }
+      final whiteReply = isTerritoryMode
+          ? territoryEngine.chooseMove(sim)
+          : replyAgent?.chooseMove(sim)?.position;
+      if (whiteReply == null) {
+        break;
+      }
+      if (whiteReply == territoryPassMove) {
+        sim.applyPass();
+      } else if (!sim.applyMove(whiteReply.row, whiteReply.col)) {
         break;
       }
     }
@@ -372,6 +440,8 @@ class CaptureGameProvider extends ChangeNotifier {
       'currentPlayer': sim.currentPlayer,
       'aiStyle': _aiStyle.name,
       'difficulty': difficulty.name,
+      'gameMode': gameMode.storageKey,
+      'consecutivePasses': sim.consecutivePasses,
       'count': count,
     };
     final raw = await compute(_runSuggestMoves, params);
@@ -379,6 +449,17 @@ class CaptureGameProvider extends ChangeNotifier {
   }
 
   Map<StoneColor, double> get winRateEstimate {
+    if (isTerritoryMode) {
+      final diff = territoryScore.blackArea - territoryScore.whiteArea;
+      final normalized = (diff / (boardSize * boardSize))
+          .clamp(-0.95, 0.95)
+          .toDouble();
+      final blackRate = (0.5 + normalized * 0.45).clamp(0.05, 0.95).toDouble();
+      return {
+        StoneColor.black: blackRate,
+        StoneColor.white: 1 - blackRate,
+      };
+    }
     final blackCaps = _gameState.capturedByBlack.length;
     final whiteCaps = _gameState.capturedByWhite.length;
     final progress = (blackCaps - whiteCaps) / captureTarget;
@@ -428,6 +509,7 @@ class CaptureGameProvider extends ChangeNotifier {
       boardSize: boardSize,
       board: emptyBoard,
       currentPlayer: initialPlayer,
+      gameMode: gameMode,
     );
     _result = CaptureGameResult.none;
     _isAiThinking = false;
@@ -489,8 +571,10 @@ class CaptureGameProvider extends ChangeNotifier {
         'capturedByBlack': _gameState.capturedByBlack.length,
         'capturedByWhite': _gameState.capturedByWhite.length,
         'currentPlayer': _gameState.currentPlayer.index,
-        'aiStyle': _aiStyle.name,
+        'aiStyle': isTerritoryMode ? CaptureAiStyle.adaptive.name : _aiStyle.name,
         'difficulty': difficulty.name,
+        'gameMode': gameMode.storageKey,
+        'consecutivePasses': _gameState.consecutivePasses,
       };
       final result = await _runner.search(
         AiSearchRequest(id: requestId, params: params),
@@ -521,8 +605,9 @@ class CaptureGameProvider extends ChangeNotifier {
 
       if (bestMove != null && !result.hasError) {
         _undoStack.add(_gameState);
-        final newState =
-            GoEngine.placeStone(_gameState, bestMove.row, bestMove.col);
+        final newState = bestMove == territoryPassMove
+            ? GoEngine.passTurn(_gameState)
+            : GoEngine.placeStone(_gameState, bestMove.row, bestMove.col);
         if (newState != null) {
           _gameState = newState;
           _moveLog.add([bestMove.row, bestMove.col]);
@@ -548,6 +633,18 @@ class CaptureGameProvider extends ChangeNotifier {
       !_disposed && _gameGeneration == generation;
 
   void _checkWinCondition() {
+    if (isTerritoryMode) {
+      if (_gameState.consecutivePasses < 2) return;
+      final score = territoryScore;
+      if (score.blackArea > score.whiteArea) {
+        _result = CaptureGameResult.blackWins;
+      } else if (score.whiteArea > score.blackArea) {
+        _result = CaptureGameResult.whiteWins;
+      } else {
+        _result = CaptureGameResult.draw;
+      }
+      return;
+    }
     if (_gameState.capturedByBlack.length >= captureTarget) {
       _result = CaptureGameResult.blackWins;
     } else if (_gameState.capturedByWhite.length >= captureTarget) {
