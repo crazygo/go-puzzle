@@ -7,12 +7,14 @@ import 'package:flutter/foundation.dart' show compute;
 
 import 'ai_search_entry.dart' show runChooseAiMove;
 import 'ai_search_runner.dart';
+import 'territory_onnx_bridge.dart';
 
 /// Creates the native isolate-backed [AiSearchRunner].
 AiSearchRunner createPlatformAiSearchRunner() => _IsolateAiSearchRunner();
 
 class _IsolateAiSearchRunner implements AiSearchRunner {
   final Set<AiSearchRequestId> _cancelled = {};
+  final TerritoryOnnxBridge _territoryOnnxBridge = TerritoryOnnxBridge();
   bool _disposed = false;
 
   @override
@@ -24,6 +26,17 @@ class _IsolateAiSearchRunner implements AiSearchRunner {
       );
     }
     try {
+      if (request.params['gameMode'] == 'territory') {
+        final nativeResult =
+            await _territoryOnnxBridge.pickMove(request.params);
+        if (_cancelled.remove(request.id)) {
+          return AiSearchResult(requestId: request.id);
+        }
+        if (nativeResult?.usedNative == true && nativeResult?.move != null) {
+          return AiSearchResult(
+              requestId: request.id, move: nativeResult!.move);
+        }
+      }
       final move = await compute(runChooseAiMove, request.params);
       // Discard result if the request was cancelled while compute() ran.
       if (_cancelled.remove(request.id)) {

@@ -276,7 +276,8 @@ class CaptureGameProvider extends ChangeNotifier {
         CaptureAiRegistry.create(style: _aiStyle, difficulty: difficulty);
   }
 
-  TerritoryScore get territoryScore => GoEngine.computeTerritoryScore(_gameState);
+  TerritoryScore get territoryScore =>
+      GoEngine.computeTerritoryScore(_gameState);
 
   void newGame() => _startNewGame();
 
@@ -451,9 +452,8 @@ class CaptureGameProvider extends ChangeNotifier {
   Map<StoneColor, double> get winRateEstimate {
     if (isTerritoryMode) {
       final diff = territoryScore.blackArea - territoryScore.whiteArea;
-      final normalized = (diff / (boardSize * boardSize))
-          .clamp(-0.95, 0.95)
-          .toDouble();
+      final normalized =
+          (diff / (boardSize * boardSize)).clamp(-0.95, 0.95).toDouble();
       final blackRate = (0.5 + normalized * 0.45).clamp(0.05, 0.95).toDouble();
       return {
         StoneColor.black: blackRate,
@@ -563,6 +563,8 @@ class CaptureGameProvider extends ChangeNotifier {
     final thinkingStopwatch = Stopwatch()..start();
 
     try {
+      final simBoard =
+          SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
       final params = <String, dynamic>{
         'boardSize': _gameState.boardSize,
         'captureTarget': captureTarget,
@@ -571,10 +573,12 @@ class CaptureGameProvider extends ChangeNotifier {
         'capturedByBlack': _gameState.capturedByBlack.length,
         'capturedByWhite': _gameState.capturedByWhite.length,
         'currentPlayer': _gameState.currentPlayer.index,
-        'aiStyle': isTerritoryMode ? CaptureAiStyle.adaptive.name : _aiStyle.name,
+        'aiStyle':
+            isTerritoryMode ? CaptureAiStyle.adaptive.name : _aiStyle.name,
         'difficulty': difficulty.name,
         'gameMode': gameMode.storageKey,
         'consecutivePasses': _gameState.consecutivePasses,
+        'legalMoves': simBoard.getLegalMoves(),
       };
       final result = await _runner.search(
         AiSearchRequest(id: requestId, params: params),

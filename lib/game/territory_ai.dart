@@ -67,7 +67,8 @@ class TerritoryAiEngine {
     }
 
     if (best.moveIndex == _passIndex) return territoryPassMove;
-    return BoardPosition(best.moveIndex ~/ board.size, best.moveIndex % board.size);
+    return BoardPosition(
+        best.moveIndex ~/ board.size, best.moveIndex % board.size);
   }
 
   _TerritoryCandidate _scoreCandidate(
@@ -81,12 +82,14 @@ class TerritoryAiEngine {
     final col = moveIndex % board.size;
     final analysis = board.analyzeMove(row, col);
     if (!analysis.isLegal) {
-      return const _TerritoryCandidate(moveIndex: _passIndex, score: double.nan);
+      return const _TerritoryCandidate(
+          moveIndex: _passIndex, score: double.nan);
     }
 
     final next = SimBoard.copy(board);
     if (!next.applyMove(row, col)) {
-      return const _TerritoryCandidate(moveIndex: _passIndex, score: double.nan);
+      return const _TerritoryCandidate(
+          moveIndex: _passIndex, score: double.nan);
     }
 
     var score = 0.0;
@@ -205,7 +208,9 @@ class TerritoryAiEngine {
 
   bool _shouldPassRollout(SimBoard board, int rootPlayer) {
     if (board.consecutivePasses > 0) return true;
-    if (board.getLegalMoves().length > math.max(6, board.size ~/ 2)) return false;
+    if (board.getLegalMoves().length > math.max(6, board.size ~/ 2)) {
+      return false;
+    }
     return board.estimateAreaDifference(forPlayer: rootPlayer) >= 0;
   }
 

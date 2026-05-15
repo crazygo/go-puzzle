@@ -5134,10 +5134,12 @@ class _CaptureBoardArea extends StatelessWidget {
         humanColor == StoneColor.black ? blackCaptured : whiteCaptured;
     final aiCapturedHumanCount =
         aiColor == StoneColor.black ? blackCaptured : whiteCaptured;
-    final humanArea =
-        humanColor == StoneColor.black ? territoryScore.blackArea : territoryScore.whiteArea;
-    final aiArea =
-        aiColor == StoneColor.black ? territoryScore.blackArea : territoryScore.whiteArea;
+    final humanArea = humanColor == StoneColor.black
+        ? territoryScore.blackArea
+        : territoryScore.whiteArea;
+    final aiArea = aiColor == StoneColor.black
+        ? territoryScore.blackArea
+        : territoryScore.whiteArea;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -5302,7 +5304,8 @@ class _TerritoryScoreCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = isBlack ? const Color(0xFF2A2A2A) : const Color(0xFFF7F2EA);
+    final background =
+        isBlack ? const Color(0xFF2A2A2A) : const Color(0xFFF7F2EA);
     final textColor = isBlack ? CupertinoColors.white : const Color(0xFF4A3A2A);
     return Align(
       alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
