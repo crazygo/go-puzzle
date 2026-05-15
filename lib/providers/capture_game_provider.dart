@@ -148,8 +148,9 @@ class CaptureGameProvider extends ChangeNotifier {
   static const Duration _defaultMinMoveDelay = Duration(milliseconds: 1280);
   static const Duration _defaultMaxMoveDelay = Duration(milliseconds: 2500);
   // Territory scoring is normalized by board area, then clamped to keep the
-  // UI estimate conservative on unfinished positions. The weight stays below
-  // 0.5 so even a large area edge does not instantly collapse to 0/100.
+  // UI estimate conservative on unfinished positions. 0.45 keeps a large but
+  // not-yet-final area lead near ~93% instead of 100%, while the 5% / 95%
+  // floor and ceiling avoid certainty spikes from noisy midgame estimates.
   static const double _winRateFloor = 0.05;
   static const double _winRateCeiling = 0.95;
   static const double _territoryWinRateWeight = 0.45;
