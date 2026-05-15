@@ -16,6 +16,7 @@ enum BoardSizeOption {
 class SettingsProvider extends ChangeNotifier {
   static const _appThemeKey = 'settings.app_theme';
   static const _developerModeKey = 'settings.developer_mode';
+  static const _showMoveLogKey = 'settings.show_move_log';
 
   AppVisualTheme _appTheme = AppVisualTheme.agarwood;
   BoardSizeOption _boardSize = BoardSizeOption.nine;
@@ -25,6 +26,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _soundEnabled = true;
   bool _hapticEnabled = true;
   bool _developerMode = false;
+  bool _showMoveLog = false;
 
   AppVisualTheme get appTheme => _appTheme;
   BoardSizeOption get boardSize => _boardSize;
@@ -34,6 +36,7 @@ class SettingsProvider extends ChangeNotifier {
   bool get soundEnabled => _soundEnabled;
   bool get hapticEnabled => _hapticEnabled;
   bool get developerMode => _developerMode;
+  bool get showMoveLog => _showMoveLog;
 
   SettingsProvider() {
     _restorePreferences();
@@ -47,12 +50,16 @@ class SettingsProvider extends ChangeNotifier {
       orElse: () => _appTheme,
     );
     final restoredDeveloperMode = prefs.getBool(_developerModeKey) ?? false;
-    if (restoredTheme == _appTheme && restoredDeveloperMode == _developerMode) {
+    final restoredShowMoveLog = prefs.getBool(_showMoveLogKey) ?? false;
+    if (restoredTheme == _appTheme &&
+        restoredDeveloperMode == _developerMode &&
+        restoredShowMoveLog == _showMoveLog) {
       return;
     }
 
     _appTheme = restoredTheme;
     _developerMode = restoredDeveloperMode;
+    _showMoveLog = restoredShowMoveLog;
     notifyListeners();
   }
 
@@ -104,5 +111,15 @@ class SettingsProvider extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_developerModeKey, value);
+  }
+
+  Future<void> setShowMoveLog(bool value) async {
+    if (_showMoveLog == value) return;
+
+    _showMoveLog = value;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showMoveLogKey, value);
   }
 }
