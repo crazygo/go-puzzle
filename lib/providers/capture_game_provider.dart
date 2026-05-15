@@ -148,6 +148,9 @@ void applyCaptureInitialLayout(
 class CaptureGameProvider extends ChangeNotifier {
   static const Duration _defaultMinMoveDelay = Duration(milliseconds: 1280);
   static const Duration _defaultMaxMoveDelay = Duration(milliseconds: 2500);
+  // Territory scoring is normalized by board area, then clamped to keep the
+  // UI estimate conservative on unfinished positions. The weight stays below
+  // 0.5 so even a large area edge does not instantly collapse to 0/100.
   static const double _winRateFloor = 0.05;
   static const double _winRateCeiling = 0.95;
   static const double _territoryWinRateWeight = 0.45;

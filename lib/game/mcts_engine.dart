@@ -264,7 +264,9 @@ class SimBoard {
 
   bool get isTerminal => gameMode == GameMode.capture
       ? capturedByBlack >= captureTarget || capturedByWhite >= captureTarget
-      : consecutivePasses >= 2;
+      : isTerritoryTerminal;
+
+  bool get isTerritoryTerminal => consecutivePasses >= 2;
 
   /// Returns [black], [white], or 0 (no winner yet).
   int get winner {
@@ -273,7 +275,7 @@ class SimBoard {
       if (capturedByWhite >= captureTarget) return white;
       return 0;
     }
-    if (consecutivePasses < 2) return 0;
+    if (!isTerritoryTerminal) return 0;
     final blackArea = areaScore(black);
     final whiteArea = areaScore(white);
     if (blackArea == whiteArea) return 0;
