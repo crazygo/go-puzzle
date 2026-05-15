@@ -7,6 +7,14 @@ import 'mcts_engine.dart';
 
 const BoardPosition territoryPassMove = BoardPosition(-1, -1);
 
+/// Territory-mode move picker.
+///
+/// The engine uses a lightweight weighted heuristic first (area edge, local
+/// influence, rescue pressure, own-atari penalty), then adds a few shallow
+/// stochastic rollouts to separate moves with similar surface scores. The
+/// constants are intentionally tuned to prefer stable area growth over
+/// capture-race greed so the territory player punishes the existing capture AI
+/// families under territory rules without needing a full neural network path.
 class TerritoryAiEngine {
   static const int _baseSeed = 0x71A0;
   static const int _difficultySeedStride = 977;
@@ -72,8 +80,8 @@ class TerritoryAiEngine {
     final shortlisted = candidates.take(config.candidateLimit).toList();
     var best = shortlisted.first;
     for (final candidate in shortlisted.skip(1)) {
-      final gap = candidate.score - best.score;
-      if (gap > _bestMoveGapThreshold ||
+      final gap = best.score - candidate.score;
+      if (gap <= _bestMoveGapThreshold &&
           _rng.nextDouble() < _secondaryPickChance) {
         best = candidate;
       }
