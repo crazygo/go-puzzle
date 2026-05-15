@@ -3877,6 +3877,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
       transitionDuration: const Duration(milliseconds: 140),
       pageBuilder: (menuContext, _, __) {
         const menuWidth = 178.0;
+        // 7 menu rows + separators after adding territory-mode pass support.
         const menuHeight = 336.0;
         const edgePadding = 12.0;
         final media = MediaQuery.of(menuContext);

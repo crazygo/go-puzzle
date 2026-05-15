@@ -148,6 +148,9 @@ void applyCaptureInitialLayout(
 class CaptureGameProvider extends ChangeNotifier {
   static const Duration _defaultMinMoveDelay = Duration(milliseconds: 1280);
   static const Duration _defaultMaxMoveDelay = Duration(milliseconds: 2500);
+  static const double _winRateFloor = 0.05;
+  static const double _winRateCeiling = 0.95;
+  static const double _territoryWinRateWeight = 0.45;
   // ~2 frames at 60 fps: just long enough for Flutter to render the human
   // stone before the AI starts thinking.
   static const Duration _aiStartRenderDelay = Duration(milliseconds: 32);
@@ -452,9 +455,12 @@ class CaptureGameProvider extends ChangeNotifier {
   Map<StoneColor, double> get winRateEstimate {
     if (isTerritoryMode) {
       final diff = territoryScore.blackArea - territoryScore.whiteArea;
-      final normalized =
-          (diff / (boardSize * boardSize)).clamp(-0.95, 0.95).toDouble();
-      final blackRate = (0.5 + normalized * 0.45).clamp(0.05, 0.95).toDouble();
+      final normalized = (diff / (boardSize * boardSize))
+          .clamp(-_winRateCeiling, _winRateCeiling)
+          .toDouble();
+      final blackRate = (0.5 + normalized * _territoryWinRateWeight)
+          .clamp(_winRateFloor, _winRateCeiling)
+          .toDouble();
       return {
         StoneColor.black: blackRate,
         StoneColor.white: 1 - blackRate,
