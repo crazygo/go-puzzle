@@ -154,6 +154,7 @@ void main() {
       expect(score.blackTerritory, 1);
       expect(score.whiteTerritory, 0);
       expect(score.blackArea, 9);
+      expect(score.whiteArea, 1);
     });
   });
 }

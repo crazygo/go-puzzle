@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_puzzle/game/capture_ai.dart';
 import 'package:go_puzzle/game/difficulty_level.dart';
 import 'package:go_puzzle/game/game_mode.dart';
 import 'package:go_puzzle/game/mcts_engine.dart';
