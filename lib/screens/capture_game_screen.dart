@@ -4327,22 +4327,16 @@ class _MoveLogChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = marked
-        ? palette.primary.withValues(alpha: 0.16)
-        : palette.segmentTrack.withValues(alpha: 0.82);
-    final borderColor = marked
-        ? palette.primary.withValues(alpha: 0.72)
-        : palette.primary.withValues(alpha: 0.16);
-    final textColor = marked
-        ? Color.lerp(palette.primary, CupertinoColors.black, 0.16)!
-        : palette.segmentText;
+    final background = palette.segmentTrack.withValues(alpha: 0.82);
+    final borderColor = palette.primary.withValues(alpha: 0.16);
+    final textColor = palette.segmentText;
 
-    return Container(
+    final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: borderColor, width: marked ? 1.1 : 0.7),
+        border: Border.all(color: borderColor, width: 0.7),
       ),
       child: Text(
         '$moveNumber $coordinate',
@@ -4352,9 +4346,26 @@ class _MoveLogChip extends StatelessWidget {
           fontSize: 12,
           height: 1,
           color: textColor,
-          fontWeight: marked ? FontWeight.w700 : FontWeight.w500,
+          fontWeight: FontWeight.w500,
         ),
       ),
+    );
+
+    if (!marked) return chip;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        chip,
+        const Positioned(
+          top: -5,
+          right: -5,
+          child: Text(
+            '⭐',
+            style: TextStyle(fontSize: 9, height: 1),
+          ),
+        ),
+      ],
     );
   }
 }
