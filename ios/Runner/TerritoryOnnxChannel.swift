@@ -230,6 +230,9 @@ private extension TerritoryOnnxChannel {
       difficultyIndex = 1
     }
 
+    // Reserve the trailing slots so the vector shape stays compatible with the
+    // current small-model export contract (19 global features total) even
+    // though this app-side encoder currently fills only the leading features.
     let global: [Float] = [
       currentPlayer == black ? 1 : 0,
       currentPlayer == white ? 1 : 0,

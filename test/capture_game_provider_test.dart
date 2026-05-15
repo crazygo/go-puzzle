@@ -17,7 +17,7 @@ import 'package:go_puzzle/screens/capture_game_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class _PassAiSearchRunner implements AiSearchRunner {
+class _AlwaysPassAiSearchRunner implements AiSearchRunner {
   @override
   void cancel(AiSearchRequestId requestId) {}
 
@@ -323,7 +323,7 @@ void main() {
         humanColor: StoneColor.black,
         minMoveDelay: Duration.zero,
         maxMoveDelay: Duration.zero,
-        runner: _PassAiSearchRunner(),
+        runner: _AlwaysPassAiSearchRunner(),
       );
 
       expect(await provider.passTurn(), isTrue);
