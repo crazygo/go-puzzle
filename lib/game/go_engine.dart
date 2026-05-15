@@ -1,6 +1,34 @@
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 
+class TerritoryScore {
+  const TerritoryScore({
+    required this.blackArea,
+    required this.whiteArea,
+    required this.blackTerritory,
+    required this.whiteTerritory,
+    required this.blackStones,
+    required this.whiteStones,
+    required this.neutralPoints,
+  });
+
+  final int blackArea;
+  final int whiteArea;
+  final int blackTerritory;
+  final int whiteTerritory;
+  final int blackStones;
+  final int whiteStones;
+  final int neutralPoints;
+
+  int marginFor(StoneColor color) {
+    return switch (color) {
+      StoneColor.black => blackArea - whiteArea,
+      StoneColor.white => whiteArea - blackArea,
+      StoneColor.empty => 0,
+    };
+  }
+}
+
 /// Core Go game engine implementing the rules of Go.
 /// Handles stone placement, group detection, liberty counting, and captures.
 class GoEngine {
@@ -188,6 +216,22 @@ class GoEngine {
       koState: newKoState,
       status: newStatus,
       atariStones: atariStones,
+      consecutivePasses: 0,
+    );
+  }
+
+  /// Passes the turn without changing the board.
+  static GameState? passTurn(GameState state) {
+    if (state.status != GameStatus.playing) return null;
+    final newHistory = List<List<List<StoneColor>>>.from(state.history)
+      ..add(_copyBoard(state.board, state.boardSize));
+    return state.copyWith(
+      currentPlayer: state.currentPlayer.opponent,
+      history: newHistory,
+      koState: null,
+      status: GameStatus.playing,
+      atariStones: _findAtariStones(state.board, state.boardSize),
+      consecutivePasses: state.consecutivePasses + 1,
     );
   }
 
@@ -210,6 +254,75 @@ class GoEngine {
       koState: null,
       status: GameStatus.playing,
       atariStones: atariStones,
+      consecutivePasses: 0,
+    );
+  }
+
+  static TerritoryScore computeTerritoryScore(GameState state) {
+    final board = state.board;
+    final boardSize = state.boardSize;
+    final visited = <BoardPosition>{};
+    var blackStones = 0;
+    var whiteStones = 0;
+    var blackTerritory = 0;
+    var whiteTerritory = 0;
+    var neutralPoints = 0;
+
+    for (var r = 0; r < boardSize; r++) {
+      for (var c = 0; c < boardSize; c++) {
+        final color = board[r][c];
+        if (color == StoneColor.black) {
+          blackStones++;
+          continue;
+        }
+        if (color == StoneColor.white) {
+          whiteStones++;
+          continue;
+        }
+
+        final origin = BoardPosition(r, c);
+        if (visited.contains(origin)) continue;
+        final region = <BoardPosition>{};
+        final borderColors = <StoneColor>{};
+        final queue = <BoardPosition>[origin];
+        visited.add(origin);
+        region.add(origin);
+
+        while (queue.isNotEmpty) {
+          final pos = queue.removeLast();
+          for (final adj in adjacentPositions(pos.row, pos.col, boardSize)) {
+            final adjacentColor = board[adj.row][adj.col];
+            if (adjacentColor == StoneColor.empty) {
+              if (visited.add(adj)) {
+                region.add(adj);
+                queue.add(adj);
+              }
+            } else {
+              borderColors.add(adjacentColor);
+            }
+          }
+        }
+
+        if (borderColors.length == 1) {
+          if (borderColors.contains(StoneColor.black)) {
+            blackTerritory += region.length;
+          } else if (borderColors.contains(StoneColor.white)) {
+            whiteTerritory += region.length;
+          }
+        } else {
+          neutralPoints += region.length;
+        }
+      }
+    }
+
+    return TerritoryScore(
+      blackArea: blackStones + blackTerritory,
+      whiteArea: whiteStones + whiteTerritory,
+      blackTerritory: blackTerritory,
+      whiteTerritory: whiteTerritory,
+      blackStones: blackStones,
+      whiteStones: whiteStones,
+      neutralPoints: neutralPoints,
     );
   }
 
