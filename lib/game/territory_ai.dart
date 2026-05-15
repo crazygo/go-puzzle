@@ -15,6 +15,12 @@ const BoardPosition territoryPassMove = BoardPosition(-1, -1);
 /// constants are intentionally tuned to prefer stable area growth over
 /// capture-race greed so the territory player punishes the existing capture AI
 /// families under territory rules without needing a full neural network path.
+///
+/// In practice the weights are ordered by importance as:
+/// 1) area delta, 2) influence, 3) rescue / self-danger, 4) local tactical
+/// pressure, 5) soft shape bias. They were tuned together so a move that gains
+/// secure area still beats a flashy capture-go-style move unless the tactical
+/// swing is large enough to matter for the final score.
 class TerritoryAiEngine {
   static const int _baseSeed = 0x71A0;
   static const int _difficultySeedStride = 977;
