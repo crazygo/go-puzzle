@@ -62,10 +62,9 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
         ? primaryAgent?.chooseMove(sim)?.position
         : territoryEngine.chooseMove(sim);
     if (move == null) break;
+    if (move == territoryPassMove) break;
     suggestions.add([move.row, move.col]);
-    if (move == territoryPassMove) {
-      sim.applyPass();
-    } else if (!sim.applyMove(move.row, move.col)) {
+    if (!sim.applyMove(move.row, move.col)) {
       break;
     }
     final whiteReply = gameMode == GameMode.capture
@@ -409,11 +408,10 @@ class CaptureGameProvider extends ChangeNotifier {
           ? territoryEngine.chooseMove(sim)
           : _activeAgent.chooseMove(sim)?.position;
       if (move == null) break;
+      if (move == territoryPassMove) break;
       suggestions.add(BoardPosition(move.row, move.col));
 
-      if (move == territoryPassMove) {
-        sim.applyPass();
-      } else if (!sim.applyMove(move.row, move.col)) {
+      if (!sim.applyMove(move.row, move.col)) {
         break;
       }
       final whiteReply = isTerritoryMode
@@ -458,6 +456,7 @@ class CaptureGameProvider extends ChangeNotifier {
   Map<StoneColor, double> get winRateEstimate {
     if (isTerritoryMode) {
       final diff = territoryScore.blackArea - territoryScore.whiteArea;
+      // Formula: blackRate = 0.5 + (areaDiff / boardArea * weight), then clamp.
       final normalized = (diff / (boardSize * boardSize))
           .clamp(-_winRateCeiling, _winRateCeiling)
           .toDouble();
