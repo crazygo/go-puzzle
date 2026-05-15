@@ -4360,9 +4360,12 @@ class _MoveLogChip extends StatelessWidget {
         const Positioned(
           top: -5,
           right: -5,
-          child: Text(
-            '⭐',
-            style: TextStyle(fontSize: 9, height: 1),
+          child: Semantics(
+            label: '已打标',
+            child: Text(
+              '⭐',
+              style: TextStyle(fontSize: 9, height: 1),
+            ),
           ),
         ),
       ],
