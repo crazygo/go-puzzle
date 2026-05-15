@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "image": {
+    "fileName": "de373423ef1e24dd28e7556fbe568e36.png",
+    "width": 1290,
+    "height": 2796
+  },
+  "boardSize": 9,
+  "corners": {
+    "topLeft": {
+      "x": 141,
+      "y": 769
+    },
+    "topRight": {
+      "x": 1153,
+      "y": 766
+    },
+    "bottomRight": {
+      "x": 1156,
+      "y": 1788
+    },
+    "bottomLeft": {
+      "x": 140,
+      "y": 1784
+    }
+  },
+  "stones": [
+    {
+      "color": "W",
+      "coord": "C9",
+      "row": 0,
+      "col": 2
+    },
+    {
+      "color": "W",
+      "coord": "E9",
+      "row": 0,
+      "col": 4
+    },
+    {
+      "color": "W",
+      "coord": "C8",
+      "row": 1,
+      "col": 2
+    },
+    {
+      "color": "W",
+      "coord": "F8",
+      "row": 1,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "B7",
+      "row": 2,
+      "col": 1
+    },
+    {
+      "color": "W",
+      "coord": "C7",
+      "row": 2,
+      "col": 2
+    },
+    {
+      "color": "W",
+      "coord": "E7",
+      "row": 2,
+      "col": 4
+    },
+    {
+      "color": "W",
+      "coord": "G7",
+      "row": 2,
+      "col": 6
+    },
+    {
+      "color": "B",
+      "coord": "B6",
+      "row": 3,
+      "col": 1
+    },
+    {
+      "color": "B",
+      "coord": "C6",
+      "row": 3,
+      "col": 2
+    },
+    {
+      "color": "W",
+      "coord": "D6",
+      "row": 3,
+      "col": 3
+    },
+    {
+      "color": "W",
+      "coord": "E6",
+      "row": 3,
+      "col": 4
+    },
+    {
+      "color": "W",
+      "coord": "F6",
+      "row": 3,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "C5",
+      "row": 4,
+      "col": 2
+    },
+    {
+      "color": "B",
+      "coord": "D5",
+      "row": 4,
+      "col": 3
+    },
+    {
+      "color": "W",
+      "coord": "E5",
+      "row": 4,
+      "col": 4
+    },
+    {
+      "color": "B",
+      "coord": "F5",
+      "row": 4,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "G5",
+      "row": 4,
+      "col": 6
+    },
+    {
+      "color": "B",
+      "coord": "C4",
+      "row": 5,
+      "col": 2
+    },
+    {
+      "color": "W",
+      "coord": "D4",
+      "row": 5,
+      "col": 3
+    },
+    {
+      "color": "W",
+      "coord": "F4",
+      "row": 5,
+      "col": 5
+    },
+    {
+      "color": "W",
+      "coord": "E3",
+      "row": 6,
+      "col": 4
+    }
+  ]
+}

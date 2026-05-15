@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../game/board_image_recognizer.dart';
+import '../game/model_board_image_recognizer.dart';
 import '../game/capture_ai.dart';
 import '../game/ai_rank_level.dart';
 import '../game/go_engine.dart';
@@ -420,6 +421,11 @@ Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
         .map((row) => row.map((stone) => stone.index).toList())
         .toList(),
   };
+}
+
+enum _ModelLoadDecision {
+  ready,
+  useRules,
 }
 
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
@@ -1199,6 +1205,17 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }
 
   Future<void> _importBoardFromScreenshot() async {
+    var algorithm =
+        context.read<SettingsProvider?>()?.screenshotRecognitionAlgorithm ??
+            ScreenshotRecognitionAlgorithm.rules;
+    if (algorithm == ScreenshotRecognitionAlgorithm.model) {
+      final decision = await _showModelLoadingDialog();
+      if (!mounted || decision == null) return;
+      if (decision == _ModelLoadDecision.useRules) {
+        algorithm = ScreenshotRecognitionAlgorithm.rules;
+      }
+    }
+
     try {
       final picker = ImagePicker();
       final file = await picker.pickImage(
@@ -1215,7 +1232,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       setState(() {
         _isRecognizingScreenshot = true;
       });
-      final result = await _recognizeBoard(bytes);
+      final result = await _recognizeBoard(bytes, algorithm: algorithm);
       if (!mounted) return;
 
       final edited = await Navigator.of(context).push<_ImportBoardDraft>(
@@ -1265,7 +1282,24 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     }
   }
 
-  Future<BoardRecognitionResult> _recognizeBoard(Uint8List bytes) async {
+  Future<_ModelLoadDecision?> _showModelLoadingDialog() {
+    return showCupertinoDialog<_ModelLoadDecision>(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) => _ModelRecognitionLoadingDialog(
+        loadModel: ModelBoardImageRecognizer.instance.ensureLoaded,
+        reloadModel: ModelBoardImageRecognizer.instance.reload,
+      ),
+    );
+  }
+
+  Future<BoardRecognitionResult> _recognizeBoard(
+    Uint8List bytes, {
+    required ScreenshotRecognitionAlgorithm algorithm,
+  }) async {
+    if (algorithm == ScreenshotRecognitionAlgorithm.model) {
+      return ModelBoardImageRecognizer.instance.recognize(bytes);
+    }
     final raw = await compute(_recognizeBoardInIsolate, bytes);
     final board = (raw['board'] as List)
         .map<List<StoneColor>>(
@@ -3522,6 +3556,155 @@ class _ImportBoardDraft {
 
   final int boardSize;
   final List<List<StoneColor>> board;
+}
+
+class _ModelRecognitionLoadingDialog extends StatefulWidget {
+  const _ModelRecognitionLoadingDialog({
+    required this.loadModel,
+    required this.reloadModel,
+  });
+
+  final Future<void> Function() loadModel;
+  final Future<void> Function() reloadModel;
+
+  @override
+  State<_ModelRecognitionLoadingDialog> createState() =>
+      _ModelRecognitionLoadingDialogState();
+}
+
+class _ModelRecognitionLoadingDialogState
+    extends State<_ModelRecognitionLoadingDialog> {
+  bool _isLoading = true;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load(firstAttempt: true);
+  }
+
+  Future<void> _load({required bool firstAttempt}) async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      if (firstAttempt) {
+        await widget.loadModel();
+      } else {
+        await widget.reloadModel();
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop(_ModelLoadDecision.ready);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = error;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final titleColor = CupertinoColors.label.resolveFrom(context);
+    final subtitleColor = CupertinoColors.secondaryLabel.resolveFrom(context);
+    return Center(
+      child: CupertinoPopupSurface(
+        isSurfacePainted: true,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: CupertinoButton(
+                    minimumSize: const Size.square(28),
+                    padding: EdgeInsets.zero,
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Icon(
+                      CupertinoIcons.xmark_circle_fill,
+                      color: CupertinoColors.tertiaryLabel.resolveFrom(context),
+                      size: 24,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Center(
+                  child: _isLoading
+                      ? const CupertinoActivityIndicator(radius: 13)
+                      : Icon(
+                          CupertinoIcons.exclamationmark_triangle,
+                          color: palette.primary,
+                          size: 28,
+                        ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  _isLoading ? '正在載入模型' : '模型載入失敗',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: titleColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _isLoading
+                      ? (kIsWeb
+                          ? '正在從 GitHub Release 下載識別模型，速度取決於網路。'
+                          : '正在從 App 內置資源載入識別模型。')
+                      : '可以重試載入模型，或先使用原本的算法方式匯入。',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: subtitleColor,
+                    fontSize: 13,
+                    height: 1.3,
+                  ),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _error.toString(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: CupertinoColors.tertiaryLabel.resolveFrom(context),
+                      fontSize: 11,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
+                if (!_isLoading) ...[
+                  const SizedBox(height: 16),
+                  CupertinoButton.filled(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    onPressed: () => _load(firstAttempt: false),
+                    child: const Text('重試'),
+                  ),
+                  const SizedBox(height: 8),
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    onPressed: () =>
+                        Navigator.of(context).pop(_ModelLoadDecision.useRules),
+                    child: const Text('使用算法方式'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ImportPreviewScreen extends StatefulWidget {

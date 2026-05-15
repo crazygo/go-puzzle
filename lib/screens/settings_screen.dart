@@ -160,7 +160,11 @@ class SettingsScreen extends StatelessWidget {
               value: settings.developerMode,
               onChanged: settings.setDeveloperMode,
             ),
-            if (settings.developerMode)
+            if (settings.developerMode) ...[
+              _RecognitionAlgorithmSegmentedRow(
+                value: settings.screenshotRecognitionAlgorithm,
+                onChanged: settings.setScreenshotRecognitionAlgorithm,
+              ),
               _TapRow(
                 title: '3D 棋盤除錯參數',
                 subtitle: '開啟獨立棋盤除錯畫面',
@@ -172,6 +176,7 @@ class SettingsScreen extends StatelessWidget {
                   );
                 },
               ),
+            ],
           ],
         );
       },
@@ -390,6 +395,69 @@ class _ThemeSegmentedRow extends StatelessWidget {
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: value == theme
+                              ? palette.segmentSelectedText
+                              : palette.segmentText,
+                        ),
+                      ),
+                    ),
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecognitionAlgorithmSegmentedRow extends StatelessWidget {
+  const _RecognitionAlgorithmSegmentedRow({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final ScreenshotRecognitionAlgorithm value;
+  final ValueChanged<ScreenshotRecognitionAlgorithm> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    return Padding(
+      padding: _settingsRowPadding,
+      child: SizedBox(
+        height: _settingsSingleLineContentHeight,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _SettingsLabel(title: '截圖識別'),
+              ),
+            ),
+            SizedBox(
+              width: 184,
+              child: CupertinoSlidingSegmentedControl<
+                  ScreenshotRecognitionAlgorithm>(
+                groupValue: value,
+                backgroundColor: palette.segmentTrack,
+                thumbColor: palette.segmentSelected,
+                onValueChanged: (algorithm) {
+                  if (algorithm != null) onChanged(algorithm);
+                },
+                children: {
+                  for (final algorithm in ScreenshotRecognitionAlgorithm.values)
+                    algorithm: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      child: Text(
+                        algorithm.label,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: value == algorithm
                               ? palette.segmentSelectedText
                               : palette.segmentText,
                         ),

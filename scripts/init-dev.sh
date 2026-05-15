@@ -14,6 +14,7 @@ set -euo pipefail
 #   FLUTTER_VERSION=3.41.7
 #   FLUTTER_DIST_URL=https://.../flutter_linux_3.41.7-stable.tar.xz
 #   FLUTTER_ARCHIVE_LOCAL=/path/to/flutter_linux_*.tar.xz
+#   INIT_DEV_SKIP_RECOGNITION_MODELS=1
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOOLS_DIR="${HOME}/.local/tools"
@@ -137,12 +138,22 @@ warmup() {
   flutter precache --linux
 }
 
+ensure_recognition_models() {
+  if [[ "${INIT_DEV_SKIP_RECOGNITION_MODELS:-0}" == "1" ]]; then
+    log "Skipping recognition model download (INIT_DEV_SKIP_RECOGNITION_MODELS=1)."
+    return 0
+  fi
+
+  bash "${ROOT_DIR}/scripts/download-recognition-models.sh"
+}
+
 run_checks() {
   cd "${ROOT_DIR}"
   flutter --version
   dart --version
 
   flutter pub get
+  ensure_recognition_models
 
   if [[ "${INIT_DEV_SKIP_NPM:-0}" == "1" ]]; then
     log "Skipping repo-local Node tooling install (INIT_DEV_SKIP_NPM=1)."

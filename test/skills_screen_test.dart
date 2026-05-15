@@ -78,7 +78,7 @@ void main() {
     await pumpTacticsList(tester);
 
     expect(find.text('謎題'), findsWidgets);
-    expect(find.text('AI 測試題集'), findsOneWidget);
+    expect(find.text('AI 測試題集'), findsNothing);
     expect(find.text('全部 2'), findsOneWidget);
     expect(find.text('棋形生死 1'), findsOneWidget);
     expect(find.text('gf-9-001'), findsOneWidget);

@@ -12,6 +12,12 @@
 @import flutter_angle;
 #endif
 
+#if __has_include(<flutter_onnxruntime/FlutterOnnxruntimePlugin.h>)
+#import <flutter_onnxruntime/FlutterOnnxruntimePlugin.h>
+#else
+@import flutter_onnxruntime;
+#endif
+
 #if __has_include(<image_picker_ios/FLTImagePickerPlugin.h>)
 #import <image_picker_ios/FLTImagePickerPlugin.h>
 #else
@@ -46,6 +52,7 @@
 
 + (void)registerWithRegistry:(NSObject<FlutterPluginRegistry>*)registry {
   [FlutterAnglePlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterAnglePlugin"]];
+  [FlutterOnnxruntimePlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterOnnxruntimePlugin"]];
   [FLTImagePickerPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTImagePickerPlugin"]];
   [FPPPackageInfoPlusPlugin registerWithRegistrar:[registry registrarForPlugin:@"FPPPackageInfoPlusPlugin"]];
   [SharedPreferencesPlugin registerWithRegistrar:[registry registrarForPlugin:@"SharedPreferencesPlugin"]];

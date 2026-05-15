@@ -73,5 +73,9 @@ node_modules/
 # Web Worker compiled output (built from web/ai_search_worker.dart at build time)
 web/ai_search_worker.dart.js
 
+# Runtime recognition models are downloaded from GitHub Releases during dev
+# bootstrap and must not be committed to git.
+assets/models/recognition/*.onnx
+
 # Git worktrees
 .worktree/

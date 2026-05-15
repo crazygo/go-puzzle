@@ -2,7 +2,7 @@ name: go_puzzle
 description: Baduk Puzzle - 放鬆動腦的圍棋小挑戰。
 publish_to: "none"
 
-version: 1.1.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -26,6 +26,8 @@ dependencies:
   three_js: ^0.2.7
   url_launcher: ^6.3.2
   package_info_plus: ^10.1.0
+  flutter_onnxruntime: ^1.7.0
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
