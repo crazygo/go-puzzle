@@ -8,10 +8,22 @@ import 'mcts_engine.dart';
 const BoardPosition territoryPassMove = BoardPosition(-1, -1);
 
 class TerritoryAiEngine {
+  static const int _baseSeed = 0x71A0;
+  static const int _difficultySeedStride = 977;
+  static const double _bestMoveGapThreshold = 0.35;
+  static const double _secondaryPickChance = 0.08;
+  static const double _areaWeight = 12.0;
+  static const double _influenceWeight = 4.6;
+  static const double _rescueWeight = 5.0;
+  static const double _opponentAtariWeight = 2.4;
+  static const double _libertyWeight = 0.8;
+  static const double _ownAtariPenalty = 5.2;
+
   TerritoryAiEngine({
     required this.difficulty,
     int? seed,
-  }) : _rng = math.Random(seed ?? 0x71A0 + difficulty.index * 977);
+  }) : _rng = math.Random(
+            seed ?? _baseSeed + difficulty.index * _difficultySeedStride);
 
   final DifficultyLevel difficulty;
   final math.Random _rng;
@@ -61,7 +73,8 @@ class TerritoryAiEngine {
     var best = shortlisted.first;
     for (final candidate in shortlisted.skip(1)) {
       final gap = candidate.score - best.score;
-      if (gap > 0.35 || _rng.nextDouble() < 0.08) {
+      if (gap > _bestMoveGapThreshold ||
+          _rng.nextDouble() < _secondaryPickChance) {
         best = candidate;
       }
     }
@@ -93,12 +106,13 @@ class TerritoryAiEngine {
     }
 
     var score = 0.0;
-    score += next.estimateAreaDifference(forPlayer: rootPlayer) * 12.0;
-    score += next.estimateTerritoryInfluence(forPlayer: rootPlayer) * 4.6;
-    score += analysis.ownRescuedStones * 5.0;
-    score += analysis.opponentAtariStones * 2.4;
-    score += analysis.libertiesAfterMove * 0.8;
-    score -= analysis.ownAtariStones * 5.2;
+    score += next.estimateAreaDifference(forPlayer: rootPlayer) * _areaWeight;
+    score += next.estimateTerritoryInfluence(forPlayer: rootPlayer) *
+        _influenceWeight;
+    score += analysis.ownRescuedStones * _rescueWeight;
+    score += analysis.opponentAtariStones * _opponentAtariWeight;
+    score += analysis.libertiesAfterMove * _libertyWeight;
+    score -= analysis.ownAtariStones * _ownAtariPenalty;
     score += _shapeBonus(next, moveIndex);
     score += _policyBonus(moveIndex, policyPrior);
 
