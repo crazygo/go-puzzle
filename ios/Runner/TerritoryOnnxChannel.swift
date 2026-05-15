@@ -237,15 +237,17 @@ private extension TerritoryOnnxChannel {
     // 5: difficulty tier hint (beginner/intermediate/advanced -> 0/0.5/1)
     // 6-18: reserved zeros so the vector shape stays compatible with the
     // current small-model export contract (19 global features total).
-    let global: [Float] = [
+    let globalFeatureCount = 19
+    let populatedGlobalFeatures: [Float] = [
       currentPlayer == black ? 1 : 0,
       currentPlayer == white ? 1 : 0,
       capturedByBlack / 16.0,
       capturedByWhite / 16.0,
       passCount / 2.0,
-      difficultyIndex / 2.0,
-      1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      difficultyIndex / 2.0
     ]
+    let paddingCount = max(0, globalFeatureCount - populatedGlobalFeatures.count)
+    let global = populatedGlobalFeatures + Array(repeating: Float(0), count: paddingCount)
 
     let spatialData = NSMutableData(
       bytes: spatial,
@@ -265,7 +267,7 @@ private extension TerritoryOnnxChannel {
       global: try ORTValue(
         tensorData: globalData,
         elementType: .float,
-        shape: [1, NSNumber(value: 19)]
+        shape: [1, NSNumber(value: globalFeatureCount)]
       )
     )
   }
