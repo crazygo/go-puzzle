@@ -3720,7 +3720,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
           final palette = settings?.appTheme.palette ?? context.appPalette;
 
           // Review mode: show historical state instead of live game state.
-          final inReview = _reviewMoveIndex != null;
+          // Both fields are set together so this combined check is always safe.
+          final inReview = _reviewMoveIndex != null && _reviewStates != null;
           final displayState = inReview
               ? _reviewStates![_reviewMoveIndex!]
               : provider.gameState;
@@ -4136,7 +4137,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   }
 
   void _enterReviewMode(int moveNumber, CaptureGameProvider provider) {
-    final states = _buildReviewStates(provider);
+    // Reuse already-computed states when navigating between chips so we only
+    // replay the full move log once per review session (not on every tap).
+    final states = _reviewStates ?? _buildReviewStates(provider);
     final clampedIndex = moveNumber.clamp(0, states.length - 1);
     setState(() {
       _reviewStates = states;
