@@ -34,4 +34,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/textures/
+    - assets/models/
     - docs/ai_eval/tactics/problems.json

@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/ai_rank_level.dart';
+import 'package:go_puzzle/game/ai_search_runner.dart';
 import 'package:go_puzzle/game/capture_ai.dart';
+import 'package:go_puzzle/game/game_mode.dart';
 import 'package:go_puzzle/game/go_engine.dart';
 import 'package:go_puzzle/game/mcts_engine.dart';
 import 'package:go_puzzle/models/board_position.dart';
@@ -13,6 +15,19 @@ import 'package:go_puzzle/providers/settings_provider.dart';
 import 'package:go_puzzle/screens/capture_game_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _PassAiSearchRunner implements AiSearchRunner {
+  @override
+  void cancel(AiSearchRequestId requestId) {}
+
+  @override
+  void dispose() {}
+
+  @override
+  Future<AiSearchResult> search(AiSearchRequest request) async {
+    return AiSearchResult(requestId: request.id, move: const [-1, -1]);
+  }
+}
 
 void main() {
   setUp(() {
@@ -288,6 +303,49 @@ void main() {
       expect(provider.moveLog.length, equals(initialMoveCount + 2));
       expect(provider.isAiThinking, isFalse);
     });
+
+    test('territory mode ends after two passes and records area scoring',
+        () async {
+      final board = List.generate(9, (_) => List.filled(9, StoneColor.empty));
+      board[0][0] = StoneColor.black;
+      board[0][1] = StoneColor.black;
+      board[1][0] = StoneColor.black;
+      board[1][1] = StoneColor.black;
+
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        gameMode: GameMode.territory,
+        initialMode: CaptureInitialMode.empty,
+        initialBoardOverride: board,
+        humanColor: StoneColor.black,
+        minMoveDelay: Duration.zero,
+        maxMoveDelay: Duration.zero,
+        runner: _PassAiSearchRunner(),
+      );
+
+      expect(await provider.passTurn(), isTrue);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(provider.result, isNot(CaptureGameResult.none));
+      expect(provider.result, CaptureGameResult.blackWins);
+      expect(provider.territoryScore.blackArea,
+          greaterThan(provider.territoryScore.whiteArea));
+    });
+
+    test('territory mode ignores AI style switches', () {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        gameMode: GameMode.territory,
+        minMoveDelay: Duration.zero,
+      );
+
+      expect(provider.aiStyle, CaptureAiStyle.adaptive);
+      provider.setAiStyle(CaptureAiStyle.counter);
+      expect(provider.aiStyle, CaptureAiStyle.adaptive);
+    });
   });
 
   group('SimBoard', () {
@@ -349,6 +407,7 @@ void main() {
             child: const CaptureGamePlayScreen(
               aiRank: AiRankLevel.min,
               captureTarget: 5,
+              gameMode: GameMode.capture,
             ),
           ),
         ),
@@ -361,7 +420,8 @@ void main() {
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      expect(find.text('AI 风格：${CaptureAiStyle.adaptive.label}'), findsOneWidget);
+      expect(
+          find.text('AI 风格：${CaptureAiStyle.adaptive.label}'), findsOneWidget);
       expect(find.text('吃子预警：开'), findsOneWidget);
 
       await tester.tap(find.text('AI 风格：${CaptureAiStyle.adaptive.label}'));
@@ -394,6 +454,7 @@ void main() {
             child: const CaptureGamePlayScreen(
               aiRank: AiRankLevel.min,
               captureTarget: 5,
+              gameMode: GameMode.capture,
               initialMode: CaptureInitialMode.setup,
             ),
           ),

@@ -105,6 +105,24 @@ void main() {
     expect(find.text('围空 · 9 路 · 十字'), findsOneWidget);
     expect(find.text('吃 5 子取胜 · 9 路 · 十字'), findsNothing);
   });
+
+  testWidgets('territory mode disables AI style selection in setup',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'capture_setup.play_mode': 'territory',
+    });
+
+    await tester.pumpWidget(const GoPuzzleApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('调整 ›'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('围空模式固定使用围空引擎，风格选项不生效；仅难度生效。'), findsOneWidget);
+    expect(find.text('选择 AI 风格'), findsNothing);
+  });
   testWidgets('difficulty mode segment control updates on tap', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());
     await tester.pump();
