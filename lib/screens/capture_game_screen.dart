@@ -4111,6 +4111,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                                 onHide: () => setState(() {
                                   _moveLogVisible = false;
                                   _reviewMoveIndex = null;
+                                  _reviewStates = null;
                                 }),
                               )
                             : const SizedBox(height: 45),
@@ -4533,6 +4534,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
     showCupertinoDialog<void>(
       context: context,
       builder: (ctx) => CupertinoAlertDialog(
+        title: const Text('复盘模式'),
         content: const Text('请使用「分叉」从此处开始游戏'),
         actions: [
           CupertinoDialogAction(
