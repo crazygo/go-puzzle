@@ -51,7 +51,8 @@ class SimBoard {
   int consecutivePasses;
   int _koIndex; // flat index of the forbidden ko point, -1 if none
 
-  SimBoard(this.size, {this.captureTarget = 5, this.gameMode = GameMode.capture})
+  SimBoard(this.size,
+      {this.captureTarget = 5, this.gameMode = GameMode.capture})
       : cells = List.filled(size * size, 0),
         capturedByBlack = 0,
         capturedByWhite = 0,
@@ -261,10 +262,9 @@ class SimBoard {
     );
   }
 
-  bool get isTerminal =>
-      gameMode == GameMode.capture
-          ? capturedByBlack >= captureTarget || capturedByWhite >= captureTarget
-          : consecutivePasses >= 2;
+  bool get isTerminal => gameMode == GameMode.capture
+      ? capturedByBlack >= captureTarget || capturedByWhite >= captureTarget
+      : consecutivePasses >= 2;
 
   /// Returns [black], [white], or 0 (no winner yet).
   int get winner {

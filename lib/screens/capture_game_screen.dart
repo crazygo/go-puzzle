@@ -4085,17 +4085,17 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-                        child: _CaptureBoardArea(
+                      child: _CaptureBoardArea(
                         gameMode: widget.gameMode,
-                          gameState: provider.gameState,
-                          enabled: !aiThinking && !isFinished,
-                          hintMarks: _hintMarks,
-                          showCaptureWarning: showCaptureWarning,
-                          captureTarget: widget.captureTarget,
-                          blackCaptured: blackCaptured,
-                          whiteCaptured: whiteCaptured,
-                          territoryScore: territoryScore,
-                          humanColor: widget.humanColor,
+                        gameState: provider.gameState,
+                        enabled: !aiThinking && !isFinished,
+                        hintMarks: _hintMarks,
+                        showCaptureWarning: showCaptureWarning,
+                        captureTarget: widget.captureTarget,
+                        blackCaptured: blackCaptured,
+                        whiteCaptured: whiteCaptured,
+                        territoryScore: territoryScore,
+                        humanColor: widget.humanColor,
                         onTap: (row, col) => _handleBoardTap(
                           provider: provider,
                           row: row,
@@ -4404,10 +4404,12 @@ class _CaptureBoardArea extends StatelessWidget {
         humanColor == StoneColor.black ? blackCaptured : whiteCaptured;
     final aiCapturedHumanCount =
         aiColor == StoneColor.black ? blackCaptured : whiteCaptured;
-    final humanArea =
-        humanColor == StoneColor.black ? territoryScore.blackArea : territoryScore.whiteArea;
-    final aiArea =
-        aiColor == StoneColor.black ? territoryScore.blackArea : territoryScore.whiteArea;
+    final humanArea = humanColor == StoneColor.black
+        ? territoryScore.blackArea
+        : territoryScore.whiteArea;
+    final aiArea = aiColor == StoneColor.black
+        ? territoryScore.blackArea
+        : territoryScore.whiteArea;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -4568,7 +4570,8 @@ class _TerritoryScoreCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = isBlack ? const Color(0xFF2A2A2A) : const Color(0xFFF7F2EA);
+    final background =
+        isBlack ? const Color(0xFF2A2A2A) : const Color(0xFFF7F2EA);
     final textColor = isBlack ? CupertinoColors.white : const Color(0xFF4A3A2A);
     return Align(
       alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,

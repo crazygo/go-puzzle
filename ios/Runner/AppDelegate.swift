@@ -41,6 +41,7 @@ import UIKit
         }
         result(path)
       }
+      TerritoryOnnxChannel.register(with: controller.binaryMessenger)
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
