@@ -258,6 +258,9 @@ class _HybridCaptureAiAgent implements CaptureAiAgent {
     final whiteSpacingFallback =
         _mctsAgent._chooseAdvancedWhiteSpacingFallback(board);
     if (whiteSpacingFallback != null) return whiteSpacingFallback;
+    final twistBlackFallback =
+        _mctsAgent._chooseAdvancedTwistBlackFallback(board);
+    if (twistBlackFallback != null) return twistBlackFallback;
 
     final heuristicMove = _heuristicAgent.chooseMove(board);
     final mctsMove = _mctsAgent.chooseMove(board);
@@ -390,6 +393,8 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     if (largeBoardFallback != null) return largeBoardFallback;
     final whiteSpacingFallback = _chooseAdvancedWhiteSpacingFallback(board);
     if (whiteSpacingFallback != null) return whiteSpacingFallback;
+    final twistBlackFallback = _chooseAdvancedTwistBlackFallback(board);
+    if (twistBlackFallback != null) return twistBlackFallback;
 
     final urgentMove = _chooseUrgentMove(board);
     if (urgentMove != null && _isImmediateTargetWin(board, urgentMove)) {
@@ -560,6 +565,19 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
         DifficultyLevel.beginner,
       ),
     ).chooseMove(board);
+  }
+
+  CaptureAiMove? _chooseAdvancedTwistBlackFallback(SimBoard board) {
+    if (_config.difficulty != DifficultyLevel.advanced) return null;
+    if (board.size != 9 || board.isTerminal) return null;
+    if (board.currentPlayer != SimBoard.black) return null;
+    if (board.capturedByBlack > 0) return null;
+    if (!_hasTwistOpeningAnchors(board)) return null;
+    return CaptureAiRegistry.create(
+      style: style,
+      difficulty: DifficultyLevel.intermediate,
+      seed: _config.seed,
+    ).chooseMove(SimBoard.copy(board));
   }
 
   CaptureAiMove? _chooseAdvancedWhiteSpacingFallback(SimBoard board) {
@@ -1551,6 +1569,41 @@ double _largeBoardEdgeRiskPenalty(
   );
   final edgeBand = math.max(0, 3 - edgeDistance);
   return edgeBand * 95.0 + analysis.ownAtariStones * 80.0;
+}
+
+bool _hasTwistOpeningAnchors(SimBoard board) {
+  if (board.size < 7) return false;
+  final center = board.size ~/ 2;
+  const arm = 3;
+  final cardinalAnchors = [
+    board.idx(center - arm, center),
+    board.idx(center + arm, center),
+    board.idx(center, center - arm),
+    board.idx(center, center + arm),
+  ];
+  final diagonalAnchors = [
+    board.idx(center - arm, center - arm),
+    board.idx(center - arm, center + arm),
+    board.idx(center + arm, center - arm),
+    board.idx(center + arm, center + arm),
+  ];
+  return _anchorSetIsOccupied(board, cardinalAnchors) ||
+      _anchorSetIsOccupied(board, diagonalAnchors);
+}
+
+bool _anchorSetIsOccupied(SimBoard board, List<int> anchors) {
+  var black = 0;
+  var white = 0;
+  for (final index in anchors) {
+    if (index < 0 || index >= board.cells.length) return false;
+    switch (board.cells[index]) {
+      case SimBoard.black:
+        black++;
+      case SimBoard.white:
+        white++;
+    }
+  }
+  return black >= 2 && white >= 2;
 }
 
 class _AdvancedTacticalLegalMove {
