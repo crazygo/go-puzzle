@@ -255,6 +255,9 @@ class _HybridCaptureAiAgent implements CaptureAiAgent {
     final largeBoardFallback =
         _mctsAgent._chooseAdvancedLargeBoardHeuristicFallback(board);
     if (largeBoardFallback != null) return largeBoardFallback;
+    final whiteSpacingFallback =
+        _mctsAgent._chooseAdvancedWhiteSpacingFallback(board);
+    if (whiteSpacingFallback != null) return whiteSpacingFallback;
 
     final heuristicMove = _heuristicAgent.chooseMove(board);
     final mctsMove = _mctsAgent.chooseMove(board);
@@ -375,7 +378,7 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
 
   static const int _advancedTacticalDepth = 2;
   static const int _advancedTacticalHorizon = 10;
-  static const int _advancedTacticalMaxNodes = 1600;
+  static const int _advancedTacticalMaxNodes = 1000;
   static const double _advancedTacticalDecisionBonus = 750.0;
   static const double _advancedTacticalDecisionScore = 650.0;
 
@@ -385,9 +388,21 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     final largeBoardFallback =
         _chooseAdvancedLargeBoardHeuristicFallback(board);
     if (largeBoardFallback != null) return largeBoardFallback;
+    final whiteSpacingFallback = _chooseAdvancedWhiteSpacingFallback(board);
+    if (whiteSpacingFallback != null) return whiteSpacingFallback;
 
     final urgentMove = _chooseUrgentMove(board);
     if (urgentMove != null && _isImmediateTargetWin(board, urgentMove)) {
+      return urgentMove;
+    }
+    if (urgentMove != null &&
+        _capturesFor(board, _opponentOf(board.currentPlayer)) >=
+            board.captureTarget - 2 &&
+        !_allowsOpponentTargetWinCached(
+          board,
+          urgentMove,
+          targetWinCache,
+        )) {
       return urgentMove;
     }
 
@@ -545,6 +560,74 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
         DifficultyLevel.beginner,
       ),
     ).chooseMove(board);
+  }
+
+  CaptureAiMove? _chooseAdvancedWhiteSpacingFallback(SimBoard board) {
+    if (_config.difficulty != DifficultyLevel.advanced) return null;
+    if (board.size != 9 || board.isTerminal) return null;
+    if (board.currentPlayer != SimBoard.white) return null;
+    if (board.capturedByWhite >= board.captureTarget - 1) return null;
+
+    for (final moveIndex in board.getLegalMoves()) {
+      final analysis =
+          board.analyzeMove(moveIndex ~/ board.size, moveIndex % board.size);
+      if (!analysis.isLegal) continue;
+      if (_captureDeltaFor(analysis, SimBoard.white) > 0 ||
+          analysis.ownRescuedStones > 0) {
+        return null;
+      }
+    }
+
+    _SpacingCandidate? best;
+    for (var moveIndex = 0; moveIndex < board.cells.length; moveIndex++) {
+      if (board.cells[moveIndex] != SimBoard.empty) continue;
+      final row = moveIndex ~/ board.size;
+      final col = moveIndex % board.size;
+      final analysis = board.analyzeMove(row, col);
+      if (!analysis.isLegal) continue;
+      final next = SimBoard.copy(board);
+      if (!next.applyMove(row, col)) continue;
+      if (_playerCanReachCaptureTarget(next, SimBoard.black)) continue;
+      final blackBestCapture = _bestImmediateCaptureDeltaForPlayer(
+        next,
+        SimBoard.black,
+      );
+      final score = _spacingScore(board, moveIndex) +
+          analysis.libertiesAfterMove * 18.0 -
+          analysis.adjacentOpponentStones * 950.0 -
+          analysis.ownAtariStones * 700.0 -
+          blackBestCapture * 900.0 +
+          _stableMoveTieBreaker(moveIndex);
+      final candidate = _SpacingCandidate(moveIndex, score);
+      if (best == null || candidate.score > best.score) best = candidate;
+    }
+    if (best == null) return null;
+    return CaptureAiMove(
+      position: BoardPosition(
+          best.moveIndex ~/ board.size, best.moveIndex % board.size),
+      score: best.score + 220.0,
+    );
+  }
+
+  double _spacingScore(SimBoard board, int moveIndex) {
+    final row = moveIndex ~/ board.size;
+    final col = moveIndex % board.size;
+    var nearestOpponent = board.size * 2;
+    var nearestOwn = board.size * 2;
+    for (var other = 0; other < board.cells.length; other++) {
+      final color = board.cells[other];
+      if (color == SimBoard.empty) continue;
+      final otherRow = other ~/ board.size;
+      final otherCol = other % board.size;
+      final distance = (row - otherRow).abs() + (col - otherCol).abs();
+      if (color == board.currentPlayer) {
+        nearestOwn = math.min(nearestOwn, distance);
+      } else {
+        nearestOpponent = math.min(nearestOpponent, distance);
+      }
+    }
+    return math.min(nearestOpponent, 6) * 140.0 +
+        math.min(nearestOwn, 4) * 45.0;
   }
 
   CaptureAiMove? _bestAdvancedQuietTacticalMove(
@@ -1481,6 +1564,13 @@ class _AdvancedTacticalSearchStats {
   int nodes = 0;
   int cutoffs = 0;
   bool truncated = false;
+}
+
+class _SpacingCandidate {
+  const _SpacingCandidate(this.moveIndex, this.score);
+
+  final int moveIndex;
+  final double score;
 }
 
 class CaptureAiArenaResult {
