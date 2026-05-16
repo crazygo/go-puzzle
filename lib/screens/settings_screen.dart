@@ -158,8 +158,8 @@ class SettingsScreen extends StatelessWidget {
   Widget _buildDeveloperSection(BuildContext context) {
     return Consumer<SettingsProvider>(
       builder: (context, settings, _) {
-        final logs = context.watch<AppLogStore>();
-        final latest = logs.latest;
+        final logs = context.watch<AppLogStore?>();
+        final latest = logs?.latest;
         return _Section(
           title: '開發者',
           children: [
@@ -217,22 +217,23 @@ class _AppLogScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final logs = context.watch<AppLogStore>();
+    final logs = context.watch<AppLogStore?>();
+    final entries = logs?.entries ?? const <AppLogEntry>[];
     return CupertinoPageScaffold(
       backgroundColor: palette.pageBackground,
       navigationBar: CupertinoNavigationBar(
         middle: const Text('日志'),
-        trailing: logs.entries.isEmpty
+        trailing: entries.isEmpty
             ? null
             : CupertinoButton(
                 padding: EdgeInsets.zero,
                 minimumSize: Size.zero,
-                onPressed: logs.clear,
+                onPressed: logs!.clear,
                 child: const Text('清空'),
               ),
       ),
       child: SafeArea(
-        child: logs.entries.isEmpty
+        child: entries.isEmpty
             ? Center(
                 child: Text(
                   '尚無日志',
@@ -244,10 +245,10 @@ class _AppLogScreen extends StatelessWidget {
               )
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                itemCount: logs.entries.length,
+                itemCount: entries.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
-                  return _LogEntryCard(entry: logs.entries[index]);
+                  return _LogEntryCard(entry: entries[index]);
                 },
               ),
       ),
