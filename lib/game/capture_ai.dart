@@ -255,6 +255,9 @@ class _HybridCaptureAiAgent implements CaptureAiAgent {
     final largeBoardFallback =
         _mctsAgent._chooseAdvancedLargeBoardHeuristicFallback(board);
     if (largeBoardFallback != null) return largeBoardFallback;
+    final twistWhiteFallback =
+        _mctsAgent._chooseAdvancedTwistWhiteFallback(board);
+    if (twistWhiteFallback != null) return twistWhiteFallback;
     final whiteSpacingFallback =
         _mctsAgent._chooseAdvancedWhiteSpacingFallback(board);
     if (whiteSpacingFallback != null) return whiteSpacingFallback;
@@ -391,6 +394,8 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     final largeBoardFallback =
         _chooseAdvancedLargeBoardHeuristicFallback(board);
     if (largeBoardFallback != null) return largeBoardFallback;
+    final twistWhiteFallback = _chooseAdvancedTwistWhiteFallback(board);
+    if (twistWhiteFallback != null) return twistWhiteFallback;
     final whiteSpacingFallback = _chooseAdvancedWhiteSpacingFallback(board);
     if (whiteSpacingFallback != null) return whiteSpacingFallback;
     final twistBlackFallback = _chooseAdvancedTwistBlackFallback(board);
@@ -578,6 +583,84 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
       difficulty: DifficultyLevel.intermediate,
       seed: _config.seed,
     ).chooseMove(SimBoard.copy(board));
+  }
+
+  CaptureAiMove? _chooseAdvancedTwistWhiteFallback(SimBoard board) {
+    if (_config.difficulty != DifficultyLevel.advanced) return null;
+    if (board.size != 9 || board.isTerminal) return null;
+    if (board.currentPlayer != SimBoard.white) return null;
+    if (!_hasTwistOpeningAnchors(board)) return null;
+    if (board.capturedByWhite >= board.captureTarget - 1) return null;
+    if (_isFirstTwistWhiteReplyToEdgeProbe(board)) return null;
+
+    for (final moveIndex in board.getLegalMoves()) {
+      final analysis =
+          board.analyzeMove(moveIndex ~/ board.size, moveIndex % board.size);
+      if (!analysis.isLegal) continue;
+      if (_captureDeltaFor(analysis, SimBoard.white) > 0 ||
+          analysis.ownRescuedStones > 0) {
+        return null;
+      }
+    }
+
+    _SpacingCandidate? best;
+    for (var moveIndex = 0; moveIndex < board.cells.length; moveIndex++) {
+      if (board.cells[moveIndex] != SimBoard.empty) continue;
+      final row = moveIndex ~/ board.size;
+      final col = moveIndex % board.size;
+      final edgeDistance = math.min(
+        math.min(row, col),
+        math.min(board.size - 1 - row, board.size - 1 - col),
+      );
+      if (edgeDistance == 0) continue;
+      final analysis = board.analyzeMove(row, col);
+      if (!analysis.isLegal) continue;
+      final next = SimBoard.copy(board);
+      if (!next.applyMove(row, col)) continue;
+      if (_playerCanReachCaptureTarget(next, SimBoard.black)) continue;
+      final blackBestCapture = _bestImmediateCaptureDeltaForPlayer(
+        next,
+        SimBoard.black,
+      );
+      final center = board.size ~/ 2;
+      final centerDistance = (row - center).abs() + (col - center).abs();
+      final centerScore = math.max(0, board.size - centerDistance);
+      final score = centerScore * 85.0 +
+          analysis.adjacentOpponentStones * 180.0 +
+          analysis.opponentAtariStones * 260.0 +
+          analysis.libertiesAfterMove * 22.0 -
+          analysis.ownAtariStones * 2400.0 -
+          blackBestCapture * 2800.0 +
+          _stableMoveTieBreaker(moveIndex);
+      final candidate = _SpacingCandidate(moveIndex, score);
+      if (best == null || candidate.score > best.score) best = candidate;
+    }
+    if (best == null) return null;
+    return CaptureAiMove(
+      position: BoardPosition(
+          best.moveIndex ~/ board.size, best.moveIndex % board.size),
+      score: best.score + 260.0,
+    );
+  }
+
+  bool _isFirstTwistWhiteReplyToEdgeProbe(SimBoard board) {
+    var occupied = 0;
+    var blackEdgeStones = 0;
+    for (var moveIndex = 0; moveIndex < board.cells.length; moveIndex++) {
+      final cell = board.cells[moveIndex];
+      if (cell == SimBoard.empty) continue;
+      occupied++;
+      if (cell != SimBoard.black) continue;
+      final row = moveIndex ~/ board.size;
+      final col = moveIndex % board.size;
+      if (row == 0 ||
+          col == 0 ||
+          row == board.size - 1 ||
+          col == board.size - 1) {
+        blackEdgeStones++;
+      }
+    }
+    return occupied <= 5 && blackEdgeStones > 0;
   }
 
   CaptureAiMove? _chooseAdvancedWhiteSpacingFallback(SimBoard board) {
