@@ -58,7 +58,7 @@ class GoPuzzleApp extends StatelessWidget {
         selector: (_, settings) => settings.appTheme,
         builder: (context, appTheme, _) {
           final palette = appTheme.palette;
-          final fontFamilyFallback = kIsWeb ? _kWebFontFamilyFallback : null;
+          const fontFamilyFallback = kIsWeb ? _kWebFontFamilyFallback : null;
           TextStyle appTextStyle({
             double? fontSize,
             FontWeight? fontWeight,
@@ -84,7 +84,7 @@ class GoPuzzleApp extends StatelessWidget {
                 ),
                 actionTextStyle: appTextStyle(
                   fontSize: 17,
-                  color: Color(0xFF007AFF),
+                  color: const Color(0xFF007AFF),
                 ),
                 tabLabelTextStyle: appTextStyle(
                   fontSize: 10,
