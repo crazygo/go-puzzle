@@ -1,12 +1,16 @@
 import 'dart:convert';
 
 import '../game/difficulty_level.dart';
+import '../game/game_mode.dart';
 import '../models/board_position.dart';
 
 /// Outcome of a recorded game from the human player's perspective.
 enum GameOutcome {
   /// The game was abandoned before either side won.
   abandoned,
+
+  /// The game ended level after scoring.
+  draw,
 
   /// The human player won.
   humanWins,
@@ -20,6 +24,8 @@ extension GameOutcomeExt on GameOutcome {
     switch (this) {
       case GameOutcome.abandoned:
         return '未完成';
+      case GameOutcome.draw:
+        return '和棋';
       case GameOutcome.humanWins:
         return '玩家勝';
       case GameOutcome.aiWins:
@@ -36,6 +42,7 @@ class GameRecord {
     required this.boardSize,
     required this.captureTarget,
     required this.difficulty,
+    this.gameMode = GameMode.capture,
     required this.humanColorIndex,
     required this.initialMode,
     required this.moves,
@@ -55,6 +62,7 @@ class GameRecord {
 
   final int boardSize;
   final int captureTarget;
+  final GameMode gameMode;
 
   /// DifficultyLevel.name, e.g. "beginner".
   final String difficulty;
@@ -117,6 +125,7 @@ class GameRecord {
         'boardSize': boardSize,
         'captureTarget': captureTarget,
         'difficulty': difficulty,
+        'gameMode': gameMode.storageKey,
         'humanColorIndex': humanColorIndex,
         'initialMode': initialMode,
         'initialBoardCells': initialBoardCells,
@@ -154,6 +163,7 @@ class GameRecord {
       boardSize: (json['boardSize'] as num).toInt(),
       captureTarget: (json['captureTarget'] as num).toInt(),
       difficulty: json['difficulty'] as String,
+      gameMode: GameModeExt.fromStorageKey(json['gameMode'] as String?),
       humanColorIndex: (json['humanColorIndex'] as num).toInt(),
       initialMode: json['initialMode'] as String,
       initialBoardCells: parseBoard(json['initialBoardCells']),
