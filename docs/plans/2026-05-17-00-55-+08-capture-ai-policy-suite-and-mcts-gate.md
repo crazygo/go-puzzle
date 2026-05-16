@@ -18,6 +18,18 @@ The advanced AI also cannot be improved by simply increasing MCTS playouts. The 
 
 The goal is to make AI strength measurable against practical player tactics. If a human can repeatedly beat the AI with a fixed trick, that trick should become a durable, reproducible policy test. Each AI improvement must be tied to a score and commit id so regressions and overfitting can be tracked.
 
+### User Goal Summary
+
+The user goal is:
+
+- Implement actual scripted policy algorithms for every named tactic. Enum names or tactic labels alone do not count as coverage.
+- Optimize the advanced `hunter` AI, including its MCTS/tactical-search decision path, until it wins or draws every scripted policy trial.
+- Run the strength gate on 9x9, 13x13, and 19x19 boards.
+- Test `hunter/advanced` as both black and white.
+- Enforce a hard per-move runtime limit: every `hunter/advanced` move must complete within 5 seconds.
+- Preserve before, middle, and final optimization checkpoints as `commit id + score`, with enough timing and failure detail to compare regressions.
+- Continue the work autonomously after the goal is recorded, while keeping progress measurable through commits and checkpoint rows.
+
 ## Goals
 
 - Build a real policy-driven scripted trial suite, not a name-only enum list.
@@ -61,7 +73,7 @@ The goal is to make AI strength measurable against practical player tactics. If 
 4. Add timing instrumentation to the trial runner.
    - Measure every AI move duration.
    - Store `maxMoveMs`, `p95MoveMs`, `p99MoveMs`, and `slowMovesOver5s` in JSON reports.
-   - Mark a trial as failed if any `hunter/advanced` move exceeds 5 seconds.
+   - Mark a trial as failed if any `hunter/advanced` move exceeds 5 seconds, even if the AI wins the game.
    - Keep scripted policy move timing separate from AI timing.
 
 5. Expand the policy suite gate.
@@ -84,8 +96,9 @@ The goal is to make AI strength measurable against practical player tactics. If 
 
 8. Record intermediate checkpoints.
    - After each meaningful AI change, commit the change and run the policy suite or a named subset.
-   - Append checkpoint rows with commit id plus score and timing.
+   - Append checkpoint rows with `checkpoint id`, `commit id`, `suite id`, `score`, and timing.
    - Use the same report schema so before/mid/after results are comparable.
+   - Store the checkpoint ledger in `docs/ai_eval/scripted_policy_checkpoints.md`.
 
 9. Finalize the gate.
    - Run the full 420-trial suite.
@@ -104,11 +117,12 @@ The goal is to make AI strength measurable against practical player tactics. If 
 - Every `hunter/advanced` move in the full gate completes in 5 seconds or less.
 - JSON reports include per-trial outcome, per-policy outcome, per-board outcome, AI move timing summary, and slow-move details.
 - Checkpoints are recorded before optimization, during optimization, and after final optimization.
-- Each checkpoint includes commit id, suite id, total trials, passed, failed, score, failed policies, failed board sizes, max/p95/p99 move times, slow move count, and report path.
+- Each checkpoint includes checkpoint id, commit id, suite id, total trials, passed, failed, score, failed policies, failed board sizes, max/p95/p99 move times, slow move count, and report path.
+- A checkpoint cannot be labeled final unless the full 420-trial gate passes with score `1.0000` and zero slow AI moves.
 
 ## Validation Commands
 
-- `dart analyze lib/game/capture_ai_scripted_trials.dart tool/capture_ai_scripted_trials_probe.dart test/capture_ai_scripted_trials_test.dart`
+- `dart analyze lib/game/capture_ai.dart lib/game/capture_ai_scripted_trials.dart tool/capture_ai_scripted_trials_probe.dart test/capture_ai_scripted_trials_test.dart`
 - `flutter test test/capture_ai_scripted_trials_test.dart`
 - `dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9,13,19 --ai-side both --max-ai-move-ms 5000 --output build/ai_eval/scripted_policy_gate.json`
 - `flutter test`
