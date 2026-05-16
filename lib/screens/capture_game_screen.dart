@@ -4357,12 +4357,13 @@ class _MoveLogChip extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         chip,
-        const Positioned(
+        Positioned(
           top: -5,
           right: -5,
           child: Semantics(
             label: '已打标',
-            child: Text(
+            excludeSemantics: true,
+            child: const Text(
               '⭐',
               style: TextStyle(fontSize: 9, height: 1),
             ),
