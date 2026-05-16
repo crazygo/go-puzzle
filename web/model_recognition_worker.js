@@ -2,10 +2,8 @@
 
 const ORT_VERSION = '1.22.0';
 const ORT_BASE = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`;
-const BOARD_MODEL_URL =
-  'https://github.com/crazygo/go-puzzle/releases/download/go-recognition-models-v1/go_board_pose_yolov8n.onnx';
-const STONES_MODEL_URL =
-  'https://github.com/crazygo/go-puzzle/releases/download/go-recognition-models-v1/go_stones_yolov8n.onnx';
+const BOARD_MODEL_URL = './recognition_models/go_board_pose_yolov8n.onnx';
+const STONES_MODEL_URL = './recognition_models/go_stones_yolov8n.onnx';
 
 const INPUT_SIZE = 640;
 const BOARD_CONFIDENCE = 0.01;

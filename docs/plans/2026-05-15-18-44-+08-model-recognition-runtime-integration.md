@@ -6,7 +6,7 @@
 
 The project currently has a rule-based screenshot recognizer in Flutter/Dart and a validated YOLO-based experiment pipeline under `tool/yolo/`. The model experiment keeps the current rule recognizer intact and evaluates the model pipeline with `python3 tool/yolo/run_experiment.py eval-full`.
 
-The product has two runtime targets for screenshot import: iOS and Web. There is no server-side inference layer. iOS should load packaged model files from the app bundle. Web should download model binaries from GitHub Release URLs that are checked into the client code.
+The product has two runtime targets for screenshot import: iOS and Web. There is no server-side inference layer. iOS should load packaged model files from the app bundle. Web should load model binaries from same-origin static files prepared during the dev/build bootstrap. The GitHub Release remains the source of the binaries, but browsers should not fetch Release asset URLs directly because those responses do not reliably expose CORS headers.
 
 ### Problem
 
@@ -23,7 +23,7 @@ Adding the model recognizer behind a developer-mode setting lets the app validat
 - Add a dismissible loading dialog for model loading before image selection when model recognition is selected.
 - Let model loading failures recover through either retry or fallback to rule-based recognition.
 - Support iOS model loading from bundled ONNX resources.
-- Support Web model loading from hardcoded GitHub Release model URLs.
+- Support Web model loading from same-origin static model URLs prepared by the bootstrap script.
 - Preserve the existing board text output format used by tests and downstream app logic.
 - Keep the full model evaluation command and thresholds as the accuracy gate for model changes.
 
@@ -33,7 +33,7 @@ Adding the model recognizer behind a developer-mode setting lets the app validat
 2. Introduce a recognition service boundary that keeps the current rule recognizer and adds a model recognizer entry point with platform-specific model loading.
 3. Add model loading state handling to the screenshot import flow. When model mode is selected, show a dismissible loading dialog before opening the image picker.
 4. Implement failure recovery in the loading dialog with retry and fallback-to-rule actions. Closing the dialog should cancel the current import attempt without changing the saved setting.
-5. Add ONNX model resource configuration: iOS loads packaged resources, Web downloads from GitHub Release URLs stored in code.
+5. Add ONNX model resource configuration: iOS loads packaged resources, and Web loads static files copied into `web/recognition_models/` by the model download script.
 6. Convert model inference output into the existing `BoardRecognitionResult` structure and board text format so the preview flow remains unchanged.
 7. Keep `tool/yolo/run_experiment.py eval-full` as the offline model accuracy gate and add focused Flutter tests for settings persistence and UI behavior.
 
@@ -47,7 +47,7 @@ Adding the model recognizer behind a developer-mode setting lets the app validat
 - If model loading fails, the dialog offers retry and fallback-to-rule actions.
 - Fallback-to-rule continues the existing image selection and recognition flow without requiring the user to reopen the import entry.
 - iOS model mode can load ONNX model files from app-packaged resources.
-- Web model mode can load ONNX model files from hardcoded GitHub Release URLs.
+- Web model mode can load ONNX model files from same-origin static URLs in the built Web artifact.
 - Model recognition returns the same board size, board matrix, confidence, and text representation shape as the existing flow.
 - Offline model accuracy remains above the agreed thresholds: points accuracy >= 95%, stones precision >= 95%, stones recall >= 90%, exact samples >= 85%, and board size accuracy >= 95%.
 

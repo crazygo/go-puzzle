@@ -76,6 +76,7 @@ web/ai_search_worker.dart.js
 # Runtime recognition models are downloaded from GitHub Releases during dev
 # bootstrap and must not be committed to git.
 assets/models/recognition/*.onnx
+web/recognition_models/*.onnx
 
 # Git worktrees
 .worktree/

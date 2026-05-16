@@ -450,7 +450,7 @@ stone detect best.pt: about 23M
   simplify=True
 ```
 
-iOS 倾向把 ONNX 资源打进 app bundle；Web 倾向从 GitHub Release URL 下载模型。无论哪种方式，都要保留规则算法作为默认和 fallback，因为模型加载可能失败或变慢。
+iOS 倾向把 ONNX 资源打进 app bundle；Web 使用 `web/recognition_models/` 下的同源静态模型文件。模型二进制仍由脚本从 GitHub Release 下载和校验，但浏览器运行时不要直接读取 GitHub Release URL，因为 Release asset 响应不可靠提供 CORS 头。无论哪种方式，都要保留规则算法作为默认和 fallback，因为模型加载可能失败或变慢。
 
 ## 以后新增样本怎么做
 

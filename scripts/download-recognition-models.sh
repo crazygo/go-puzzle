@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODEL_DIR="${ROOT_DIR}/assets/models/recognition"
+WEB_MODEL_DIR="${ROOT_DIR}/web/recognition_models"
 TAG="${GO_RECOGNITION_MODEL_TAG:-go-recognition-models-v1}"
 BASE_URL="${GO_RECOGNITION_MODEL_BASE_URL:-https://github.com/crazygo/go-puzzle/releases/download/${TAG}}"
 
@@ -67,6 +68,23 @@ ensure_model() {
   mv "${target}.tmp" "${target}"
 }
 
+install_web_model() {
+  local file_name="$1"
+  local source="${MODEL_DIR}/${file_name}"
+  local target="${WEB_MODEL_DIR}/${file_name}"
+
+  mkdir -p "${WEB_MODEL_DIR}"
+  if [[ -f "${target}" ]] && cmp -s "${source}" "${target}"; then
+    log "web/${file_name} already present"
+    return 0
+  fi
+
+  cp "${source}" "${target}"
+  log "Installed web static model: ${target}"
+}
+
 ensure_model "${BOARD_MODEL}" "${BOARD_SHA256}"
 ensure_model "${STONES_MODEL}" "${STONES_SHA256}"
-log "Recognition models are ready in ${MODEL_DIR}"
+install_web_model "${BOARD_MODEL}"
+install_web_model "${STONES_MODEL}"
+log "Recognition models are ready in ${MODEL_DIR} and ${WEB_MODEL_DIR}"
