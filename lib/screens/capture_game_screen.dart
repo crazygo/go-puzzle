@@ -6275,6 +6275,8 @@ class _HistoryRow extends StatelessWidget {
               CupertinoColors.systemGreen.resolveFrom(context),
             GameOutcome.aiWins =>
               CupertinoColors.systemRed.resolveFrom(context),
+            GameOutcome.draw =>
+              CupertinoColors.systemGrey.resolveFrom(context),
             GameOutcome.abandoned =>
               CupertinoColors.systemGrey.resolveFrom(context),
           }
