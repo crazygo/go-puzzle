@@ -15,18 +15,18 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('小闲围棋'), findsOneWidget);
+    expect(find.text('Baduk Puzzle'), findsOneWidget);
     // Motivation text is now rendered by the animated _MotivationHeroTitle
     // widget rather than through PageHeroBanner.subtitle; just verify the
     // banner is present and the rest of the page copy is correct.
     expect(find.byType(PageHeroBanner), findsOneWidget);
-    expect(find.text('下一盘'), findsOneWidget);
-    expect(find.text('吃 5 子取胜 · 9 路 · 十字'), findsOneWidget);
-    // Default AI style is now 'adaptive' (战力优先).
+    expect(find.text('下一盤'), findsOneWidget);
+    expect(find.text('吃 5 子取勝 · 9 路 · 十字'), findsOneWidget);
+    // Default AI style is now 'adaptive' (戰力優先).
     expect(find.text(CaptureAiStyle.adaptive.label), findsOneWidget);
-    expect(find.text('中级 · 9 路 · 吃5子'), findsNothing);
+    expect(find.text('中級 · 9 路 · 吃5子'), findsNothing);
 
-    final startButton = find.widgetWithText(CupertinoButton, '执黑先行');
+    final startButton = find.widgetWithText(CupertinoButton, '執黑先行');
     expect(startButton, findsOneWidget);
   });
 
@@ -42,7 +42,7 @@ void main() {
 
     // Board size should be restored.
     expect(find.text('13 路'), findsNothing);
-    expect(find.text('吃 5 子取胜 · 13 路 · 十字'), findsOneWidget);
+    expect(find.text('吃 5 子取勝 · 13 路 · 十字'), findsOneWidget);
   });
 
   testWidgets('selected play mode is restored after app restart',
@@ -51,11 +51,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(find.text('调整 ›'));
+    await tester.tap(find.text('調整 ›'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    final territoryOption = find.text('围空');
+    final territoryOption = find.text('圍空');
     await tester.dragUntilVisible(
       territoryOption,
       find.byType(Scrollable),
@@ -73,7 +73,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('围空 · 9 路 · 十字'), findsOneWidget);
+    expect(find.text('圍空 · 9 路 · 十字'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
@@ -82,14 +82,14 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('围空 · 9 路 · 十字'), findsOneWidget);
-    expect(find.text('吃 5 子取胜 · 9 路 · 十字'), findsNothing);
+    expect(find.text('圍空 · 9 路 · 十字'), findsOneWidget);
+    expect(find.text('吃 5 子取勝 · 9 路 · 十字'), findsNothing);
 
-    await tester.tap(find.text('调整 ›'));
+    await tester.tap(find.text('調整 ›'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('围空'), findsWidgets);
+    expect(find.text('圍空'), findsWidgets);
   });
 
   testWidgets('capture setup reflects selected play mode in header',
@@ -102,20 +102,20 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('围空 · 9 路 · 十字'), findsOneWidget);
-    expect(find.text('吃 5 子取胜 · 9 路 · 十字'), findsNothing);
+    expect(find.text('圍空 · 9 路 · 十字'), findsOneWidget);
+    expect(find.text('吃 5 子取勝 · 9 路 · 十字'), findsNothing);
   });
   testWidgets('difficulty mode segment control updates on tap', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(find.text('调整 ›'));
+    await tester.tap(find.text('調整 ›'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Default is '不分伯仲'; tap '指定等级' to change it.
-    final manualOption = find.text('指定等级');
+    // Default is '不分伯仲'; tap '指定等級' to change it.
+    final manualOption = find.text('指定等級');
     await tester.dragUntilVisible(
       manualOption,
       find.byType(Scrollable),
@@ -130,7 +130,7 @@ void main() {
       return tester.widget<Text>(find.text(label));
     }
 
-    expect(textWidget('指定等级').style?.color, const Color(0xFF8A5A2B));
+    expect(textWidget('指定等級').style?.color, const Color(0xFF8A5A2B));
     expect(textWidget('不分伯仲').style?.color, const Color(0xFF5A4B3F));
   });
 
@@ -139,7 +139,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    final startButton = find.widgetWithText(CupertinoButton, '执黑先行');
+    final startButton = find.widgetWithText(CupertinoButton, '執黑先行');
     await tester.dragUntilVisible(
       startButton,
       find.byType(Scrollable),
@@ -154,6 +154,6 @@ void main() {
       find.byType(CupertinoNavigationBar),
     );
     expect(navigationBar.leading, isNull);
-    expect(navigationBar.previousPageTitle, '小闲围棋');
+    expect(navigationBar.previousPageTitle, 'Baduk Puzzle');
   });
 }

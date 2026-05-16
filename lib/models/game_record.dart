@@ -21,9 +21,9 @@ extension GameOutcomeExt on GameOutcome {
       case GameOutcome.abandoned:
         return '未完成';
       case GameOutcome.humanWins:
-        return '人类胜';
+        return '玩家勝';
       case GameOutcome.aiWins:
-        return 'AI 胜';
+        return 'AI 勝';
     }
   }
 }

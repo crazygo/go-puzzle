@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>围棋谜题</string>
+	<string>Baduk Puzzle</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -67,7 +67,7 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>用于从截屏中识别棋盘并快速进入摆棋模式。</string>
+	<string>用於從截圖中辨識棋盤並快速進入擺棋模式。</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>

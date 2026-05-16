@@ -1,0 +1,27 @@
+Size 13
+B,B10
+B,D10
+B,F10
+B,B9
+W,C9
+W,D9
+W,E9
+B,F9
+W,G9
+B,B8
+B,C8
+B,D8
+B,E8
+W,F8
+B,G8
+W,B7
+W,C7
+W,D7
+W,E7
+W,F7
+B,G7
+B,H7
+W,F6
+B,G6
+W,F5
+W,G5

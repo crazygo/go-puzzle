@@ -1,7 +1,7 @@
 {
-  "name": "围棋谜题",
-  "short_name": "围棋谜题",
-  "description": "围棋解谜游戏 — 每日谜题与技巧训练",
+  "name": "Baduk Puzzle",
+  "short_name": "Baduk Puzzle",
+  "description": "Baduk Puzzle — 放鬆動腦的圍棋小挑戰",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#1C1C1E",

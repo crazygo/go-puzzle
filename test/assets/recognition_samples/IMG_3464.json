@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "image": {
+    "fileName": "IMG_3464.PNG",
+    "width": 1290,
+    "height": 2796
+  },
+  "boardSize": 13,
+  "corners": {
+    "topLeft": {
+      "x": 193,
+      "y": 976
+    },
+    "topRight": {
+      "x": 1101,
+      "y": 965
+    },
+    "bottomRight": {
+      "x": 1102,
+      "y": 1876
+    },
+    "bottomLeft": {
+      "x": 191,
+      "y": 1876
+    }
+  },
+  "stones": [
+    {
+      "color": "B",
+      "coord": "M12",
+      "row": 1,
+      "col": 11
+    },
+    {
+      "color": "B",
+      "coord": "E10",
+      "row": 3,
+      "col": 4
+    },
+    {
+      "color": "B",
+      "coord": "F10",
+      "row": 3,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "M9",
+      "row": 4,
+      "col": 11
+    },
+    {
+      "color": "B",
+      "coord": "F8",
+      "row": 5,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "K8",
+      "row": 5,
+      "col": 9
+    },
+    {
+      "color": "B",
+      "coord": "M7",
+      "row": 6,
+      "col": 11
+    },
+    {
+      "color": "B",
+      "coord": "E6",
+      "row": 7,
+      "col": 4
+    },
+    {
+      "color": "B",
+      "coord": "F6",
+      "row": 7,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "G6",
+      "row": 7,
+      "col": 6
+    },
+    {
+      "color": "B",
+      "coord": "H5",
+      "row": 8,
+      "col": 7
+    },
+    {
+      "color": "B",
+      "coord": "M5",
+      "row": 8,
+      "col": 11
+    },
+    {
+      "color": "B",
+      "coord": "H2",
+      "row": 11,
+      "col": 7
+    },
+    {
+      "color": "W",
+      "coord": "G1",
+      "row": 12,
+      "col": 6
+    },
+    {
+      "color": "W",
+      "coord": "K1",
+      "row": 12,
+      "col": 9
+    },
+    {
+      "color": "B",
+      "coord": "N1",
+      "row": 12,
+      "col": 12
+    }
+  ]
+}

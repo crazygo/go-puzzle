@@ -12,8 +12,7 @@ import 'theme/app_theme.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // On iOS, orientation is controlled by the app's Info.plist:
-  //   - iPhone: portrait only (UISupportedInterfaceOrientations)
-  //   - iPad:   all 4 orientations (UISupportedInterfaceOrientations~ipad) for multitasking
+  // iPhone-only builds use portrait only (UISupportedInterfaceOrientations).
   // Calling setPreferredOrientations on iOS overrides the plist, so skip it there.
   // On other platforms (Android, desktop), lock to portrait explicitly.
   if (!kIsWeb && defaultTargetPlatform != TargetPlatform.iOS) {
@@ -35,14 +34,16 @@ class GoPuzzleApp extends StatelessWidget {
 
     return ChangeNotifierProvider(
       create: (_) => SettingsProvider(),
-      child: Selector<SettingsProvider, AppThemePalette>(
-        selector: (_, settings) => settings.appTheme.palette,
-        builder: (context, palette, _) {
+      child: Selector<SettingsProvider, AppVisualTheme>(
+        selector: (_, settings) => settings.appTheme,
+        builder: (context, appTheme, _) {
+          final palette = appTheme.palette;
           return CupertinoApp(
-            title: '小闲围棋',
+            title: 'Baduk Puzzle',
             theme: CupertinoThemeData(
               primaryColor: palette.primary,
-              brightness: Brightness.light,
+              brightness:
+                  appTheme == AppVisualTheme.classic ? null : Brightness.light,
               textTheme: CupertinoTextThemeData(
                 textStyle: const TextStyle(
                   fontSize: 17,
