@@ -56,6 +56,9 @@ jobs:
       - name: Compile AI search Web Worker
         run: bash scripts/compile-web-worker.sh
 
+      - name: Download recognition models
+        run: bash scripts/download-recognition-models.sh
+
       - name: Build web (release)
         run: |
           flutter build web \

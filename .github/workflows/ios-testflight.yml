@@ -54,6 +54,9 @@ jobs:
           IOS_APP_BUNDLE_ID: ${{ secrets.IOS_APP_BUNDLE_ID }}
           IOS_DEVELOPMENT_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}
 
+      - name: Download recognition models
+        run: bash scripts/download-recognition-models.sh
+
       - name: Install CocoaPods
         run: |
           cd ios
