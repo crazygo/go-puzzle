@@ -25,6 +25,8 @@ const List<String> _kWebFontFamilyFallback = [
   'sans-serif',
 ];
 
+const String _kWebLocalCjkFontFamily = 'AppLocalCjk';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppLogStore.instance.restore();
@@ -58,6 +60,7 @@ class GoPuzzleApp extends StatelessWidget {
         selector: (_, settings) => settings.appTheme,
         builder: (context, appTheme, _) {
           final palette = appTheme.palette;
+          const fontFamily = kIsWeb ? _kWebLocalCjkFontFamily : null;
           const fontFamilyFallback = kIsWeb ? _kWebFontFamilyFallback : null;
           TextStyle appTextStyle({
             double? fontSize,
@@ -68,6 +71,7 @@ class GoPuzzleApp extends StatelessWidget {
               fontSize: fontSize,
               fontWeight: fontWeight,
               color: color,
+              fontFamily: fontFamily,
               fontFamilyFallback: fontFamilyFallback,
             );
           }
@@ -105,6 +109,13 @@ class GoPuzzleApp extends StatelessWidget {
                   color: palette.primary,
                 ),
               ),
+            ),
+            builder: (context, child) => DefaultTextStyle.merge(
+              style: const TextStyle(
+                fontFamily: fontFamily,
+                fontFamilyFallback: fontFamilyFallback,
+              ),
+              child: child ?? const SizedBox.shrink(),
             ),
             home: showThreeBoardDebug
                 ? const ThreeBoardDebugScreen()

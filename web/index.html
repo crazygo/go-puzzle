@@ -25,15 +25,28 @@
   <meta name="theme-color" content="#f9f4ec">
   <link rel="icon" type="image/png" href="favicon.png"/>
   <link rel="manifest" href="manifest.json">
+  <link rel="preload" href="assets/assets/fonts/app_local_cjk_subset.ttf" as="font" type="font/ttf" crossorigin>
 
   <title>Baduk Puzzle</title>
 
   <style>
     :root {
+      --app-local-cjk-font-family: "AppLocalCjk";
       --app-local-cjk-font-stack: system-ui, -apple-system, BlinkMacSystemFont,
         "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Segoe UI",
         "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC",
         "WenQuanYi Micro Hei", sans-serif;
+    }
+
+    @font-face {
+      font-family: "AppLocalCjk";
+      src: local("PingFang SC"), local("Hiragino Sans GB"),
+        local("Microsoft YaHei"), local("Noto Sans CJK SC"),
+        local("Source Han Sans SC"), local("WenQuanYi Micro Hei"),
+        url("assets/assets/fonts/app_local_cjk_subset.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: block;
     }
 
     html,
@@ -46,7 +59,8 @@
       color-scheme: light;
       overflow: hidden;
       overscroll-behavior: none;
-      font-family: var(--app-local-cjk-font-stack);
+      font-family: var(--app-local-cjk-font-family),
+        var(--app-local-cjk-font-stack);
     }
 
     /*
@@ -65,7 +79,8 @@
     flt-glass-pane,
     flt-scene-host {
       background: transparent !important;
-      font-family: var(--app-local-cjk-font-stack);
+      font-family: var(--app-local-cjk-font-family),
+        var(--app-local-cjk-font-stack);
     }
 
     flutter-view,
@@ -82,6 +97,33 @@
 <body>
   <!-- Vendored WebGL2 JS interop bindings for three_js/flutter_angle (SHA: edea19f9d38cda33c3fbf1d6a3df17a1fd2d8349). -->
   <script src="gles_bindings.js"></script>
+  <script>
+    (() => {
+      const localFontAsset = 'assets/assets/fonts/app_local_cjk_subset.ttf';
+      const downloadableFontPaths = [
+        /\/s\/roboto\//,
+        /\/s\/notosanssc\//,
+        /\/s\/notosanshk\//,
+        /\/s\/notosanssymbols\//,
+      ];
+      const nativeFetch = window.fetch?.bind(window);
+      if (!nativeFetch) return;
+      window.fetch = (input, init) => {
+        const requestUrl =
+          typeof input === 'string' ? input : input instanceof URL ? input.href : input?.url;
+        if (requestUrl) {
+          const url = new URL(requestUrl, window.location.href);
+          if (
+            url.hostname === 'fonts.gstatic.com' &&
+            downloadableFontPaths.some((pattern) => pattern.test(url.pathname))
+          ) {
+            return nativeFetch(localFontAsset, init);
+          }
+        }
+        return nativeFetch(input, init);
+      };
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
   <script>
     // When a new service worker takes control (after skipWaiting), reload once
