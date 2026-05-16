@@ -16,6 +16,7 @@ gate. Full-gate targets are defined in
 | optimization-white-004 | `8bd277a` | `scripted_policy_v1` | 9x9 empty opening, AI white, all 14 policies, max 80 moves | 14 | 14 | 0 | 1.0000 | 4318ms | 0 | `build/ai_eval/empty_all_policies_white_final_candidate.json` |
 | large-progress-005 | `3c4bb61` | `scripted_policy_v1` | interrupted 13x13/19x19 full-gate run, first 48 completed trials | 48 | 48 | 0 | 1.0000 | 73ms | 0 | `build/ai_eval/large_boards_full_policy_gate_candidate.jsonl` |
 | twist-cross-a-006 | `2fb6eb9` | `scripted_policy_v1` | 9x9 twistCrossA opening, AI both sides, all 14 policies, max 80 moves | 28 | 21 | 7 | 0.7500 | 5188ms | 1 | `build/ai_eval/b9_twistCrossA_both_sides_policy_gate.json` |
+| twist-cross-a-007 | `89467c6` | `scripted_policy_v1` | 9x9 twistCrossA opening, AI both sides, all 14 policies, max 80 moves | 28 | 23 | 5 | 0.8214 | 3933ms | 0 | `build/ai_eval/b9_twistCrossA_after_twist_black_fallback.json` |
 
 ### baseline-partial-001
 
@@ -222,3 +223,36 @@ Notes:
 
 - This identifies non-empty opening handling as the next optimization target.
 - It also reintroduces a 5-second budget violation on `edgeClamp` as AI black.
+
+### twist-cross-a-007
+
+Command:
+
+```sh
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings twistCrossA --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_twistCrossA_after_twist_black_fallback.json --output-log build/ai_eval/b9_twistCrossA_after_twist_black_fallback.jsonl
+```
+
+Result:
+
+- Trials: 28
+- Passed: 23
+- Failed: 5
+- Score: 0.8214
+- Max AI move: 3933ms
+- Slow moves over 5000ms: 0
+
+Failures:
+
+| Trial | Policy | Opening | AI Side | Result | Max AI Move |
+| --- | --- | --- | --- | --- | ---: |
+| `twistCrossA_captureFirst_b9` | `captureFirst` | `twistCrossA` | white | scripted won, captures 13-0, 63 moves | 2621ms |
+| `twistCrossA_rescueFirst_b9` | `rescueFirst` | `twistCrossA` | white | scripted won, captures 16-1, 69 moves | 2625ms |
+| `twistCrossA_netContain_b9` | `netContain` | `twistCrossA` | white | scripted won, captures 8-2, 67 moves | 3330ms |
+| `twistCrossA_connectAndDie_b9` | `connectAndDie` | `twistCrossA` | white | scripted won, captures 5-1, 47 moves | 2598ms |
+| `twistCrossA_koFight_b9` | `koFight` | `twistCrossA` | white | scripted won, captures 13-0, 63 moves | 2668ms |
+
+Notes:
+
+- The twist-opening black fallback cleared both AI-black failures from
+  `twist-cross-a-006` and removed the only 5-second violation in that suite.
+- Remaining failures are all AI-white twistCrossA cases.
