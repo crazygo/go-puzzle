@@ -10,23 +10,6 @@ import 'screens/main_screen.dart';
 import 'services/app_log_store.dart';
 import 'theme/app_theme.dart';
 
-const List<String> _kWebFontFamilyFallback = [
-  'system-ui',
-  '-apple-system',
-  'BlinkMacSystemFont',
-  'SF Pro Text',
-  'PingFang SC',
-  'Hiragino Sans GB',
-  'Segoe UI',
-  'Microsoft YaHei',
-  'Noto Sans CJK SC',
-  'Source Han Sans SC',
-  'WenQuanYi Micro Hei',
-  'sans-serif',
-];
-
-const String _kWebLocalCjkFontFamily = 'AppLocalCjk';
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppLogStore.instance.restore();
@@ -60,8 +43,6 @@ class GoPuzzleApp extends StatelessWidget {
         selector: (_, settings) => settings.appTheme,
         builder: (context, appTheme, _) {
           final palette = appTheme.palette;
-          const fontFamily = kIsWeb ? _kWebLocalCjkFontFamily : null;
-          const fontFamilyFallback = kIsWeb ? _kWebFontFamilyFallback : null;
           TextStyle appTextStyle({
             double? fontSize,
             FontWeight? fontWeight,
@@ -71,8 +52,6 @@ class GoPuzzleApp extends StatelessWidget {
               fontSize: fontSize,
               fontWeight: fontWeight,
               color: color,
-              fontFamily: fontFamily,
-              fontFamilyFallback: fontFamilyFallback,
             );
           }
 
@@ -109,13 +88,6 @@ class GoPuzzleApp extends StatelessWidget {
                   color: palette.primary,
                 ),
               ),
-            ),
-            builder: (context, child) => DefaultTextStyle.merge(
-              style: const TextStyle(
-                fontFamily: fontFamily,
-                fontFamilyFallback: fontFamilyFallback,
-              ),
-              child: child ?? const SizedBox.shrink(),
             ),
             home: showThreeBoardDebug
                 ? const ThreeBoardDebugScreen()

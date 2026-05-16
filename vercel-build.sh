@@ -59,7 +59,6 @@ fi
 echo "▸ Building Flutter web (release)…"
 flutter build web \
     --release \
-    --dart-define=FLUTTER_WEB_DISABLE_DOWNLOADABLE_FONTS=true \
     --no-wasm-dry-run
 
 echo "✓ Build complete → build/web/"

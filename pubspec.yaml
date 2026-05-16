@@ -39,19 +39,3 @@ flutter:
   assets:
     - assets/textures/
     - docs/ai_eval/tactics/problems.json
-  fonts:
-    - family: AppLocalCjk
-      fonts:
-        - asset: assets/fonts/app_local_cjk_subset.ttf
-    - family: Roboto
-      fonts:
-        - asset: assets/fonts/app_local_cjk_subset.ttf
-    - family: Noto Sans SC
-      fonts:
-        - asset: assets/fonts/app_local_cjk_subset.ttf
-    - family: Noto Sans HK
-      fonts:
-        - asset: assets/fonts/app_local_cjk_subset.ttf
-    - family: Noto Sans Symbols
-      fonts:
-        - asset: assets/fonts/app_local_cjk_subset.ttf
