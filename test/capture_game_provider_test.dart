@@ -29,6 +29,24 @@ class _AlwaysPassAiSearchRunner implements AiSearchRunner {
   }
 }
 
+class _CapturingAiSearchRunner implements AiSearchRunner {
+  final Completer<Map<String, dynamic>> paramsCompleter = Completer();
+
+  @override
+  void cancel(AiSearchRequestId requestId) {}
+
+  @override
+  void dispose() {}
+
+  @override
+  Future<AiSearchResult> search(AiSearchRequest request) async {
+    if (!paramsCompleter.isCompleted) {
+      paramsCompleter.complete(Map<String, dynamic>.from(request.params));
+    }
+    return AiSearchResult(requestId: request.id, move: const [-1, -1]);
+  }
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -345,6 +363,31 @@ void main() {
       expect(provider.aiStyle, CaptureAiStyle.adaptive);
       provider.setAiStyle(CaptureAiStyle.counter);
       expect(provider.aiStyle, CaptureAiStyle.adaptive);
+    });
+
+    test('territory mode sends only fully legal moves to AI runner', () async {
+      final board = List.generate(9, (_) => List.filled(9, StoneColor.empty));
+      board[0][1] = StoneColor.white;
+      board[1][0] = StoneColor.white;
+      final runner = _CapturingAiSearchRunner();
+
+      CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        gameMode: GameMode.territory,
+        initialMode: CaptureInitialMode.empty,
+        initialBoardOverride: board,
+        humanColor: StoneColor.white,
+        minMoveDelay: Duration.zero,
+        maxMoveDelay: Duration.zero,
+        runner: runner,
+      );
+
+      final params = await runner.paramsCompleter.future
+          .timeout(const Duration(seconds: 5));
+      final legalMoves = (params['legalMoves'] as List).cast<int>();
+      expect(legalMoves, isNot(contains(0)));
     });
   });
 

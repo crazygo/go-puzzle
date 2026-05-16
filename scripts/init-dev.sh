@@ -54,7 +54,7 @@ parse_args() {
         shift
         ;;
       -h|--help)
-        cat <<'EOF'
+        cat <<EOF
 Usage:
   bash scripts/init-dev.sh [--analyze]
 
@@ -63,7 +63,7 @@ Options:
   -h, --help      Show this help message and exit.
 
 Also downloads local territory ONNX models into:
-  /home/runner/work/go-puzzle/go-puzzle/assets/models/
+  ${MODEL_DIR}/
 
 Also ensures local recognition models are present unless
 INIT_DEV_SKIP_RECOGNITION_MODELS=1 is set.
@@ -158,6 +158,10 @@ download_file_if_needed() {
 
   if [[ -s "${target}" ]]; then
     log "Using existing model file: ${target}"
+    if [[ ! -s "${cache_file}" && "${target}" != "${cache_file}" ]]; then
+      cp -f "${target}" "${cache_file}"
+      log "Seeded model cache from existing file: ${cache_file}"
+    fi
     return 0
   fi
 

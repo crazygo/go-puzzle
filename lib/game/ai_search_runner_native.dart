@@ -32,7 +32,12 @@ class _IsolateAiSearchRunner implements AiSearchRunner {
         if (_cancelled.remove(request.id)) {
           return AiSearchResult(requestId: request.id);
         }
-        if (nativeResult?.usedNative == true && nativeResult?.move != null) {
+        if (nativeResult?.usedNative == true &&
+            _isUsableNativeTerritoryMove(
+              nativeResult?.move,
+              request.params['boardSize'] as int?,
+              request.params['legalMoves'] as List?,
+            )) {
           return AiSearchResult(
               requestId: request.id, move: nativeResult!.move);
         }
@@ -60,5 +65,26 @@ class _IsolateAiSearchRunner implements AiSearchRunner {
   void dispose() {
     _disposed = true;
     _cancelled.clear();
+  }
+
+  bool _isUsableNativeTerritoryMove(
+    List<int>? move,
+    int? boardSize,
+    List? legalMoves,
+  ) {
+    if (move == null || move.length != 2) return false;
+    if (move[0] == -1 && move[1] == -1) return true;
+    if (boardSize == null || boardSize <= 0) return false;
+    if (move[0] < 0 ||
+        move[1] < 0 ||
+        move[0] >= boardSize ||
+        move[1] >= boardSize) {
+      return false;
+    }
+    final moveIndex = move[0] * boardSize + move[1];
+    if (legalMoves == null || legalMoves.isEmpty) return true;
+    return legalMoves.any((entry) {
+      return entry is int && entry == moveIndex;
+    });
   }
 }

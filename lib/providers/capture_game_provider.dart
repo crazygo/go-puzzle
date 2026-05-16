@@ -574,6 +574,16 @@ class CaptureGameProvider extends ChangeNotifier {
     try {
       final simBoard =
           SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
+      final legalMoveIndices = [
+        for (final moveIndex in simBoard.getLegalMoves())
+          if (simBoard
+              .analyzeMove(
+                moveIndex ~/ _gameState.boardSize,
+                moveIndex % _gameState.boardSize,
+              )
+              .isLegal)
+            moveIndex,
+      ];
       final params = <String, dynamic>{
         'boardSize': _gameState.boardSize,
         'captureTarget': captureTarget,
@@ -587,7 +597,7 @@ class CaptureGameProvider extends ChangeNotifier {
         'difficulty': difficulty.name,
         'gameMode': gameMode.storageKey,
         'consecutivePasses': _gameState.consecutivePasses,
-        'legalMoves': simBoard.getLegalMoves(),
+        'legalMoves': legalMoveIndices,
       };
       final result = await _runner.search(
         AiSearchRequest(id: requestId, params: params),
