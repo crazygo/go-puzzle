@@ -595,8 +595,8 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
       final score = _spacingScore(board, moveIndex) +
           analysis.libertiesAfterMove * 18.0 -
           analysis.adjacentOpponentStones * 950.0 -
-          analysis.ownAtariStones * 700.0 -
-          blackBestCapture * 900.0 +
+          analysis.ownAtariStones * 2200.0 -
+          blackBestCapture * 2600.0 +
           _stableMoveTieBreaker(moveIndex);
       final candidate = _SpacingCandidate(moveIndex, score);
       if (best == null || candidate.score > best.score) best = candidate;
@@ -614,6 +614,7 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     final col = moveIndex % board.size;
     var nearestOpponent = board.size * 2;
     var nearestOwn = board.size * 2;
+    var opponentEdgeStones = 0;
     for (var other = 0; other < board.cells.length; other++) {
       final color = board.cells[other];
       if (color == SimBoard.empty) continue;
@@ -624,10 +625,23 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
         nearestOwn = math.min(nearestOwn, distance);
       } else {
         nearestOpponent = math.min(nearestOpponent, distance);
+        if (otherRow == 0 ||
+            otherCol == 0 ||
+            otherRow == board.size - 1 ||
+            otherCol == board.size - 1) {
+          opponentEdgeStones++;
+        }
       }
     }
-    return math.min(nearestOpponent, 6) * 140.0 +
-        math.min(nearestOwn, 4) * 45.0;
+    final edgeDistance = math.min(
+      math.min(row, col),
+      math.min(board.size - 1 - row, board.size - 1 - col),
+    );
+    final edgePenalty =
+        opponentEdgeStones >= 2 ? math.max(0, 2 - edgeDistance) * 220.0 : 0.0;
+    return math.min(nearestOpponent, 6) * 80.0 +
+        math.min(nearestOwn, 4) * 25.0 -
+        edgePenalty;
   }
 
   CaptureAiMove? _bestAdvancedQuietTacticalMove(
