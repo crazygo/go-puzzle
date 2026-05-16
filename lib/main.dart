@@ -43,6 +43,18 @@ class GoPuzzleApp extends StatelessWidget {
         selector: (_, settings) => settings.appTheme,
         builder: (context, appTheme, _) {
           final palette = appTheme.palette;
+          TextStyle appTextStyle({
+            double? fontSize,
+            FontWeight? fontWeight,
+            Color? color,
+          }) {
+            return TextStyle(
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+              color: color,
+            );
+          }
+
           return CupertinoApp(
             title: 'Baduk Puzzle',
             theme: CupertinoThemeData(
@@ -50,28 +62,28 @@ class GoPuzzleApp extends StatelessWidget {
               brightness:
                   appTheme == AppVisualTheme.classic ? null : Brightness.light,
               textTheme: CupertinoTextThemeData(
-                textStyle: const TextStyle(
+                textStyle: appTextStyle(
                   fontSize: 17,
                 ),
-                actionTextStyle: const TextStyle(
+                actionTextStyle: appTextStyle(
                   fontSize: 17,
-                  color: Color(0xFF007AFF),
+                  color: const Color(0xFF007AFF),
                 ),
-                tabLabelTextStyle: TextStyle(
+                tabLabelTextStyle: appTextStyle(
                   fontSize: 10,
                   color: palette.tabInactive,
                 ),
-                navTitleTextStyle: const TextStyle(
+                navTitleTextStyle: appTextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                   color: CupertinoColors.label,
                 ),
-                navLargeTitleTextStyle: const TextStyle(
+                navLargeTitleTextStyle: appTextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w700,
                   color: CupertinoColors.label,
                 ),
-                navActionTextStyle: TextStyle(
+                navActionTextStyle: appTextStyle(
                   fontSize: 17,
                   color: palette.primary,
                 ),
