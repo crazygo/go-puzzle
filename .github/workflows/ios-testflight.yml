@@ -1,13 +1,18 @@
 name: Build iOS IPA and Upload to TestFlight
 
 on:
+  push:
+    branches: [testflight-beta]
   workflow_dispatch:
 
 permissions:
   contents: read
+  issues: write
+  pull-requests: read
 
 jobs:
   ios-testflight:
+    if: github.ref_name == 'testflight-beta'
     runs-on: macos-26
     # macos-26 ships with Xcode 26 / iOS 26 SDK (required for App Store submission).
     # The setup-xcode step below pins to a specific Xcode release for reproducibility.
@@ -112,3 +117,39 @@ jobs:
       - name: Restore login keychain
         if: always()
         run: keychain use-login
+
+      - name: Label associated PR as uploaded
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LABEL_NAME: testflight-uploaded
+        run: |
+          set -euo pipefail
+          gh label create "$LABEL_NAME" \
+            --color "0E8A16" \
+            --description "Uploaded to TestFlight by CI" \
+            --force
+
+          PR_NUMBER="$(
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
+              --jq '.[0].number // empty'
+          )"
+
+          if [ -z "$PR_NUMBER" ]; then
+            PR_NUMBER="$(
+              gh pr list \
+                --head "${GITHUB_REF_NAME}" \
+                --state open \
+                --json number \
+                --jq '.[0].number // empty'
+            )"
+          fi
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No associated open PR found for ${GITHUB_SHA}; skipping label."
+            exit 0
+          fi
+
+          gh pr edit "$PR_NUMBER" --add-label "$LABEL_NAME"
+          echo "Added ${LABEL_NAME} to PR #${PR_NUMBER}."
