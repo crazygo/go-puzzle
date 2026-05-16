@@ -252,6 +252,10 @@ class _HybridCaptureAiAgent implements CaptureAiAgent {
 
   @override
   CaptureAiMove? chooseMove(SimBoard board) {
+    final largeBoardFallback =
+        _mctsAgent._chooseAdvancedLargeBoardHeuristicFallback(board);
+    if (largeBoardFallback != null) return largeBoardFallback;
+
     final heuristicMove = _heuristicAgent.chooseMove(board);
     final mctsMove = _mctsAgent.chooseMove(board);
     if (mctsMove == null) return heuristicMove;
@@ -371,13 +375,17 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
 
   static const int _advancedTacticalDepth = 2;
   static const int _advancedTacticalHorizon = 10;
-  static const int _advancedTacticalMaxNodes = 4500;
+  static const int _advancedTacticalMaxNodes = 1600;
   static const double _advancedTacticalDecisionBonus = 750.0;
   static const double _advancedTacticalDecisionScore = 650.0;
 
   @override
   CaptureAiMove? chooseMove(SimBoard board) {
     final targetWinCache = <int, bool>{};
+    final largeBoardFallback =
+        _chooseAdvancedLargeBoardHeuristicFallback(board);
+    if (largeBoardFallback != null) return largeBoardFallback;
+
     final urgentMove = _chooseUrgentMove(board);
     if (urgentMove != null && _isImmediateTargetWin(board, urgentMove)) {
       return urgentMove;
@@ -527,6 +535,18 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     return best;
   }
 
+  CaptureAiMove? _chooseAdvancedLargeBoardHeuristicFallback(SimBoard board) {
+    if (_config.difficulty != DifficultyLevel.advanced) return null;
+    if (board.size <= 9 || board.isTerminal) return null;
+    return _WeightedCaptureAiAgent(
+      style: style,
+      profile: _CaptureAiProfile.forStyle(
+        style,
+        DifficultyLevel.beginner,
+      ),
+    ).chooseMove(board);
+  }
+
   CaptureAiMove? _bestAdvancedQuietTacticalMove(
     SimBoard board,
     List<CaptureAiMove> quietTacticalMoves,
@@ -665,30 +685,48 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     final rootPlayer = board.currentPlayer;
     final stats = _AdvancedTacticalSearchStats();
     final rankedRoots = <_AdvancedTacticalRootMove>[];
-    final legalMoves = _generateFullBoardLegalMoves(board);
-    if (legalMoves.isEmpty) return null;
+    final generatedMoves = _generateFullBoardLegalMoves(board);
+    if (generatedMoves.isEmpty) return null;
+    final scoredMoves = [
+      for (final move in generatedMoves)
+        (
+          move: move,
+          tacticalScore: _advancedTacticalMoveScore(
+            board,
+            move.analysis,
+            rootPlayer: rootPlayer,
+          ),
+        ),
+    ]..sort((a, b) {
+        final byScore = b.tacticalScore.compareTo(a.tacticalScore);
+        if (byScore != 0) return byScore;
+        return a.move.moveIndex.compareTo(b.move.moveIndex);
+      });
+    final legalMoves = board.size > 9
+        ? scoredMoves.take(40).toList(growable: false)
+        : scoredMoves;
+    final searchDepth = board.size > 9 ? 0 : _advancedTacticalDepth - 1;
 
-    for (final move in legalMoves) {
+    for (final entry in legalMoves) {
+      final move = entry.move;
       final next = SimBoard.copy(board);
       if (!next.applyMove(
           move.moveIndex ~/ board.size, move.moveIndex % board.size)) {
         continue;
       }
-      final tacticalScore = _advancedTacticalMoveScore(
-        board,
-        move.analysis,
-        rootPlayer: rootPlayer,
-      );
+      final tacticalScore = entry.tacticalScore;
       final searchScore = next.winner == rootPlayer
           ? 100000.0
-          : _advancedTacticalAlphaBeta(
-              next,
-              rootPlayer: rootPlayer,
-              depth: _advancedTacticalDepth - 1,
-              alpha: -double.infinity,
-              beta: double.infinity,
-              stats: stats,
-            );
+          : searchDepth <= 0
+              ? _advancedTacticalPositionScore(next, rootPlayer)
+              : _advancedTacticalAlphaBeta(
+                  next,
+                  rootPlayer: rootPlayer,
+                  depth: searchDepth,
+                  alpha: -double.infinity,
+                  beta: double.infinity,
+                  stats: stats,
+                );
       final combinedScore = searchScore +
           tacticalScore * 0.03 +
           _advancedRootTieBreakScore(board, move.moveIndex, move.analysis);
@@ -868,7 +906,8 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     SimBoard board,
   ) {
     final moves = <_AdvancedTacticalLegalMove>[];
-    for (var moveIndex = 0; moveIndex < board.cells.length; moveIndex++) {
+    final candidateIndexes = board.getLegalMoves()..sort();
+    for (final moveIndex in candidateIndexes) {
       if (board.cells[moveIndex] != SimBoard.empty) continue;
       final row = moveIndex ~/ board.size;
       final col = moveIndex % board.size;
@@ -944,17 +983,40 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     if (board.winner == rootPlayer) return 100000.0;
     if (board.winner != 0) return -100000.0;
 
+    final opponent = _opponentOf(rootPlayer);
+    final rootCanReachTarget = _playerCanReachCaptureTarget(board, rootPlayer);
+    final opponentCanReachTarget = _playerCanReachCaptureTarget(
+      board,
+      opponent,
+    );
+    if (rootCanReachTarget && !opponentCanReachTarget) {
+      return board.currentPlayer == rootPlayer ? 85000.0 : 52000.0;
+    }
+    if (opponentCanReachTarget && !rootCanReachTarget) {
+      return board.currentPlayer == opponent ? -85000.0 : -52000.0;
+    }
+
     final rootCaptures = _capturesFor(board, rootPlayer);
-    final opponentCaptures = _capturesFor(board, _opponentOf(rootPlayer));
+    final opponentCaptures = _capturesFor(board, opponent);
     final rootRemaining =
         math.max(0, board.captureTarget - rootCaptures).toDouble();
     final opponentRemaining =
         math.max(0, board.captureTarget - opponentCaptures).toDouble();
+    final rootBestImmediateCapture = _bestImmediateCaptureDeltaForPlayer(
+      board,
+      rootPlayer,
+    );
+    final opponentBestImmediateCapture = _bestImmediateCaptureDeltaForPlayer(
+      board,
+      opponent,
+    );
     final raceScore = (opponentRemaining - rootRemaining) * 950.0 +
         (rootCaptures - opponentCaptures) * 260.0;
     final targetThreat = rootRemaining <= 1 ? 650.0 : 0.0;
     final targetRisk = opponentRemaining <= 1 ? -850.0 : 0.0;
-    return raceScore + targetThreat + targetRisk;
+    final immediateCapturePressure =
+        rootBestImmediateCapture * 720.0 - opponentBestImmediateCapture * 980.0;
+    return raceScore + targetThreat + targetRisk + immediateCapturePressure;
   }
 
   double _advancedRootTieBreakScore(
@@ -963,7 +1025,8 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     SimMoveAnalysis analysis,
   ) {
     return _quietTacticalGeometryScore(board, moveIndex, analysis) +
-        _stableMoveTieBreaker(moveIndex);
+        _stableMoveTieBreaker(moveIndex) -
+        _largeBoardEdgeRiskPenalty(board, moveIndex, analysis) * 0.35;
   }
 
   double _stableMoveTieBreaker(int moveIndex) => -moveIndex / 100000.0;
@@ -1319,7 +1382,8 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
   ) {
     return _scoreWithProfile(board, analysis, _profile) +
         _targetPlyScore(board, analysis) +
-        _sparseBoardInitiativeScore(board, analysis);
+        _sparseBoardInitiativeScore(board, analysis) -
+        _largeBoardEdgeRiskPenalty(board, moveIndex, analysis);
   }
 
   double _scoreRolloutMove(
@@ -1329,7 +1393,8 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
   ) {
     final score = _scoreWithProfile(board, analysis, _profile) +
         _targetRolloutPlyScore(board, analysis) +
-        _sparseBoardInitiativeScore(board, analysis);
+        _sparseBoardInitiativeScore(board, analysis) -
+        _largeBoardEdgeRiskPenalty(board, moveIndex, analysis) * 0.6;
     return score.clamp(-1800.0, 1800.0);
   }
 
@@ -1369,6 +1434,26 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     hash = 37 * hash + board.capturedByWhite * 13;
     return hash & 0x7fffffff;
   }
+}
+
+double _largeBoardEdgeRiskPenalty(
+  SimBoard board,
+  int moveIndex,
+  SimMoveAnalysis analysis,
+) {
+  if (board.size <= 9) return 0;
+  if (_captureDeltaFor(analysis, board.currentPlayer) > 0 ||
+      analysis.ownRescuedStones > 0) {
+    return 0;
+  }
+  final row = moveIndex ~/ board.size;
+  final col = moveIndex % board.size;
+  final edgeDistance = math.min(
+    math.min(row, col),
+    math.min(board.size - 1 - row, board.size - 1 - col),
+  );
+  final edgeBand = math.max(0, 3 - edgeDistance);
+  return edgeBand * 95.0 + analysis.ownAtariStones * 80.0;
 }
 
 class _AdvancedTacticalLegalMove {
@@ -1878,13 +1963,13 @@ class _CaptureAiProfile {
           playouts: playouts,
         ),
       CaptureAiStyle.hunter => _CaptureAiProfile(
-          immediateCaptureWeight: 9.0,
-          opponentAtariWeight: 4.2,
-          ownRescueWeight: 1.0,
-          selfAtariPenalty: 6.0,
-          centerWeight: 0.2,
-          contactWeight: 2.8,
-          libertyWeight: 0.8,
+          immediateCaptureWeight: 6.975,
+          opponentAtariWeight: 3.8,
+          ownRescueWeight: 2.025,
+          selfAtariPenalty: 5.85,
+          centerWeight: 0.625,
+          contactWeight: 2.05,
+          libertyWeight: 1.5,
           playouts: playouts,
         ),
       CaptureAiStyle.trapper => _CaptureAiProfile(
@@ -2126,37 +2211,35 @@ bool _playerCanReachCaptureTarget(SimBoard board, int player) {
   if (_playerHasReachedCaptureTarget(board, player)) return true;
   final target = board.captureTarget;
   final capturesBefore = _capturesFor(board, player);
-  if (capturesBefore < target - 1) return false;
+  final remainingCaptures = target - capturesBefore;
+  if (remainingCaptures <= 0) return true;
 
-  final probe = SimBoard.copy(board)..currentPlayer = player;
-  final localMoves = probe.getLegalMoves()..sort();
-  return _anyMoveReachesCaptureTarget(
-    probe,
-    player,
-    capturesBefore,
-    target,
-    localMoves,
-  );
+  return _bestImmediateCaptureDeltaForPlayer(
+        board,
+        player,
+        stopAt: remainingCaptures,
+      ) >=
+      remainingCaptures;
 }
 
-bool _anyMoveReachesCaptureTarget(
+int _bestImmediateCaptureDeltaForPlayer(
   SimBoard board,
-  int player,
-  int capturesBefore,
-  int target,
-  Iterable<int> moveIndexes,
-) {
-  for (final moveIndex in moveIndexes) {
-    if (board.cells[moveIndex] != SimBoard.empty) continue;
-    final row = moveIndex ~/ board.size;
-    final col = moveIndex % board.size;
-    final analysis = board.analyzeMove(row, col);
+  int player, {
+  int? stopAt,
+}) {
+  final probe = SimBoard.copy(board)..currentPlayer = player;
+  var best = 0;
+  final localMoves = probe.getLegalMoves()..sort();
+  for (final moveIndex in localMoves) {
+    if (probe.cells[moveIndex] != SimBoard.empty) continue;
+    final row = moveIndex ~/ probe.size;
+    final col = moveIndex % probe.size;
+    final analysis = probe.analyzeMove(row, col);
     if (!analysis.isLegal) continue;
-    if (capturesBefore + _captureDeltaFor(analysis, player) >= target) {
-      return true;
-    }
+    best = math.max(best, _captureDeltaFor(analysis, player));
+    if (stopAt != null && best >= stopAt) return best;
   }
-  return false;
+  return best;
 }
 
 bool _playerHasReachedCaptureTarget(SimBoard board, int player) {
