@@ -32,6 +32,7 @@ enum ScreenshotRecognitionAlgorithm {
 class SettingsProvider extends ChangeNotifier {
   static const _appThemeKey = 'settings.app_theme';
   static const _developerModeKey = 'settings.developer_mode';
+  static const _showMoveLogKey = 'settings.show_move_log';
   static const _screenshotRecognitionAlgorithmKey =
       'settings.screenshot_recognition_algorithm';
   static const _showMoveLogKey = 'settings.show_move_log';
@@ -44,6 +45,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _soundEnabled = true;
   bool _hapticEnabled = true;
   bool _developerMode = false;
+  bool _showMoveLog = false;
   ScreenshotRecognitionAlgorithm _screenshotRecognitionAlgorithm =
       ScreenshotRecognitionAlgorithm.rules;
   bool _showMoveLog = false;
@@ -56,6 +58,7 @@ class SettingsProvider extends ChangeNotifier {
   bool get soundEnabled => _soundEnabled;
   bool get hapticEnabled => _hapticEnabled;
   bool get developerMode => _developerMode;
+  bool get showMoveLog => _showMoveLog;
   ScreenshotRecognitionAlgorithm get screenshotRecognitionAlgorithm =>
       _screenshotRecognitionAlgorithm;
   bool get showMoveLog => _showMoveLog;
@@ -72,6 +75,7 @@ class SettingsProvider extends ChangeNotifier {
       orElse: () => _appTheme,
     );
     final restoredDeveloperMode = prefs.getBool(_developerModeKey) ?? false;
+    final restoredShowMoveLog = prefs.getBool(_showMoveLogKey) ?? false;
     final restoredRecognitionAlgorithm =
         ScreenshotRecognitionAlgorithm.fromStorageValue(
       prefs.getString(_screenshotRecognitionAlgorithmKey),
@@ -79,13 +83,14 @@ class SettingsProvider extends ChangeNotifier {
     final restoredShowMoveLog = prefs.getBool(_showMoveLogKey) ?? false;
     if (restoredTheme == _appTheme &&
         restoredDeveloperMode == _developerMode &&
-        restoredRecognitionAlgorithm == _screenshotRecognitionAlgorithm &&
-        restoredShowMoveLog == _showMoveLog) {
+        restoredShowMoveLog == _showMoveLog &&
+        restoredRecognitionAlgorithm == _screenshotRecognitionAlgorithm) {
       return;
     }
 
     _appTheme = restoredTheme;
     _developerMode = restoredDeveloperMode;
+    _showMoveLog = restoredShowMoveLog;
     _screenshotRecognitionAlgorithm = restoredRecognitionAlgorithm;
     _showMoveLog = restoredShowMoveLog;
     notifyListeners();
@@ -139,6 +144,16 @@ class SettingsProvider extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_developerModeKey, value);
+  }
+
+  Future<void> setShowMoveLog(bool value) async {
+    if (_showMoveLog == value) return;
+
+    _showMoveLog = value;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showMoveLogKey, value);
   }
 
   Future<void> setScreenshotRecognitionAlgorithm(
