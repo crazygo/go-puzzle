@@ -7,10 +7,12 @@ import 'package:provider/provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/capture_game_screen.dart';
 import 'screens/main_screen.dart';
+import 'services/app_log_store.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppLogStore.instance.restore();
   // On iOS, orientation is controlled by the app's Info.plist:
   // iPhone-only builds use portrait only (UISupportedInterfaceOrientations).
   // Calling setPreferredOrientations on iOS overrides the plist, so skip it there.
@@ -32,12 +34,27 @@ class GoPuzzleApp extends StatelessWidget {
     final showThreeBoardDebug =
         Uri.base.queryParameters['threeBoardDebug'] == '1';
 
-    return ChangeNotifierProvider(
-      create: (_) => SettingsProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider.value(value: AppLogStore.instance),
+      ],
       child: Selector<SettingsProvider, AppVisualTheme>(
         selector: (_, settings) => settings.appTheme,
         builder: (context, appTheme, _) {
           final palette = appTheme.palette;
+          TextStyle appTextStyle({
+            double? fontSize,
+            FontWeight? fontWeight,
+            Color? color,
+          }) {
+            return TextStyle(
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+              color: color,
+            );
+          }
+
           return CupertinoApp(
             title: 'Baduk Puzzle',
             theme: CupertinoThemeData(
@@ -45,28 +62,28 @@ class GoPuzzleApp extends StatelessWidget {
               brightness:
                   appTheme == AppVisualTheme.classic ? null : Brightness.light,
               textTheme: CupertinoTextThemeData(
-                textStyle: const TextStyle(
+                textStyle: appTextStyle(
                   fontSize: 17,
                 ),
-                actionTextStyle: const TextStyle(
+                actionTextStyle: appTextStyle(
                   fontSize: 17,
-                  color: Color(0xFF007AFF),
+                  color: const Color(0xFF007AFF),
                 ),
-                tabLabelTextStyle: TextStyle(
+                tabLabelTextStyle: appTextStyle(
                   fontSize: 10,
                   color: palette.tabInactive,
                 ),
-                navTitleTextStyle: const TextStyle(
+                navTitleTextStyle: appTextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                   color: CupertinoColors.label,
                 ),
-                navLargeTitleTextStyle: const TextStyle(
+                navLargeTitleTextStyle: appTextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w700,
                   color: CupertinoColors.label,
                 ),
-                navActionTextStyle: TextStyle(
+                navActionTextStyle: appTextStyle(
                   fontSize: 17,
                   color: palette.primary,
                 ),
