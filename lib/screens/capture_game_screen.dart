@@ -429,6 +429,34 @@ enum _ModelLoadDecision {
   useRules,
 }
 
+/// Returned from [CaptureGamePlayScreen] when the user forks from review mode.
+/// The home screen receives this via `Navigator.pop` and immediately starts a
+/// new game with the forked board — ensuring `_loadHistory` is called when
+/// both the original AND the forked game complete.
+class _ForkRequest {
+  const _ForkRequest({
+    required this.forkBoard,
+    required this.initialPlayerOverride,
+    required this.boardSize,
+    required this.captureTarget,
+    required this.difficulty,
+    required this.humanColor,
+    required this.aiStyle,
+    required this.aiRank,
+    required this.initialMode,
+  });
+
+  final List<List<StoneColor>> forkBoard;
+  final StoneColor initialPlayerOverride;
+  final int boardSize;
+  final int captureTarget;
+  final DifficultyLevel difficulty;
+  final StoneColor humanColor;
+  final CaptureAiStyle aiStyle;
+  final int aiRank;
+  final CaptureInitialMode initialMode;
+}
+
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardTopFactor = 0.06;
   static const double _defaultHomeBoardHeightFactor = 0.62;
@@ -1382,7 +1410,45 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
             ),
           ),
         )
-        .then((_) => _loadHistory());
+        .then(_onGameScreenResult);
+  }
+
+  /// Handles the result from a [CaptureGamePlayScreen] pop.
+  ///
+  /// Reloads history (so both original and forked games appear), and if the
+  /// game screen requested a fork, immediately starts the forked game.
+  void _onGameScreenResult(Object? result) {
+    _loadHistory();
+    if (result is _ForkRequest) {
+      _startForkedGame(result);
+    }
+  }
+
+  void _startForkedGame(_ForkRequest fork) {
+    Navigator.of(context, rootNavigator: true)
+        .push<Object?>(
+          CupertinoPageRoute(
+            builder: (_) => ChangeNotifierProvider(
+              create: (_) => CaptureGameProvider(
+                boardSize: fork.boardSize,
+                captureTarget: fork.captureTarget,
+                difficulty: fork.difficulty,
+                humanColor: fork.humanColor,
+                initialMode: fork.initialMode,
+                initialBoardOverride: fork.forkBoard,
+                initialPlayerOverride: fork.initialPlayerOverride,
+              )..setAiStyle(fork.aiStyle),
+              child: CaptureGamePlayScreen(
+                aiRank: fork.aiRank,
+                captureTarget: fork.captureTarget,
+                humanColor: fork.humanColor,
+                initialMode: fork.initialMode,
+                initialBoardOverride: fork.forkBoard,
+              ),
+            ),
+          ),
+        )
+        .then(_onGameScreenResult);
   }
 }
 
@@ -4506,26 +4572,20 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
     final nextPlayer = forkState.currentPlayer;
     await _saveGame(provider);
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      CupertinoPageRoute<void>(
-        builder: (_) => ChangeNotifierProvider(
-          create: (_) => CaptureGameProvider(
-            boardSize: provider.boardSize,
-            captureTarget: provider.captureTarget,
-            difficulty: provider.difficulty,
-            humanColor: provider.humanColor,
-            initialMode: widget.initialMode,
-            initialBoardOverride: forkBoard,
-            initialPlayerOverride: nextPlayer,
-          )..setAiStyle(provider.aiStyle),
-          child: CaptureGamePlayScreen(
-            aiRank: widget.aiRank,
-            captureTarget: widget.captureTarget,
-            humanColor: widget.humanColor,
-            initialMode: widget.initialMode,
-            initialBoardOverride: forkBoard,
-          ),
-        ),
+    // Pop this game screen with a _ForkRequest result so the home screen can
+    // push the forked game via _startForkedGame — this ensures _loadHistory()
+    // is called when BOTH the original and forked games complete.
+    Navigator.of(context, rootNavigator: true).pop(
+      _ForkRequest(
+        forkBoard: forkBoard,
+        initialPlayerOverride: nextPlayer,
+        boardSize: provider.boardSize,
+        captureTarget: provider.captureTarget,
+        difficulty: provider.difficulty,
+        humanColor: provider.humanColor,
+        aiStyle: provider.aiStyle,
+        aiRank: widget.aiRank,
+        initialMode: widget.initialMode,
       ),
     );
   }
