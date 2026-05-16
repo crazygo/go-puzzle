@@ -42,6 +42,7 @@ class GameRecord {
     this.markedMoveNumbers = const [],
     required this.outcome,
     this.initialBoardCells,
+    this.initialFirstPlayerIndex,
     this.finalBoard,
     this.aiRank,
     this.aiStyleName,
@@ -68,6 +69,10 @@ class GameRecord {
   /// Serialised initial board for setup-mode games; null otherwise.
   /// Each inner list is a row of StoneColor.index values.
   final List<List<int>>? initialBoardCells;
+
+  /// StoneColor.index for the first player; null means Black (default).
+  /// Non-null only for forked games that start with a non-Black first move.
+  final int? initialFirstPlayerIndex;
 
   /// All moves in order: each element is [row, col].
   final List<List<int>> moves;
@@ -105,6 +110,15 @@ class GameRecord {
       ? StoneColor.values[humanColorIndex]
       : StoneColor.black;
 
+  /// The player who moves first in this game (Black by default).
+  StoneColor get initialFirstPlayer {
+    final idx = initialFirstPlayerIndex;
+    if (idx == null || idx < 0 || idx >= StoneColor.values.length) {
+      return StoneColor.black;
+    }
+    return StoneColor.values[idx];
+  }
+
   int get totalMoves => moves.length;
 
   // ---------------------------------------------------------------------------
@@ -120,6 +134,8 @@ class GameRecord {
         'humanColorIndex': humanColorIndex,
         'initialMode': initialMode,
         'initialBoardCells': initialBoardCells,
+        if (initialFirstPlayerIndex != null)
+          'initialFirstPlayerIndex': initialFirstPlayerIndex,
         'moves': moves,
         if (markedMoveNumbers.isNotEmpty)
           'markedMoveNumbers': markedMoveNumbers,
@@ -157,6 +173,8 @@ class GameRecord {
       humanColorIndex: (json['humanColorIndex'] as num).toInt(),
       initialMode: json['initialMode'] as String,
       initialBoardCells: parseBoard(json['initialBoardCells']),
+      initialFirstPlayerIndex:
+          (json['initialFirstPlayerIndex'] as num?)?.toInt(),
       moves: moves,
       markedMoveNumbers: markedMoveNumbers,
       outcome: GameOutcome.values.firstWhere(

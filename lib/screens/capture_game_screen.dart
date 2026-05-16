@@ -1417,6 +1417,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                 humanColor: fork.humanColor,
                 initialMode: fork.initialMode,
                 initialBoardOverride: fork.forkBoard,
+                initialPlayerOverride: fork.initialPlayerOverride,
               ),
             ),
           ),
@@ -3932,6 +3933,7 @@ class CaptureGamePlayScreen extends StatefulWidget {
     this.humanColor = StoneColor.black,
     this.initialMode = CaptureInitialMode.cross,
     this.initialBoardOverride,
+    this.initialPlayerOverride,
   });
 
   final int aiRank;
@@ -3941,6 +3943,11 @@ class CaptureGamePlayScreen extends StatefulWidget {
 
   /// The initial board passed to the provider (needed to persist the record).
   final List<List<StoneColor>>? initialBoardOverride;
+
+  /// The initial player override — non-null only for forked games that start
+  /// with White to move. Persisted in [GameRecord] so history replay is
+  /// correct.
+  final StoneColor? initialPlayerOverride;
 
   @override
   State<CaptureGamePlayScreen> createState() => _CaptureGamePlayScreenState();
@@ -3952,6 +3959,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   bool _gameSaved = false;
   bool _resultDialogShown = false;
   bool _moveLogVisible = false;
+  bool _forking = false;
   final Set<int> _markedMoveNumbers = <int>{};
   int? _reviewMoveIndex;
   List<GameState>? _reviewStates;
@@ -3995,6 +4003,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
       humanColorIndex: widget.humanColor.index,
       initialMode: captureInitialModeStorageKey(widget.initialMode),
       initialBoardCells: initialBoardCells,
+      initialFirstPlayerIndex: widget.initialPlayerOverride?.index,
       moves: List<List<int>>.from(
         provider.moveLog.map((m) => List<int>.from(m)),
       ),
@@ -4193,8 +4202,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                             ),
                             color: const Color(0xFFC28A56),
                             borderRadius: BorderRadius.circular(14),
-                            onPressed: () =>
-                                unawaited(_handleFork(provider)),
+                            onPressed: _forking
+                                ? null
+                                : () => unawaited(_handleFork(provider)),
                             child: const Text(
                               '分叉',
                               style: TextStyle(
@@ -4290,6 +4300,12 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                   Navigator.of(menuContext).pop();
                   setState(() {
                     _moveLogVisible = !_moveLogVisible;
+                    // Hiding the log also exits review mode so the user is
+                    // not stuck in a mode they can no longer see.
+                    if (!_moveLogVisible) {
+                      _reviewMoveIndex = null;
+                      _reviewStates = null;
+                    }
                   });
                 },
                 onToggleMarkMove: () {
@@ -4495,10 +4511,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   void _handleMoveTap(int moveNumber, CaptureGameProvider provider) {
     final moveLog = provider.moveLog;
     if (moveLog.isEmpty) return;
-    if (_reviewStates == null ||
-        _reviewStates!.length != moveLog.length + 1) {
-      _reviewStates = _buildReviewStates(provider);
-    }
+    // Always rebuild to avoid stale states after undo/redo that returns the
+    // move log to the same length with different moves.
+    _reviewStates = _buildReviewStates(provider);
     setState(() {
       _reviewMoveIndex = moveNumber.clamp(1, moveLog.length);
       _hintMarks = const [];
@@ -4506,33 +4521,40 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   }
 
   Future<void> _handleFork(CaptureGameProvider provider) async {
+    if (_forking) return;
     if (_reviewMoveIndex == null ||
         _reviewStates == null ||
         _reviewMoveIndex! >= _reviewStates!.length) {
       return;
     }
-    final forkState = _reviewStates![_reviewMoveIndex!];
-    final forkBoard =
-        forkState.board.map((row) => List<StoneColor>.from(row)).toList();
-    final nextPlayer = forkState.currentPlayer;
-    await _saveGame(provider);
-    if (!mounted) return;
-    // Pop this game screen with a _ForkRequest result so the home screen can
-    // push the forked game via _startForkedGame — this ensures _loadHistory()
-    // is called when BOTH the original and forked games complete.
-    Navigator.of(context, rootNavigator: true).pop(
-      _ForkRequest(
-        forkBoard: forkBoard,
-        initialPlayerOverride: nextPlayer,
-        boardSize: provider.boardSize,
-        captureTarget: provider.captureTarget,
-        difficulty: provider.difficulty,
-        humanColor: provider.humanColor,
-        aiStyle: provider.aiStyle,
-        aiRank: widget.aiRank,
-        initialMode: widget.initialMode,
-      ),
-    );
+    // Set guard synchronously before the first await to prevent double-tap.
+    _forking = true;
+    try {
+      final forkState = _reviewStates![_reviewMoveIndex!];
+      final forkBoard =
+          forkState.board.map((row) => List<StoneColor>.from(row)).toList();
+      final nextPlayer = forkState.currentPlayer;
+      await _saveGame(provider);
+      if (!mounted) return;
+      // Pop this game screen with a _ForkRequest result so the home screen can
+      // push the forked game via _startForkedGame — this ensures _loadHistory()
+      // is called when BOTH the original and forked games complete.
+      Navigator.of(context, rootNavigator: true).pop(
+        _ForkRequest(
+          forkBoard: forkBoard,
+          initialPlayerOverride: nextPlayer,
+          boardSize: provider.boardSize,
+          captureTarget: provider.captureTarget,
+          difficulty: provider.difficulty,
+          humanColor: provider.humanColor,
+          aiStyle: provider.aiStyle,
+          aiRank: widget.aiRank,
+          initialMode: widget.initialMode,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _forking = false);
+    }
   }
 
   void _showReviewModeTip() {
@@ -5760,7 +5782,7 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
     var state = GameState(
       boardSize: record.boardSize,
       board: emptyBoard,
-      currentPlayer: StoneColor.black,
+      currentPlayer: record.initialFirstPlayer,
     );
 
     final states = <GameState>[state];
