@@ -2,7 +2,7 @@ name: go_puzzle
 description: Baduk Puzzle - 放鬆動腦的圍棋小挑戰。
 publish_to: "none"
 
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: ">=3.0.0 <4.0.0"

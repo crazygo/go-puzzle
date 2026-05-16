@@ -17,6 +17,7 @@ import '../models/game_record.dart';
 import '../models/game_state.dart';
 import '../providers/capture_game_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/app_log_store.dart';
 import '../services/game_history_repository.dart';
 import '../services/player_rank_repository.dart';
 import '../theme/app_theme.dart';
@@ -1229,11 +1230,29 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       final bytes = await file.readAsBytes();
       if (!mounted) return;
 
+      AppLogStore.instance.add(
+        category: AppLogCategory.screenshotRecognition,
+        level: AppLogLevel.info,
+        message: '開始截圖識別',
+        details: 'algorithm: ${algorithm.storageValue}\n'
+            'file: ${file.name}\n'
+            'bytes: ${bytes.length}',
+      );
+
       setState(() {
         _isRecognizingScreenshot = true;
       });
       final result = await _recognizeBoard(bytes, algorithm: algorithm);
       if (!mounted) return;
+
+      AppLogStore.instance.add(
+        category: AppLogCategory.screenshotRecognition,
+        level: AppLogLevel.info,
+        message: '截圖識別完成',
+        details: 'algorithm: ${algorithm.storageValue}\n'
+            'boardSize: ${result.boardSize}\n'
+            'confidence: ${result.confidence.toStringAsFixed(4)}',
+      );
 
       final edited = await Navigator.of(context).push<_ImportBoardDraft>(
         CupertinoPageRoute(
@@ -1258,7 +1277,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         forceSetup: true,
         initialBoard: edited.board,
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogStore.instance.add(
+        category: AppLogCategory.screenshotRecognition,
+        level: AppLogLevel.error,
+        message: '截圖匯入失敗',
+        details: 'algorithm: ${algorithm.storageValue}',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       await showCupertinoDialog<void>(
         context: context,
@@ -3594,9 +3621,21 @@ class _ModelRecognitionLoadingDialogState
       } else {
         await widget.reloadModel();
       }
+      AppLogStore.instance.add(
+        category: AppLogCategory.screenshotRecognition,
+        level: AppLogLevel.info,
+        message: '模型載入完成',
+      );
       if (!mounted) return;
       Navigator.of(context).pop(_ModelLoadDecision.ready);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogStore.instance.add(
+        category: AppLogCategory.screenshotRecognition,
+        level: AppLogLevel.error,
+        message: '模型載入失敗',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       setState(() {
         _isLoading = false;
