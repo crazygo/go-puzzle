@@ -4912,29 +4912,18 @@ class _MoveLogChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final background = isReviewing
         ? palette.primary.withValues(alpha: 0.88)
-        : (marked
-            ? palette.primary.withValues(alpha: 0.16)
-            : palette.segmentTrack.withValues(alpha: 0.82));
-    final borderColor = isReviewing
-        ? palette.primary
-        : (marked
-            ? palette.primary.withValues(alpha: 0.72)
-            : palette.primary.withValues(alpha: 0.16));
-    final textColor = isReviewing
-        ? CupertinoColors.white
-        : (marked
-            ? Color.lerp(palette.primary, CupertinoColors.black, 0.16)!
-            : palette.segmentText);
+        : palette.segmentTrack.withValues(alpha: 0.82);
+    final borderColor =
+        isReviewing ? palette.primary : palette.primary.withValues(alpha: 0.16);
+    final textColor =
+        isReviewing ? CupertinoColors.white : palette.segmentText;
 
     final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(7),
-        border: Border.all(
-          color: borderColor,
-          width: (marked || isReviewing) ? 1.1 : 0.7,
-        ),
+        border: Border.all(color: borderColor, width: isReviewing ? 1.1 : 0.7),
       ),
       child: Text(
         '$moveNumber $coordinate',
@@ -4944,15 +4933,35 @@ class _MoveLogChip extends StatelessWidget {
           fontSize: 12,
           height: 1,
           color: textColor,
-          fontWeight: (marked || isReviewing) ? FontWeight.w700 : FontWeight.w500,
+          fontWeight: isReviewing ? FontWeight.w700 : FontWeight.w500,
         ),
       ),
     );
 
+    Widget result = chip;
     if (onTap != null) {
-      return GestureDetector(onTap: onTap, child: chip);
+      result = GestureDetector(onTap: onTap, child: result);
     }
-    return chip;
+    if (!marked) return result;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        result,
+        Positioned(
+          top: -5,
+          right: -5,
+          child: Semantics(
+            label: '已打标',
+            excludeSemantics: true,
+            child: const Text(
+              '⭐',
+              style: TextStyle(fontSize: 9, height: 1),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
