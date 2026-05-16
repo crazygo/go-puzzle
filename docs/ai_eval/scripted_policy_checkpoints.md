@@ -14,6 +14,7 @@ gate. Full-gate targets are defined in
 | optimization-black-003 | `b0ae660` | `scripted_policy_v1` | 9x9 empty opening, AI black, all 14 policies, max 80 moves | 14 | 14 | 0 | 1.0000 | 4054ms | 0 | `build/ai_eval/empty_all_policies_black_after_spacing.json` |
 | optimization-white-003 | `b0ae660` | `scripted_policy_v1` | 9x9 empty opening, AI white, all 14 policies, max 80 moves | 14 | 13 | 1 | 0.9286 | 4826ms | 0 | `build/ai_eval/empty_all_policies_white_after_spacing.json` |
 | optimization-white-004 | `8bd277a` | `scripted_policy_v1` | 9x9 empty opening, AI white, all 14 policies, max 80 moves | 14 | 14 | 0 | 1.0000 | 4318ms | 0 | `build/ai_eval/empty_all_policies_white_final_candidate.json` |
+| large-progress-005 | `3c4bb61` | `scripted_policy_v1` | interrupted 13x13/19x19 full-gate run, first 48 completed trials | 48 | 48 | 0 | 1.0000 | 73ms | 0 | `build/ai_eval/large_boards_full_policy_gate_candidate.jsonl` |
 
 ### baseline-partial-001
 
@@ -161,3 +162,28 @@ Notes:
 
 - Confirms AI-white empty-opening 9x9 coverage is green for all 14 policies.
 - This still does not cover all openings or full 13x13/19x19 policy matrices.
+
+### large-progress-005
+
+Command:
+
+```sh
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 13,19 --ai-side both --max-ai-move-ms 5000 --max-moves 80 --progress-every 20 --output build/ai_eval/large_boards_full_policy_gate_candidate.json --output-log build/ai_eval/large_boards_full_policy_gate_candidate.jsonl
+```
+
+Result from completed JSONL rows before manual interruption:
+
+- Trials: 48
+- Passed: 48
+- Failed: 0
+- Score: 1.0000
+- Max AI move: 73ms
+- Slow moves over 5000ms: 0
+
+Notes:
+
+- The run was manually interrupted because the full 280-trial large-board gate
+  was too slow as a single command.
+- Completed rows covered the early 13x13 AI-black portion of the full ordering.
+- This is progress evidence only, not a substitute for the final 13x13/19x19
+  full gate.
