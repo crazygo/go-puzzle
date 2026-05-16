@@ -3890,6 +3890,21 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
 
   final _historyRepo = GameHistoryRepository();
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final settings = context.read<SettingsProvider?>();
+      final initialValue = settings?.showMoveLog ?? false;
+      if (initialValue != _moveLogVisible) {
+        setState(() {
+          _moveLogVisible = initialValue;
+        });
+      }
+    });
+  }
+
   /// Converts a board of [StoneColor] to a list of int indices.
   static List<List<int>> _boardToInts(List<List<StoneColor>> board) =>
       board.map((row) => row.map((c) => c.index).toList()).toList();
