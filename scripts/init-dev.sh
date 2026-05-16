@@ -14,6 +14,11 @@ set -euo pipefail
 #   FLUTTER_VERSION=3.41.7
 #   FLUTTER_DIST_URL=https://.../flutter_linux_3.41.7-stable.tar.xz
 #   FLUTTER_ARCHIVE_LOCAL=/path/to/flutter_linux_*.tar.xz
+#   INIT_DEV_SKIP_KATAGO_MODELS=1
+#   KATAGO_TERRITORY_SHARED_URL=https://.../katago.onnx
+#   KATAGO_TERRITORY_MODEL_9_URL=https://...
+#   KATAGO_TERRITORY_MODEL_13_URL=https://...
+#   KATAGO_TERRITORY_MODEL_19_URL=https://...
 #   INIT_DEV_SKIP_RECOGNITION_MODELS=1
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -27,9 +32,15 @@ FLUTTER_DIST_URL="${FLUTTER_DIST_URL:-${DEFAULT_DIST_URL}}"
 FLUTTER_ARCHIVE_LOCAL="${FLUTTER_ARCHIVE_LOCAL:-${CACHE_DIR}/${FLUTTER_ARCHIVE}}"
 FLUTTER_DIR="${TOOLS_DIR}/flutter"
 FLUTTER_VERSION_STAMP="${FLUTTER_DIR}/.installed-version"
+MODEL_DIR="${ROOT_DIR}/assets/models"
+DEFAULT_KATAGO_TERRITORY_SHARED_URL="${DEFAULT_KATAGO_TERRITORY_SHARED_URL:-https://huggingface.co/kaya-go/kaya/resolve/main/katago_small_b18c384nbt-onnx-batched-fp16.onnx}"
+KATAGO_TERRITORY_SHARED_URL="${KATAGO_TERRITORY_SHARED_URL:-${DEFAULT_KATAGO_TERRITORY_SHARED_URL}}"
+KATAGO_TERRITORY_MODEL_9_URL="${KATAGO_TERRITORY_MODEL_9_URL:-${KATAGO_TERRITORY_SHARED_URL}}"
+KATAGO_TERRITORY_MODEL_13_URL="${KATAGO_TERRITORY_MODEL_13_URL:-${KATAGO_TERRITORY_SHARED_URL}}"
+KATAGO_TERRITORY_MODEL_19_URL="${KATAGO_TERRITORY_MODEL_19_URL:-${KATAGO_TERRITORY_SHARED_URL}}"
 RUN_ANALYZE=0
 
-mkdir -p "${TOOLS_DIR}" "${BIN_DIR}" "${CACHE_DIR}"
+mkdir -p "${TOOLS_DIR}" "${BIN_DIR}" "${CACHE_DIR}" "${MODEL_DIR}"
 
 log() {
   echo "[init-dev] $*"
@@ -50,6 +61,14 @@ Usage:
 Options:
   --analyze       Run flutter/dart analyze checks after bootstrap.
   -h, --help      Show this help message and exit.
+
+Also downloads local territory ONNX models into:
+  /home/runner/work/go-puzzle/go-puzzle/assets/models/
+
+Also ensures local recognition models are present unless
+INIT_DEV_SKIP_RECOGNITION_MODELS=1 is set.
+
+Set INIT_DEV_SKIP_KATAGO_MODELS=1 to skip territory model downloads.
 EOF
         exit 0
         ;;
@@ -132,6 +151,78 @@ install_flutter() {
   ln -sf "${FLUTTER_DIR}/bin/dart" "${BIN_DIR}/dart"
 }
 
+download_file_if_needed() {
+  local url="$1"
+  local target="$2"
+  local cache_file="$3"
+
+  if [[ -s "${target}" ]]; then
+    log "Using existing model file: ${target}"
+    return 0
+  fi
+
+  if [[ -s "${cache_file}" ]]; then
+    log "Using cached model archive: ${cache_file}"
+    cp -f "${cache_file}" "${target}"
+    return 0
+  fi
+
+  log "Downloading model from: ${url}"
+  if ! curl -fL --retry 3 --connect-timeout 20 "${url}" -o "${cache_file}.part"; then
+    rm -f "${cache_file}.part"
+    log "Model download failed for ${target}"
+    return 1
+  fi
+
+  mv "${cache_file}.part" "${cache_file}"
+  cp -f "${cache_file}" "${target}"
+}
+
+download_katago_models() {
+  if [[ "${INIT_DEV_SKIP_KATAGO_MODELS:-0}" == "1" ]]; then
+    log "Skipping ONNX model downloads (INIT_DEV_SKIP_KATAGO_MODELS=1)."
+    return 0
+  fi
+
+  local shared_cache="${CACHE_DIR}/katago_territory_shared.onnx"
+  local shared_download_attempted=0
+  local shared_download_ok=0
+  local failed=0
+  local specs=(
+    "9|katago_territory_9x9.onnx|${KATAGO_TERRITORY_MODEL_9_URL}"
+    "13|katago_territory_13x13.onnx|${KATAGO_TERRITORY_MODEL_13_URL}"
+    "19|katago_territory_19x19.onnx|${KATAGO_TERRITORY_MODEL_19_URL}"
+  )
+
+  for spec in "${specs[@]}"; do
+    IFS="|" read -r board_size filename url <<< "${spec}"
+    local target="${MODEL_DIR}/${filename}"
+    local cache_file="${CACHE_DIR}/${filename}"
+    if [[ "${url}" == "${KATAGO_TERRITORY_SHARED_URL}" ]]; then
+      cache_file="${shared_cache}"
+      if [[ "${shared_download_attempted}" == "0" ]]; then
+        shared_download_attempted=1
+        if download_file_if_needed "${url}" "${target}" "${cache_file}"; then
+          shared_download_ok=1
+          continue
+        fi
+      elif [[ "${shared_download_ok}" == "1" ]]; then
+        cp -f "${cache_file}" "${target}"
+        log "Copied shared model into ${target}"
+        continue
+      fi
+    elif download_file_if_needed "${url}" "${target}" "${cache_file}"; then
+      continue
+    fi
+    failed=1
+    log "Missing ${board_size}x${board_size} model. Re-run init-dev after restoring network access or set KATAGO_TERRITORY_MODEL_${board_size}_URL."
+  done
+
+  if [[ "${failed}" == "1" ]]; then
+    log "Continuing without some ONNX models; the app will fall back to Dart territory search."
+  fi
+}
+
 warmup() {
   flutter config --no-analytics >/dev/null 2>&1 || true
   dart --disable-analytics >/dev/null 2>&1 || true
@@ -153,6 +244,7 @@ run_checks() {
   dart --version
 
   flutter pub get
+  download_katago_models
   ensure_recognition_models
 
   if [[ "${INIT_DEV_SKIP_NPM:-0}" == "1" ]]; then

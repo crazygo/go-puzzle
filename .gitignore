@@ -77,6 +77,8 @@ web/ai_search_worker.dart.js
 # bootstrap and must not be committed to git.
 assets/models/recognition/*.onnx
 web/recognition_models/*.onnx
+# Local territory ONNX models (downloaded by scripts/init-dev.sh; keep docs only)
+assets/models/*.onnx
 
 # Git worktrees
 .worktree/

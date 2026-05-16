@@ -39,20 +39,20 @@ final class TerritoryOnnxChannel: NSObject {
       return
     }
 
-    guard let boardSize = args["boardSize"] as? Int, boardSize == 9 else {
+    guard let boardSize = args["boardSize"] as? Int, [9, 13, 19].contains(boardSize) else {
       result([
         "usedNative": false,
         "backend": "ios_onnx",
-        "error": "only_small_9x9_model_is_supported"
+        "error": "only_9_13_19_board_sizes_are_supported"
       ])
       return
     }
 
-    guard let modelPath = locateModelPath() else {
+    guard let modelPath = locateModelPath(boardSize: boardSize) else {
       result([
         "usedNative": false,
         "backend": "ios_onnx",
-        "error": "katago_territory_9x9.onnx not found in flutter assets"
+        "error": "katago_territory_\(boardSize)x\(boardSize).onnx not found in flutter assets"
       ])
       return
     }
@@ -140,7 +140,7 @@ private extension TerritoryOnnxChannel {
     return created
   }
 
-  func locateModelPath() -> String? {
+  func locateModelPath(boardSize: Int) -> String? {
     guard let flutterAssets = Bundle.main.path(
       forResource: "flutter_assets",
       ofType: nil,
@@ -149,7 +149,7 @@ private extension TerritoryOnnxChannel {
       return nil
     }
     let modelPath = (flutterAssets as NSString).appendingPathComponent(
-      "assets/models/katago_territory_9x9.onnx"
+      "assets/models/katago_territory_\(boardSize)x\(boardSize).onnx"
     )
     return FileManager.default.fileExists(atPath: modelPath) ? modelPath : nil
   }
