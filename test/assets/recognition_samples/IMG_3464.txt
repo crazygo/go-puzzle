@@ -1,0 +1,17 @@
+Size 13
+B,M12
+B,E10
+B,F10
+B,M9
+B,F8
+B,K8
+B,M7
+B,E6
+B,F6
+B,G6
+B,H5
+B,M5
+B,H2
+B,N1
+W,G1
+W,K1

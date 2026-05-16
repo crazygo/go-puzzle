@@ -93,7 +93,7 @@ void main() {
             key: key,
             child: CupertinoPageScaffold(
               navigationBar: const CupertinoNavigationBar(
-                middle: Text('粒子背景预览'),
+                middle: Text('粒子背景預覽'),
               ),
               child: Stack(
                 children: [
@@ -116,11 +116,11 @@ void main() {
                         child: const Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _PanelSlider(label: '强度', value: '1.00'),
+                            _PanelSlider(label: '強度', value: '1.00'),
                             _PanelSlider(label: '模糊', value: '1.00'),
                             _PanelSlider(label: '暖色', value: '1.00'),
                             _PanelSlider(label: '景深', value: '1.00'),
-                            _PanelSlider(label: '渐隐', value: '0.58'),
+                            _PanelSlider(label: '漸隱', value: '0.58'),
                           ],
                         ),
                       ),

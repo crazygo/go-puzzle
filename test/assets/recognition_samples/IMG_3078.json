@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "image": {
+    "fileName": "IMG_3078.PNG",
+    "width": 2796,
+    "height": 1290
+  },
+  "boardSize": 13,
+  "corners": {
+    "topLeft": {
+      "x": 1103,
+      "y": 79
+    },
+    "topRight": {
+      "x": 2232,
+      "y": 74
+    },
+    "bottomRight": {
+      "x": 2229,
+      "y": 1205
+    },
+    "bottomLeft": {
+      "x": 1099,
+      "y": 1209
+    }
+  },
+  "stones": [
+    {
+      "color": "B",
+      "coord": "L12",
+      "row": 1,
+      "col": 10
+    },
+    {
+      "color": "B",
+      "coord": "K11",
+      "row": 2,
+      "col": 9
+    },
+    {
+      "color": "W",
+      "coord": "L11",
+      "row": 2,
+      "col": 10
+    },
+    {
+      "color": "W",
+      "coord": "M11",
+      "row": 2,
+      "col": 11
+    },
+    {
+      "color": "W",
+      "coord": "H10",
+      "row": 3,
+      "col": 7
+    },
+    {
+      "color": "B",
+      "coord": "J10",
+      "row": 3,
+      "col": 8
+    },
+    {
+      "color": "W",
+      "coord": "K10",
+      "row": 3,
+      "col": 9
+    },
+    {
+      "color": "W",
+      "coord": "L10",
+      "row": 3,
+      "col": 10
+    },
+    {
+      "color": "B",
+      "coord": "M10",
+      "row": 3,
+      "col": 11
+    },
+    {
+      "color": "W",
+      "coord": "H9",
+      "row": 4,
+      "col": 7
+    },
+    {
+      "color": "B",
+      "coord": "J9",
+      "row": 4,
+      "col": 8
+    },
+    {
+      "color": "W",
+      "coord": "K9",
+      "row": 4,
+      "col": 9
+    },
+    {
+      "color": "B",
+      "coord": "L9",
+      "row": 4,
+      "col": 10
+    },
+    {
+      "color": "W",
+      "coord": "F8",
+      "row": 5,
+      "col": 5
+    },
+    {
+      "color": "W",
+      "coord": "G8",
+      "row": 5,
+      "col": 6
+    },
+    {
+      "color": "B",
+      "coord": "H8",
+      "row": 5,
+      "col": 7
+    },
+    {
+      "color": "B",
+      "coord": "K8",
+      "row": 5,
+      "col": 9
+    },
+    {
+      "color": "B",
+      "coord": "D7",
+      "row": 6,
+      "col": 3
+    },
+    {
+      "color": "W",
+      "coord": "F7",
+      "row": 6,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "G7",
+      "row": 6,
+      "col": 6
+    },
+    {
+      "color": "B",
+      "coord": "H7",
+      "row": 6,
+      "col": 7
+    },
+    {
+      "color": "B",
+      "coord": "J7",
+      "row": 6,
+      "col": 8
+    },
+    {
+      "color": "W",
+      "coord": "K7",
+      "row": 6,
+      "col": 9
+    },
+    {
+      "color": "W",
+      "coord": "L7",
+      "row": 6,
+      "col": 10
+    },
+    {
+      "color": "W",
+      "coord": "E6",
+      "row": 7,
+      "col": 4
+    },
+    {
+      "color": "B",
+      "coord": "F6",
+      "row": 7,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "G6",
+      "row": 7,
+      "col": 6
+    },
+    {
+      "color": "B",
+      "coord": "J6",
+      "row": 7,
+      "col": 8
+    },
+    {
+      "color": "B",
+      "coord": "K6",
+      "row": 7,
+      "col": 9
+    },
+    {
+      "color": "W",
+      "coord": "L6",
+      "row": 7,
+      "col": 10
+    },
+    {
+      "color": "W",
+      "coord": "E5",
+      "row": 8,
+      "col": 4
+    },
+    {
+      "color": "B",
+      "coord": "F5",
+      "row": 8,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "H5",
+      "row": 8,
+      "col": 7
+    }
+  ]
+}

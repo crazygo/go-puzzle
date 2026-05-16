@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../game/board_image_recognizer.dart';
+import '../game/model_board_image_recognizer.dart';
 import '../game/capture_ai.dart';
 import '../game/ai_rank_level.dart';
 import '../game/go_engine.dart';
@@ -422,6 +423,11 @@ Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
   };
 }
 
+enum _ModelLoadDecision {
+  ready,
+  useRules,
+}
+
 class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const double _defaultHomeBoardTopFactor = 0.06;
   static const double _defaultHomeBoardHeightFactor = 0.62;
@@ -504,6 +510,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   bool _isAdjusting = false;
   bool _isRecognizingScreenshot = false;
   bool _homeTuningSheetVisible = false;
+  final _homeScrollController = ScrollController();
+  final _motivationHeroKey = GlobalKey<_MotivationHeroTitleState>();
+  bool _heroTapProxyEnabled = true;
 
   final _historyRepo = GameHistoryRepository();
   List<GameRecord> _history = const [];
@@ -556,14 +565,33 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   @override
   void initState() {
     super.initState();
+    _homeScrollController.addListener(_syncHeroTapProxy);
     _restoreSelection();
     _loadHistory();
+  }
+
+  @override
+  void dispose() {
+    _homeScrollController
+      ..removeListener(_syncHeroTapProxy)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _syncHeroTapProxy() {
+    final shouldEnable = !_homeScrollController.hasClients ||
+        _homeScrollController.offset < _MotivationHeroTitle.height;
+    if (shouldEnable == _heroTapProxyEnabled) return;
+    setState(() => _heroTapProxyEnabled = shouldEnable);
   }
 
   @override
   Widget build(BuildContext context) {
     final developerMode = context.select<SettingsProvider?, bool>(
       (settings) => settings?.developerMode ?? false,
+    );
+    final showsSharedBoard = context.select<SettingsProvider?, bool>(
+      (settings) => settings?.appTheme.showsSharedBoard ?? true,
     );
 
     return CupertinoPageScaffold(
@@ -572,7 +600,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         decoration: const BoxDecoration(),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            const cardTop = (kPageHeroContentOffset + 8) * 2;
+            const regularCardTop = kPageHeroContentOffset + 8;
+            const boardRevealCardTop = regularCardTop * 2;
+            final cardTop =
+                showsSharedBoard ? boardRevealCardTop : regularCardTop;
             final heroTitleTop = MediaQuery.of(context).padding.top + 36;
             // Let the scrollable content cover the hero title while scrolling.
             // The spacer preserves the first card's resting position.
@@ -596,6 +627,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                   left: 24,
                   right: 16,
                   child: _MotivationHeroTitle(
+                    key: _motivationHeroKey,
                     title: _CaptureCopy.pageTitle,
                     motivation: _CaptureCopy.motivation,
                   ),
@@ -609,6 +641,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     top: false,
                     bottom: false,
                     child: CustomScrollView(
+                      controller: _homeScrollController,
                       slivers: [
                         SliverToBoxAdapter(
                           child: SizedBox(height: adjustedCardTop),
@@ -620,7 +653,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 const _OuterSectionTitle(
-                                  title: '下一盘',
+                                  title: '下一盤',
                                   isVisible: false,
                                 ),
                                 const SizedBox(height: 8),
@@ -649,7 +682,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                             ),
                                             _SegmentOption(
                                               value: 'manual',
-                                              label: '指定等级',
+                                              label: '指定等級',
                                             ),
                                           ],
                                           onChanged: (value) =>
@@ -666,7 +699,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                           ),
                                         ],
                                         const SizedBox(height: 20),
-                                        const _SectionLabel(title: 'AI 风格'),
+                                        const _SectionLabel(title: 'AI 風格'),
                                         const SizedBox(height: 8),
                                         _AiStyleTile(
                                           selectedStyleName: _aiStyleChoice,
@@ -694,7 +727,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                             ),
                                             _SegmentOption(
                                               value: CaptureInitialMode.setup,
-                                              label: '摆棋',
+                                              label: '擺棋',
                                             ),
                                           ],
                                           onChanged: (value) =>
@@ -713,7 +746,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                             ),
                                             const _SegmentOption(
                                               value: _modeTerritory,
-                                              label: '围空',
+                                              label: '圍空',
                                             ),
                                           ],
                                           onChanged: (value) =>
@@ -721,7 +754,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
-                                          '仅切换标题显示，当前规则为吃 $_captureTarget 子取胜',
+                                          '僅切換標題顯示，目前規則為吃 $_captureTarget 子取勝',
                                           style: TextStyle(
                                             fontSize: 13,
                                             color: CupertinoColors
@@ -730,7 +763,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                           ),
                                         ),
                                         const SizedBox(height: 20),
-                                        const _SectionLabel(title: '棋盘'),
+                                        const _SectionLabel(title: '棋盤'),
                                         const SizedBox(height: 4),
                                         _PillSegmentControl<int>(
                                           selectedValue: _boardSize,
@@ -759,6 +792,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                           manualRank: _manualRank,
                                           computedRank: _computedRank,
                                           aiStyleChoice: _aiStyleChoice,
+                                          onTap: () => setState(
+                                            () => _isAdjusting = true,
+                                          ),
                                         ),
                                         const SizedBox(height: 24),
                                       ],
@@ -809,6 +845,18 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                     ),
                   ),
                 ),
+                if (_heroTapProxyEnabled)
+                  Positioned(
+                    top: heroTitleTop,
+                    left: 24,
+                    right: 16,
+                    height: _MotivationHeroTitle.height,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () => _motivationHeroKey.currentState?.handleTap(),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
                 if (kIsWeb && developerMode)
                   SafeArea(
                     child: Align(
@@ -1051,12 +1099,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   String get _selectedModeTitle {
     final boardSizeLabel = '$_boardSize 路';
     if (_playMode == _modeTerritory) {
-      return '围空 · $boardSizeLabel · ${_initialMode.label}';
+      return '圍空 · $boardSizeLabel · ${_initialMode.label}';
     }
-    return '吃 $_captureTarget 子取胜 · $boardSizeLabel · ${_initialMode.label}';
+    return '吃 $_captureTarget 子取勝 · $boardSizeLabel · ${_initialMode.label}';
   }
 
-  String get _captureModeSegmentLabel => '吃 $_captureTarget 子取胜';
+  String get _captureModeSegmentLabel => '吃 $_captureTarget 子取勝';
 
   Future<void> _restoreSelection() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1157,6 +1205,17 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }
 
   Future<void> _importBoardFromScreenshot() async {
+    var algorithm =
+        context.read<SettingsProvider?>()?.screenshotRecognitionAlgorithm ??
+            ScreenshotRecognitionAlgorithm.rules;
+    if (algorithm == ScreenshotRecognitionAlgorithm.model) {
+      final decision = await _showModelLoadingDialog();
+      if (!mounted || decision == null) return;
+      if (decision == _ModelLoadDecision.useRules) {
+        algorithm = ScreenshotRecognitionAlgorithm.rules;
+      }
+    }
+
     try {
       final picker = ImagePicker();
       final file = await picker.pickImage(
@@ -1173,7 +1232,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       setState(() {
         _isRecognizingScreenshot = true;
       });
-      final result = await _recognizeBoard(bytes);
+      final result = await _recognizeBoard(bytes, algorithm: algorithm);
       if (!mounted) return;
 
       final edited = await Navigator.of(context).push<_ImportBoardDraft>(
@@ -1204,8 +1263,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       await showCupertinoDialog<void>(
         context: context,
         builder: (context) => CupertinoAlertDialog(
-          title: const Text('导入失败'),
-          content: const Text('未能从截屏中识别棋盘，请确认图片清晰且包含完整棋盘。'),
+          title: const Text('匯入失敗'),
+          content: const Text('未能從截圖中辨識棋盤，請確認圖片清晰且包含完整棋盤。'),
           actions: [
             CupertinoDialogAction(
               onPressed: () => Navigator.of(context).pop(),
@@ -1223,7 +1282,24 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     }
   }
 
-  Future<BoardRecognitionResult> _recognizeBoard(Uint8List bytes) async {
+  Future<_ModelLoadDecision?> _showModelLoadingDialog() {
+    return showCupertinoDialog<_ModelLoadDecision>(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) => _ModelRecognitionLoadingDialog(
+        loadModel: ModelBoardImageRecognizer.instance.ensureLoaded,
+        reloadModel: ModelBoardImageRecognizer.instance.reload,
+      ),
+    );
+  }
+
+  Future<BoardRecognitionResult> _recognizeBoard(
+    Uint8List bytes, {
+    required ScreenshotRecognitionAlgorithm algorithm,
+  }) async {
+    if (algorithm == ScreenshotRecognitionAlgorithm.model) {
+      return ModelBoardImageRecognizer.instance.recognize(bytes);
+    }
     final raw = await compute(_recognizeBoardInIsolate, bytes);
     final board = (raw['board'] as List)
         .map<List<StoneColor>>(
@@ -1482,7 +1558,7 @@ class _HomeBoardTuningLauncher extends StatelessWidget {
               ),
               SizedBox(width: 6),
               Text(
-                '调光',
+                '調光',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -1692,13 +1768,13 @@ class _HomeBoardTuningSheet extends StatefulWidget {
 
 class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
   static const List<String> _tabTitles = [
-    '基础',
-    '构图',
+    '基礎',
+    '構圖',
     '主光',
-    '补光',
-    '环境',
-    '格子',
-    '动画',
+    '補光',
+    '環境',
+    '格線',
+    '動畫',
   ];
   int _selectedTab = 0;
 
@@ -1707,24 +1783,24 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
     final tabPages = <List<Widget>>[
       [
         _TuningSwitchRow(
-          title: '棋子额外阴影叠加',
+          title: '棋子額外陰影疊加',
           value: widget.stoneExtraOverlayEnabled,
           onChanged: widget.onStoneExtraOverlayChanged,
         ),
         _TuningSwitchRow(
-          title: '角标 ABCD',
+          title: '角標 ABCD',
           value: widget.cornerLabelsEnabled,
           onChanged: widget.onCornerLabelsChanged,
         ),
         _TuningSlider(
-          label: '棋盘亮度',
+          label: '棋盤亮度',
           value: widget.boardTopBrightness,
           min: 0.40,
           max: 2.40,
           onChanged: widget.onBoardTopBrightnessChanged,
         ),
         _RgbEditor(
-          title: '棋盘本色',
+          title: '棋盤本色',
           colorHex: widget.boardWoodColor,
           onChanged: widget.onBoardWoodColorChanged,
         ),
@@ -1736,21 +1812,21 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           onChanged: widget.onToneMappingExposureChanged,
         ),
         _TuningSlider(
-          label: '主光强度',
+          label: '主光強度',
           value: widget.keyLightIntensity,
           min: 0.0,
           max: 1.8,
           onChanged: widget.onKeyLightIntensityChanged,
         ),
         _TuningSlider(
-          label: '补光强度',
+          label: '補光強度',
           value: widget.fillLightIntensity,
           min: 0.0,
           max: 1.2,
           onChanged: widget.onFillLightIntensityChanged,
         ),
         _TuningSlider(
-          label: '环境光',
+          label: '環境光',
           value: widget.ambientLightIntensity,
           min: 0.0,
           max: 0.9,
@@ -1766,43 +1842,43 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           onChanged: widget.onBoardCinematicFovChanged,
         ),
         _TuningSlider(
-          label: '缩放',
+          label: '縮放',
           value: widget.boardSceneScale,
           min: 0.24,
           max: 2.0,
           onChanged: widget.onBoardSceneScaleChanged,
         ),
         _TuningSlider(
-          label: '相机高',
+          label: '相機高',
           value: widget.boardCameraLift,
           min: 0.01,
           max: 20,
           onChanged: widget.onBoardCameraLiftChanged,
         ),
         _TuningSlider(
-          label: '相机远',
+          label: '相機遠',
           value: widget.boardCameraDepth,
           min: 1.0,
           max: 30,
           onChanged: widget.onBoardCameraDepthChanged,
         ),
         _TuningSlider(
-          label: '目标Z',
+          label: '目標Z',
           value: widget.boardTargetZOffset,
           min: -1.4,
           max: 0.6,
           onChanged: widget.onBoardTargetZOffsetChanged,
         ),
         _TuningSlider(
-          label: '棋盘转向',
+          label: '棋盤轉向',
           value: widget.boardRotationY,
           min: -3.14,
           max: 3.14,
           onChanged: widget.onBoardRotationYChanged,
         ),
-        const _TuningGroupTitle('画布位置'),
+        const _TuningGroupTitle('畫布位置'),
         _TuningSlider(
-          label: '顶部',
+          label: '頂部',
           value: widget.boardTopFactor,
           min: 0.0,
           max: 0.18,
@@ -1829,14 +1905,14 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           onChanged: widget.onKeyLightPositionChanged,
         ),
         _TuningSlider(
-          label: '主光强度',
+          label: '主光強度',
           value: widget.keyLightIntensity,
           min: 0.0,
           max: 1.8,
           onChanged: widget.onKeyLightIntensityChanged,
         ),
         _RgbEditor(
-          title: '主光颜色',
+          title: '主光顏色',
           colorHex: widget.keyLightColor,
           onChanged: widget.onKeyLightColorChanged,
         ),
@@ -1847,45 +1923,45 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           onChanged: widget.onFillLightPositionChanged,
         ),
         _TuningSlider(
-          label: '补光强度',
+          label: '補光強度',
           value: widget.fillLightIntensity,
           min: 0.0,
           max: 1.2,
           onChanged: widget.onFillLightIntensityChanged,
         ),
         _RgbEditor(
-          title: '补光颜色',
+          title: '補光顏色',
           colorHex: widget.fillLightColor,
           onChanged: widget.onFillLightColorChanged,
         ),
       ],
       [
         _TuningSlider(
-          label: '环境光',
+          label: '環境光',
           value: widget.ambientLightIntensity,
           min: 0.0,
           max: 0.9,
           onChanged: widget.onAmbientLightIntensityChanged,
         ),
         _RgbEditor(
-          title: '环境光颜色',
+          title: '環境光顏色',
           colorHex: widget.ambientLightColor,
           onChanged: widget.onAmbientLightColorChanged,
         ),
         _TuningSlider(
-          label: '高光灯',
+          label: '高光燈',
           value: widget.sheenLightIntensity,
           min: 0.0,
           max: 1.4,
           onChanged: widget.onSheenLightIntensityChanged,
         ),
         _RgbEditor(
-          title: '高光颜色',
+          title: '高光顏色',
           colorHex: widget.sheenLightColor,
           onChanged: widget.onSheenLightColorChanged,
         ),
       ],
-      // 格子 tab
+      // 格線 tab
       [
         _TuningSlider(
           label: '窗光中心 U',
@@ -1902,14 +1978,14 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           onChanged: widget.onWindowCenterVChanged,
         ),
         _TuningSlider(
-          label: '窗光扩散 U',
+          label: '窗光擴散 U',
           value: widget.windowSpreadU,
           min: 0.50,
           max: 4.00,
           onChanged: widget.onWindowSpreadUChanged,
         ),
         _TuningSlider(
-          label: '窗光扩散 V',
+          label: '窗光擴散 V',
           value: widget.windowSpreadV,
           min: 0.50,
           max: 4.00,
@@ -1923,42 +1999,42 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           onChanged: widget.onWindowPlateauChanged,
         ),
         _TuningSlider(
-          label: '窗光衰减',
+          label: '窗光衰減',
           value: widget.windowFalloff,
           min: 0.05,
           max: 1.50,
           onChanged: widget.onWindowFalloffChanged,
         ),
         _TuningSlider(
-          label: '窗光旋转',
+          label: '窗光旋轉',
           value: widget.windowRotation,
           min: -3.14,
           max: 3.14,
           onChanged: widget.onWindowRotationChanged,
         ),
         _TuningSlider(
-          label: '格子基础透明度',
+          label: '格線基礎透明度',
           value: widget.gridBaseOpacity,
           min: 0.10,
           max: 1.00,
           onChanged: widget.onGridBaseOpacityChanged,
         ),
         _TuningSlider(
-          label: '格子淡化强度',
+          label: '格線淡化強度',
           value: widget.gridFadeMult,
           min: 0.00,
           max: 1.20,
           onChanged: widget.onGridFadeMultChanged,
         ),
         _TuningSlider(
-          label: '格子淡化曲线',
+          label: '格線淡化曲線',
           value: widget.gridFadePower,
           min: 0.20,
           max: 2.00,
           onChanged: widget.onGridFadePowerChanged,
         ),
         _TuningSlider(
-          label: '格子最低不透明',
+          label: '格線最低不透明',
           value: widget.gridFadeMin,
           min: 0.00,
           max: 0.50,
@@ -1972,7 +2048,7 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
           onChanged: widget.onLightMapFloorChanged,
         ),
         _TuningSlider(
-          label: 'lightMap 强度',
+          label: 'lightMap 強度',
           value: widget.lightMapIntensity,
           min: 0.50,
           max: 4.00,
@@ -1980,56 +2056,56 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
         ),
       ],
       [
-        const _TuningGroupTitle('桂花树影'),
+        const _TuningGroupTitle('桂花樹影'),
         _TuningSwitchRow(
-          title: '启用树影',
+          title: '啟用樹影',
           value: widget.leafShadowEnabled,
           onChanged: widget.onLeafShadowEnabledChanged,
         ),
         _TuningSlider(
-          label: '叶影强度',
+          label: '葉影強度',
           value: widget.shadowOpacity,
           min: 0.04,
           max: 0.42,
           onChanged: widget.onShadowOpacityChanged,
         ),
         _TuningSlider(
-          label: '叶影速度',
+          label: '葉影速度',
           value: widget.leafShadowSpeed,
           min: 0.00,
           max: 0.60,
           onChanged: widget.onLeafShadowSpeedChanged,
         ),
         _TuningSlider(
-          label: '叶影摆幅',
+          label: '葉影擺幅',
           value: widget.leafShadowDrift,
           min: 0.00,
           max: 0.18,
           onChanged: widget.onLeafShadowDriftChanged,
         ),
         _TuningSlider(
-          label: '叶影旋转',
+          label: '葉影旋轉',
           value: widget.leafShadowRotation,
           min: -3.14,
           max: 3.14,
           onChanged: widget.onLeafShadowRotationChanged,
         ),
         _TuningSlider(
-          label: '叶影缩放',
+          label: '葉影縮放',
           value: widget.leafShadowScale,
           min: 0.05,
           max: 2.40,
           onChanged: widget.onLeafShadowScaleChanged,
         ),
         _TuningSlider(
-          label: '叶影位置 X',
+          label: '葉影位置 X',
           value: widget.leafShadowOffsetX,
           min: -2.00,
           max: 2.00,
           onChanged: widget.onLeafShadowOffsetXChanged,
         ),
         _TuningSlider(
-          label: '叶影位置 Z',
+          label: '葉影位置 Z',
           value: widget.leafShadowOffsetZ,
           min: -2.00,
           max: 2.00,
@@ -2101,13 +2177,13 @@ class _HomeBoardTuningSheetState extends State<_HomeBoardTuningSheet> {
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           minimumSize: const Size(42, 30),
                           onPressed: widget.onReset,
-                          child: const Text('重置'),
+                          child: const Text('重設'),
                         ),
                         CupertinoButton(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           minimumSize: const Size(42, 30),
                           onPressed: widget.onClose,
-                          child: const Text('关闭'),
+                          child: const Text('關閉'),
                         ),
                       ],
                     ),
@@ -2357,59 +2433,59 @@ class _RgbEditor extends StatelessWidget {
 }
 
 class _CaptureCopy {
-  static const pageTitle = '小闲围棋';
+  static const pageTitle = 'Baduk Puzzle';
 
   static const _motivations = [
-    '围棋让我放松',
-    '下棋使我更平静',
-    '我在这里是专注的',
+    '圍棋讓我放鬆',
+    '下棋使我更平靜',
+    '我在這裡是專注的',
     '每一步都值得深思',
-    '棋盘上只有当下',
-    '落子无悔，心平气和',
-    '围棋教会我耐心',
-    '在这里，我找到专注',
-    '下棋让我忘记烦恼',
-    '一盘棋，一段宁静',
+    '棋盤上只有當下',
+    '落子無悔，心平氣和',
+    '圍棋教會我耐心',
+    '在這裡，我找到專注',
+    '下棋讓我忘記煩惱',
+    '一盤棋，一段寧靜',
     '每手棋都是一次思考',
-    '围棋是我的冥想',
-    '在棋盘上，心绪沉静',
+    '圍棋是我的冥想',
+    '在棋盤上，心緒沉靜',
     '下一步，只看眼前',
-    '围棋让我学会等待',
-    '棋局如人生，从容应对',
-    '落子一刻，万虑皆空',
-    '下棋让我更专注',
-    '围棋是内心的修炼',
-    '在这里找到自己的节奏',
-    '每盘棋都是新的开始',
-    '棋盘上，时间慢了下来',
-    '围棋让我与自己对话',
-    '下棋时，世界变得安静',
-    '棋局中学会取舍',
-    '围棋给我带来平静',
-    '每一步都有它的意义',
-    '在棋盘上感受专注的力量',
-    '围棋让我享受思考的过程',
-    '落子时，心无杂念',
-    '围棋是我放松的方式',
-    '黑白之间，只有当下',
-    '围棋教会我谦逊',
-    '每次落子都是一次成长',
-    '在这里，我可以慢下来',
-    '下棋让思绪变得清晰',
-    '围棋让我学会专注于当下',
-    '棋局中，找到内心的平衡',
+    '圍棋讓我學會等待',
+    '棋局如人生，從容應對',
+    '落子一刻，萬慮皆空',
+    '下棋讓我更專注',
+    '圍棋是內心的修煉',
+    '在這裡找到自己的節奏',
+    '每盤棋都是新的開始',
+    '棋盤上，時間慢了下來',
+    '圍棋讓我與自己對話',
+    '下棋時，世界變得安靜',
+    '棋局中學會取捨',
+    '圍棋給我帶來平靜',
+    '每一步都有它的意義',
+    '在棋盤上感受專注的力量',
+    '圍棋讓我享受思考的過程',
+    '落子時，心無雜念',
+    '圍棋是我放鬆的方式',
+    '黑白之間，只有當下',
+    '圍棋教會我謙遜',
+    '每次落子都是一次成長',
+    '在這裡，我可以慢下來',
+    '下棋讓思緒變得清晰',
+    '圍棋讓我學會專注於當下',
+    '棋局中，找到內心的平衡',
     '一子一子，皆是修行',
-    '围棋让我感到愉悦',
-    '棋盘上，输赢都是收获',
-    '下棋使我沉淀下来',
-    '围棋是一种心灵的放空',
-    '每一盘棋都是一段旅程',
-    '在棋局中找到宁静',
-    '围棋让我学会了坚持',
-    '落子之间，感受当下',
-    '围棋让心绪安定',
-    '棋盘是我思考的空间',
-    '下棋，让我更了解自己',
+    '圍棋讓我感到愉悅',
+    '棋盤上，輸贏都是收穫',
+    '下棋使我沉澱下來',
+    '圍棋是一種心靈的放空',
+    '每一盤棋都是一段旅程',
+    '在棋局中找到寧靜',
+    '圍棋讓我學會了堅持',
+    '落子之間，感受當下',
+    '圍棋讓心緒安定',
+    '棋盤是我思考的空間',
+    '下棋，讓我更了解自己',
   ];
 
   static const _millisecondsPerHour = 1000 * 3600;
@@ -2434,13 +2510,14 @@ class _CaptureCopy {
     return candidates[Random().nextInt(candidates.length)];
   }
 
-  static const startAsBlackButton = '执黑先行';
-  static const startAsWhiteButton = '执白后行';
-  static const startSetupButton = '开始';
+  static const startAsBlackButton = '執黑先行';
+  static const startAsWhiteButton = '執白後行';
+  static const startSetupButton = '開始';
 }
 
 class _MotivationHeroTitle extends StatefulWidget {
   const _MotivationHeroTitle({
+    super.key,
     required this.title,
     required this.motivation,
   });
@@ -2513,6 +2590,14 @@ class _MotivationHeroTitleState extends State<_MotivationHeroTitle>
       _currentMotivation =
           _CaptureCopy.randomMotivation(except: _currentMotivation);
     });
+  }
+
+  void handleTap() {
+    if (_controller.status == AnimationStatus.completed) {
+      _handleMotivationTap();
+    } else {
+      _handleTitleTap();
+    }
   }
 
   Widget _buildMotivationText(TextStyle style) {
@@ -2651,7 +2736,7 @@ extension _CaptureInitialModeLabelExt on CaptureInitialMode {
       CaptureInitialMode.cross => '十字',
       CaptureInitialMode.twistCross => '扭十字',
       CaptureInitialMode.empty => '空白',
-      CaptureInitialMode.setup => '摆棋',
+      CaptureInitialMode.setup => '擺棋',
     };
   }
 }
@@ -2672,7 +2757,7 @@ class _PrimaryActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final isClassic = identical(palette, AppThemePalette.classic);
+    final isClassic = context.isClassicAppTheme;
     final primaryEnd = isClassic
         ? palette.primary
         : Color.lerp(palette.primary, CupertinoColors.black, 0.20)!;
@@ -2722,27 +2807,35 @@ class _SecondaryActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final isClassic = identical(palette, AppThemePalette.classic);
+    final isClassic = context.isClassicAppTheme;
     final secondaryFill = isClassic
-        ? CupertinoColors.systemGrey5.resolveFrom(context)
+        ? palette.setupPanelBackground
         : palette.primary.withValues(alpha: 0.10);
     final secondaryText = isClassic
-        ? CupertinoColors.systemBlue.resolveFrom(context)
+        ? palette.setupActionText
         : Color.lerp(palette.primary, CupertinoColors.black, 0.18);
+    final secondaryBorder =
+        isClassic ? palette.setupActionText : CupertinoColors.transparent;
 
     return SizedBox(
       width: double.infinity,
-      child: CupertinoButton(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        borderRadius: BorderRadius.circular(14),
-        color: secondaryFill,
-        onPressed: onPressed,
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: secondaryText,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: secondaryFill,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: secondaryBorder),
+        ),
+        child: CupertinoButton(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          borderRadius: BorderRadius.circular(14),
+          onPressed: onPressed,
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: secondaryText,
+            ),
           ),
         ),
       ),
@@ -2758,27 +2851,25 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final isClassic = identical(palette, AppThemePalette.classic);
-    final cardBackground = isClassic
-        ? CupertinoColors.systemBackground.resolveFrom(context)
-        : const Color(0xF7FFFDF9);
-    final cardBorder = isClassic
-        ? CupertinoColors.systemGrey5.resolveFrom(context)
-        : const Color(0x26D8C1A4);
+    final isClassic = context.isClassicAppTheme;
+    final cardBackground =
+        isClassic ? palette.setupPanelBackground : const Color(0xF7FFFDF9);
 
     return Container(
       padding: kPageSectionCardPadding,
       decoration: BoxDecoration(
         color: cardBackground,
         borderRadius: BorderRadius.circular(kPageSectionCardRadius),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0x0A000000),
-            blurRadius: isClassic ? 12 : 24,
-            offset: Offset(0, isClassic ? 4 : 10),
-          ),
-        ],
+        border: isClassic ? null : Border.all(color: const Color(0x26D8C1A4)),
+        boxShadow: isClassic
+            ? null
+            : const [
+                BoxShadow(
+                  color: Color(0x0A000000),
+                  blurRadius: 24,
+                  offset: Offset(0, 10),
+                ),
+              ],
       ),
       child: child,
     );
@@ -2792,12 +2883,13 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 17,
         fontWeight: FontWeight.w700,
-        color: Color(0xFF3A2A1F),
+        color: palette.setupTitleText,
       ),
     );
   }
@@ -2874,7 +2966,7 @@ class _PracticeHeader extends StatelessWidget {
           minimumSize: const Size(44, 44),
           onPressed: onAdjustTap,
           child: Text(
-            isAdjusting ? '完成' : '调整 ›',
+            isAdjusting ? '完成' : '調整 ›',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -2893,18 +2985,20 @@ class _ConfigPreview extends StatelessWidget {
     required this.manualRank,
     required this.computedRank,
     required this.aiStyleChoice,
+    required this.onTap,
   });
 
   final String difficultyMode;
   final int manualRank;
   final int computedRank;
   final String aiStyleChoice;
+  final VoidCallback onTap;
 
   String get _difficultyLabel {
     if (difficultyMode == 'manual') {
       return '指定·${AiRankLevel.displayName(manualRank)}';
     }
-    return '不分伯仲·约${AiRankLevel.displayName(computedRank)}';
+    return '不分伯仲·約${AiRankLevel.displayName(computedRank)}';
   }
 
   String get _aiStyleLabel {
@@ -2919,31 +3013,42 @@ class _ConfigPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        color: palette.setupPanelBackground,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: palette.setupPanelBorder),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _ConfigPreviewItem(
-              icon: CupertinoIcons.triangle_fill,
-              title: 'AI 棋力',
-              value: _difficultyLabel,
+    final isClassic = context.isClassicAppTheme;
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      onPressed: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isClassic ? 0 : 12,
+          vertical: isClassic ? 4 : 14,
+        ),
+        decoration: isClassic
+            ? null
+            : BoxDecoration(
+                color: palette.setupPanelBackground,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: palette.setupPanelBorder),
+              ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _ConfigPreviewItem(
+                icon: CupertinoIcons.triangle_fill,
+                title: 'AI 棋力',
+                value: _difficultyLabel,
+              ),
             ),
-          ),
-          const _ConfigPreviewDivider(),
-          Expanded(
-            child: _ConfigPreviewItem(
-              icon: CupertinoIcons.star_fill,
-              title: 'AI 风格',
-              value: _aiStyleLabel,
+            const _ConfigPreviewDivider(),
+            Expanded(
+              child: _ConfigPreviewItem(
+                icon: CupertinoIcons.star_fill,
+                title: 'AI 風格',
+                value: _aiStyleLabel,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -3038,13 +3143,14 @@ class _PillSegmentControl<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     final selectedIndex =
         options.indexWhere((option) => option.value == selectedValue);
 
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F2E8),
+        color: palette.segmentTrack,
         borderRadius: BorderRadius.circular(14),
       ),
       child: LayoutBuilder(
@@ -3061,7 +3167,7 @@ class _PillSegmentControl<T> extends StatelessWidget {
                 width: width,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF3E2C9),
+                    color: palette.segmentSelected,
                     borderRadius: BorderRadius.circular(11),
                   ),
                 ),
@@ -3080,8 +3186,8 @@ class _PillSegmentControl<T> extends StatelessWidget {
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: selectedValue == option.value
-                                ? const Color(0xFF8A5A2B)
-                                : const Color(0xFF5A4B3F),
+                                ? palette.segmentSelectedText
+                                : palette.segmentText,
                           ),
                         ),
                       ),
@@ -3115,7 +3221,7 @@ class _AiStyleTile extends StatelessWidget {
     showCupertinoModalPopup<void>(
       context: context,
       builder: (ctx) => CupertinoActionSheet(
-        title: const Text('选择 AI 风格'),
+        title: const Text('選擇 AI 風格'),
         message: Text('${style.label}：${style.summary}'),
         actions: [
           for (final s in CaptureAiStyle.values)
@@ -3125,7 +3231,7 @@ class _AiStyleTile extends StatelessWidget {
                 Navigator.of(ctx).pop();
               },
               child: Text(
-                s == style ? '${s.label} · 当前' : '${s.label}  ${s.summary}',
+                s == style ? '${s.label} · 目前' : '${s.label}  ${s.summary}',
               ),
             ),
         ],
@@ -3139,6 +3245,7 @@ class _AiStyleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     final style = _selectedStyle;
     return CupertinoButton(
       padding: EdgeInsets.zero,
@@ -3147,9 +3254,9 @@ class _AiStyleTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFFFFF),
+          color: palette.setupPanelBackground,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0x33D2B28E)),
+          border: Border.all(color: palette.setupPanelBorder),
         ),
         child: Row(
           children: [
@@ -3157,10 +3264,16 @@ class _AiStyleTile extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: const Color(0xFFF7EFE3),
+                color: palette.setupIconBackground,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const CustomPaint(painter: _LotusPainter()),
+              child: CustomPaint(
+                painter: _LotusPainter(
+                  strokeColor: palette.setupIconForeground,
+                  fillColor:
+                      palette.setupIconForeground.withValues(alpha: 0.12),
+                ),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -3169,30 +3282,30 @@ class _AiStyleTile extends StatelessWidget {
                 children: [
                   Text(
                     style.label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16.5,
                       height: 1.05,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF36271E),
+                      color: palette.setupValueText,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     style.summary,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11.5,
-                      color: Color(0xFF8A7A6B),
+                      color: palette.setupLabelText,
                     ),
                   ),
                 ],
               ),
             ),
-            const Text(
+            Text(
               '›',
               style: TextStyle(
                 fontSize: 18,
                 height: 1,
-                color: Color(0xFFB68454),
+                color: palette.setupActionText,
               ),
             ),
           ],
@@ -3249,12 +3362,13 @@ class _RankPickerState extends State<_RankPicker> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     return Container(
       height: 120,
       decoration: BoxDecoration(
-        color: const Color(0xFFFAF4EC),
+        color: palette.setupPanelBackground,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x22D2B28E)),
+        border: Border.all(color: palette.setupPanelBorder),
       ),
       child: CupertinoPicker(
         scrollController: _scrollController,
@@ -3267,9 +3381,9 @@ class _RankPickerState extends State<_RankPicker> {
             Center(
               child: Text(
                 AiRankLevel.displayName(rank),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 17,
-                  color: Color(0xFF36271E),
+                  color: palette.setupValueText,
                 ),
               ),
             ),
@@ -3280,18 +3394,24 @@ class _RankPickerState extends State<_RankPicker> {
 }
 
 class _LotusPainter extends CustomPainter {
-  const _LotusPainter();
+  const _LotusPainter({
+    required this.strokeColor,
+    required this.fillColor,
+  });
+
+  final Color strokeColor;
+  final Color fillColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final stroke = Paint()
-      ..color = const Color(0xFFBC8448)
+      ..color = strokeColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     final fill = Paint()
-      ..color = const Color(0x22BC8448)
+      ..color = fillColor
       ..style = PaintingStyle.fill;
     final center = Offset(size.width / 2, size.height / 2 + 2);
     final petal = Path()
@@ -3336,7 +3456,9 @@ class _LotusPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _LotusPainter oldDelegate) =>
+      oldDelegate.strokeColor != strokeColor ||
+      oldDelegate.fillColor != fillColor;
 }
 
 class _ImportScreenshotCard extends StatelessWidget {
@@ -3351,15 +3473,13 @@ class _ImportScreenshotCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final isClassic = identical(palette, AppThemePalette.classic);
+    final isClassic = context.isClassicAppTheme;
     final iconContainerColor = isClassic
-        ? CupertinoColors.systemIndigo
-            .resolveFrom(context)
-            .withValues(alpha: 0.16)
+        ? palette.setupPanelBackground
         : palette.primary.withValues(alpha: 0.16);
-    final iconColor = isClassic
-        ? CupertinoColors.systemIndigo.resolveFrom(context)
-        : palette.primary;
+    final iconColor = isClassic ? palette.setupActionText : palette.primary;
+    final iconBorderColor =
+        isClassic ? palette.setupActionText : CupertinoColors.transparent;
     final titleColor = isClassic
         ? CupertinoColors.label.resolveFrom(context)
         : const Color(0xFF36271E);
@@ -3382,6 +3502,7 @@ class _ImportScreenshotCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: iconContainerColor,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: iconBorderColor),
               ),
               alignment: Alignment.center,
               child: isLoading
@@ -3397,7 +3518,7 @@ class _ImportScreenshotCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isLoading ? '识别中...' : '导入截屏摆棋',
+                    isLoading ? '辨識中...' : '匯入截圖擺棋',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -3406,7 +3527,7 @@ class _ImportScreenshotCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '自动识别棋盘和棋子，预览后微调进入摆棋',
+                    '自動辨識棋盤和棋子，預覽後微調進入擺棋',
                     style: TextStyle(
                       fontSize: 11.5,
                       color: subtitleColor,
@@ -3435,6 +3556,155 @@ class _ImportBoardDraft {
 
   final int boardSize;
   final List<List<StoneColor>> board;
+}
+
+class _ModelRecognitionLoadingDialog extends StatefulWidget {
+  const _ModelRecognitionLoadingDialog({
+    required this.loadModel,
+    required this.reloadModel,
+  });
+
+  final Future<void> Function() loadModel;
+  final Future<void> Function() reloadModel;
+
+  @override
+  State<_ModelRecognitionLoadingDialog> createState() =>
+      _ModelRecognitionLoadingDialogState();
+}
+
+class _ModelRecognitionLoadingDialogState
+    extends State<_ModelRecognitionLoadingDialog> {
+  bool _isLoading = true;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load(firstAttempt: true);
+  }
+
+  Future<void> _load({required bool firstAttempt}) async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      if (firstAttempt) {
+        await widget.loadModel();
+      } else {
+        await widget.reloadModel();
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop(_ModelLoadDecision.ready);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = error;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final titleColor = CupertinoColors.label.resolveFrom(context);
+    final subtitleColor = CupertinoColors.secondaryLabel.resolveFrom(context);
+    return Center(
+      child: CupertinoPopupSurface(
+        isSurfacePainted: true,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: CupertinoButton(
+                    minimumSize: const Size.square(28),
+                    padding: EdgeInsets.zero,
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Icon(
+                      CupertinoIcons.xmark_circle_fill,
+                      color: CupertinoColors.tertiaryLabel.resolveFrom(context),
+                      size: 24,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Center(
+                  child: _isLoading
+                      ? const CupertinoActivityIndicator(radius: 13)
+                      : Icon(
+                          CupertinoIcons.exclamationmark_triangle,
+                          color: palette.primary,
+                          size: 28,
+                        ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  _isLoading ? '正在載入模型' : '模型載入失敗',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: titleColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _isLoading
+                      ? (kIsWeb
+                          ? '正在從 GitHub Release 下載識別模型，速度取決於網路。'
+                          : '正在從 App 內置資源載入識別模型。')
+                      : '可以重試載入模型，或先使用原本的算法方式匯入。',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: subtitleColor,
+                    fontSize: 13,
+                    height: 1.3,
+                  ),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _error.toString(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: CupertinoColors.tertiaryLabel.resolveFrom(context),
+                      fontSize: 11,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
+                if (!_isLoading) ...[
+                  const SizedBox(height: 16),
+                  CupertinoButton.filled(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    onPressed: () => _load(firstAttempt: false),
+                    child: const Text('重試'),
+                  ),
+                  const SizedBox(height: 8),
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    onPressed: () =>
+                        Navigator.of(context).pop(_ModelLoadDecision.useRules),
+                    child: const Text('使用算法方式'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ImportPreviewScreen extends StatefulWidget {
@@ -3474,12 +3744,12 @@ class _ImportPreviewScreenState extends State<_ImportPreviewScreen> {
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        middle: const Text('截屏识别预览'),
+        middle: const Text('截圖辨識預覽'),
         previousPageTitle: _CaptureCopy.pageTitle,
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
           onPressed: _startSetup,
-          child: const Text('开始摆棋'),
+          child: const Text('開始擺棋'),
         ),
       ),
       child: SafeArea(
@@ -3492,7 +3762,7 @@ class _ImportPreviewScreenState extends State<_ImportPreviewScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '识别置信度 $confidencePct%',
+                      '辨識可信度 $confidencePct%',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -3501,7 +3771,7 @@ class _ImportPreviewScreenState extends State<_ImportPreviewScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      '点击棋盘交叉点可循环切换：空 -> 黑 -> 白。确认后进入摆棋模式。',
+                      '點擊棋盤交叉點可循環切換：空 -> 黑 -> 白。確認後進入擺棋模式。',
                       style: TextStyle(fontSize: 13, color: Color(0xFF6B5C50)),
                     ),
                     const SizedBox(height: 12),
@@ -3542,7 +3812,7 @@ class _ImportPreviewScreenState extends State<_ImportPreviewScreen> {
                 width: double.infinity,
                 child: CupertinoButton.filled(
                   onPressed: _startSetup,
-                  child: const Text('进入摆棋模式'),
+                  child: const Text('進入擺棋模式'),
                 ),
               ),
             ),
@@ -3617,7 +3887,6 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   bool _resultDialogShown = false;
   bool _moveLogVisible = false;
   final Set<int> _markedMoveNumbers = <int>{};
-  final GlobalKey _operationButtonKey = GlobalKey();
 
   final _historyRepo = GameHistoryRepository();
 
@@ -3720,37 +3989,39 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
           }
           final settings = context.watch<SettingsProvider?>();
           final showCaptureWarning = settings?.showCaptureWarning ?? true;
-          final palette = settings?.appTheme.palette ?? context.appPalette;
+          final palette = context.appPalette;
 
           return CupertinoPageScaffold(
-            backgroundColor: const Color(0xFFF3F0ED),
+            backgroundColor: palette.pageBackground,
             navigationBar: CupertinoNavigationBar(
-              backgroundColor: const Color(0xFFF3F0ED),
+              backgroundColor: palette.pageBackground,
               border: null,
               previousPageTitle: _CaptureCopy.pageTitle,
               middle: Text(
                 _buildGameTitle(provider, widget.humanColor),
-                style: const TextStyle(
-                  color: Color(0xFF2E2620),
+                style: TextStyle(
+                  color: palette.setupTitleText,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              trailing: CupertinoButton(
-                key: _operationButtonKey,
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                onPressed: () => _showOperationMenu(
-                  context: context,
-                  provider: provider,
-                  settings: settings,
-                ),
-                child: Text(
-                  '操作',
-                  style: TextStyle(
-                    color: Color(0xFFC3996E),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+              trailing: Builder(
+                builder: (buttonContext) => CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  onPressed: () => _showOperationMenu(
+                    context: context,
+                    buttonContext: buttonContext,
+                    provider: provider,
+                    settings: settings,
+                  ),
+                  child: Text(
+                    '操作',
+                    style: TextStyle(
+                      color: palette.setupActionText,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -3804,6 +4075,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
 
   void _showOperationMenu({
     required BuildContext context,
+    required BuildContext buttonContext,
     required CaptureGameProvider provider,
     required SettingsProvider? settings,
   }) {
@@ -3813,7 +4085,6 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
     final currentMoveMarked =
         _markedMoveNumbers.contains(provider.moveLog.length);
     final showCaptureWarning = settings?.showCaptureWarning ?? true;
-    final buttonContext = _operationButtonKey.currentContext ?? context;
     final buttonBox = buttonContext.findRenderObject() as RenderBox?;
     final overlayBox =
         Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
@@ -3824,22 +4095,27 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
       ancestor: overlayBox,
     );
     final buttonRect = buttonTopLeft & buttonBox.size;
+    const menuWidth = 178.0;
+    const menuHeight = 292.0;
+    const edgePadding = 12.0;
+    final media = MediaQuery.of(context);
+    final preferredTop = buttonRect.top - menuHeight - 8;
+    final menuOpensBelow = preferredTop < media.padding.top + edgePadding;
+    final menuAlignment =
+        menuOpensBelow ? Alignment.topRight : Alignment.bottomRight;
 
     showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: '关闭操作菜单',
+      barrierLabel: '關閉操作選單',
       barrierColor: CupertinoColors.black.withValues(alpha: 0.02),
-      transitionDuration: const Duration(milliseconds: 140),
+      transitionDuration: const Duration(milliseconds: 160),
       pageBuilder: (menuContext, _, __) {
-        const menuWidth = 178.0;
-        const menuHeight = 292.0;
-        const edgePadding = 12.0;
-        final media = MediaQuery.of(menuContext);
-        final maxLeft = media.size.width - menuWidth - edgePadding;
+        final menuMedia = MediaQuery.of(menuContext);
+        final maxLeft = menuMedia.size.width - menuWidth - edgePadding;
         final left = (buttonRect.right - menuWidth).clamp(edgePadding, maxLeft);
-        var top = buttonRect.top - menuHeight - 8;
-        final minTop = media.padding.top + edgePadding;
+        var top = preferredTop;
+        final minTop = menuMedia.padding.top + edgePadding;
         if (top < minTop) {
           top = buttonRect.bottom + 8;
         }
@@ -3905,8 +4181,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
         return FadeTransition(
           opacity: curved,
           child: ScaleTransition(
-            scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
-            alignment: Alignment.bottomRight,
+            scale: Tween<double>(begin: 0.98, end: 1).animate(curved),
+            alignment: menuAlignment,
             child: child,
           ),
         );
@@ -3915,8 +4191,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   }
 
   String _buildGameTitle(CaptureGameProvider provider, StoneColor humanColor) {
-    if (provider.result == CaptureGameResult.blackWins) return '对局结束';
-    if (provider.result == CaptureGameResult.whiteWins) return '对局结束';
+    if (provider.result == CaptureGameResult.blackWins) return '對局結束';
+    if (provider.result == CaptureGameResult.whiteWins) return '對局結束';
     final colorName =
         provider.gameState.currentPlayer == StoneColor.black ? '黑棋' : '白棋';
     if (provider.isAiThinking ||
@@ -3924,7 +4200,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
             provider.gameState.currentPlayer != humanColor)) {
       return 'AI（$colorName）正在思考';
     }
-    return '轮到你（$colorName）落子';
+    return '輪到你（$colorName）落子';
   }
 
   Future<bool> _handleBoardTap({
@@ -4011,7 +4287,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
     showCupertinoModalPopup<void>(
       context: context,
       builder: (context) => CupertinoActionSheet(
-        title: const Text('切换 AI 风格'),
+        title: const Text('切換 AI 風格'),
         message: Text('${provider.aiStyle.label}：${provider.aiStyle.summary}'),
         actions: [
           for (final style in CaptureAiStyle.values)
@@ -4022,7 +4298,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
               },
               child: Text(
                 style == provider.aiStyle
-                    ? '${style.label} · 当前'
+                    ? '${style.label} · 目前'
                     : '${style.label} · ${style.summary}',
               ),
             ),
@@ -4435,31 +4711,31 @@ class _OperationContextMenu extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _OperationMenuItem(
-              text: 'AI 风格：$aiStyleLabel',
+              text: 'AI 風格：$aiStyleLabel',
               enabled: true,
               onPressed: onAiStyle,
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
-              text: captureWarningEnabled ? '吃子预警：开' : '吃子预警：关',
+              text: captureWarningEnabled ? '吃子預警：開' : '吃子預警：關',
               enabled: canToggleCaptureWarning,
               onPressed: onToggleCaptureWarning,
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
-              text: moveLogVisible ? '隐藏棋谱' : '显示棋谱',
+              text: moveLogVisible ? '隱藏棋譜' : '顯示棋譜',
               enabled: true,
               onPressed: onToggleMoveLog,
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
-              text: currentMoveMarked ? '取消打标此手' : '打标此手',
+              text: currentMoveMarked ? '取消標記此手' : '標記此手',
               enabled: canMarkMove,
               onPressed: onToggleMarkMove,
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
-              text: '后退一手',
+              text: '後退一手',
               enabled: canUndo,
               onPressed: onUndo,
             ),
@@ -4715,19 +4991,20 @@ class _HistorySectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visible = history.take(_maxVisible).toList();
+    final palette = context.appPalette;
     return _SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  '历史对局',
+                  '歷史對局',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF3A2A1F),
+                    color: palette.setupTitleText,
                   ),
                 ),
               ),
@@ -4737,11 +5014,11 @@ class _HistorySectionCard extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                   minimumSize: Size.zero,
                   onPressed: () => _showAllHistory(context),
-                  child: const Text(
+                  child: Text(
                     '全部 ›',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFFB68454),
+                      color: palette.setupActionText,
                     ),
                   ),
                 ),
@@ -4792,12 +5069,22 @@ class _HistoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final isClassic = context.isClassicAppTheme;
     final date = _formatDate(record.playedAt);
     final boardLabel = '${record.boardSize} 路';
     final diffLabel = record.difficultyLevel.displayName;
     final outcomeLabel = record.outcome.displayName;
-    final outcomeColor =
-        _outcomeColors[record.outcome] ?? const Color(0xFF8C7966);
+    final outcomeColor = isClassic
+        ? switch (record.outcome) {
+            GameOutcome.humanWins =>
+              CupertinoColors.systemGreen.resolveFrom(context),
+            GameOutcome.aiWins =>
+              CupertinoColors.systemRed.resolveFrom(context),
+            GameOutcome.abandoned =>
+              CupertinoColors.systemGrey.resolveFrom(context),
+          }
+        : _outcomeColors[record.outcome] ?? const Color(0xFF8C7966);
 
     return CupertinoButton(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -4814,18 +5101,18 @@ class _HistoryRow extends StatelessWidget {
               children: [
                 Text(
                   '$boardLabel · $diffLabel · ${record.totalMoves} 手',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF3A2A1F),
+                    color: palette.setupValueText,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   date,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11.5,
-                    color: Color(0xFF897564),
+                    color: palette.setupLabelText,
                   ),
                 ),
               ],
@@ -4847,9 +5134,11 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          const Icon(
+          Icon(
             CupertinoIcons.chevron_right,
-            color: Color(0xFFCBAF8C),
+            color: isClassic
+                ? CupertinoColors.tertiaryLabel.resolveFrom(context)
+                : const Color(0xFFCBAF8C),
             size: 14,
           ),
         ],
@@ -4875,14 +5164,23 @@ class _StoneCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isClassic = context.isClassicAppTheme;
     return Container(
       width: 22,
       height: 22,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: isBlack ? const Color(0xFF1A1A1A) : const Color(0xFFF5F0E8),
+        color: isBlack
+            ? CupertinoColors.label.resolveFrom(context)
+            : (isClassic
+                ? CupertinoColors.systemBackground.resolveFrom(context)
+                : const Color(0xFFF5F0E8)),
         border: Border.all(
-          color: isBlack ? const Color(0xFF3A3A3A) : const Color(0xFFBCA88A),
+          color: isBlack
+              ? CupertinoColors.secondaryLabel.resolveFrom(context)
+              : (isClassic
+                  ? CupertinoColors.separator.resolveFrom(context)
+                  : const Color(0xFFBCA88A)),
           width: 1.2,
         ),
         boxShadow: const [
@@ -4909,11 +5207,13 @@ class _HistoryDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final boardState = _buildFinalBoardState(record);
+    final palette = context.appPalette;
+    final isClassic = context.isClassicAppTheme;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFFF9F4EC),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: palette.pageBackground,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
         top: false,
@@ -4925,7 +5225,7 @@ class _HistoryDetailSheet extends StatelessWidget {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0x33B68454),
+                color: palette.setupDivider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -4942,18 +5242,18 @@ class _HistoryDetailSheet extends StatelessWidget {
                       children: [
                         Text(
                           '${record.boardSize} 路 · 吃${record.captureTarget}子 · ${record.difficultyLevel.displayName}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF3A2A1F),
+                            color: palette.setupValueText,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           _formatFullDate(record.playedAt),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF8C7966),
+                            color: palette.setupLabelText,
                           ),
                         ),
                       ],
@@ -4963,11 +5263,11 @@ class _HistoryDetailSheet extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     minimumSize: const Size(24, 24),
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text(
-                      '关闭',
+                    child: Text(
+                      '關閉',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF8C7966),
+                        color: palette.setupActionText,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -4983,7 +5283,9 @@ class _HistoryDetailSheet extends StatelessWidget {
                   aspectRatio: 1,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF0DFC9),
+                      color: isClassic
+                          ? palette.setupPanelBackground
+                          : const Color(0xFFF0DFC9),
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Padding(
@@ -4999,9 +5301,9 @@ class _HistoryDetailSheet extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 '共 ${record.totalMoves} 手',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF8C7966),
+                  color: palette.setupLabelText,
                 ),
               ),
               const SizedBox(height: 16),
@@ -5010,7 +5312,7 @@ class _HistoryDetailSheet extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
                 child: _PrimaryActionButton(
-                  title: '浏览棋局',
+                  title: '瀏覽棋局',
                   onPressed: () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(
@@ -5105,8 +5407,8 @@ class _FullHistoryScreen extends StatelessWidget {
     return CupertinoPageScaffold(
       backgroundColor: kPageBackgroundColor,
       navigationBar: const CupertinoNavigationBar(
-        middle: Text('历史对局'),
-        previousPageTitle: '小闲围棋',
+        middle: Text('歷史對局'),
+        previousPageTitle: 'Baduk Puzzle',
       ),
       child: SafeArea(
         child: ListView.separated(
@@ -5228,8 +5530,8 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
     return CupertinoPageScaffold(
       backgroundColor: kPageBackgroundColor,
       navigationBar: const CupertinoNavigationBar(
-        middle: Text('棋局浏览'),
-        previousPageTitle: '历史对局',
+        middle: Text('棋局瀏覽'),
+        previousPageTitle: '歷史對局',
       ),
       child: SafeArea(
         child: Column(
@@ -5264,7 +5566,7 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                   Text(
                     _index == 0
                         ? '初始局面'
-                        : '第 $_index 手 / 共 $_totalMoves 手 · 坐标 ${_moveCoordinate(_index)}',
+                        : '第 $_index 手 / 共 $_totalMoves 手 · 座標 ${_moveCoordinate(_index)}',
                     style: const TextStyle(
                       fontSize: 13,
                       color: Color(0xFF8C7966),
@@ -5272,7 +5574,7 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                   ),
                   if (_index > 0 && _markedMoves.contains(_index))
                     const Text(
-                      '⭐ 已打标手',
+                      '⭐ 已標記手',
                       style: TextStyle(fontSize: 12, color: Color(0xFFB68454)),
                     ),
                 ],
@@ -5289,7 +5591,7 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       onPressed: () =>
                           setState(() => _onlyMarked = !_onlyMarked),
-                      child: Text(_onlyMarked ? '只看打标：开' : '只看打标：关'),
+                      child: Text(_onlyMarked ? '只看標記：開' : '只看標記：關'),
                     ),
                     for (final move in markedMoves)
                       Padding(
@@ -5433,31 +5735,40 @@ class _GameResultDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final isClassic = identical(palette, AppThemePalette.classic);
+    final isClassic = context.isClassicAppTheme;
     final (title, icon, accentColor) = switch (state) {
       _ResultDialogState.victory => (
-          '胜利',
+          '勝利',
           CupertinoIcons.star_fill,
-          isClassic ? const Color(0xFF34C759) : const Color(0xFFE4A64F),
+          isClassic
+              ? CupertinoColors.systemGreen.resolveFrom(context)
+              : const Color(0xFFE4A64F),
         ),
       _ResultDialogState.draw => (
           '和棋',
           CupertinoIcons.equal_circle_fill,
-          isClassic ? const Color(0xFF8E8E93) : const Color(0xFFC6A77F),
+          isClassic
+              ? CupertinoColors.systemGrey.resolveFrom(context)
+              : const Color(0xFFC6A77F),
         ),
       _ResultDialogState.notWin => (
-          '没赢',
+          '未獲勝',
           CupertinoIcons.flag_fill,
-          isClassic ? const Color(0xFFFF3B30) : const Color(0xFFC57A5E),
+          isClassic
+              ? CupertinoColors.systemRed.resolveFrom(context)
+              : const Color(0xFFC57A5E),
         ),
     };
     final titleColor =
-        isClassic ? const Color(0xFF111827) : const Color(0xFF2E2620);
+        isClassic ? palette.setupTitleText : const Color(0xFF2E2620);
     final cardGradient = isClassic
-        ? const LinearGradient(
+        ? LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFFFFF), Color(0xFFF9FAFB)],
+            colors: [
+              palette.setupPanelBackground,
+              palette.setupPanelBackground
+            ],
           )
         : const LinearGradient(
             begin: Alignment.topLeft,
@@ -5511,7 +5822,7 @@ class _GameResultDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
                 _ResultActionButton(
-                  text: '再来一局',
+                  text: '再來一局',
                   primary: true,
                   color: palette.primary,
                   textColor: CupertinoColors.white,
@@ -5519,7 +5830,7 @@ class _GameResultDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 _ResultActionButton(
-                  text: '复盘',
+                  text: '復盤',
                   primary: false,
                   color: secondaryButtonColor,
                   textColor: secondaryTextColor,
@@ -5527,7 +5838,7 @@ class _GameResultDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 _ResultActionButton(
-                  text: '离开',
+                  text: '離開',
                   primary: false,
                   color: secondaryButtonColor,
                   textColor: secondaryTextColor,

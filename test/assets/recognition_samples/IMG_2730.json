@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "image": {
+    "fileName": "IMG_2730.PNG",
+    "width": 1290,
+    "height": 2796
+  },
+  "boardSize": 9,
+  "corners": {
+    "topLeft": {
+      "x": 229,
+      "y": 387
+    },
+    "topRight": {
+      "x": 1063,
+      "y": 388
+    },
+    "bottomRight": {
+      "x": 1060,
+      "y": 1225
+    },
+    "bottomLeft": {
+      "x": 229,
+      "y": 1225
+    }
+  },
+  "stones": [
+    {
+      "color": "B",
+      "coord": "D6",
+      "row": 3,
+      "col": 3
+    },
+    {
+      "color": "B",
+      "coord": "C5",
+      "row": 4,
+      "col": 2
+    },
+    {
+      "color": "W",
+      "coord": "C4",
+      "row": 5,
+      "col": 2
+    },
+    {
+      "color": "B",
+      "coord": "D4",
+      "row": 5,
+      "col": 3
+    },
+    {
+      "color": "B",
+      "coord": "E4",
+      "row": 5,
+      "col": 4
+    },
+    {
+      "color": "W",
+      "coord": "F4",
+      "row": 5,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "C3",
+      "row": 6,
+      "col": 2
+    },
+    {
+      "color": "W",
+      "coord": "D3",
+      "row": 6,
+      "col": 3
+    },
+    {
+      "color": "B",
+      "coord": "E3",
+      "row": 6,
+      "col": 4
+    },
+    {
+      "color": "W",
+      "coord": "C2",
+      "row": 7,
+      "col": 2
+    },
+    {
+      "color": "W",
+      "coord": "D2",
+      "row": 7,
+      "col": 3
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 
 enum AppVisualTheme {
-  agarwood('Agarwood'),
-  classic('Classic');
+  agarwood('沉香'),
+  classic('經典');
 
   const AppVisualTheme(this.label);
 
@@ -74,6 +74,38 @@ class AppThemePalette {
   final Color setupValueText;
   final Color setupDivider;
 
+  AppThemePalette resolve(BuildContext context) {
+    Color resolved(Color color) =>
+        CupertinoDynamicColor.maybeResolve(color, context) ?? color;
+
+    return AppThemePalette(
+      primary: resolved(primary),
+      tabInactive: resolved(tabInactive),
+      pageBackground: resolved(pageBackground),
+      heroTitle: resolved(heroTitle),
+      heroSubtitle: resolved(heroSubtitle),
+      segmentTrack: resolved(segmentTrack),
+      segmentSelected: resolved(segmentSelected),
+      segmentSelectedText: resolved(segmentSelectedText),
+      segmentText: resolved(segmentText),
+      boardSideStart: resolved(boardSideStart),
+      boardSideMid: resolved(boardSideMid),
+      boardSideEnd: resolved(boardSideEnd),
+      boardTop: resolved(boardTop),
+      boardLine: resolved(boardLine),
+      coordinateText: resolved(coordinateText),
+      setupPanelBackground: resolved(setupPanelBackground),
+      setupPanelBorder: resolved(setupPanelBorder),
+      setupTitleText: resolved(setupTitleText),
+      setupActionText: resolved(setupActionText),
+      setupIconBackground: resolved(setupIconBackground),
+      setupIconForeground: resolved(setupIconForeground),
+      setupLabelText: resolved(setupLabelText),
+      setupValueText: resolved(setupValueText),
+      setupDivider: resolved(setupDivider),
+    );
+  }
+
   static const agarwood = AppThemePalette(
     primary: Color(0xFFB87A3C),
     tabInactive: Color(0xFFAF9C86),
@@ -102,29 +134,29 @@ class AppThemePalette {
   );
 
   static const classic = AppThemePalette(
-    primary: Color(0xFF007AFF),
-    tabInactive: Color(0xFF8E8E93),
-    pageBackground: Color(0xFFF2F2F7),
-    heroTitle: Color(0xFF111827),
-    heroSubtitle: Color(0xFF6B7280),
-    segmentTrack: Color(0xFFE5E5EA),
-    segmentSelected: Color(0xFFFFFFFF),
-    segmentSelectedText: Color(0xFF007AFF),
-    segmentText: Color(0xFF3A3A3C),
+    primary: CupertinoColors.systemBlue,
+    tabInactive: CupertinoColors.systemGrey,
+    pageBackground: CupertinoColors.systemGroupedBackground,
+    heroTitle: CupertinoColors.label,
+    heroSubtitle: CupertinoColors.secondaryLabel,
+    segmentTrack: CupertinoColors.tertiarySystemFill,
+    segmentSelected: CupertinoColors.secondarySystemGroupedBackground,
+    segmentSelectedText: CupertinoColors.systemBlue,
+    segmentText: CupertinoColors.label,
     boardSideStart: Color(0xFFD9A85F),
     boardSideMid: Color(0xFFBF843D),
     boardSideEnd: Color(0xFF8F5C28),
     boardTop: Color(0xFFE2B86F),
     boardLine: Color(0xFF4B3420),
     coordinateText: Color(0xFF3F2B18),
-    setupPanelBackground: Color(0xFFFFFFFF),
-    setupPanelBorder: Color(0x1A3C3C43),
-    setupTitleText: Color(0xFF111827),
-    setupActionText: Color(0xFF007AFF),
-    setupIconBackground: Color(0xFFE9EDF4),
-    setupIconForeground: Color(0xFF6B7280),
-    setupLabelText: Color(0xFF6B7280),
-    setupValueText: Color(0xFF111827),
-    setupDivider: Color(0x1A3C3C43),
+    setupPanelBackground: CupertinoColors.secondarySystemGroupedBackground,
+    setupPanelBorder: CupertinoColors.separator,
+    setupTitleText: CupertinoColors.label,
+    setupActionText: CupertinoColors.systemBlue,
+    setupIconBackground: CupertinoColors.tertiarySystemFill,
+    setupIconForeground: CupertinoColors.secondaryLabel,
+    setupLabelText: CupertinoColors.secondaryLabel,
+    setupValueText: CupertinoColors.label,
+    setupDivider: CupertinoColors.separator,
   );
 }

@@ -19,30 +19,30 @@ extension CaptureAiStyleExt on CaptureAiStyle {
   String get label {
     switch (this) {
       case CaptureAiStyle.adaptive:
-        return '战力优先';
+        return '戰力優先';
       case CaptureAiStyle.hunter:
-        return '猎杀';
+        return '獵殺';
       case CaptureAiStyle.trapper:
-        return '设陷';
+        return '設陷';
       case CaptureAiStyle.switcher:
-        return '转场';
+        return '轉場';
       case CaptureAiStyle.counter:
-        return '稳守';
+        return '穩守';
     }
   }
 
   String get summary {
     switch (this) {
       case CaptureAiStyle.adaptive:
-        return '均衡应变，不拘一格';
+        return '均衡應變，不拘一格';
       case CaptureAiStyle.hunter:
-        return '优先打吃和直接提子';
+        return '優先打吃和直接提子';
       case CaptureAiStyle.trapper:
-        return '更重视制造连续威胁';
+        return '更重視製造連續威脅';
       case CaptureAiStyle.switcher:
-        return '偏好多战场和中心机动';
+        return '偏好多戰場和中心機動';
       case CaptureAiStyle.counter:
-        return '先补强自己，再等反击';
+        return '先補強自己，再等反擊';
     }
   }
 }

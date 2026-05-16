@@ -1,0 +1,24 @@
+Size 9
+B,E7
+B,H7
+B,D6
+B,F6
+B,G6
+W,H6
+B,D5
+B,E5
+W,F5
+W,G5
+B,H5
+B,B4
+B,C4
+B,D4
+W,E4
+W,G4
+W,B3
+B,C3
+W,D3
+W,E3
+W,F3
+W,A2
+W,C2

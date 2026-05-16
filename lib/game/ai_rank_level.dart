@@ -3,7 +3,7 @@ import 'difficulty_level.dart';
 /// Utility constants and helpers for the 28-level AI rank system.
 ///
 /// Ranks 1–28 map directly to player-facing display names:
-///   rank  1–22  →  22级–1级  (kyu, most-beginner to near-amateur-dan)
+///   rank  1–22  →  22級–1級  (kyu, most-beginner to near-amateur-dan)
 ///   rank 23–28  →  1段–6段   (dan grades)
 class AiRankLevel {
   AiRankLevel._();
@@ -19,11 +19,11 @@ class AiRankLevel {
 
   /// Human-readable display name shown to players.
   ///
-  /// - Rank 1 → "22级", rank 2 → "21级", …, rank 22 → "1级"
+  /// - Rank 1 → "22級", rank 2 → "21級", …, rank 22 → "1級"
   /// - Rank 23 → "1段", rank 24 → "2段", …, rank 28 → "6段"
   static String displayName(int rank) {
     assert(rank >= min && rank <= max, 'rank must be between $min and $max');
-    if (rank <= 22) return '${23 - rank}级';
+    if (rank <= 22) return '${23 - rank}級';
     return '${rank - 22}段';
   }
 

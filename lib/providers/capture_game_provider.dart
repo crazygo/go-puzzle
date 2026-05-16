@@ -165,7 +165,7 @@ class CaptureGameProvider extends ChangeNotifier {
       throw ArgumentError.value(
         initialBoardOverride,
         'initialBoardOverride',
-        '棋盘尺寸与 boardSize 不一致。',
+        '棋盤尺寸與 boardSize 不一致。',
       );
     }
     _startNewGame();
