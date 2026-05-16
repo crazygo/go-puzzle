@@ -13,6 +13,7 @@ gate. Full-gate targets are defined in
 | optimization-large-sample-002 | `0b3abb2` | `scripted_policy_v1` | 13x13 and 19x19 empty opening, AI black, captureFirst/rescueFirst/netContain, max 80 moves | 6 | 6 | 0 | 1.0000 | 67ms | 0 | `build/ai_eval/advanced_large_key_after_heuristic_fallback.json` |
 | optimization-black-003 | `b0ae660` | `scripted_policy_v1` | 9x9 empty opening, AI black, all 14 policies, max 80 moves | 14 | 14 | 0 | 1.0000 | 4054ms | 0 | `build/ai_eval/empty_all_policies_black_after_spacing.json` |
 | optimization-white-003 | `b0ae660` | `scripted_policy_v1` | 9x9 empty opening, AI white, all 14 policies, max 80 moves | 14 | 13 | 1 | 0.9286 | 4826ms | 0 | `build/ai_eval/empty_all_policies_white_after_spacing.json` |
+| optimization-white-004 | `8bd277a` | `scripted_policy_v1` | 9x9 empty opening, AI white, all 14 policies, max 80 moves | 14 | 14 | 0 | 1.0000 | 4318ms | 0 | `build/ai_eval/empty_all_policies_white_final_candidate.json` |
 
 ### baseline-partial-001
 
@@ -137,3 +138,26 @@ Notes:
 - This checkpoint improves AI-white empty-opening coverage from 8/14 to 13/14
   while keeping every AI move under 5 seconds.
 - The remaining immediate target is AI-white defense against `netContain`.
+
+### optimization-white-004
+
+Command:
+
+```sh
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side white --openings empty --max-ai-move-ms 5000 --max-moves 80 --progress-every 2 --output build/ai_eval/empty_all_policies_white_final_candidate.json --output-log build/ai_eval/empty_all_policies_white_final_candidate.jsonl
+```
+
+Result:
+
+- Trials: 14
+- Passed: 14
+- Failed: 0
+- Score: 1.0000
+- Max AI move: 4318ms
+- p95 / p99 AI move: 3316ms / 4097ms
+- Slow moves over 5000ms: 0
+
+Notes:
+
+- Confirms AI-white empty-opening 9x9 coverage is green for all 14 policies.
+- This still does not cover all openings or full 13x13/19x19 policy matrices.
