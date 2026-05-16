@@ -17,6 +17,7 @@ gate. Full-gate targets are defined in
 | large-progress-005 | `3c4bb61` | `scripted_policy_v1` | interrupted 13x13/19x19 full-gate run, first 48 completed trials | 48 | 48 | 0 | 1.0000 | 73ms | 0 | `build/ai_eval/large_boards_full_policy_gate_candidate.jsonl` |
 | twist-cross-a-006 | `2fb6eb9` | `scripted_policy_v1` | 9x9 twistCrossA opening, AI both sides, all 14 policies, max 80 moves | 28 | 21 | 7 | 0.7500 | 5188ms | 1 | `build/ai_eval/b9_twistCrossA_both_sides_policy_gate.json` |
 | twist-cross-a-007 | `89467c6` | `scripted_policy_v1` | 9x9 twistCrossA opening, AI both sides, all 14 policies, max 80 moves | 28 | 23 | 5 | 0.8214 | 3933ms | 0 | `build/ai_eval/b9_twistCrossA_after_twist_black_fallback.json` |
+| twist-cross-a-008 | `cc79aa9` | `scripted_policy_v1` | 9x9 twistCrossA opening, AI both sides, all 14 policies, max 80 moves | 28 | 28 | 0 | 1.0000 | 3976ms | 0 | `build/ai_eval/b9_twistCrossA_after_twist_white_edge_guard.json` |
 
 ### baseline-partial-001
 
@@ -256,3 +257,29 @@ Notes:
 - The twist-opening black fallback cleared both AI-black failures from
   `twist-cross-a-006` and removed the only 5-second violation in that suite.
 - Remaining failures are all AI-white twistCrossA cases.
+
+### twist-cross-a-008
+
+Command:
+
+```sh
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings twistCrossA --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_twistCrossA_after_twist_white_edge_guard.json --output-log build/ai_eval/b9_twistCrossA_after_twist_white_edge_guard.jsonl
+```
+
+Result:
+
+- Trials: 28
+- Passed: 28
+- Failed: 0
+- Score: 1.0000
+- Max AI move: 3976ms
+- p95 / p99 AI move: 2932ms / 3420ms
+- Slow moves over 5000ms: 0
+
+Notes:
+
+- Confirms the 9x9 `twistCrossA` opening is green for AI as both black and
+  white across all 14 scripted policies.
+- This is still an opening-level checkpoint. It is not a substitute for the
+  final 420-trial gate across all openings, 9x9/13x13/19x19 boards, and both
+  AI sides.
