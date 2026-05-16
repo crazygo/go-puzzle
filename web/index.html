@@ -29,6 +29,13 @@
   <title>Baduk Puzzle</title>
 
   <style>
+    :root {
+      --app-local-cjk-font-stack: system-ui, -apple-system, BlinkMacSystemFont,
+        "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Segoe UI",
+        "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC",
+        "WenQuanYi Micro Hei", sans-serif;
+    }
+
     html,
     body {
       margin: 0;
@@ -39,6 +46,7 @@
       color-scheme: light;
       overflow: hidden;
       overscroll-behavior: none;
+      font-family: var(--app-local-cjk-font-stack);
     }
 
     /*
@@ -57,6 +65,7 @@
     flt-glass-pane,
     flt-scene-host {
       background: transparent !important;
+      font-family: var(--app-local-cjk-font-stack);
     }
 
     flutter-view,

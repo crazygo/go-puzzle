@@ -10,6 +10,21 @@ import 'screens/main_screen.dart';
 import 'services/app_log_store.dart';
 import 'theme/app_theme.dart';
 
+const List<String> _kWebFontFamilyFallback = [
+  'system-ui',
+  '-apple-system',
+  'BlinkMacSystemFont',
+  'SF Pro Text',
+  'PingFang SC',
+  'Hiragino Sans GB',
+  'Segoe UI',
+  'Microsoft YaHei',
+  'Noto Sans CJK SC',
+  'Source Han Sans SC',
+  'WenQuanYi Micro Hei',
+  'sans-serif',
+];
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppLogStore.instance.restore();
@@ -43,6 +58,21 @@ class GoPuzzleApp extends StatelessWidget {
         selector: (_, settings) => settings.appTheme,
         builder: (context, appTheme, _) {
           final palette = appTheme.palette;
+          final fontFamilyFallback =
+              kIsWeb ? _kWebFontFamilyFallback : null;
+          TextStyle appTextStyle({
+            double? fontSize,
+            FontWeight? fontWeight,
+            Color? color,
+          }) {
+            return TextStyle(
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+              color: color,
+              fontFamilyFallback: fontFamilyFallback,
+            );
+          }
+
           return CupertinoApp(
             title: 'Baduk Puzzle',
             theme: CupertinoThemeData(
@@ -50,28 +80,28 @@ class GoPuzzleApp extends StatelessWidget {
               brightness:
                   appTheme == AppVisualTheme.classic ? null : Brightness.light,
               textTheme: CupertinoTextThemeData(
-                textStyle: const TextStyle(
+                textStyle: appTextStyle(
                   fontSize: 17,
                 ),
-                actionTextStyle: const TextStyle(
+                actionTextStyle: appTextStyle(
                   fontSize: 17,
                   color: Color(0xFF007AFF),
                 ),
-                tabLabelTextStyle: TextStyle(
+                tabLabelTextStyle: appTextStyle(
                   fontSize: 10,
                   color: palette.tabInactive,
                 ),
-                navTitleTextStyle: const TextStyle(
+                navTitleTextStyle: appTextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                   color: CupertinoColors.label,
                 ),
-                navLargeTitleTextStyle: const TextStyle(
+                navLargeTitleTextStyle: appTextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w700,
                   color: CupertinoColors.label,
                 ),
-                navActionTextStyle: TextStyle(
+                navActionTextStyle: appTextStyle(
                   fontSize: 17,
                   color: palette.primary,
                 ),
