@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:go_puzzle/game/capture_ai.dart';
 import 'package:go_puzzle/game/capture_ai_scripted_trials.dart';
@@ -29,10 +30,42 @@ void main(List<String> args) {
   final tacticFilter = _parseNameSet(opts['tactics']);
   final includeMoves = opts.containsKey('include-moves');
   final verbose = opts.containsKey('verbose');
+  final progressEvery = _parseInt(opts['progress-every'] ?? '0', fallback: 0);
+  final stopAfter = opts.containsKey('stop-after')
+      ? _parseInt(opts['stop-after'] ?? '0', fallback: 0)
+      : null;
+  final outputLogPath = opts['output-log'];
+  final outputLogFile = outputLogPath == null || outputLogPath.isEmpty
+      ? null
+      : File(outputLogPath);
+  if (outputLogFile != null) {
+    outputLogFile.parent.createSync(recursive: true);
+    outputLogFile.writeAsStringSync('');
+  }
 
   final config = CaptureAiRobotConfig.forStyle(style, difficulty);
   final runner = CaptureAiScriptedTrialRunner(aiConfig: config);
   final results = <CaptureAiScriptedTrialResult>[];
+  var totalPlanned = 0;
+  for (final boardSize in boardSizes) {
+    for (final aiSide in aiSides) {
+      totalPlanned += CaptureAiScriptedTrialCatalog.defaults(
+        boardSize: boardSize,
+        captureTarget: captureTarget,
+        aiSide: aiSide,
+        maxMoves: maxMoves,
+      ).where((trial) {
+        final openingAllowed =
+            openingFilter == null || openingFilter.contains(trial.opening.name);
+        final tacticAllowed =
+            tacticFilter == null || tacticFilter.contains(trial.tactic.name);
+        return openingAllowed && tacticAllowed;
+      }).length;
+    }
+  }
+  if (stopAfter != null && stopAfter > 0) {
+    totalPlanned = math.min(totalPlanned, stopAfter);
+  }
 
   for (final boardSize in boardSizes) {
     for (final aiSide in aiSides) {
@@ -50,16 +83,36 @@ void main(List<String> args) {
       }).toList();
 
       for (final trial in trials) {
+        if (stopAfter != null && stopAfter > 0 && results.length >= stopAfter) {
+          break;
+        }
         final result = runner.run(
           trial,
           maxAiMoveDuration:
               maxAiMoveMs == null ? null : Duration(milliseconds: maxAiMoveMs),
         );
         results.add(result);
+        if (outputLogFile != null) {
+          outputLogFile.writeAsStringSync(
+            '${jsonEncode(result.toJson(includeMoves: includeMoves))}\n',
+            mode: FileMode.append,
+          );
+        }
         if (verbose || !result.aiDidNotLose) {
           print(_formatResult(result));
         }
+        if (progressEvery > 0 && results.length % progressEvery == 0) {
+          print('Progress: ${results.length}/$totalPlanned '
+              'passed=${results.where((r) => r.aiDidNotLose).length} '
+              'failed=${results.where((r) => !r.aiDidNotLose).length}');
+        }
       }
+      if (stopAfter != null && stopAfter > 0 && results.length >= stopAfter) {
+        break;
+      }
+    }
+    if (stopAfter != null && stopAfter > 0 && results.length >= stopAfter) {
+      break;
     }
   }
 
@@ -132,6 +185,9 @@ void main(List<String> args) {
     file.parent.createSync(recursive: true);
     file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(output));
     print('JSON report: $outputPath');
+  }
+  if (outputLogFile != null) {
+    print('JSONL result log: $outputLogPath');
   }
 
   if (failed > 0) {
@@ -291,6 +347,9 @@ void _printUsage() {
   print('  --openings <csv>        Filter openings by enum name');
   print('  --tactics <csv>         Filter tactics by enum name');
   print('  --output <path>         Write JSON report');
+  print('  --output-log <path>     Append every trial result as JSONL');
   print('  --include-moves         Include move trace in JSON output');
+  print('  --progress-every <n>    Print progress every n trials');
+  print('  --stop-after <n>        Stop after n selected trials');
   print('  --verbose               Print every trial, not only failures');
 }
