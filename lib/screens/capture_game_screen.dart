@@ -4002,7 +4002,6 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   final Set<int> _markedMoveNumbers = <int>{};
   int? _reviewMoveIndex;
   List<GameState>? _reviewStates;
-  final GlobalKey _operationButtonKey = GlobalKey();
 
   final _historyRepo = GameHistoryRepository();
 
@@ -4176,8 +4175,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                             ? _MoveLogStrip(
                                 moves: provider.moveLog,
                                 boardSize: provider.boardSize,
-                                currentPlayer:
-                                    provider.gameState.currentPlayer,
+                                currentPlayer: provider.gameState.currentPlayer,
                                 markedMoveNumbers: _markedMoveNumbers,
                                 palette: palette,
                                 reviewMoveIndex: _reviewMoveIndex,
@@ -4196,19 +4194,17 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                           padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
                           child: _CaptureBoardArea(
                             gameState: reviewGameState ?? provider.gameState,
-                            enabled: !aiThinking &&
-                                !isFinished &&
-                                !inReviewMode,
-                            hintMarks:
-                                inReviewMode ? const [] : _hintMarks,
+                            enabled:
+                                !aiThinking && !isFinished && !inReviewMode,
+                            hintMarks: inReviewMode ? const [] : _hintMarks,
                             showCaptureWarning: showCaptureWarning,
                             captureTarget: widget.captureTarget,
-                            blackCaptured: reviewGameState
-                                    ?.capturedByBlack.length ??
-                                blackCaptured,
-                            whiteCaptured: reviewGameState
-                                    ?.capturedByWhite.length ??
-                                whiteCaptured,
+                            blackCaptured:
+                                reviewGameState?.capturedByBlack.length ??
+                                    blackCaptured,
+                            whiteCaptured:
+                                reviewGameState?.capturedByWhite.length ??
+                                    whiteCaptured,
                             humanColor: widget.humanColor,
                             onTap: (row, col) => _handleBoardTap(
                               provider: provider,
@@ -4984,7 +4980,8 @@ class _MoveLogChip extends StatelessWidget {
           fontSize: 12,
           height: 1,
           color: textColor,
-          fontWeight: (marked || isReviewing) ? FontWeight.w700 : FontWeight.w500,
+          fontWeight:
+              (marked || isReviewing) ? FontWeight.w700 : FontWeight.w500,
         ),
       ),
     );
