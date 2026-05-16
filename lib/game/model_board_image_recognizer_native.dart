@@ -113,7 +113,8 @@ class _NativeModelBoardImageRecognizer
       input: input,
       threshold: _boardConfidence,
     );
-    if (poseDiagnostics.outputLength < poseDiagnostics.expectedLength) {
+    if (poseDiagnostics.anchors == 0 ||
+        poseDiagnostics.outputLength != poseDiagnostics.expectedLength) {
       AppLogStore.instance.add(
         category: AppLogCategory.screenshotRecognition,
         level: AppLogLevel.error,
