@@ -15,6 +15,7 @@ gate. Full-gate targets are defined in
 | optimization-white-003 | `b0ae660` | `scripted_policy_v1` | 9x9 empty opening, AI white, all 14 policies, max 80 moves | 14 | 13 | 1 | 0.9286 | 4826ms | 0 | `build/ai_eval/empty_all_policies_white_after_spacing.json` |
 | optimization-white-004 | `8bd277a` | `scripted_policy_v1` | 9x9 empty opening, AI white, all 14 policies, max 80 moves | 14 | 14 | 0 | 1.0000 | 4318ms | 0 | `build/ai_eval/empty_all_policies_white_final_candidate.json` |
 | large-progress-005 | `3c4bb61` | `scripted_policy_v1` | interrupted 13x13/19x19 full-gate run, first 48 completed trials | 48 | 48 | 0 | 1.0000 | 73ms | 0 | `build/ai_eval/large_boards_full_policy_gate_candidate.jsonl` |
+| twist-cross-a-006 | `2fb6eb9` | `scripted_policy_v1` | 9x9 twistCrossA opening, AI both sides, all 14 policies, max 80 moves | 28 | 21 | 7 | 0.7500 | 5188ms | 1 | `build/ai_eval/b9_twistCrossA_both_sides_policy_gate.json` |
 
 ### baseline-partial-001
 
@@ -187,3 +188,37 @@ Notes:
 - Completed rows covered the early 13x13 AI-black portion of the full ordering.
 - This is progress evidence only, not a substitute for the final 13x13/19x19
   full gate.
+
+### twist-cross-a-006
+
+Command:
+
+```sh
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings twistCrossA --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_twistCrossA_both_sides_policy_gate.json --output-log build/ai_eval/b9_twistCrossA_both_sides_policy_gate.jsonl
+```
+
+Result:
+
+- Trials: 28
+- Passed: 21
+- Failed: 7
+- Score: 0.7500
+- Max AI move: 5188ms
+- Slow moves over 5000ms: 1
+
+Failures:
+
+| Trial | Policy | Opening | AI Side | Result | Max AI Move |
+| --- | --- | --- | --- | --- | ---: |
+| `twistCrossA_rescueFirst_b9` | `rescueFirst` | `twistCrossA` | black | scripted won, captures 0-5, 34 moves | 2963ms |
+| `twistCrossA_edgeClamp_b9` | `edgeClamp` | `twistCrossA` | black | scripted won, captures 0-5, 42 moves | 5188ms |
+| `twistCrossA_captureFirst_b9` | `captureFirst` | `twistCrossA` | white | scripted won, captures 13-0, 63 moves | 2748ms |
+| `twistCrossA_rescueFirst_b9` | `rescueFirst` | `twistCrossA` | white | scripted won, captures 16-1, 69 moves | 2680ms |
+| `twistCrossA_netContain_b9` | `netContain` | `twistCrossA` | white | scripted won, captures 8-2, 67 moves | 3357ms |
+| `twistCrossA_connectAndDie_b9` | `connectAndDie` | `twistCrossA` | white | scripted won, captures 5-1, 47 moves | 2586ms |
+| `twistCrossA_koFight_b9` | `koFight` | `twistCrossA` | white | scripted won, captures 13-0, 63 moves | 2576ms |
+
+Notes:
+
+- This identifies non-empty opening handling as the next optimization target.
+- It also reintroduces a 5-second budget violation on `edgeClamp` as AI black.
