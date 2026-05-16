@@ -51,6 +51,9 @@ class _MainTabScaffoldState extends State<_MainTabScaffold> {
     final palette = context.appPalette;
     final showSharedBoard = context
         .select<SettingsProvider, bool>((s) => s.appTheme.showsSharedBoard);
+    final tabBorderColor = context.isClassicAppTheme
+        ? CupertinoColors.separator.resolveFrom(context)
+        : palette.primary.withValues(alpha: 0.16);
     final tabBarBottomInset = MediaQuery.paddingOf(context).bottom + 50.0;
 
     return DecoratedBox(
@@ -116,7 +119,7 @@ class _MainTabScaffoldState extends State<_MainTabScaffold> {
               inactiveColor: palette.tabInactive,
               border: Border(
                 top: BorderSide(
-                  color: palette.primary.withValues(alpha: 0.16),
+                  color: tabBorderColor,
                   width: 0.6,
                 ),
               ),
@@ -130,13 +133,13 @@ class _MainTabScaffoldState extends State<_MainTabScaffold> {
                   icon: _TabGlyph(kind: _TabGlyphKind.match),
                   activeIcon:
                       _TabGlyph(kind: _TabGlyphKind.match, active: true),
-                  label: '谜题',
+                  label: '謎題',
                 ),
                 BottomNavigationBarItem(
                   icon: _TabGlyph(kind: _TabGlyphKind.settings),
                   activeIcon:
                       _TabGlyph(kind: _TabGlyphKind.settings, active: true),
-                  label: '设置',
+                  label: '設定',
                 ),
               ],
             ),

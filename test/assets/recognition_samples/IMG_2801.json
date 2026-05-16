@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "image": {
+    "fileName": "IMG_2801.PNG",
+    "width": 1290,
+    "height": 2796
+  },
+  "boardSize": 9,
+  "corners": {
+    "topLeft": {
+      "x": 228,
+      "y": 386
+    },
+    "topRight": {
+      "x": 1065,
+      "y": 388
+    },
+    "bottomRight": {
+      "x": 1059,
+      "y": 1231
+    },
+    "bottomLeft": {
+      "x": 228,
+      "y": 1230
+    }
+  },
+  "stones": [
+    {
+      "color": "B",
+      "coord": "E7",
+      "row": 2,
+      "col": 4
+    },
+    {
+      "color": "B",
+      "coord": "G7",
+      "row": 2,
+      "col": 6
+    },
+    {
+      "color": "W",
+      "coord": "E5",
+      "row": 4,
+      "col": 4
+    },
+    {
+      "color": "W",
+      "coord": "A4",
+      "row": 5,
+      "col": 0
+    },
+    {
+      "color": "W",
+      "coord": "B4",
+      "row": 5,
+      "col": 1
+    },
+    {
+      "color": "W",
+      "coord": "C4",
+      "row": 5,
+      "col": 2
+    },
+    {
+      "color": "W",
+      "coord": "D4",
+      "row": 5,
+      "col": 3
+    },
+    {
+      "color": "B",
+      "coord": "A3",
+      "row": 6,
+      "col": 0
+    },
+    {
+      "color": "B",
+      "coord": "B3",
+      "row": 6,
+      "col": 1
+    },
+    {
+      "color": "B",
+      "coord": "C3",
+      "row": 6,
+      "col": 2
+    },
+    {
+      "color": "B",
+      "coord": "D3",
+      "row": 6,
+      "col": 3
+    },
+    {
+      "color": "W",
+      "coord": "E3",
+      "row": 6,
+      "col": 4
+    },
+    {
+      "color": "W",
+      "coord": "G3",
+      "row": 6,
+      "col": 6
+    },
+    {
+      "color": "B",
+      "coord": "B2",
+      "row": 7,
+      "col": 1
+    },
+    {
+      "color": "B",
+      "coord": "D2",
+      "row": 7,
+      "col": 3
+    },
+    {
+      "color": "W",
+      "coord": "E2",
+      "row": 7,
+      "col": 4
+    },
+    {
+      "color": "B",
+      "coord": "C1",
+      "row": 8,
+      "col": 2
+    },
+    {
+      "color": "W",
+      "coord": "E1",
+      "row": 8,
+      "col": 4
+    }
+  ]
+}

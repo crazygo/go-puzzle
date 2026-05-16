@@ -409,8 +409,8 @@ class _MctsNode {
 /// The winner receives reward = 1, the loser reward = 0.
 ///
 /// Difficulty is controlled via [maxPlayouts]:
-///   • 入门  (beginner) : 200  playouts
-///   • 进阶  (advanced) : 2000 playouts
+///   • 入門  (beginner) : 200  playouts
+///   • 進階  (advanced) : 2000 playouts
 class MctsEngine {
   MctsEngine({
     this.maxPlayouts = 200,

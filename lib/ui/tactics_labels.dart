@@ -4,9 +4,9 @@
 String categoryName(String category) {
   return switch (category) {
     'group_fate' => '棋形生死',
-    'capture_race' => '对杀',
-    'exchange' => '转换',
-    'multi_threat' => '多重威胁',
+    'capture_race' => '對殺',
+    'exchange' => '轉換',
+    'multi_threat' => '多重威脅',
     'trap' => '陷阱',
     _ => category,
   };
@@ -16,12 +16,12 @@ String tacticName(String tactic) {
   return switch (tactic) {
     'ladder' => '征子',
     'net_geta' => '枷吃',
-    'snapback' => '倒扑',
-    'throw_in' => '扑',
-    'shortage_of_liberties' => '气紧',
-    'connect_and_die_oiotoshi' => '滚打包收',
-    'edge_corner_capture' => '边角吃子',
-    'self_atari_punishment' => '惩罚自紧气',
+    'snapback' => '倒撲',
+    'throw_in' => '撲',
+    'shortage_of_liberties' => '氣緊',
+    'connect_and_die_oiotoshi' => '滾打包收',
+    'edge_corner_capture' => '邊角吃子',
+    'self_atari_punishment' => '懲罰自緊氣',
     _ => tactic,
   };
 }

@@ -23,7 +23,7 @@ void main() {
       AppThemePalette.agarwood.primary,
     );
 
-    await tester.tap(find.text('设置'));
+    await tester.tap(find.text('設定'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text(AppVisualTheme.classic.label));
@@ -69,6 +69,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byType(GoThreeBoardBackground), findsNothing);
-    expect(find.text('下一盘'), findsOneWidget);
+    expect(find.text('下一盤'), findsOneWidget);
   });
 }

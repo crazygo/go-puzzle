@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "image": {
+    "fileName": "IMG_2838.PNG",
+    "width": 2796,
+    "height": 1290
+  },
+  "boardSize": 9,
+  "corners": {
+    "topLeft": {
+      "x": 1139,
+      "y": 102
+    },
+    "topRight": {
+      "x": 2232,
+      "y": 99
+    },
+    "bottomRight": {
+      "x": 2238,
+      "y": 1202
+    },
+    "bottomLeft": {
+      "x": 1137,
+      "y": 1195
+    }
+  },
+  "stones": [
+    {
+      "color": "B",
+      "coord": "B9",
+      "row": 0,
+      "col": 1
+    },
+    {
+      "color": "W",
+      "coord": "C9",
+      "row": 0,
+      "col": 2
+    },
+    {
+      "color": "W",
+      "coord": "B8",
+      "row": 1,
+      "col": 1
+    },
+    {
+      "color": "B",
+      "coord": "C8",
+      "row": 1,
+      "col": 2
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 
 import '../data/tactics_problem_repository.dart';
 import '../game/capture_ai_tactics.dart';
+import '../theme/theme_context.dart';
 import '../ui/tactics_labels.dart';
 import 'tactics_problem_screen.dart';
 
@@ -28,7 +29,6 @@ class SkillsScreen extends StatefulWidget {
 }
 
 class _SkillsScreenState extends State<SkillsScreen> {
-
   late final Future<List<CaptureAiTacticsProblem>> _problemsFuture;
   String _selectedCategory = _allFilter;
 
@@ -41,7 +41,9 @@ class _SkillsScreenState extends State<SkillsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     return CupertinoPageScaffold(
+      backgroundColor: palette.pageBackground,
       child: FutureBuilder<List<CaptureAiTacticsProblem>>(
         future: _problemsFuture,
         builder: (context, snapshot) {
@@ -63,8 +65,10 @@ class _SkillsScreenState extends State<SkillsScreen> {
 
           return CustomScrollView(
             slivers: [
-              const CupertinoSliverNavigationBar(
-                largeTitle: Text('谜题'),
+              CupertinoSliverNavigationBar(
+                largeTitle: const Text('謎題'),
+                backgroundColor: palette.pageBackground,
+                transitionBetweenRoutes: false,
               ),
               if (isLoading)
                 const SliverFillRemaining(
@@ -206,7 +210,7 @@ class _ProblemCategorySection extends StatelessWidget {
                 ),
               ),
               Text(
-                '${problems.length} 题',
+                '${problems.length} 題',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -243,23 +247,9 @@ class _SummaryHeader extends StatelessWidget {
     final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'AI 测试题集',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: CupertinoColors.label.resolveFrom(context),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '共 $total 题，当前显示 $visible 题，覆盖 $categories 个分类。进入题目后可复盘棋盘并查看 AI 建议。',
-            style: TextStyle(fontSize: 14, color: secondary, height: 1.35),
-          ),
-        ],
+      child: Text(
+        '共 $total 題，目前顯示 $visible 題，涵蓋 $categories 個分類。進入題目後可復盤棋盤並查看 AI 建議。',
+        style: TextStyle(fontSize: 14, color: secondary, height: 1.35),
       ),
     );
   }
@@ -318,11 +308,10 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     final activeColor = CupertinoColors.activeBlue.resolveFrom(context);
-    final borderColor =
-        active ? activeColor : CupertinoColors.separator.resolveFrom(context);
-    final textColor =
-        active ? activeColor : CupertinoColors.label.resolveFrom(context);
+    final borderColor = active ? activeColor : palette.setupPanelBorder;
+    final textColor = active ? activeColor : palette.setupValueText;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -331,7 +320,7 @@ class _FilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: active
               ? activeColor.withValues(alpha: 0.12)
-              : CupertinoColors.systemBackground.resolveFrom(context),
+              : palette.setupPanelBackground,
           border: Border.all(color: borderColor),
           borderRadius: BorderRadius.circular(8),
         ),
@@ -360,6 +349,7 @@ class _TacticsProblemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appPalette;
     final tactic = problem.metadata['tactic']?.toString();
     final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
     return Padding(
@@ -371,11 +361,10 @@ class _TacticsProblemCard extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color:
-                CupertinoColors.secondarySystemBackground.resolveFrom(context),
+            color: palette.setupPanelBackground,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: CupertinoColors.separator.resolveFrom(context),
+              color: palette.setupPanelBorder,
               width: 0.5,
             ),
           ),
@@ -390,7 +379,7 @@ class _TacticsProblemCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: CupertinoColors.label.resolveFrom(context),
+                        color: palette.setupTitleText,
                       ),
                     ),
                   ),
@@ -468,7 +457,7 @@ class _ErrorState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(
-          '测试题集加载失败\n$error',
+          '測試題集載入失敗\n$error',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: CupertinoColors.destructiveRed.resolveFrom(context),

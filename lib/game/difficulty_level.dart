@@ -8,11 +8,11 @@ extension DifficultyLevelExt on DifficultyLevel {
   String get displayName {
     switch (this) {
       case DifficultyLevel.beginner:
-        return '初级';
+        return '初級';
       case DifficultyLevel.intermediate:
-        return '中级';
+        return '中級';
       case DifficultyLevel.advanced:
-        return '高级';
+        return '高級';
     }
   }
 
