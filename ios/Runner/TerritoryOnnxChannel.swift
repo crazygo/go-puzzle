@@ -141,13 +141,12 @@ private extension TerritoryOnnxChannel {
   }
 
   func locateModelPath(boardSize: Int) -> String? {
-    guard let flutterAssets = Bundle.main.path(
-      forResource: "flutter_assets",
-      ofType: nil,
-      inDirectory: "Frameworks/App.framework"
-    ) else {
+    guard let resourcePath = Bundle.main.resourcePath else {
       return nil
     }
+    let flutterAssets = (resourcePath as NSString).appendingPathComponent(
+      "flutter_assets"
+    )
     let modelPath = (flutterAssets as NSString).appendingPathComponent(
       "assets/models/katago_territory_\(boardSize)x\(boardSize).onnx"
     )
@@ -249,14 +248,8 @@ private extension TerritoryOnnxChannel {
     let paddingCount = max(0, globalFeatureCount - populatedGlobalFeatures.count)
     let global = populatedGlobalFeatures + Array(repeating: Float(0), count: paddingCount)
 
-    let spatialData = NSMutableData(
-      bytes: spatial,
-      length: spatial.count * MemoryLayout<Float>.stride
-    )
-    let globalData = NSMutableData(
-      bytes: global,
-      length: global.count * MemoryLayout<Float>.stride
-    )
+    let spatialData = NSMutableData(data: spatial.withUnsafeBytes { Data($0) })
+    let globalData = NSMutableData(data: global.withUnsafeBytes { Data($0) })
 
     return EncodedInputs(
       spatial: try ORTValue(

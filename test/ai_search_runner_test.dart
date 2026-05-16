@@ -242,6 +242,32 @@ void main() {
       expect(result.move, isNotNull);
       runner.dispose();
     });
+
+    test('falls back to Dart territory search when native move is invalid',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'pickMove');
+        return {
+          'usedNative': true,
+          'backend': 'ios_onnx',
+          'move': [9, 9],
+        };
+      });
+
+      final runner = createAiSearchRunner();
+      final result = await runner.search(
+        AiSearchRequest(
+          id: 'territory_invalid_native',
+          params: _minimalParams(gameMode: GameMode.territory),
+        ),
+      );
+
+      expect(result.hasError, isFalse);
+      expect(result.move, isNotNull);
+      expect(result.move, isNot([9, 9]));
+      runner.dispose();
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────

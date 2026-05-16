@@ -116,7 +116,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(find.text('调整 ›'));
+    await tester.tap(find.text('調整 ›'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

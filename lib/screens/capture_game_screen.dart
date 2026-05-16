@@ -444,6 +444,7 @@ class _ForkRequest {
     required this.boardSize,
     required this.captureTarget,
     required this.difficulty,
+    required this.gameMode,
     required this.humanColor,
     required this.aiStyle,
     required this.aiRank,
@@ -456,6 +457,7 @@ class _ForkRequest {
   final int boardSize;
   final int captureTarget;
   final DifficultyLevel difficulty;
+  final GameMode gameMode;
   final StoneColor humanColor;
   final CaptureAiStyle aiStyle;
   final int aiRank;
@@ -1465,6 +1467,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                 boardSize: fork.boardSize,
                 captureTarget: fork.captureTarget,
                 difficulty: fork.difficulty,
+                gameMode: fork.gameMode,
                 humanColor: fork.humanColor,
                 initialMode: fork.initialMode,
                 initialBoardOverride: fork.forkBoard,
@@ -1473,6 +1476,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
               child: CaptureGamePlayScreen(
                 aiRank: fork.aiRank,
                 captureTarget: fork.captureTarget,
+                gameMode: fork.gameMode,
                 humanColor: fork.humanColor,
                 initialMode: fork.initialMode,
                 initialBoardOverride: fork.forkBoard,
@@ -4433,8 +4437,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
               top: top,
               width: menuWidth,
               child: _OperationContextMenu(
-                aiStyleLabel:
-                    provider.isTerritoryMode ? '固定圍空引擎' : provider.aiStyle.label,
+                aiStyleLabel: provider.isTerritoryMode
+                    ? '固定圍空引擎'
+                    : provider.aiStyle.label,
                 canChangeAiStyle: !provider.isTerritoryMode,
                 captureWarningEnabled: showCaptureWarning,
                 moveLogVisible: _moveLogVisible,
@@ -4869,6 +4874,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
           boardSize: provider.boardSize,
           captureTarget: provider.captureTarget,
           difficulty: provider.difficulty,
+          gameMode: provider.gameMode,
           humanColor: provider.humanColor,
           aiStyle: provider.aiStyle,
           aiRank: widget.aiRank,
@@ -6275,8 +6281,7 @@ class _HistoryRow extends StatelessWidget {
               CupertinoColors.systemGreen.resolveFrom(context),
             GameOutcome.aiWins =>
               CupertinoColors.systemRed.resolveFrom(context),
-            GameOutcome.draw =>
-              CupertinoColors.systemGrey.resolveFrom(context),
+            GameOutcome.draw => CupertinoColors.systemGrey.resolveFrom(context),
             GameOutcome.abandoned =>
               CupertinoColors.systemGrey.resolveFrom(context),
           }
