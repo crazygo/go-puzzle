@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/settings_provider.dart';
+import '../services/app_log_store.dart';
 import 'capture_game_screen.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_context.dart';
@@ -151,6 +152,8 @@ class SettingsScreen extends StatelessWidget {
   Widget _buildDeveloperSection(BuildContext context) {
     return Consumer<SettingsProvider>(
       builder: (context, settings, _) {
+        final logs = context.watch<AppLogStore>();
+        final latest = logs.latest;
         return _Section(
           title: '開發者',
           children: [
@@ -164,6 +167,19 @@ class SettingsScreen extends StatelessWidget {
               _RecognitionAlgorithmSegmentedRow(
                 value: settings.screenshotRecognitionAlgorithm,
                 onChanged: settings.setScreenshotRecognitionAlgorithm,
+              ),
+              _TapRow(
+                title: '查看日志',
+                subtitle: latest == null
+                    ? '尚無日志'
+                    : '${latest.category.label} · ${latest.level.label} · ${latest.message}',
+                onTap: () {
+                  Navigator.of(context, rootNavigator: true).push(
+                    CupertinoPageRoute<void>(
+                      builder: (_) => const _AppLogScreen(),
+                    ),
+                  );
+                },
               ),
               _TapRow(
                 title: '3D 棋盤除錯參數',
@@ -187,6 +203,140 @@ class SettingsScreen extends StatelessWidget {
     final uri = Uri.https('online-go.com', '/learn-to-play-go');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
+}
+
+class _AppLogScreen extends StatelessWidget {
+  const _AppLogScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final logs = context.watch<AppLogStore>();
+    return CupertinoPageScaffold(
+      backgroundColor: palette.pageBackground,
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text('日志'),
+        trailing: logs.entries.isEmpty
+            ? null
+            : CupertinoButton(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                onPressed: logs.clear,
+                child: const Text('清空'),
+              ),
+      ),
+      child: SafeArea(
+        child: logs.entries.isEmpty
+            ? Center(
+                child: Text(
+                  '尚無日志',
+                  style: TextStyle(
+                    color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                    fontSize: 16,
+                  ),
+                ),
+              )
+            : ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                itemCount: logs.entries.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  return _LogEntryCard(entry: logs.entries[index]);
+                },
+              ),
+      ),
+    );
+  }
+}
+
+class _LogEntryCard extends StatelessWidget {
+  const _LogEntryCard({required this.entry});
+
+  final AppLogEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final isError = entry.level == AppLogLevel.error;
+    final borderColor =
+        isError ? CupertinoColors.systemRed : const Color(0x26D8C1A4);
+    final levelColor = isError
+        ? CupertinoColors.systemRed.resolveFrom(context)
+        : CupertinoColors.secondaryLabel.resolveFrom(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: CupertinoColors.secondarySystemGroupedBackground
+            .resolveFrom(context),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: CupertinoDynamicColor.resolve(borderColor, context),
+        ),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  entry.category.label,
+                  style: TextStyle(
+                    color: CupertinoColors.label.resolveFrom(context),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                entry.level.label,
+                style: TextStyle(
+                  color: levelColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _formatLogTime(entry.timestamp),
+            style: TextStyle(
+              color: CupertinoColors.secondaryLabel.resolveFrom(context),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            entry.message,
+            style: TextStyle(
+              color: CupertinoColors.label.resolveFrom(context),
+              fontSize: 15,
+              height: 1.25,
+            ),
+          ),
+          if (entry.details != null && entry.details!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              entry.details!,
+              style: TextStyle(
+                color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                fontSize: 12,
+                height: 1.25,
+                fontFamily: 'Menlo',
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+String _formatLogTime(DateTime timestamp) {
+  final local = timestamp.toLocal();
+  String two(int value) => value.toString().padLeft(2, '0');
+  return '${local.year}-${two(local.month)}-${two(local.day)} '
+      '${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
 }
 
 class _Section extends StatelessWidget {
@@ -326,6 +476,8 @@ class _SettingsLabel extends StatelessWidget {
         if (subtitle != null)
           Text(
             subtitle!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: _settingsSubtitleBaseStyle.copyWith(
               color: CupertinoColors.secondaryLabel.resolveFrom(context),
             ),
