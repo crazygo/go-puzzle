@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>棋盤識別標注工具</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f1e8;
+      --panel: #fffaf1;
+      --ink: #27211d;
+      --muted: #75695d;
+      --line: #dfd3c1;
+      --accent: #a06a31;
+      --accent-strong: #7c4d1f;
+      --danger: #a83d32;
+      --shadow: 0 16px 44px rgba(68, 44, 22, 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 390px;
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .stage-panel,
+    .side-panel {
+      background: var(--panel);
+      border: 1px solid rgba(124, 77, 31, 0.12);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .stage-panel {
+      min-height: calc(100vh - 36px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .toolbar,
+    .section {
+      border-bottom: 1px solid var(--line);
+      padding: 14px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tool-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .segmented {
+      display: inline-grid;
+      grid-auto-flow: column;
+      gap: 3px;
+      padding: 3px;
+      background: #eee4d7;
+      border-radius: 8px;
+    }
+
+    .segmented button,
+    .btn {
+      min-height: 34px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: #4f443b;
+      padding: 0 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .segmented button.active {
+      background: #f7ddb8;
+      color: var(--accent-strong);
+      box-shadow: 0 1px 2px rgba(84, 57, 29, 0.12);
+    }
+
+    .btn {
+      background: #eadcca;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn.danger {
+      color: white;
+      background: var(--danger);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 420px;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background:
+        linear-gradient(45deg, rgba(124, 77, 31, 0.05) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(124, 77, 31, 0.05) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(124, 77, 31, 0.05) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(124, 77, 31, 0.05) 75%);
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+      background-size: 24px 24px;
+    }
+
+    canvas {
+      max-width: 100%;
+      max-height: calc(100vh - 128px);
+      background: #fbf7ee;
+      border-radius: 6px;
+      box-shadow: 0 10px 32px rgba(48, 31, 18, 0.16);
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .drop {
+      position: absolute;
+      inset: 16px;
+      display: grid;
+      place-items: center;
+      border: 2px dashed rgba(124, 77, 31, 0.28);
+      border-radius: 10px;
+      background: rgba(255, 250, 241, 0.9);
+      pointer-events: none;
+      color: var(--muted);
+      font-weight: 750;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .drop.hidden {
+      display: none;
+    }
+
+    .side-panel {
+      height: calc(100vh - 36px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .section h1,
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+
+    .section p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .field input {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      padding: 0 10px;
+      color: var(--ink);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 8px;
+      background: #fffdf8;
+    }
+
+    .stat b {
+      display: block;
+      font-size: 20px;
+      line-height: 1.1;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .output-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 14px;
+    }
+
+    textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 240px;
+      resize: none;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #1f1a17;
+      color: #f8ead8;
+      padding: 12px;
+      line-height: 1.5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+    }
+
+    .output-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .output-actions .btn {
+      flex: 1;
+    }
+
+    .file-input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      width: 1px;
+      height: 1px;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .stage-panel,
+      .side-panel {
+        min-height: auto;
+        height: auto;
+      }
+
+      canvas {
+        max-height: 70vh;
+      }
+
+      .output-wrap {
+        min-height: 420px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="stage-panel">
+      <div class="toolbar">
+        <div class="tool-group">
+          <button class="btn primary" id="chooseImage" type="button">選擇圖片</button>
+          <input class="file-input" id="fileInput" type="file" accept="image/*">
+          <button class="btn" id="chooseTxt" type="button">導入 TXT</button>
+          <input class="file-input" id="txtInput" type="file" accept=".txt,text/plain">
+        </div>
+        <div class="tool-group">
+          <span class="label">路數</span>
+          <div class="segmented" id="sizeControl">
+            <button type="button" data-size="9">9</button>
+            <button type="button" data-size="13">13</button>
+            <button class="active" type="button" data-size="19">19</button>
+          </div>
+        </div>
+        <div class="tool-group">
+          <span class="label">點擊模式</span>
+          <div class="segmented" id="paintControl">
+            <button class="active" type="button" data-paint="cycle">循環</button>
+            <button type="button" data-paint="black">黑</button>
+            <button type="button" data-paint="white">白</button>
+            <button type="button" data-paint="empty">清除</button>
+          </div>
+        </div>
+        <button class="btn" id="resetGrid" type="button">重置邊界</button>
+        <button class="btn danger" id="clearStones" type="button">清空棋子</button>
+      </div>
+      <div class="canvas-wrap" id="dropZone">
+        <canvas id="boardCanvas" width="1200" height="900"></canvas>
+        <div class="drop" id="dropHint">
+          拖入棋盤圖片和同名 TXT，或點「選擇圖片」<br>
+          TXT 會自動還原棋子；拖動四個角點對齊棋盤即可導出 JSON
+        </div>
+      </div>
+    </section>
+
+    <aside class="side-panel">
+      <section class="section">
+        <h1>棋盤標注</h1>
+        <p>可輸出目前測試用 TXT，也可輸出 YOLO 實驗前置用 JSON。JSON 只補棋盤四角，棋子仍來自現有 TXT。</p>
+        <div class="field">
+          <label class="label" for="sampleName">樣本名</label>
+          <input id="sampleName" type="text" placeholder="例如 sample_001">
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="blackCount">0</b><span>黑棋</span></div>
+          <div class="stat"><b id="whiteCount">0</b><span>白棋</span></div>
+          <div class="stat"><b id="totalCount">0</b><span>總棋子</span></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>操作</h2>
+        <p>四個棕色方塊是棋盤外框控制點；拖動它們讓第一路到最後一路剛好覆蓋棋盤交叉點。點交叉點可標注或切換棋子。</p>
+      </section>
+
+      <div class="output-wrap">
+        <div class="tool-group" style="margin-bottom: 10px;">
+          <span class="label">輸出</span>
+          <div class="segmented" id="outputControl">
+            <button class="active" type="button" data-output="txt">TXT</button>
+            <button type="button" data-output="json">JSON</button>
+          </div>
+        </div>
+        <textarea id="output" spellcheck="false" readonly></textarea>
+        <div class="output-actions">
+          <button class="btn primary" id="copyOutput" type="button">複製文本</button>
+          <button class="btn" id="downloadText" type="button">下載 txt</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('boardCanvas');
+    const ctx = canvas.getContext('2d');
+    const dropZone = document.getElementById('dropZone');
+    const dropHint = document.getElementById('dropHint');
+    const fileInput = document.getElementById('fileInput');
+    const txtInput = document.getElementById('txtInput');
+    const chooseImage = document.getElementById('chooseImage');
+    const chooseTxt = document.getElementById('chooseTxt');
+    const output = document.getElementById('output');
+    const sampleName = document.getElementById('sampleName');
+    const blackCount = document.getElementById('blackCount');
+    const whiteCount = document.getElementById('whiteCount');
+    const totalCount = document.getElementById('totalCount');
+
+    const state = {
+      image: null,
+      imageName: '',
+      imageFileName: '',
+      originalWidth: 0,
+      originalHeight: 0,
+      boardSize: 19,
+      paintMode: 'cycle',
+      outputMode: 'txt',
+      stones: new Map(),
+      grid: null,
+      draggingHandle: null,
+      displayScale: 1,
+    };
+
+    function initialGrid() {
+      const margin = Math.min(canvas.width, canvas.height) * 0.08;
+      return [
+        { x: margin, y: margin },
+        { x: canvas.width - margin, y: margin },
+        { x: canvas.width - margin, y: canvas.height - margin },
+        { x: margin, y: canvas.height - margin },
+      ];
+    }
+
+    function setBoardSize(size, { clearStones = true } = {}) {
+      state.boardSize = size;
+      if (clearStones) state.stones.clear();
+      document.querySelectorAll('#sizeControl button').forEach((button) => {
+        button.classList.toggle('active', Number(button.dataset.size) === size);
+      });
+      render();
+    }
+
+    function setPaintMode(mode) {
+      state.paintMode = mode;
+      document.querySelectorAll('#paintControl button').forEach((button) => {
+        button.classList.toggle('active', button.dataset.paint === mode);
+      });
+    }
+
+    function setOutputMode(mode) {
+      state.outputMode = mode;
+      document.querySelectorAll('#outputControl button').forEach((button) => {
+        button.classList.toggle('active', button.dataset.output === mode);
+      });
+      document.getElementById('downloadText').textContent =
+        mode === 'json' ? '下載 json' : '下載 txt';
+      render();
+    }
+
+    function loadImageFile(file, { clearStones = true } = {}) {
+      if (!file || !file.type.startsWith('image/')) return Promise.resolve();
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      return new Promise((resolve) => {
+        image.onload = () => {
+          URL.revokeObjectURL(url);
+          const maxSide = 1800;
+          const scale = Math.min(
+            1,
+            maxSide / Math.max(image.width, image.height),
+          );
+          canvas.width = Math.round(image.width * scale);
+          canvas.height = Math.round(image.height * scale);
+          state.image = image;
+          state.imageName = file.name.replace(/\.[^.]+$/, '');
+          state.imageFileName = file.name;
+          state.originalWidth = image.width;
+          state.originalHeight = image.height;
+          state.displayScale = scale;
+          state.grid = initialGrid();
+          if (clearStones) state.stones.clear();
+          sampleName.value = state.imageName;
+          dropHint.classList.add('hidden');
+          render();
+          resolve();
+        };
+        image.src = url;
+      });
+    }
+
+    async function loadTxtFile(file) {
+      if (!file || !file.name.toLowerCase().endsWith('.txt')) return;
+      const text = await file.text();
+      importTxt(text);
+      if (!sampleName.value) {
+        sampleName.value = file.name.replace(/\.[^.]+$/, '');
+      }
+      if (!state.imageName) {
+        state.imageName = file.name.replace(/\.[^.]+$/, '');
+      }
+      render();
+    }
+
+    function importTxt(text) {
+      const lines = text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      if (lines.length === 0) return;
+      const sizeMatch = lines[0].match(/^Size\s+(\d+)$/i);
+      if (!sizeMatch) return;
+      const size = Number(sizeMatch[1]);
+      state.stones.clear();
+      setBoardSize(size, { clearStones: false });
+      for (const line of lines.slice(1)) {
+        const parts = line.split(',');
+        if (parts.length !== 2) continue;
+        const color = parts[0] === 'B' ? 'B' : parts[0] === 'W' ? 'W' : null;
+        if (!color) continue;
+        const pos = parseCoord(parts[1], size);
+        if (!pos) continue;
+        state.stones.set(`${pos.row},${pos.col}`, color);
+      }
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (state.image) {
+        ctx.drawImage(state.image, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = '#fbf7ee';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      if (!state.grid) state.grid = initialGrid();
+      drawGrid();
+      drawStones();
+      updateOutput();
+    }
+
+    function drawGrid() {
+      const n = state.boardSize;
+      ctx.save();
+      ctx.lineWidth = Math.max(1, canvas.width / 900);
+      ctx.strokeStyle = 'rgba(52, 32, 17, 0.72)';
+      ctx.fillStyle = 'rgba(160, 106, 49, 0.95)';
+
+      for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0 : i / (n - 1);
+        const a = interpolate(state.grid[0], state.grid[3], t);
+        const b = interpolate(state.grid[1], state.grid[2], t);
+        const c = interpolate(state.grid[0], state.grid[1], t);
+        const d = interpolate(state.grid[3], state.grid[2], t);
+        line(a, b);
+        line(c, d);
+      }
+
+      state.grid.forEach((point, index) => {
+        ctx.fillStyle = index === state.draggingHandle
+          ? 'rgba(124, 77, 31, 1)'
+          : 'rgba(160, 106, 49, 0.95)';
+        ctx.fillRect(point.x - 7, point.y - 7, 14, 14);
+        ctx.strokeStyle = '#fffaf1';
+        ctx.strokeRect(point.x - 7, point.y - 7, 14, 14);
+      });
+      ctx.restore();
+    }
+
+    function drawStones() {
+      const step = averageStep();
+      const radius = Math.max(5, step * 0.36);
+      for (const [key, color] of state.stones.entries()) {
+        const [row, col] = key.split(',').map(Number);
+        const point = gridPoint(row, col);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+        if (color === 'B') {
+          const gradient = ctx.createRadialGradient(
+            point.x - radius * 0.25,
+            point.y - radius * 0.35,
+            radius * 0.12,
+            point.x,
+            point.y,
+            radius,
+          );
+          gradient.addColorStop(0, '#65605b');
+          gradient.addColorStop(0.35, '#262320');
+          gradient.addColorStop(1, '#050505');
+          ctx.fillStyle = gradient;
+          ctx.fill();
+        } else {
+          const gradient = ctx.createRadialGradient(
+            point.x - radius * 0.3,
+            point.y - radius * 0.35,
+            radius * 0.1,
+            point.x,
+            point.y,
+            radius,
+          );
+          gradient.addColorStop(0, '#ffffff');
+          gradient.addColorStop(0.55, '#f0eee8');
+          gradient.addColorStop(1, '#bdb8ad');
+          ctx.fillStyle = gradient;
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(80, 70, 60, 0.38)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+
+    function line(a, b) {
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+
+    function interpolate(a, b, t) {
+      return {
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+      };
+    }
+
+    function gridPoint(row, col) {
+      const n = state.boardSize;
+      const u = n === 1 ? 0 : col / (n - 1);
+      const v = n === 1 ? 0 : row / (n - 1);
+      const top = interpolate(state.grid[0], state.grid[1], u);
+      const bottom = interpolate(state.grid[3], state.grid[2], u);
+      return interpolate(top, bottom, v);
+    }
+
+    function averageStep() {
+      const n = state.boardSize;
+      if (n <= 1) return 30;
+      const top = distance(state.grid[0], state.grid[1]) / (n - 1);
+      const bottom = distance(state.grid[3], state.grid[2]) / (n - 1);
+      const left = distance(state.grid[0], state.grid[3]) / (n - 1);
+      const right = distance(state.grid[1], state.grid[2]) / (n - 1);
+      return (top + bottom + left + right) / 4;
+    }
+
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function nearestIntersection(point) {
+      let best = null;
+      let bestDistance = Infinity;
+      for (let row = 0; row < state.boardSize; row++) {
+        for (let col = 0; col < state.boardSize; col++) {
+          const gp = gridPoint(row, col);
+          const d = distance(point, gp);
+          if (d < bestDistance) {
+            bestDistance = d;
+            best = { row, col, distance: d };
+          }
+        }
+      }
+      return best;
+    }
+
+    function nearestHandle(point) {
+      let best = null;
+      let bestDistance = Infinity;
+      state.grid.forEach((handle, index) => {
+        const d = distance(point, handle);
+        if (d < bestDistance) {
+          bestDistance = d;
+          best = { index, distance: d };
+        }
+      });
+      return best && best.distance <= 22 ? best.index : null;
+    }
+
+    function setStone(row, col) {
+      const key = `${row},${col}`;
+      const current = state.stones.get(key);
+      if (state.paintMode === 'cycle') {
+        if (!current) state.stones.set(key, 'B');
+        else if (current === 'B') state.stones.set(key, 'W');
+        else state.stones.delete(key);
+      } else if (state.paintMode === 'black') {
+        state.stones.set(key, 'B');
+      } else if (state.paintMode === 'white') {
+        state.stones.set(key, 'W');
+      } else {
+        state.stones.delete(key);
+      }
+      render();
+    }
+
+    function pointerPoint(event) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (event.clientX - rect.left) * (canvas.width / rect.width),
+        y: (event.clientY - rect.top) * (canvas.height / rect.height),
+      };
+    }
+
+    function updateOutput() {
+      const entries = stoneEntries();
+      output.value =
+        state.outputMode === 'json' ? buildJsonOutput(entries) : buildTxtOutput(entries);
+      const black = entries.filter((entry) => entry.color === 'B').length;
+      const white = entries.filter((entry) => entry.color === 'W').length;
+      blackCount.textContent = black;
+      whiteCount.textContent = white;
+      totalCount.textContent = black + white;
+    }
+
+    function buildTxtOutput(entries) {
+      const lines = [`Size ${state.boardSize}`];
+      for (const entry of entries) {
+        lines.push(`${entry.color},${formatCoord(entry.row, entry.col)}`);
+      }
+      return lines.join('\n');
+    }
+
+    function buildJsonOutput(entries) {
+      const corners = {
+        topLeft: originalPoint(state.grid[0]),
+        topRight: originalPoint(state.grid[1]),
+        bottomRight: originalPoint(state.grid[2]),
+        bottomLeft: originalPoint(state.grid[3]),
+      };
+      return JSON.stringify(
+        {
+          schemaVersion: 1,
+          image: {
+            fileName: state.imageFileName || '',
+            width: state.originalWidth || canvas.width,
+            height: state.originalHeight || canvas.height,
+          },
+          boardSize: state.boardSize,
+          corners,
+          stones: entries.map((entry) => ({
+            color: entry.color,
+            coord: formatCoord(entry.row, entry.col),
+            row: entry.row,
+            col: entry.col,
+          })),
+        },
+        null,
+        2,
+      );
+    }
+
+    function stoneEntries() {
+      return [...state.stones.entries()]
+        .map(([key, color]) => {
+          const [row, col] = key.split(',').map(Number);
+          return { row, col, color };
+        })
+        .sort((a, b) => a.row - b.row || a.col - b.col);
+    }
+
+    function originalPoint(point) {
+      const scale = state.displayScale || 1;
+      return {
+        x: Math.round(point.x / scale),
+        y: Math.round(point.y / scale),
+      };
+    }
+
+    function formatCoord(row, col) {
+      const code = col >= 8 ? col + 1 : col;
+      const letter = String.fromCharCode('A'.charCodeAt(0) + code);
+      return `${letter}${state.boardSize - row}`;
+    }
+
+    function parseCoord(coord, boardSize) {
+      if (!coord || coord.length < 2) return null;
+      let col = coord.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0);
+      if (col > 8) col--;
+      const rowNumber = Number(coord.slice(1));
+      if (!Number.isFinite(rowNumber)) return null;
+      const row = boardSize - rowNumber;
+      if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) {
+        return null;
+      }
+      return { row, col };
+    }
+
+    chooseImage.addEventListener('click', () => fileInput.click());
+    chooseTxt.addEventListener('click', () => txtInput.click());
+    fileInput.addEventListener('change', () => loadImageFile(fileInput.files[0]));
+    txtInput.addEventListener('change', () => loadTxtFile(txtInput.files[0]));
+
+    dropZone.addEventListener('dragover', (event) => {
+      event.preventDefault();
+    });
+    dropZone.addEventListener('drop', async (event) => {
+      event.preventDefault();
+      const files = [...event.dataTransfer.files];
+      const imageFile = files.find((file) => file.type.startsWith('image/'));
+      const txtFile = files.find((file) => file.name.toLowerCase().endsWith('.txt'));
+      if (imageFile) {
+        await loadImageFile(imageFile, { clearStones: !txtFile });
+      }
+      if (txtFile) await loadTxtFile(txtFile);
+    });
+
+    document.getElementById('sizeControl').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-size]');
+      if (button) setBoardSize(Number(button.dataset.size));
+    });
+
+    document.getElementById('paintControl').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-paint]');
+      if (button) setPaintMode(button.dataset.paint);
+    });
+
+    document.getElementById('outputControl').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-output]');
+      if (button) setOutputMode(button.dataset.output);
+    });
+
+    document.getElementById('resetGrid').addEventListener('click', () => {
+      state.grid = initialGrid();
+      render();
+    });
+
+    document.getElementById('clearStones').addEventListener('click', () => {
+      state.stones.clear();
+      render();
+    });
+
+    canvas.addEventListener('pointerdown', (event) => {
+      const point = pointerPoint(event);
+      const handle = nearestHandle(point);
+      if (handle !== null) {
+        state.draggingHandle = handle;
+        canvas.setPointerCapture(event.pointerId);
+        render();
+        return;
+      }
+      const nearest = nearestIntersection(point);
+      if (nearest && nearest.distance <= Math.max(14, averageStep() * 0.45)) {
+        setStone(nearest.row, nearest.col);
+      }
+    });
+
+    canvas.addEventListener('pointermove', (event) => {
+      if (state.draggingHandle === null) return;
+      const point = pointerPoint(event);
+      state.grid[state.draggingHandle] = {
+        x: Math.max(0, Math.min(canvas.width, point.x)),
+        y: Math.max(0, Math.min(canvas.height, point.y)),
+      };
+      render();
+    });
+
+    canvas.addEventListener('pointerup', (event) => {
+      if (state.draggingHandle !== null) {
+        state.draggingHandle = null;
+        canvas.releasePointerCapture(event.pointerId);
+        render();
+      }
+    });
+
+    canvas.addEventListener('pointercancel', () => {
+      state.draggingHandle = null;
+      render();
+    });
+
+    document.getElementById('copyOutput').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(output.value);
+      } catch (_) {
+        output.focus();
+        output.select();
+        document.execCommand('copy');
+      }
+    });
+
+    document.getElementById('downloadText').addEventListener('click', () => {
+      const name = (sampleName.value || state.imageName || 'recognition_sample')
+        .replace(/[^a-zA-Z0-9_-]+/g, '_');
+      const extension = state.outputMode === 'json' ? 'json' : 'txt';
+      const type = state.outputMode === 'json' ? 'application/json' : 'text/plain';
+      const blob = new Blob([output.value + '\n'], { type });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${name}.${extension}`;
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+
+    render();
+  </script>
+</body>
+</html>

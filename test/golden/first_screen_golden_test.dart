@@ -18,9 +18,9 @@ void main() {
     await tester.pumpWidget(const GoPuzzleApp());
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('小闲围棋'), findsWidgets);
-    expect(find.text('下一盘'), findsOneWidget);
-    expect(find.text('吃 5 子取胜 · 9 路 · 十字'), findsOneWidget);
-    expect(find.text('执黑先行'), findsOneWidget);
+    expect(find.text('Baduk Puzzle'), findsWidgets);
+    expect(find.text('下一盤'), findsOneWidget);
+    expect(find.text('吃 5 子取勝 · 9 路 · 十字'), findsOneWidget);
+    expect(find.text('執黑先行'), findsOneWidget);
   });
 }

@@ -356,18 +356,18 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('操作'), findsOneWidget);
-      expect(find.text('AI 22 级'), findsNothing);
+      expect(find.text('AI 22 級'), findsNothing);
 
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      expect(find.text('AI 风格：${CaptureAiStyle.adaptive.label}'), findsOneWidget);
-      expect(find.text('吃子预警：开'), findsOneWidget);
+      expect(find.text('AI 風格：${CaptureAiStyle.adaptive.label}'), findsOneWidget);
+      expect(find.text('吃子預警：開'), findsOneWidget);
 
-      await tester.tap(find.text('AI 风格：${CaptureAiStyle.adaptive.label}'));
+      await tester.tap(find.text('AI 風格：${CaptureAiStyle.adaptive.label}'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('稳守 · 先补强自己，再等反击'));
+      await tester.tap(find.text('穩守 · 先補強自己，再等反擊'));
       await tester.pumpAndSettle();
 
       expect(provider.aiStyle, CaptureAiStyle.counter);
@@ -401,11 +401,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('轮到你（黑棋）落子'), findsOneWidget);
+      expect(find.text('輪到你（黑棋）落子'), findsOneWidget);
       expect(find.text('等待黑棋落子'), findsNothing);
-      expect(find.text('落子记录：'), findsNothing);
+      expect(find.text('落子紀錄：'), findsNothing);
       expect(find.text('操作'), findsOneWidget);
-      expect(find.text('后退一手'), findsNothing);
+      expect(find.text('後退一手'), findsNothing);
       expect(find.text('提示一手'), findsNothing);
 
       await provider.placeStone(8, 0);
@@ -415,14 +415,14 @@ void main() {
       expect(find.text('等待黑棋落子'), findsNothing);
       expect(find.text('1 A1'), findsNothing);
       expect(find.text('2 B2'), findsNothing);
-      expect(find.text('记录'), findsNothing);
+      expect(find.text('紀錄'), findsNothing);
 
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      expect(find.text('显示棋谱'), findsOneWidget);
+      expect(find.text('顯示棋譜'), findsOneWidget);
 
-      await tester.tap(find.text('显示棋谱'));
+      await tester.tap(find.text('顯示棋譜'));
       await tester.pumpAndSettle();
 
       expect(find.text('1 A1'), findsOneWidget);
@@ -435,7 +435,7 @@ void main() {
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('打标此手'));
+      await tester.tap(find.text('標記此手'));
       await tester.pumpAndSettle();
 
       expect(
@@ -446,11 +446,11 @@ void main() {
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      expect(find.text('取消打标此手'), findsOneWidget);
-      expect(find.text('后退一手'), findsOneWidget);
+      expect(find.text('取消標記此手'), findsOneWidget);
+      expect(find.text('後退一手'), findsOneWidget);
       expect(find.text('提示一手'), findsOneWidget);
 
-      await tester.tap(find.text('后退一手'));
+      await tester.tap(find.text('後退一手'));
       await tester.pumpAndSettle();
 
       expect(find.text('1 A1'), findsOneWidget);

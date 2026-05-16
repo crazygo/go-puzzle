@@ -1,0 +1,545 @@
+{
+  "schemaVersion": 1,
+  "image": {
+    "fileName": "IMG_3157.PNG",
+    "width": 2796,
+    "height": 1290
+  },
+  "boardSize": 13,
+  "corners": {
+    "topLeft": {
+      "x": 1104,
+      "y": 77
+    },
+    "topRight": {
+      "x": 2231,
+      "y": 78
+    },
+    "bottomRight": {
+      "x": 2228,
+      "y": 1206
+    },
+    "bottomLeft": {
+      "x": 1104,
+      "y": 1206
+    }
+  },
+  "stones": [
+    {
+      "color": "B",
+      "coord": "E10",
+      "row": 3,
+      "col": 4
+    },
+    {
+      "color": "B",
+      "coord": "F10",
+      "row": 3,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "G10",
+      "row": 3,
+      "col": 6
+    },
+    {
+      "color": "B",
+      "coord": "H10",
+      "row": 3,
+      "col": 7
+    },
+    {
+      "color": "B",
+      "coord": "J10",
+      "row": 3,
+      "col": 8
+    },
+    {
+      "color": "B",
+      "coord": "K10",
+      "row": 3,
+      "col": 9
+    },
+    {
+      "color": "B",
+      "coord": "L10",
+      "row": 3,
+      "col": 10
+    },
+    {
+      "color": "B",
+      "coord": "M10",
+      "row": 3,
+      "col": 11
+    },
+    {
+      "color": "B",
+      "coord": "N10",
+      "row": 3,
+      "col": 12
+    },
+    {
+      "color": "B",
+      "coord": "E9",
+      "row": 4,
+      "col": 4
+    },
+    {
+      "color": "W",
+      "coord": "F9",
+      "row": 4,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "G9",
+      "row": 4,
+      "col": 6
+    },
+    {
+      "color": "W",
+      "coord": "H9",
+      "row": 4,
+      "col": 7
+    },
+    {
+      "color": "W",
+      "coord": "J9",
+      "row": 4,
+      "col": 8
+    },
+    {
+      "color": "W",
+      "coord": "K9",
+      "row": 4,
+      "col": 9
+    },
+    {
+      "color": "W",
+      "coord": "L9",
+      "row": 4,
+      "col": 10
+    },
+    {
+      "color": "W",
+      "coord": "M9",
+      "row": 4,
+      "col": 11
+    },
+    {
+      "color": "W",
+      "coord": "N9",
+      "row": 4,
+      "col": 12
+    },
+    {
+      "color": "B",
+      "coord": "D8",
+      "row": 5,
+      "col": 3
+    },
+    {
+      "color": "B",
+      "coord": "E8",
+      "row": 5,
+      "col": 4
+    },
+    {
+      "color": "W",
+      "coord": "F8",
+      "row": 5,
+      "col": 5
+    },
+    {
+      "color": "W",
+      "coord": "G8",
+      "row": 5,
+      "col": 6
+    },
+    {
+      "color": "W",
+      "coord": "H8",
+      "row": 5,
+      "col": 7
+    },
+    {
+      "color": "W",
+      "coord": "J8",
+      "row": 5,
+      "col": 8
+    },
+    {
+      "color": "W",
+      "coord": "K8",
+      "row": 5,
+      "col": 9
+    },
+    {
+      "color": "W",
+      "coord": "L8",
+      "row": 5,
+      "col": 10
+    },
+    {
+      "color": "B",
+      "coord": "M8",
+      "row": 5,
+      "col": 11
+    },
+    {
+      "color": "W",
+      "coord": "N8",
+      "row": 5,
+      "col": 12
+    },
+    {
+      "color": "B",
+      "coord": "E7",
+      "row": 6,
+      "col": 4
+    },
+    {
+      "color": "W",
+      "coord": "F7",
+      "row": 6,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "G7",
+      "row": 6,
+      "col": 6
+    },
+    {
+      "color": "W",
+      "coord": "H7",
+      "row": 6,
+      "col": 7
+    },
+    {
+      "color": "W",
+      "coord": "J7",
+      "row": 6,
+      "col": 8
+    },
+    {
+      "color": "B",
+      "coord": "K7",
+      "row": 6,
+      "col": 9
+    },
+    {
+      "color": "B",
+      "coord": "L7",
+      "row": 6,
+      "col": 10
+    },
+    {
+      "color": "B",
+      "coord": "M7",
+      "row": 6,
+      "col": 11
+    },
+    {
+      "color": "W",
+      "coord": "N7",
+      "row": 6,
+      "col": 12
+    },
+    {
+      "color": "B",
+      "coord": "C6",
+      "row": 7,
+      "col": 2
+    },
+    {
+      "color": "B",
+      "coord": "E6",
+      "row": 7,
+      "col": 4
+    },
+    {
+      "color": "B",
+      "coord": "F6",
+      "row": 7,
+      "col": 5
+    },
+    {
+      "color": "B",
+      "coord": "G6",
+      "row": 7,
+      "col": 6
+    },
+    {
+      "color": "W",
+      "coord": "H6",
+      "row": 7,
+      "col": 7
+    },
+    {
+      "color": "W",
+      "coord": "J6",
+      "row": 7,
+      "col": 8
+    },
+    {
+      "color": "W",
+      "coord": "K6",
+      "row": 7,
+      "col": 9
+    },
+    {
+      "color": "W",
+      "coord": "L6",
+      "row": 7,
+      "col": 10
+    },
+    {
+      "color": "B",
+      "coord": "M6",
+      "row": 7,
+      "col": 11
+    },
+    {
+      "color": "B",
+      "coord": "N6",
+      "row": 7,
+      "col": 12
+    },
+    {
+      "color": "B",
+      "coord": "D5",
+      "row": 8,
+      "col": 3
+    },
+    {
+      "color": "B",
+      "coord": "F5",
+      "row": 8,
+      "col": 5
+    },
+    {
+      "color": "W",
+      "coord": "G5",
+      "row": 8,
+      "col": 6
+    },
+    {
+      "color": "W",
+      "coord": "H5",
+      "row": 8,
+      "col": 7
+    },
+    {
+      "color": "W",
+      "coord": "K5",
+      "row": 8,
+      "col": 9
+    },
+    {
+      "color": "W",
+      "coord": "L5",
+      "row": 8,
+      "col": 10
+    },
+    {
+      "color": "W",
+      "coord": "M5",
+      "row": 8,
+      "col": 11
+    },
+    {
+      "color": "B",
+      "coord": "N5",
+      "row": 8,
+      "col": 12
+    },
+    {
+      "color": "B",
+      "coord": "E4",
+      "row": 9,
+      "col": 4
+    },
+    {
+      "color": "B",
+      "coord": "F4",
+      "row": 9,
+      "col": 5
+    },
+    {
+      "color": "W",
+      "coord": "G4",
+      "row": 9,
+      "col": 6
+    },
+    {
+      "color": "W",
+      "coord": "H4",
+      "row": 9,
+      "col": 7
+    },
+    {
+      "color": "W",
+      "coord": "J4",
+      "row": 9,
+      "col": 8
+    },
+    {
+      "color": "W",
+      "coord": "K4",
+      "row": 9,
+      "col": 9
+    },
+    {
+      "color": "B",
+      "coord": "L4",
+      "row": 9,
+      "col": 10
+    },
+    {
+      "color": "B",
+      "coord": "M4",
+      "row": 9,
+      "col": 11
+    },
+    {
+      "color": "B",
+      "coord": "N4",
+      "row": 9,
+      "col": 12
+    },
+    {
+      "color": "B",
+      "coord": "F3",
+      "row": 10,
+      "col": 5
+    },
+    {
+      "color": "W",
+      "coord": "G3",
+      "row": 10,
+      "col": 6
+    },
+    {
+      "color": "W",
+      "coord": "H3",
+      "row": 10,
+      "col": 7
+    },
+    {
+      "color": "B",
+      "coord": "J3",
+      "row": 10,
+      "col": 8
+    },
+    {
+      "color": "B",
+      "coord": "K3",
+      "row": 10,
+      "col": 9
+    },
+    {
+      "color": "B",
+      "coord": "L3",
+      "row": 10,
+      "col": 10
+    },
+    {
+      "color": "W",
+      "coord": "M3",
+      "row": 10,
+      "col": 11
+    },
+    {
+      "color": "B",
+      "coord": "F2",
+      "row": 11,
+      "col": 5
+    },
+    {
+      "color": "W",
+      "coord": "G2",
+      "row": 11,
+      "col": 6
+    },
+    {
+      "color": "W",
+      "coord": "H2",
+      "row": 11,
+      "col": 7
+    },
+    {
+      "color": "W",
+      "coord": "J2",
+      "row": 11,
+      "col": 8
+    },
+    {
+      "color": "W",
+      "coord": "K2",
+      "row": 11,
+      "col": 9
+    },
+    {
+      "color": "B",
+      "coord": "L2",
+      "row": 11,
+      "col": 10
+    },
+    {
+      "color": "B",
+      "coord": "M2",
+      "row": 11,
+      "col": 11
+    },
+    {
+      "color": "B",
+      "coord": "N2",
+      "row": 11,
+      "col": 12
+    },
+    {
+      "color": "B",
+      "coord": "E1",
+      "row": 12,
+      "col": 4
+    },
+    {
+      "color": "W",
+      "coord": "F1",
+      "row": 12,
+      "col": 5
+    },
+    {
+      "color": "W",
+      "coord": "G1",
+      "row": 12,
+      "col": 6
+    },
+    {
+      "color": "W",
+      "coord": "H1",
+      "row": 12,
+      "col": 7
+    },
+    {
+      "color": "W",
+      "coord": "K1",
+      "row": 12,
+      "col": 9
+    },
+    {
+      "color": "B",
+      "coord": "L1",
+      "row": 12,
+      "col": 10
+    },
+    {
+      "color": "W",
+      "coord": "M1",
+      "row": 12,
+      "col": 11
+    }
+  ]
+}
