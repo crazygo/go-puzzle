@@ -1,28 +1,15 @@
 # Go Puzzle
 
-Go Puzzle is a Flutter app for practicing Go tactics through daily puzzles and focused skill training. It uses an iOS-style Cupertino interface and includes an interactive board for placing stones, undoing moves, viewing hints, and tracking captures.
+Go Puzzle is a Flutter app for practicing Go tactics through focused skill training. It uses an iOS-style Cupertino interface and includes an interactive board for placing stones, undoing moves, viewing hints, and tracking captures.
 
 ## Features
 
-### Daily Puzzle
-- One puzzle per day with a date timeline.
 - Interactive board with move input, undo, and hints.
 - Progress and capture tracking during play.
-
-### Skill Training
-The training library groups puzzles by tactical pattern:
-
-| Category | Focus |
-| --- | --- |
-| Beginner | Basic captures and edge/corner play |
-| Rules | Suicide, ko basics, and living with two eyes |
-| Cut | Capturing after separating connected stones |
-| Ko | Creating and resolving ko fights |
-| Ladder | Repeated atari sequences |
-| Net | Trapping stones with surrounding shapes |
-| Double Atari | Threatening two captures at once |
-
-### Settings
+- Import a Go board screenshot.
+- Recognize board size, stone positions, and stone colors.
+- Convert the screenshot into an editable board position.
+- Includes a self-trained YOLO/ONNX recognition model pipeline for improving screenshot recognition over time.
 - Board modes for 9x9 capture, 13x13 capture, and 19x19 territory practice.
 - Optional hints and move numbers.
 - Sound and haptic feedback controls.
@@ -33,6 +20,7 @@ The training library groups puzzles by tactical pattern:
 - **Provider** for app and game state.
 - **CustomPainter** for board rendering, including wood texture, stone styling, and atari markers.
 - Go rule handling for liberties, captures, ko, suicide checks, and undo.
+- Screenshot recognition with a rule-based path and a self-trained YOLO/ONNX model pipeline.
 
 ## Development
 
