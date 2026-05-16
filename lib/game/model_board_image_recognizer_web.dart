@@ -40,12 +40,16 @@ class _WebWorkerModelBoardImageRecognizer
 
   @override
   Future<void> dispose() async {
-    _messageSub?.cancel();
-    _errorSub?.cancel();
-    _messageSub = null;
-    _errorSub = null;
-    _worker?.terminate();
-    _worker = null;
+    const error = '模型識別器已釋放';
+    final loadCompleter = _loadCompleter;
+    if (loadCompleter != null && !loadCompleter.isCompleted) {
+      loadCompleter.completeError(StateError(error));
+    }
+    final recognizeCompleter = _recognizeCompleter;
+    if (recognizeCompleter != null && !recognizeCompleter.isCompleted) {
+      recognizeCompleter.completeError(StateError(error));
+    }
+    await _resetWorker();
     _loadCompleter = null;
     _recognizeCompleter = null;
   }
@@ -76,7 +80,7 @@ class _WebWorkerModelBoardImageRecognizer
     try {
       _getOrCreateWorker().postMessage(message);
     } catch (error) {
-      _completeWithError(error);
+      _completeWithError(error, resetWorker: true);
     }
   }
 
@@ -87,8 +91,7 @@ class _WebWorkerModelBoardImageRecognizer
     final worker = html.Worker('model_recognition_worker.js');
     _messageSub = worker.onMessage.listen(_handleMessage);
     _errorSub = worker.onError.listen((_) {
-      _completeWithError('Web Worker error');
-      dispose();
+      _completeWithError('Web Worker error', resetWorker: true);
     });
     _worker = worker;
     return worker;
@@ -104,7 +107,7 @@ class _WebWorkerModelBoardImageRecognizer
       final type = data['type'] as String?;
       final error = data['error'];
       if (error != null) {
-        _completeWithError(error.toString());
+        _completeWithError(error.toString(), resetWorker: true);
         return;
       }
 
@@ -137,11 +140,11 @@ class _WebWorkerModelBoardImageRecognizer
         );
       }
     } catch (error) {
-      _completeWithError(error);
+      _completeWithError(error, resetWorker: true);
     }
   }
 
-  void _completeWithError(Object error) {
+  void _completeWithError(Object error, {required bool resetWorker}) {
     final loadCompleter = _loadCompleter;
     if (loadCompleter != null && !loadCompleter.isCompleted) {
       loadCompleter.completeError(error);
@@ -150,5 +153,19 @@ class _WebWorkerModelBoardImageRecognizer
     if (recognizeCompleter != null && !recognizeCompleter.isCompleted) {
       recognizeCompleter.completeError(error);
     }
+    _loadCompleter = null;
+    _recognizeCompleter = null;
+    if (resetWorker) {
+      unawaited(_resetWorker());
+    }
+  }
+
+  Future<void> _resetWorker() async {
+    await _messageSub?.cancel();
+    await _errorSub?.cancel();
+    _messageSub = null;
+    _errorSub = null;
+    _worker?.terminate();
+    _worker = null;
   }
 }

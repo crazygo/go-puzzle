@@ -105,6 +105,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Download recognition models
+        run: bash scripts/download-recognition-models.sh
+
       - name: Install CocoaPods
         run: |
           cd ios

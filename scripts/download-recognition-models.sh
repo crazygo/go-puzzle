@@ -16,7 +16,16 @@ log() {
 }
 
 sha256_of() {
-  shasum -a 256 "$1" | awk '{print $1}'
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+    return 0
+  fi
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+    return 0
+  fi
+  log "Missing SHA-256 tool (requires sha256sum or shasum)"
+  return 1
 }
 
 ensure_model() {

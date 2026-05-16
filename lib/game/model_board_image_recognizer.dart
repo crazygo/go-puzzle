@@ -5,8 +5,10 @@ import 'model_board_image_recognizer_native.dart'
 import 'board_image_recognizer.dart';
 
 abstract interface class ModelBoardImageRecognizer {
-  static ModelBoardImageRecognizer get instance =>
+  static final ModelBoardImageRecognizer _instance =
       createPlatformModelBoardImageRecognizer();
+
+  static ModelBoardImageRecognizer get instance => _instance;
 
   Future<void> ensureLoaded();
 

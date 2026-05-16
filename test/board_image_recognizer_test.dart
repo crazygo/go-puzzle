@@ -7,6 +7,28 @@ import 'package:go_puzzle/models/board_position.dart';
 import 'package:image/image.dart' as img;
 
 void main() {
+  test('formats board text with row numbers and skips I column', () {
+    final board = List.generate(
+      19,
+      (_) => List<StoneColor>.filled(19, StoneColor.empty),
+    );
+    board[0][8] = StoneColor.white;
+    board[18][7] = StoneColor.black;
+    board[9][9] = StoneColor.black;
+
+    final result = BoardRecognitionResult(
+      boardSize: 19,
+      board: board,
+      confidence: 0.9,
+    );
+
+    expect(
+      result.toTextLines(),
+      const ['Size 19', 'W,J19', 'B,K10', 'B,H1'],
+    );
+    expect(result.toBoardText(), 'Size 19\nW,J19\nB,K10\nB,H1');
+  });
+
   test('recognizes exact stones from synthetic 9x9 board', () {
     final bytes = _buildSyntheticBoardImage(
       boardSize: 9,
