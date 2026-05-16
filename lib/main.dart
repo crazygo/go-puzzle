@@ -58,8 +58,7 @@ class GoPuzzleApp extends StatelessWidget {
         selector: (_, settings) => settings.appTheme,
         builder: (context, appTheme, _) {
           final palette = appTheme.palette;
-          final fontFamilyFallback =
-              kIsWeb ? _kWebFontFamilyFallback : null;
+          final fontFamilyFallback = kIsWeb ? _kWebFontFamilyFallback : null;
           TextStyle appTextStyle({
             double? fontSize,
             FontWeight? fontWeight,
