@@ -555,20 +555,30 @@ class _LadderChasePolicy extends _BasePolicy {
 
   @override
   CaptureAiMove? chooseTacticalMove(SimBoard board) {
-    return _bestByScore(
-      board,
-      (candidate) =>
-          candidate.analysis.opponentAtariStones * 2500.0 +
-          (_canForceCaptureAfter(board, candidate.moveIndex, depth: 6)
-              ? 8000.0
-              : 0.0) +
-          _linePressure(board, candidate.moveIndex) * 180.0 +
-          _tieBreak(candidate.moveIndex),
-      where: (candidate) =>
-          candidate.analysis.opponentAtariStones > 0 &&
-          (_canForceCaptureAfter(board, candidate.moveIndex, depth: 6) ||
-              _linePressure(board, candidate.moveIndex) >= 3),
-    );
+    final candidates = board.size > 9
+        ? _rankForcingMoves(board).take(16)
+        : _legalCandidates(board);
+    _ScoredCandidate? best;
+    for (final candidate in candidates) {
+      if (candidate.analysis.opponentAtariStones <= 0) continue;
+      final canForceCapture = _canForceCaptureAfter(
+        board,
+        candidate.moveIndex,
+        depth: board.size > 9 ? 4 : 6,
+      );
+      final linePressure = _linePressure(board, candidate.moveIndex);
+      if (!canForceCapture && linePressure < 3) continue;
+      final value = candidate.analysis.opponentAtariStones * 2500.0 +
+          (canForceCapture ? 8000.0 : 0.0) +
+          linePressure * 180.0 +
+          _tieBreak(candidate.moveIndex);
+      final scored = _ScoredCandidate(candidate, value);
+      if (best == null || _compareScored(scored, best) < 0) {
+        best = scored;
+      }
+    }
+    if (best == null) return null;
+    return _moveFor(board, best.candidate.moveIndex, best.score);
   }
 }
 
@@ -674,13 +684,27 @@ class _SacrificeRacePolicy extends _BasePolicy {
 
   @override
   CaptureAiMove? chooseTacticalMove(SimBoard board) {
-    return _bestByScore(
-      board,
-      (candidate) =>
-          _captureRaceScoreAfter(board, candidate.moveIndex, depth: 4) +
+    final candidates = board.size > 9
+        ? _rankForcingMoves(board).take(16)
+        : _legalCandidates(board);
+    final depth = board.size > 9 ? 3 : 4;
+    _ScoredCandidate? best;
+    for (final candidate in candidates) {
+      final value = _captureRaceScoreAfter(
+            board,
+            candidate.moveIndex,
+            depth: depth,
+          ) +
           (_isSelfAtariMove(board, candidate.moveIndex) ? 600.0 : 0.0) +
-          _tieBreak(candidate.moveIndex),
-    );
+          _tieBreak(candidate.moveIndex);
+      if (!value.isFinite) continue;
+      final scored = _ScoredCandidate(candidate, value);
+      if (best == null || _compareScored(scored, best) < 0) {
+        best = scored;
+      }
+    }
+    if (best == null) return null;
+    return _moveFor(board, best.candidate.moveIndex, best.score);
   }
 }
 
