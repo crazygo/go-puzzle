@@ -21,6 +21,7 @@ import '../services/game_history_repository.dart';
 import '../services/player_rank_repository.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_context.dart';
+import '../ui/board_coordinates.dart';
 import '../widgets/go_board_widget.dart';
 import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
@@ -3802,6 +3803,9 @@ class _ImportPreviewScreenState extends State<_ImportPreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final coordinateSystem =
+        context.select<SettingsProvider, BoardCoordinateSystem>(
+            (settings) => settings.boardCoordinateSystem);
     final gameState = GameState(
       boardSize: _boardSize,
       board: _board,
@@ -3867,6 +3871,7 @@ class _ImportPreviewScreenState extends State<_ImportPreviewScreen> {
                     padding: const EdgeInsets.all(10),
                     child: GoBoardWidget(
                       gameState: gameState,
+                      coordinateSystem: coordinateSystem,
                       onTap: (row, col) => _toggleStone(row, col),
                     ),
                   ),
@@ -4136,8 +4141,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                             ? _MoveLogStrip(
                                 moves: provider.moveLog,
                                 boardSize: provider.boardSize,
-                                currentPlayer:
-                                    provider.gameState.currentPlayer,
+                                coordinateSystem:
+                                    settings?.boardCoordinateSystem ??
+                                        BoardCoordinateSystem.chinese,
+                                currentPlayer: provider.gameState.currentPlayer,
                                 markedMoveNumbers: _markedMoveNumbers,
                                 palette: palette,
                                 reviewMoveIndex: _reviewMoveIndex,
@@ -4156,19 +4163,19 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                           padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
                           child: _CaptureBoardArea(
                             gameState: reviewGameState ?? provider.gameState,
-                            enabled: !aiThinking &&
-                                !isFinished &&
-                                !inReviewMode,
-                            hintMarks:
-                                inReviewMode ? const [] : _hintMarks,
+                            coordinateSystem: settings?.boardCoordinateSystem ??
+                                BoardCoordinateSystem.chinese,
+                            enabled:
+                                !aiThinking && !isFinished && !inReviewMode,
+                            hintMarks: inReviewMode ? const [] : _hintMarks,
                             showCaptureWarning: showCaptureWarning,
                             captureTarget: widget.captureTarget,
-                            blackCaptured: reviewGameState
-                                    ?.capturedByBlack.length ??
-                                blackCaptured,
-                            whiteCaptured: reviewGameState
-                                    ?.capturedByWhite.length ??
-                                whiteCaptured,
+                            blackCaptured:
+                                reviewGameState?.capturedByBlack.length ??
+                                    blackCaptured,
+                            whiteCaptured:
+                                reviewGameState?.capturedByWhite.length ??
+                                    whiteCaptured,
                             humanColor: widget.humanColor,
                             onTap: (row, col) => _handleBoardTap(
                               provider: provider,
@@ -4592,6 +4599,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
 class _CaptureBoardArea extends StatelessWidget {
   const _CaptureBoardArea({
     required this.gameState,
+    required this.coordinateSystem,
     required this.enabled,
     required this.hintMarks,
     required this.showCaptureWarning,
@@ -4604,6 +4612,7 @@ class _CaptureBoardArea extends StatelessWidget {
   });
 
   final GameState gameState;
+  final BoardCoordinateSystem coordinateSystem;
   final bool enabled;
   final List<_HintMark> hintMarks;
   final bool showCaptureWarning;
@@ -4672,6 +4681,7 @@ class _CaptureBoardArea extends StatelessWidget {
                       padding: const EdgeInsets.all(8),
                       child: _TapBoard(
                         gameState: gameState,
+                        coordinateSystem: coordinateSystem,
                         enabled: enabled,
                         hintMarks: hintMarks,
                         showCaptureWarning: showCaptureWarning,
@@ -4753,25 +4763,30 @@ class _PlayerSideCard extends StatelessWidget {
   }
 }
 
-String _formatBoardCoordinate(List<int> move, int boardSize) {
+String _formatBoardCoordinate(
+  List<int> move,
+  int boardSize,
+  BoardCoordinateSystem coordinateSystem,
+) {
   if (move.length < 2) return '-';
-  const columns = 'ABCDEFGHJKLMNOPQRST';
   final row = move[0];
   final col = move[1];
-  if (col < 0 ||
-      col >= boardSize ||
-      col >= columns.length ||
-      row < 0 ||
-      row >= boardSize) {
+  if (col < 0 || col >= boardSize || row < 0 || row >= boardSize) {
     return '-';
   }
-  return '${columns[col]}${boardSize - row}';
+  return formatBoardCoordinate(
+    row: row,
+    col: col,
+    boardSize: boardSize,
+    coordinateSystem: coordinateSystem,
+  );
 }
 
 class _MoveLogStrip extends StatefulWidget {
   const _MoveLogStrip({
     required this.moves,
     required this.boardSize,
+    required this.coordinateSystem,
     required this.currentPlayer,
     required this.markedMoveNumbers,
     required this.palette,
@@ -4782,6 +4797,7 @@ class _MoveLogStrip extends StatefulWidget {
 
   final List<List<int>> moves;
   final int boardSize;
+  final BoardCoordinateSystem coordinateSystem;
   final StoneColor currentPlayer;
   final Set<int> markedMoveNumbers;
   final AppThemePalette palette;
@@ -4870,6 +4886,7 @@ class _MoveLogStripState extends State<_MoveLogStrip> {
                         coordinate: _formatBoardCoordinate(
                           widget.moves[index],
                           widget.boardSize,
+                          widget.coordinateSystem,
                         ),
                         marked: widget.markedMoveNumbers.contains(index + 1),
                         palette: widget.palette,
@@ -4915,8 +4932,7 @@ class _MoveLogChip extends StatelessWidget {
         : palette.segmentTrack.withValues(alpha: 0.82);
     final borderColor =
         isReviewing ? palette.primary : palette.primary.withValues(alpha: 0.16);
-    final textColor =
-        isReviewing ? CupertinoColors.white : palette.segmentText;
+    final textColor = isReviewing ? CupertinoColors.white : palette.segmentText;
 
     final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
@@ -5227,6 +5243,7 @@ class _HintOverlayPainter extends CustomPainter {
 class _TapBoard extends StatelessWidget {
   const _TapBoard({
     required this.gameState,
+    required this.coordinateSystem,
     required this.enabled,
     required this.hintMarks,
     required this.showCaptureWarning,
@@ -5235,6 +5252,7 @@ class _TapBoard extends StatelessWidget {
   });
 
   final GameState gameState;
+  final BoardCoordinateSystem coordinateSystem;
   final bool enabled;
   final List<_HintMark> hintMarks;
   final bool showCaptureWarning;
@@ -5260,6 +5278,7 @@ class _TapBoard extends StatelessWidget {
                   painter: GoBoardPainter(
                     gameState: gameState,
                     palette: context.appPalette,
+                    coordinateSystem: coordinateSystem,
                     showCaptureWarning: showCaptureWarning,
                   ),
                 ),
@@ -5527,6 +5546,9 @@ class _HistoryDetailSheet extends StatelessWidget {
     final boardState = _buildFinalBoardState(record);
     final palette = context.appPalette;
     final isClassic = context.isClassicAppTheme;
+    final coordinateSystem =
+        context.select<SettingsProvider, BoardCoordinateSystem>(
+            (settings) => settings.boardCoordinateSystem);
 
     return Container(
       decoration: BoxDecoration(
@@ -5610,6 +5632,7 @@ class _HistoryDetailSheet extends StatelessWidget {
                       padding: const EdgeInsets.all(8),
                       child: GoBoardWidget(
                         gameState: boardState,
+                        coordinateSystem: coordinateSystem,
                         onTap: null,
                       ),
                     ),
@@ -5824,16 +5847,20 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
   Set<int> get _markedMoves => widget.record.markedMoveNumbers.toSet();
   List<int> get _sortedMarkedMoves => _markedMoves.toList()..sort();
 
-  String _moveCoordinate(int moveNo) {
+  String _moveCoordinate(int moveNo, BoardCoordinateSystem coordinateSystem) {
     if (moveNo <= 0 || moveNo > widget.record.moves.length) return '-';
     return _formatBoardCoordinate(
       widget.record.moves[moveNo - 1],
       widget.record.boardSize,
+      coordinateSystem,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final coordinateSystem =
+        context.select<SettingsProvider, BoardCoordinateSystem>(
+            (settings) => settings.boardCoordinateSystem);
     final markedMoves = _sortedMarkedMoves;
     final hasMarkedMoves = markedMoves.isNotEmpty;
     final markedStart = hasMarkedMoves ? markedMoves.first : 0;
@@ -5869,6 +5896,7 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                         padding: const EdgeInsets.all(8),
                         child: GoBoardWidget(
                           gameState: current,
+                          coordinateSystem: coordinateSystem,
                           onTap: null,
                         ),
                       ),
@@ -5884,7 +5912,7 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                   Text(
                     _index == 0
                         ? '初始局面'
-                        : '第 $_index 手 / 共 $_totalMoves 手 · 座標 ${_moveCoordinate(_index)}',
+                        : '第 $_index 手 / 共 $_totalMoves 手 · 座標 ${_moveCoordinate(_index, coordinateSystem)}',
                     style: const TextStyle(
                       fontSize: 13,
                       color: Color(0xFF8C7966),
@@ -5923,7 +5951,7 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                           onPressed: () => setState(
                               () => _index = move.clamp(0, _totalMoves)),
                           child: Text(
-                            '第$move手 ${_moveCoordinate(move)}',
+                            '第$move手 ${_moveCoordinate(move, coordinateSystem)}',
                             style: TextStyle(
                               color: _index == move
                                   ? const Color(0xFFFFFFFF)

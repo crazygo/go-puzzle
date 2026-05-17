@@ -361,7 +361,8 @@ void main() {
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      expect(find.text('AI 風格：${CaptureAiStyle.adaptive.label}'), findsOneWidget);
+      expect(
+          find.text('AI 風格：${CaptureAiStyle.adaptive.label}'), findsOneWidget);
       expect(find.text('吃子預警：開'), findsOneWidget);
 
       await tester.tap(find.text('AI 風格：${CaptureAiStyle.adaptive.label}'));
@@ -413,8 +414,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('等待黑棋落子'), findsNothing);
-      expect(find.text('1 A1'), findsNothing);
-      expect(find.text('2 B2'), findsNothing);
+      expect(find.text('1 1九'), findsNothing);
+      expect(find.text('2 2八'), findsNothing);
       expect(find.text('紀錄'), findsNothing);
 
       await tester.tap(find.text('操作'));
@@ -425,10 +426,10 @@ void main() {
       await tester.tap(find.text('顯示棋譜'));
       await tester.pumpAndSettle();
 
-      expect(find.text('1 A1'), findsOneWidget);
-      expect(find.text('2 B2'), findsOneWidget);
+      expect(find.text('1 1九'), findsOneWidget);
+      expect(find.text('2 2八'), findsOneWidget);
       expect(
-        tester.widget<Text>(find.text('2 B2')).style?.fontWeight,
+        tester.widget<Text>(find.text('2 2八')).style?.fontWeight,
         FontWeight.w500,
       );
 
@@ -439,8 +440,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        tester.widget<Text>(find.text('2 B2')).style?.fontWeight,
-        FontWeight.w700,
+        tester.widget<Text>(find.text('2 2八')).style?.fontWeight,
+        FontWeight.w500,
       );
 
       await tester.tap(find.text('操作'));
@@ -453,8 +454,8 @@ void main() {
       await tester.tap(find.text('後退一手'));
       await tester.pumpAndSettle();
 
-      expect(find.text('1 A1'), findsOneWidget);
-      expect(find.text('2 B2'), findsNothing);
+      expect(find.text('1 1九'), findsOneWidget);
+      expect(find.text('2 2八'), findsNothing);
     });
   });
 }

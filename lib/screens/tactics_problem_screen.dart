@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
 
 import '../game/capture_ai.dart';
 import '../game/capture_ai_tactics.dart';
@@ -8,6 +9,7 @@ import '../game/difficulty_level.dart';
 import '../game/mcts_engine.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
+import '../providers/settings_provider.dart';
 import '../theme/theme_context.dart';
 import '../ui/tactics_labels.dart';
 import '../widgets/go_board_widget.dart';
@@ -50,6 +52,11 @@ class _TacticsProblemScreenState extends State<TacticsProblemScreen> {
               _selectedMove!.row,
               _selectedMove!.col,
             );
+    final coordinateSystem =
+        context.select<SettingsProvider?, BoardCoordinateSystem>(
+      (settings) =>
+          settings?.boardCoordinateSystem ?? BoardCoordinateSystem.chinese,
+    );
 
     return CupertinoPageScaffold(
       backgroundColor: palette.pageBackground,
@@ -65,6 +72,7 @@ class _TacticsProblemScreenState extends State<TacticsProblemScreen> {
             _BoardPanel(
               gameState: displayState,
               hintPosition: _selectedMove ?? _aiHint,
+              coordinateSystem: coordinateSystem,
               onTap: (row, col) {
                 final analysis = widget.problem.toBoard().analyzeMove(row, col);
                 setState(() {
@@ -78,6 +86,7 @@ class _TacticsProblemScreenState extends State<TacticsProblemScreen> {
               selectedMove: _selectedMove,
               analysis: selectedAnalysis,
               boardSize: widget.problem.boardSize,
+              coordinateSystem: coordinateSystem,
               onReset: _selectedMove == null
                   ? null
                   : () => setState(() => _selectedMove = null),
@@ -106,6 +115,7 @@ class _TacticsProblemScreenState extends State<TacticsProblemScreen> {
                 return _AdvicePanel(
                   advice: snapshot.data!,
                   boardSize: widget.problem.boardSize,
+                  coordinateSystem: coordinateSystem,
                 );
               },
             ),
@@ -160,11 +170,13 @@ class _BoardPanel extends StatelessWidget {
   const _BoardPanel({
     required this.gameState,
     required this.hintPosition,
+    required this.coordinateSystem,
     required this.onTap,
   });
 
   final GameState gameState;
   final BoardPosition? hintPosition;
+  final BoardCoordinateSystem coordinateSystem;
   final void Function(int row, int col) onTap;
 
   @override
@@ -177,6 +189,7 @@ class _BoardPanel extends StatelessWidget {
             gameState: gameState,
             hintPosition: hintPosition,
             showCaptureWarning: false,
+            coordinateSystem: coordinateSystem,
             onTap: onTap,
             size: boardSize,
           ),
@@ -191,12 +204,14 @@ class _SelectedMovePanel extends StatelessWidget {
     required this.selectedMove,
     required this.analysis,
     required this.boardSize,
+    required this.coordinateSystem,
     required this.onReset,
   });
 
   final BoardPosition? selectedMove;
   final SimMoveAnalysis? analysis;
   final int boardSize;
+  final BoardCoordinateSystem coordinateSystem;
   final VoidCallback? onReset;
 
   @override
@@ -222,7 +237,7 @@ class _SelectedMovePanel extends StatelessWidget {
             child: Text(
               move == null || currentAnalysis == null
                   ? '點棋盤上的空點，可以暫時試下一手。綠色標記預設顯示 AI 首選。'
-                  : '試下 ${formatPosition(move.row, move.col, boardSize)}：${currentAnalysis.isLegal ? '合法' : '非法'}，'
+                  : '試下 ${formatPosition(move.row, move.col, boardSize, coordinateSystem: coordinateSystem)}：${currentAnalysis.isLegal ? '合法' : '非法'}，'
                       '黑提 +${currentAnalysis.blackCaptureDelta}，'
                       '白提 +${currentAnalysis.whiteCaptureDelta}，'
                       '己方被叫吃 ${currentAnalysis.ownAtariStones} 子。',
@@ -245,10 +260,15 @@ class _SelectedMovePanel extends StatelessWidget {
 }
 
 class _AdvicePanel extends StatelessWidget {
-  const _AdvicePanel({required this.advice, required this.boardSize});
+  const _AdvicePanel({
+    required this.advice,
+    required this.boardSize,
+    required this.coordinateSystem,
+  });
 
   final _TacticsAdvice advice;
   final int boardSize;
+  final BoardCoordinateSystem coordinateSystem;
 
   @override
   Widget build(BuildContext context) {
@@ -265,7 +285,7 @@ class _AdvicePanel extends StatelessWidget {
             title: suggestion.style.label,
             detail: suggestion.move == null
                 ? '無合法建議'
-                : '${formatPosition(suggestion.move!.row, suggestion.move!.col, boardSize)}  score ${suggestion.score!.toStringAsFixed(1)}',
+                : '${formatPosition(suggestion.move!.row, suggestion.move!.col, boardSize, coordinateSystem: coordinateSystem)}  score ${suggestion.score!.toStringAsFixed(1)}',
           ),
         const SizedBox(height: 16),
         _SectionTitle(
@@ -279,7 +299,7 @@ class _AdvicePanel extends StatelessWidget {
           _SuggestionRow(
             title: '#${i + 1}',
             detail:
-                '${formatPosition(advice.oracle.rankedMoves[i].position.row, advice.oracle.rankedMoves[i].position.col, boardSize)}  score ${advice.oracle.rankedMoves[i].score.toStringAsFixed(1)}',
+                '${formatPosition(advice.oracle.rankedMoves[i].position.row, advice.oracle.rankedMoves[i].position.col, boardSize, coordinateSystem: coordinateSystem)}  score ${advice.oracle.rankedMoves[i].score.toStringAsFixed(1)}',
           ),
         if (advice.oracle.rankedMoves.isEmpty)
           const _SuggestionRow(title: 'Oracle', detail: '無可用排序'),

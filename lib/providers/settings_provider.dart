@@ -29,10 +29,28 @@ enum ScreenshotRecognitionAlgorithm {
   }
 }
 
+enum BoardCoordinateSystem {
+  chinese('chinese', '中国'),
+  international('international', '国际'),
+  korean('korean', '韩国');
+
+  final String storageValue;
+  final String label;
+  const BoardCoordinateSystem(this.storageValue, this.label);
+
+  static BoardCoordinateSystem fromStorageValue(String? value) {
+    return BoardCoordinateSystem.values.firstWhere(
+      (system) => system.storageValue == value,
+      orElse: () => BoardCoordinateSystem.chinese,
+    );
+  }
+}
+
 class SettingsProvider extends ChangeNotifier {
   static const _appThemeKey = 'settings.app_theme';
   static const _developerModeKey = 'settings.developer_mode';
   static const _showMoveLogKey = 'settings.show_move_log';
+  static const _boardCoordinateSystemKey = 'settings.board_coordinate_system';
   static const _screenshotRecognitionAlgorithmKey =
       'settings.screenshot_recognition_algorithm';
 
@@ -45,6 +63,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _hapticEnabled = true;
   bool _developerMode = false;
   bool _showMoveLog = false;
+  BoardCoordinateSystem _boardCoordinateSystem = BoardCoordinateSystem.chinese;
   ScreenshotRecognitionAlgorithm _screenshotRecognitionAlgorithm =
       ScreenshotRecognitionAlgorithm.rules;
 
@@ -57,6 +76,7 @@ class SettingsProvider extends ChangeNotifier {
   bool get hapticEnabled => _hapticEnabled;
   bool get developerMode => _developerMode;
   bool get showMoveLog => _showMoveLog;
+  BoardCoordinateSystem get boardCoordinateSystem => _boardCoordinateSystem;
   ScreenshotRecognitionAlgorithm get screenshotRecognitionAlgorithm =>
       _screenshotRecognitionAlgorithm;
 
@@ -73,6 +93,10 @@ class SettingsProvider extends ChangeNotifier {
     );
     final restoredDeveloperMode = prefs.getBool(_developerModeKey) ?? false;
     final restoredShowMoveLog = prefs.getBool(_showMoveLogKey) ?? false;
+    final restoredBoardCoordinateSystem =
+        BoardCoordinateSystem.fromStorageValue(
+      prefs.getString(_boardCoordinateSystemKey),
+    );
     final restoredRecognitionAlgorithm =
         ScreenshotRecognitionAlgorithm.fromStorageValue(
       prefs.getString(_screenshotRecognitionAlgorithmKey),
@@ -80,6 +104,7 @@ class SettingsProvider extends ChangeNotifier {
     if (restoredTheme == _appTheme &&
         restoredDeveloperMode == _developerMode &&
         restoredShowMoveLog == _showMoveLog &&
+        restoredBoardCoordinateSystem == _boardCoordinateSystem &&
         restoredRecognitionAlgorithm == _screenshotRecognitionAlgorithm) {
       return;
     }
@@ -87,6 +112,7 @@ class SettingsProvider extends ChangeNotifier {
     _appTheme = restoredTheme;
     _developerMode = restoredDeveloperMode;
     _showMoveLog = restoredShowMoveLog;
+    _boardCoordinateSystem = restoredBoardCoordinateSystem;
     _screenshotRecognitionAlgorithm = restoredRecognitionAlgorithm;
     notifyListeners();
   }
@@ -149,6 +175,16 @@ class SettingsProvider extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_showMoveLogKey, value);
+  }
+
+  Future<void> setBoardCoordinateSystem(BoardCoordinateSystem value) async {
+    if (_boardCoordinateSystem == value) return;
+
+    _boardCoordinateSystem = value;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_boardCoordinateSystemKey, value.storageValue);
   }
 
   Future<void> setScreenshotRecognitionAlgorithm(

@@ -100,6 +100,10 @@ class SettingsScreen extends StatelessWidget {
               value: settings.showMoveLog,
               onChanged: settings.setShowMoveLog,
             ),
+            _CoordinateSystemSegmentedRow(
+              value: settings.boardCoordinateSystem,
+              onChanged: settings.setBoardCoordinateSystem,
+            ),
           ],
         );
       },
@@ -464,6 +468,68 @@ class _RecognitionAlgorithmSegmentedRow extends StatelessWidget {
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
                           color: value == algorithm
+                              ? palette.segmentSelectedText
+                              : palette.segmentText,
+                        ),
+                      ),
+                    ),
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CoordinateSystemSegmentedRow extends StatelessWidget {
+  const _CoordinateSystemSegmentedRow({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final BoardCoordinateSystem value;
+  final ValueChanged<BoardCoordinateSystem> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    return Padding(
+      padding: _settingsRowPadding,
+      child: SizedBox(
+        height: _settingsSingleLineContentHeight,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _SettingsLabel(title: '棋盘坐标'),
+              ),
+            ),
+            SizedBox(
+              width: 196,
+              child: CupertinoSlidingSegmentedControl<BoardCoordinateSystem>(
+                groupValue: value,
+                backgroundColor: palette.segmentTrack,
+                thumbColor: palette.segmentSelected,
+                onValueChanged: (coordinateSystem) {
+                  if (coordinateSystem != null) onChanged(coordinateSystem);
+                },
+                children: {
+                  for (final coordinateSystem in BoardCoordinateSystem.values)
+                    coordinateSystem: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      child: Text(
+                        coordinateSystem.label,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: value == coordinateSystem
                               ? palette.segmentSelectedText
                               : palette.segmentText,
                         ),
