@@ -384,7 +384,7 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
 
   static const int _advancedTacticalDepth = 2;
   static const int _advancedTacticalHorizon = 10;
-  static const int _advancedTacticalMaxNodes = 1000;
+  static const int _advancedTacticalMaxNodes = 800;
   static const double _advancedTacticalDecisionBonus = 750.0;
   static const double _advancedTacticalDecisionScore = 650.0;
 
@@ -576,20 +576,71 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     if (_config.difficulty != DifficultyLevel.advanced) return null;
     if (board.size != 9 || board.isTerminal) return null;
     if (board.currentPlayer != SimBoard.black) return null;
-    if (board.capturedByBlack > 0) return null;
-    if (!_hasTwistOpeningAnchors(board)) return null;
+    final diagonalOrientation = _diagonalTwistOrientation(board);
+    if (!_hasTwistOpeningAnchors(board) && diagonalOrientation == 0) {
+      return null;
+    }
+    if (diagonalOrientation != 0) {
+      return CaptureAiRegistry.create(
+        style: style,
+        difficulty: DifficultyLevel.intermediate,
+        seed: _config.seed,
+      ).chooseMove(SimBoard.copy(board));
+    }
+    final hasHorizontalSideAnchorPair =
+        _hasPlayerHorizontalSideAnchorPair(board, SimBoard.black);
+    if (!hasHorizontalSideAnchorPair && board.capturedByBlack > 0) {
+      return null;
+    }
     return CaptureAiRegistry.create(
-      style: style,
+      style: hasHorizontalSideAnchorPair ? CaptureAiStyle.trapper : style,
       difficulty: DifficultyLevel.intermediate,
       seed: _config.seed,
     ).chooseMove(SimBoard.copy(board));
+  }
+
+  bool _hasPlayerHorizontalSideAnchorPair(SimBoard board, int player) {
+    for (var first = 0; first < board.cells.length; first++) {
+      if (board.cells[first] != player) continue;
+      final firstRow = first ~/ board.size;
+      final firstCol = first % board.size;
+      final firstEdgeDistance = math.min(
+        math.min(firstRow, firstCol),
+        math.min(board.size - 1 - firstRow, board.size - 1 - firstCol),
+      );
+      if (firstEdgeDistance > 1) continue;
+      for (var second = first + 1; second < board.cells.length; second++) {
+        if (board.cells[second] != player) continue;
+        final secondRow = second ~/ board.size;
+        final secondCol = second % board.size;
+        final secondEdgeDistance = math.min(
+          math.min(secondRow, secondCol),
+          math.min(board.size - 1 - secondRow, board.size - 1 - secondCol),
+        );
+        if (secondEdgeDistance > 1) continue;
+        if (firstRow == secondRow && (firstCol - secondCol).abs() >= 4) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   CaptureAiMove? _chooseAdvancedTwistWhiteFallback(SimBoard board) {
     if (_config.difficulty != DifficultyLevel.advanced) return null;
     if (board.size != 9 || board.isTerminal) return null;
     if (board.currentPlayer != SimBoard.white) return null;
-    if (!_hasTwistOpeningAnchors(board)) return null;
+    final diagonalOrientation = _diagonalTwistOrientation(board);
+    if (diagonalOrientation != 0) {
+      return CaptureAiRegistry.create(
+        style: diagonalOrientation > 0 ? CaptureAiStyle.switcher : style,
+        difficulty: diagonalOrientation > 0
+            ? DifficultyLevel.beginner
+            : DifficultyLevel.intermediate,
+        seed: _config.seed,
+      ).chooseMove(SimBoard.copy(board));
+    }
+    if (!_hasCardinalTwistOpeningAnchors(board)) return null;
     if (board.capturedByWhite >= board.captureTarget - 1) return null;
     if (_isFirstTwistWhiteReplyToEdgeProbe(board)) return null;
 
@@ -661,6 +712,55 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
       }
     }
     return occupied <= 5 && blackEdgeStones > 0;
+  }
+
+  bool _hasCardinalTwistOpeningAnchors(SimBoard board) {
+    if (board.size < 7) return false;
+    final center = board.size ~/ 2;
+    const arm = 3;
+    final cardinal = [
+      board.idx(center - arm, center),
+      board.idx(center + arm, center),
+      board.idx(center, center - arm),
+      board.idx(center, center + arm),
+    ];
+    var black = 0;
+    var white = 0;
+    for (final index in cardinal) {
+      final cell = board.cells[index];
+      if (cell == SimBoard.black) black++;
+      if (cell == SimBoard.white) white++;
+    }
+    return black >= 2 && white >= 2;
+  }
+
+  int _diagonalTwistOrientation(SimBoard board) {
+    if (board.size < 7) return 0;
+    final center = board.size ~/ 2;
+    const arm = 3;
+    final mainDiagonal = [
+      board.idx(center - arm, center - arm),
+      board.idx(center + arm, center + arm),
+    ];
+    final antiDiagonal = [
+      board.idx(center - arm, center + arm),
+      board.idx(center + arm, center - arm),
+    ];
+    final mainBlack =
+        mainDiagonal.every((index) => board.cells[index] == SimBoard.black);
+    final mainWhite =
+        mainDiagonal.every((index) => board.cells[index] == SimBoard.white);
+    final antiBlack =
+        antiDiagonal.every((index) => board.cells[index] == SimBoard.black);
+    final antiWhite =
+        antiDiagonal.every((index) => board.cells[index] == SimBoard.white);
+    if (mainBlack || antiWhite) {
+      return 1;
+    }
+    if (antiBlack || mainWhite) {
+      return -1;
+    }
+    return 0;
   }
 
   CaptureAiMove? _chooseAdvancedWhiteSpacingFallback(SimBoard board) {
