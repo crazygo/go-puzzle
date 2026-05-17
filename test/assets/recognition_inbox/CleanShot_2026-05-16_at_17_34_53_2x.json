@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "image": {
+    "fileName": "CleanShot 2026-05-16 at 17.34.53@2x.png",
+    "width": 1332,
+    "height": 1316
+  },
+  "boardSize": 9,
+  "corners": {
+    "topLeft": {
+      "x": 193,
+      "y": 185
+    },
+    "topRight": {
+      "x": 1136,
+      "y": 186
+    },
+    "bottomRight": {
+      "x": 1136,
+      "y": 1126
+    },
+    "bottomLeft": {
+      "x": 191,
+      "y": 1124
+    }
+  },
+  "stones": [
+    {
+      "color": "B",
+      "coord": "F7",
+      "row": 2,
+      "col": 5
+    },
+    {
+      "color": "W",
+      "coord": "G7",
+      "row": 2,
+      "col": 6
+    },
+    {
+      "color": "W",
+      "coord": "C6",
+      "row": 3,
+      "col": 2
+    },
+    {
+      "color": "W",
+      "coord": "G6",
+      "row": 3,
+      "col": 6
+    },
+    {
+      "color": "B",
+      "coord": "E5",
+      "row": 4,
+      "col": 4
+    },
+    {
+      "color": "B",
+      "coord": "C4",
+      "row": 5,
+      "col": 2
+    },
+    {
+      "color": "B",
+      "coord": "G4",
+      "row": 5,
+      "col": 6
+    },
+    {
+      "color": "B",
+      "coord": "D3",
+      "row": 6,
+      "col": 3
+    },
+    {
+      "color": "W",
+      "coord": "E3",
+      "row": 6,
+      "col": 4
+    },
+    {
+      "color": "W",
+      "coord": "D2",
+      "row": 7,
+      "col": 3
+    }
+  ]
+}
