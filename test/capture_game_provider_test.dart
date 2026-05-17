@@ -438,9 +438,11 @@ void main() {
       await tester.tap(find.text('標記此手'));
       await tester.pumpAndSettle();
 
+      // 1.2.0: marking a move shows a ⭐ overlay instead of changing fontWeight.
+      expect(find.text('⭐'), findsOneWidget);
       expect(
         tester.widget<Text>(find.text('2 B2')).style?.fontWeight,
-        FontWeight.w700,
+        FontWeight.w500,
       );
 
       await tester.tap(find.text('操作'));
