@@ -456,5 +456,77 @@ void main() {
       expect(find.text('1 A1'), findsOneWidget);
       expect(find.text('2 B2'), findsNothing);
     });
+
+    testWidgets(
+        'ripple animation runs before result dialog appears on win',
+        (tester) async {
+      // Build a 9×9 board where black can win immediately with captureTarget=1.
+      // White stone at (4,4) has three liberties blocked by black stones; the
+      // only remaining liberty is at (5,4).  Black plays there to capture the
+      // white stone, meeting captureTarget=1 and ending the game.
+      const boardSize = 9;
+      final board = List.generate(
+        boardSize,
+        (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
+      );
+      board[3][4] = StoneColor.black; // blocks north liberty of (4,4)
+      board[4][3] = StoneColor.black; // blocks west liberty of (4,4)
+      board[4][5] = StoneColor.black; // blocks east liberty of (4,4)
+      board[4][4] = StoneColor.white; // white stone with 1 liberty left
+
+      final provider = CaptureGameProvider(
+        boardSize: boardSize,
+        captureTarget: 1,
+        difficulty: DifficultyLevel.beginner,
+        initialBoardOverride: board,
+        minMoveDelay: Duration.zero,
+        maxMoveDelay: Duration.zero,
+      );
+      final settings = SettingsProvider();
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 1,
+              initialBoardOverride: board,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Black places the capturing stone → game ends with blackWins.
+      await provider.placeStone(5, 4);
+
+      // First pump: widget rebuilds with isFinished=true, registering the
+      // post-frame callback that starts the ripple animation.
+      await tester.pump();
+      // Second pump: post-frame callback fires, ripple animation begins and
+      // _rippleMove is set.
+      await tester.pump();
+
+      // Dialog must NOT appear while the animation is in progress.
+      expect(find.text('勝利'), findsNothing);
+      expect(find.text('未獲勝'), findsNothing);
+
+      // Advance to just before the 2 000 ms animation ends – no dialog yet.
+      await tester.pump(const Duration(milliseconds: 1900));
+      expect(find.text('勝利'), findsNothing);
+
+      // Cross the 2 000 ms threshold; the animation completes and the dialog
+      // is shown in the same async continuation.
+      await tester.pump(const Duration(milliseconds: 200));
+      // Let the dialog route build and its entry animation complete.
+      await tester.pumpAndSettle();
+
+      // The result dialog must now be visible.
+      expect(find.text('勝利'), findsOneWidget);
+    });
   });
 }
