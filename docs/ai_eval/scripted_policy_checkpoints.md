@@ -18,6 +18,7 @@ gate. Full-gate targets are defined in
 | twist-cross-a-006 | `2fb6eb9` | `scripted_policy_v1` | 9x9 twistCrossA opening, AI both sides, all 14 policies, max 80 moves | 28 | 21 | 7 | 0.7500 | 5188ms | 1 | `build/ai_eval/b9_twistCrossA_both_sides_policy_gate.json` |
 | twist-cross-a-007 | `89467c6` | `scripted_policy_v1` | 9x9 twistCrossA opening, AI both sides, all 14 policies, max 80 moves | 28 | 23 | 5 | 0.8214 | 3933ms | 0 | `build/ai_eval/b9_twistCrossA_after_twist_black_fallback.json` |
 | twist-cross-a-008 | `cc79aa9` | `scripted_policy_v1` | 9x9 twistCrossA opening, AI both sides, all 14 policies, max 80 moves | 28 | 28 | 0 | 1.0000 | 3976ms | 0 | `build/ai_eval/b9_twistCrossA_after_twist_white_edge_guard.json` |
+| nine-by-nine-full-009 | `41bd073` | `scripted_policy_v1` | 9x9, all 5 openings, AI both sides, all 14 policies, max 80 moves | 140 | 140 | 0 | 1.0000 | 4949ms | 0 | `build/ai_eval/b9_*_after_*_gate_fix.json` |
 
 ### baseline-partial-001
 
@@ -283,3 +284,46 @@ Notes:
 - This is still an opening-level checkpoint. It is not a substitute for the
   final 420-trial gate across all openings, 9x9/13x13/19x19 boards, and both
   AI sides.
+
+### nine-by-nine-full-009
+
+Commands:
+
+```sh
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings empty --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_empty_after_node800_diagonal_gate_fix.json --output-log build/ai_eval/b9_empty_after_node800_diagonal_gate_fix.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings twistCrossA --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_twistCrossA_after_node800_horizontal_delegate.json --output-log build/ai_eval/b9_twistCrossA_after_node800_horizontal_delegate.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings twistCrossB --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_twistCrossB_after_node800_horizontal_delegate.json --output-log build/ai_eval/b9_twistCrossB_after_node800_horizontal_delegate.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings twistCrossC --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_twistCrossC_after_diagonal_gate_fix.json --output-log build/ai_eval/b9_twistCrossC_after_diagonal_gate_fix.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings twistCrossD --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_twistCrossD_after_diagonal_gate_fix.json --output-log build/ai_eval/b9_twistCrossD_after_diagonal_gate_fix.jsonl
+```
+
+Result:
+
+- Trials: 140
+- Passed: 140
+- Failed: 0
+- Score: 1.0000
+- Max AI move: 4949ms
+- Slow moves over 5000ms: 0
+
+Per-opening reports:
+
+| Opening | Trials | Passed | Failed | Max AI Move | p95 / p99 AI Move | Slow Moves |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `empty` | 28 | 28 | 0 | 4949ms | 3460ms / 4079ms | 0 |
+| `twistCrossA` | 28 | 28 | 0 | 3930ms | 2877ms / 3246ms | 0 |
+| `twistCrossB` | 28 | 28 | 0 | 4016ms | 2824ms / 3216ms | 0 |
+| `twistCrossC` | 28 | 28 | 0 | 2693ms | 1324ms / 1588ms | 0 |
+| `twistCrossD` | 28 | 28 | 0 | 2246ms | 1358ms / 1713ms | 0 |
+
+Validation:
+
+- `dart analyze lib/game/capture_ai.dart`
+- `flutter test test/capture_ai_scripted_trials_test.dart`
+- `flutter test test/capture_ai_evaluation_test.dart`
+
+Notes:
+
+- This checkpoint confirms the full 9x9 opening/policy/side matrix.
+- It is still not the final goal because 13x13 and 19x19 full policy gates
+  remain to be completed.
