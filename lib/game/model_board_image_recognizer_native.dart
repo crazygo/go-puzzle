@@ -6,6 +6,7 @@ import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 import 'package:image/image.dart' as img;
 
 import '../models/board_position.dart';
+import '../services/app_log_store.dart';
 import 'board_image_recognizer.dart';
 import 'model_board_image_recognizer.dart' as public;
 
@@ -99,9 +100,49 @@ class _NativeModelBoardImageRecognizer
     final image = img.bakeOrientation(decoded);
     final input = _YoloInput.fromImage(image, size: _inputSize);
 
-    final poseOutput = await _runYolo(boardSession, input.tensor);
+    final poseOutput = await _runYolo(
+      boardSession,
+      input.tensor,
+      channels: 19,
+      classStart: 4,
+      classCount: 3,
+      confidenceThreshold: _boardConfidence,
+    );
+    final poseDiagnostics = _PoseDiagnostics.fromOutput(
+      poseOutput,
+      input: input,
+      threshold: _boardConfidence,
+    );
+    if (poseDiagnostics.anchors == 0 ||
+        poseDiagnostics.outputLength != poseDiagnostics.expectedLength) {
+      AppLogStore.instance.add(
+        category: AppLogCategory.screenshotRecognition,
+        level: AppLogLevel.error,
+        message: '棋盤邊界模型輸出格式異常',
+        details: poseDiagnostics.format(
+          decodedWidth: decoded.width,
+          decodedHeight: decoded.height,
+          orientedWidth: image.width,
+          orientedHeight: image.height,
+          bytes: bytes.length,
+        ),
+      );
+      throw const FormatException('模型輸出格式不符合預期');
+    }
     final roughPose = _extractPose(poseOutput, input);
     if (roughPose == null) {
+      AppLogStore.instance.add(
+        category: AppLogCategory.screenshotRecognition,
+        level: AppLogLevel.error,
+        message: '棋盤邊界模型沒有候選',
+        details: poseDiagnostics.format(
+          decodedWidth: decoded.width,
+          decodedHeight: decoded.height,
+          orientedWidth: image.width,
+          orientedHeight: image.height,
+          bytes: bytes.length,
+        ),
+      );
       throw const FormatException('未能辨識棋盤邊界');
     }
 
@@ -113,7 +154,14 @@ class _NativeModelBoardImageRecognizer
       confidence: roughPose.confidence,
     );
 
-    final stonesOutput = await _runYolo(stonesSession, input.tensor);
+    final stonesOutput = await _runYolo(
+      stonesSession,
+      input.tensor,
+      channels: 6,
+      classStart: 4,
+      classCount: 2,
+      confidenceThreshold: _stoneConfidence,
+    );
     final detections = _extractStoneDetections(stonesOutput, input);
     final board = _stonesToBoard(detections, refinedPose);
 
@@ -124,7 +172,14 @@ class _NativeModelBoardImageRecognizer
     );
   }
 
-  Future<List<double>> _runYolo(OrtSession session, Float32List input) async {
+  Future<_YoloOutput> _runYolo(
+    OrtSession session,
+    Float32List input, {
+    required int channels,
+    required int classStart,
+    required int classCount,
+    required double confidenceThreshold,
+  }) async {
     OrtValue? inputTensor;
     Map<String, OrtValue> outputs = const {};
     try {
@@ -137,8 +192,17 @@ class _NativeModelBoardImageRecognizer
       outputs = await session.run({inputName: inputTensor});
       final outputName =
           outputs.containsKey('output0') ? 'output0' : outputs.keys.first;
-      final values = await outputs[outputName]!.asFlattenedList();
-      return values.map((value) => (value as num).toDouble()).toList();
+      final output = outputs[outputName]!;
+      final values = await output.asFlattenedList();
+      final data = values.map((value) => (value as num).toDouble()).toList();
+      return _YoloOutput.fromFlatData(
+        data,
+        shape: output.shape,
+        expectedChannels: channels,
+        classStart: classStart,
+        classCount: classCount,
+        confidenceThreshold: confidenceThreshold,
+      );
     } finally {
       await inputTensor?.dispose();
       for (final output in outputs.values) {
@@ -147,14 +211,14 @@ class _NativeModelBoardImageRecognizer
     }
   }
 
-  _PosePrediction? _extractPose(List<double> output, _YoloInput input) {
-    const anchors = 8400;
+  _PosePrediction? _extractPose(_YoloOutput output, _YoloInput input) {
+    final anchors = output.anchors;
     _PosePrediction? best;
     for (var anchor = 0; anchor < anchors; anchor++) {
       var bestClass = 0;
-      var bestScore = output[(4 * anchors) + anchor];
+      var bestScore = output.value(4, anchor);
       for (var classId = 1; classId < 3; classId++) {
-        final score = output[((4 + classId) * anchors) + anchor];
+        final score = output.value(4 + classId, anchor);
         if (score > bestScore) {
           bestClass = classId;
           bestScore = score;
@@ -162,17 +226,17 @@ class _NativeModelBoardImageRecognizer
       }
       if (bestScore < _boardConfidence) continue;
 
-      final cx = output[anchor];
-      final cy = output[anchors + anchor];
-      final w = output[(2 * anchors) + anchor];
-      final h = output[(3 * anchors) + anchor];
+      final cx = output.value(0, anchor);
+      final cy = output.value(1, anchor);
+      final w = output.value(2, anchor);
+      final h = output.value(3, anchor);
       final corners = <_Point>[];
       var keypointConfidence = 0.0;
       for (var i = 0; i < 4; i++) {
         final base = 7 + i * 3;
-        final x = output[(base * anchors) + anchor];
-        final y = output[((base + 1) * anchors) + anchor];
-        keypointConfidence += output[((base + 2) * anchors) + anchor];
+        final x = output.value(base, anchor);
+        final y = output.value(base + 1, anchor);
+        keypointConfidence += output.value(base + 2, anchor);
         corners.add(input.toOriginalPoint(x, y));
       }
       keypointConfidence /= 4;
@@ -190,22 +254,22 @@ class _NativeModelBoardImageRecognizer
   }
 
   List<_StoneDetection> _extractStoneDetections(
-    List<double> output,
+    _YoloOutput output,
     _YoloInput input,
   ) {
-    const anchors = 8400;
+    final anchors = output.anchors;
     final candidates = <_StoneDetection>[];
     for (var anchor = 0; anchor < anchors; anchor++) {
-      final blackScore = output[(4 * anchors) + anchor];
-      final whiteScore = output[(5 * anchors) + anchor];
+      final blackScore = output.value(4, anchor);
+      final whiteScore = output.value(5, anchor);
       final isBlack = blackScore >= whiteScore;
       final confidence = isBlack ? blackScore : whiteScore;
       if (confidence < _stoneConfidence) continue;
 
-      final cx = output[anchor];
-      final cy = output[anchors + anchor];
-      final w = output[(2 * anchors) + anchor];
-      final h = output[(3 * anchors) + anchor];
+      final cx = output.value(0, anchor);
+      final cy = output.value(1, anchor);
+      final w = output.value(2, anchor);
+      final h = output.value(3, anchor);
       candidates.add(
         _StoneDetection(
           box: input.toOriginalBox(cx, cy, w, h),
@@ -289,21 +353,21 @@ class _YoloInput {
     final channelSize = size * size;
     for (var y = 0; y < size; y++) {
       for (var x = 0; x < size; x++) {
-        num r = 114;
-        num g = 114;
-        num b = 114;
+        var r = 114 / 255.0;
+        var g = 114 / 255.0;
+        var b = 114 / 255.0;
         final rx = x - padX.toInt();
         final ry = y - padY.toInt();
         if (rx >= 0 && rx < resizedWidth && ry >= 0 && ry < resizedHeight) {
           final pixel = resized.getPixel(rx, ry);
-          r = pixel.r;
-          g = pixel.g;
-          b = pixel.b;
+          r = pixel.rNormalized.toDouble();
+          g = pixel.gNormalized.toDouble();
+          b = pixel.bNormalized.toDouble();
         }
         final offset = y * size + x;
-        tensor[offset] = r / 255.0;
-        tensor[channelSize + offset] = g / 255.0;
-        tensor[channelSize * 2 + offset] = b / 255.0;
+        tensor[offset] = r;
+        tensor[channelSize + offset] = g;
+        tensor[channelSize * 2 + offset] = b;
       }
     }
     return _YoloInput(
@@ -334,6 +398,376 @@ class _YoloInput {
       x2.clamp(0.0, originalWidth.toDouble()),
       y2.clamp(0.0, originalHeight.toDouble()),
     );
+  }
+}
+
+enum _YoloOutputLayout { channelMajor, anchorMajor }
+
+class _YoloOutput {
+  const _YoloOutput({
+    required this.data,
+    required this.shape,
+    required this.channels,
+    required this.anchors,
+    required this.layout,
+    required this.channelMajorScore,
+    required this.anchorMajorScore,
+  });
+
+  final List<double> data;
+  final List<int> shape;
+  final int channels;
+  final int anchors;
+  final _YoloOutputLayout layout;
+  final _YoloLayoutScore channelMajorScore;
+  final _YoloLayoutScore anchorMajorScore;
+
+  int get length => data.length;
+
+  double value(int channel, int anchor) {
+    if (channel < 0 || channel >= channels || anchor < 0 || anchor >= anchors) {
+      return 0;
+    }
+    final index = layout == _YoloOutputLayout.channelMajor
+        ? channel * anchors + anchor
+        : anchor * channels + channel;
+    return index >= 0 && index < data.length ? data[index] : 0;
+  }
+
+  static _YoloOutput fromFlatData(
+    List<double> data, {
+    required List<int> shape,
+    required int expectedChannels,
+    required int classStart,
+    required int classCount,
+    required double confidenceThreshold,
+  }) {
+    final anchors = data.length ~/ expectedChannels;
+    final channelMajorScore = _YoloLayoutScore.fromData(
+      data,
+      layout: _YoloOutputLayout.channelMajor,
+      channels: expectedChannels,
+      anchors: anchors,
+      classStart: classStart,
+      classCount: classCount,
+      confidenceThreshold: confidenceThreshold,
+    );
+    final anchorMajorScore = _YoloLayoutScore.fromData(
+      data,
+      layout: _YoloOutputLayout.anchorMajor,
+      channels: expectedChannels,
+      anchors: anchors,
+      classStart: classStart,
+      classCount: classCount,
+      confidenceThreshold: confidenceThreshold,
+    );
+    final shapeLayout = _layoutFromShape(shape, expectedChannels, anchors);
+    final layout = _chooseLayout(
+      channelMajorScore,
+      anchorMajorScore,
+      shapeLayout: shapeLayout,
+    );
+    return _YoloOutput(
+      data: data,
+      shape: shape,
+      channels: expectedChannels,
+      anchors: anchors,
+      layout: layout,
+      channelMajorScore: channelMajorScore,
+      anchorMajorScore: anchorMajorScore,
+    );
+  }
+
+  static _YoloOutputLayout? _layoutFromShape(
+    List<int> shape,
+    int channels,
+    int anchors,
+  ) {
+    if (shape.length < 3) return null;
+    if (shape[1] == channels && shape[2] == anchors) {
+      return _YoloOutputLayout.channelMajor;
+    }
+    if (shape[1] == anchors && shape[2] == channels) {
+      return _YoloOutputLayout.anchorMajor;
+    }
+    return null;
+  }
+
+  static _YoloOutputLayout _chooseLayout(
+    _YoloLayoutScore channelMajor,
+    _YoloLayoutScore anchorMajor, {
+    required _YoloOutputLayout? shapeLayout,
+  }) {
+    if (channelMajor.plausible != anchorMajor.plausible) {
+      return channelMajor.plausible
+          ? _YoloOutputLayout.channelMajor
+          : _YoloOutputLayout.anchorMajor;
+    }
+    if (channelMajor.plausible && anchorMajor.plausible) {
+      if (channelMajor.candidatesAboveThreshold !=
+          anchorMajor.candidatesAboveThreshold) {
+        return channelMajor.candidatesAboveThreshold >
+                anchorMajor.candidatesAboveThreshold
+            ? _YoloOutputLayout.channelMajor
+            : _YoloOutputLayout.anchorMajor;
+      }
+      if (shapeLayout != null) return shapeLayout;
+      return channelMajor.maxClassScore >= anchorMajor.maxClassScore
+          ? _YoloOutputLayout.channelMajor
+          : _YoloOutputLayout.anchorMajor;
+    }
+    return shapeLayout ?? _YoloOutputLayout.channelMajor;
+  }
+}
+
+class _YoloLayoutScore {
+  const _YoloLayoutScore({
+    required this.layout,
+    required this.maxClassScore,
+    required this.candidatesAboveThreshold,
+    required this.bestClassId,
+    required this.bestAnchor,
+  });
+
+  final _YoloOutputLayout layout;
+  final double maxClassScore;
+  final int candidatesAboveThreshold;
+  final int bestClassId;
+  final int bestAnchor;
+
+  bool get plausible => maxClassScore >= 0 && maxClassScore <= 1.5;
+
+  static _YoloLayoutScore fromData(
+    List<double> data, {
+    required _YoloOutputLayout layout,
+    required int channels,
+    required int anchors,
+    required int classStart,
+    required int classCount,
+    required double confidenceThreshold,
+  }) {
+    var candidates = 0;
+    var bestClassId = -1;
+    var bestAnchor = -1;
+    var maxClassScore = -double.infinity;
+    for (var anchor = 0; anchor < anchors; anchor++) {
+      var classId = 0;
+      var classScore = _value(
+        data,
+        layout: layout,
+        channels: channels,
+        anchors: anchors,
+        channel: classStart,
+        anchor: anchor,
+      );
+      for (var offset = 1; offset < classCount; offset++) {
+        final score = _value(
+          data,
+          layout: layout,
+          channels: channels,
+          anchors: anchors,
+          channel: classStart + offset,
+          anchor: anchor,
+        );
+        if (score > classScore) {
+          classId = offset;
+          classScore = score;
+        }
+      }
+      if (classScore > maxClassScore) {
+        maxClassScore = classScore;
+        bestClassId = classId;
+        bestAnchor = anchor;
+      }
+      if (classScore >= confidenceThreshold && classScore <= 1.5) candidates++;
+    }
+    return _YoloLayoutScore(
+      layout: layout,
+      maxClassScore: maxClassScore.isFinite ? maxClassScore : 0,
+      candidatesAboveThreshold: candidates,
+      bestClassId: bestClassId,
+      bestAnchor: bestAnchor,
+    );
+  }
+
+  static double _value(
+    List<double> data, {
+    required _YoloOutputLayout layout,
+    required int channels,
+    required int anchors,
+    required int channel,
+    required int anchor,
+  }) {
+    final index = layout == _YoloOutputLayout.channelMajor
+        ? channel * anchors + anchor
+        : anchor * channels + channel;
+    return index >= 0 && index < data.length ? data[index] : 0;
+  }
+}
+
+class _PoseDiagnostics {
+  const _PoseDiagnostics({
+    required this.outputLength,
+    required this.expectedLength,
+    required this.shape,
+    required this.layout,
+    required this.channelMajorScore,
+    required this.anchorMajorScore,
+    required this.anchors,
+    required this.candidatesAboveThreshold,
+    required this.maxRawValue,
+    required this.minRawValue,
+    required this.bestClassId,
+    required this.bestClassScore,
+    required this.bestKeypointConfidence,
+    required this.bestCombinedScore,
+    required this.bestBox,
+    required this.input,
+  });
+
+  final int outputLength;
+  final int expectedLength;
+  final List<int> shape;
+  final _YoloOutputLayout layout;
+  final _YoloLayoutScore channelMajorScore;
+  final _YoloLayoutScore anchorMajorScore;
+  final int anchors;
+  final int candidatesAboveThreshold;
+  final double maxRawValue;
+  final double minRawValue;
+  final int bestClassId;
+  final double bestClassScore;
+  final double bestKeypointConfidence;
+  final double bestCombinedScore;
+  final _Box? bestBox;
+  final _YoloInput input;
+
+  static _PoseDiagnostics fromOutput(
+    _YoloOutput output, {
+    required _YoloInput input,
+    required double threshold,
+  }) {
+    final anchors = output.anchors;
+    final expectedLength = output.channels * anchors;
+    var minRawValue = double.infinity;
+    var maxRawValue = -double.infinity;
+    for (final value in output.data) {
+      if (value < minRawValue) minRawValue = value;
+      if (value > maxRawValue) maxRawValue = value;
+    }
+
+    var candidates = 0;
+    var bestClassId = -1;
+    var bestClassScore = -double.infinity;
+    var bestKeypointConfidence = 0.0;
+    var bestCombinedScore = -double.infinity;
+    _Box? bestBox;
+
+    if (output.length >= expectedLength && anchors > 0) {
+      for (var anchor = 0; anchor < anchors; anchor++) {
+        var classId = 0;
+        var classScore = output.value(4, anchor);
+        for (var candidateClassId = 1;
+            candidateClassId < 3;
+            candidateClassId++) {
+          final score = output.value(4 + candidateClassId, anchor);
+          if (score > classScore) {
+            classId = candidateClassId;
+            classScore = score;
+          }
+        }
+        if (classScore >= threshold) candidates++;
+
+        var keypointConfidence = 0.0;
+        for (var i = 0; i < 4; i++) {
+          final base = 7 + i * 3;
+          keypointConfidence += output.value(base + 2, anchor);
+        }
+        keypointConfidence /= 4;
+
+        final combinedScore = classScore * math.max(0.25, keypointConfidence);
+        if (combinedScore > bestCombinedScore) {
+          bestClassId = classId;
+          bestClassScore = classScore;
+          bestKeypointConfidence = keypointConfidence;
+          bestCombinedScore = combinedScore;
+          bestBox = input.toOriginalBox(
+            output.value(0, anchor),
+            output.value(1, anchor),
+            output.value(2, anchor),
+            output.value(3, anchor),
+          );
+        }
+      }
+    }
+
+    return _PoseDiagnostics(
+      outputLength: output.length,
+      expectedLength: expectedLength,
+      shape: output.shape,
+      layout: output.layout,
+      channelMajorScore: output.channelMajorScore,
+      anchorMajorScore: output.anchorMajorScore,
+      anchors: anchors,
+      candidatesAboveThreshold: candidates,
+      maxRawValue: maxRawValue.isFinite ? maxRawValue : 0,
+      minRawValue: minRawValue.isFinite ? minRawValue : 0,
+      bestClassId: bestClassId,
+      bestClassScore: bestClassScore.isFinite ? bestClassScore : 0,
+      bestKeypointConfidence:
+          bestKeypointConfidence.isFinite ? bestKeypointConfidence : 0,
+      bestCombinedScore: bestCombinedScore.isFinite ? bestCombinedScore : 0,
+      bestBox: bestBox,
+      input: input,
+    );
+  }
+
+  String format({
+    required int decodedWidth,
+    required int decodedHeight,
+    required int orientedWidth,
+    required int orientedHeight,
+    required int bytes,
+  }) {
+    final boardSize = switch (bestClassId) {
+      0 => 9,
+      1 => 13,
+      2 => 19,
+      _ => null,
+    };
+    final box = bestBox;
+    return [
+      'bytes: $bytes',
+      'decodedSize: ${decodedWidth}x$decodedHeight',
+      'orientedSize: ${orientedWidth}x$orientedHeight',
+      'inputSize: ${input.originalWidth}x${input.originalHeight}',
+      'scale: ${input.scale.toStringAsFixed(6)}',
+      'pad: ${input.padX.toStringAsFixed(1)}, ${input.padY.toStringAsFixed(1)}',
+      'outputLength: $outputLength',
+      'expectedLength: $expectedLength',
+      'shape: ${shape.join('x')}',
+      'layout: ${layout.name}',
+      'anchors: $anchors',
+      'rawRange: ${minRawValue.toStringAsFixed(6)}..${maxRawValue.toStringAsFixed(6)}',
+      'threshold: ${_NativeModelBoardImageRecognizer._boardConfidence}',
+      'candidatesAboveThreshold: $candidatesAboveThreshold',
+      'channelMajor: max=${channelMajorScore.maxClassScore.toStringAsFixed(6)}, '
+          'candidates=${channelMajorScore.candidatesAboveThreshold}, '
+          'bestClass=${channelMajorScore.bestClassId}, '
+          'bestAnchor=${channelMajorScore.bestAnchor}',
+      'anchorMajor: max=${anchorMajorScore.maxClassScore.toStringAsFixed(6)}, '
+          'candidates=${anchorMajorScore.candidatesAboveThreshold}, '
+          'bestClass=${anchorMajorScore.bestClassId}, '
+          'bestAnchor=${anchorMajorScore.bestAnchor}',
+      'bestClassId: $bestClassId',
+      'bestBoardSize: ${boardSize ?? '-'}',
+      'bestClassScore: ${bestClassScore.toStringAsFixed(6)}',
+      'bestKeypointConfidence: ${bestKeypointConfidence.toStringAsFixed(6)}',
+      'bestCombinedScore: ${bestCombinedScore.toStringAsFixed(6)}',
+      if (box != null)
+        'bestBox: ${box.x1.toStringAsFixed(1)},${box.y1.toStringAsFixed(1)} '
+            '${box.x2.toStringAsFixed(1)},${box.y2.toStringAsFixed(1)}',
+    ].join('\n');
   }
 }
 
@@ -593,7 +1027,10 @@ class _LumaImage {
       var rowSum = 0.0;
       for (var x = 0; x < width; x++) {
         final pixel = image.getPixel(x, y);
-        rowSum += 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
+        rowSum += 255 *
+            (0.2126 * pixel.rNormalized +
+                0.7152 * pixel.gNormalized +
+                0.0722 * pixel.bNormalized);
         final index = (y + 1) * (width + 1) + x + 1;
         integral[index] = integral[y * (width + 1) + x + 1] + rowSum;
       }
