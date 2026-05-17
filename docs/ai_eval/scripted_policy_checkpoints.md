@@ -19,6 +19,7 @@ gate. Full-gate targets are defined in
 | twist-cross-a-007 | `89467c6` | `scripted_policy_v1` | 9x9 twistCrossA opening, AI both sides, all 14 policies, max 80 moves | 28 | 23 | 5 | 0.8214 | 3933ms | 0 | `build/ai_eval/b9_twistCrossA_after_twist_black_fallback.json` |
 | twist-cross-a-008 | `cc79aa9` | `scripted_policy_v1` | 9x9 twistCrossA opening, AI both sides, all 14 policies, max 80 moves | 28 | 28 | 0 | 1.0000 | 3976ms | 0 | `build/ai_eval/b9_twistCrossA_after_twist_white_edge_guard.json` |
 | nine-by-nine-full-009 | `41bd073` | `scripted_policy_v1` | 9x9, all 5 openings, AI both sides, all 14 policies, max 80 moves | 140 | 140 | 0 | 1.0000 | 4949ms | 0 | `build/ai_eval/b9_*_after_*_gate_fix.json` |
+| full-gate-010 | `d40829f` | `scripted_policy_v1` | 9x9, 13x13, 19x19, all 5 openings, AI both sides, all 14 policies, max 80 moves | 420 | 420 | 0 | 1.0000 | 4949ms | 0 | split reports listed below |
 
 ### baseline-partial-001
 
@@ -327,3 +328,58 @@ Notes:
 - This checkpoint confirms the full 9x9 opening/policy/side matrix.
 - It is still not the final goal because 13x13 and 19x19 full policy gates
   remain to be completed.
+
+### full-gate-010
+
+Commands:
+
+```sh
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings empty --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_empty_after_node800_diagonal_gate_fix.json --output-log build/ai_eval/b9_empty_after_node800_diagonal_gate_fix.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings twistCrossA --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_twistCrossA_after_node800_horizontal_delegate.json --output-log build/ai_eval/b9_twistCrossA_after_node800_horizontal_delegate.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings twistCrossB --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_twistCrossB_after_node800_horizontal_delegate.json --output-log build/ai_eval/b9_twistCrossB_after_node800_horizontal_delegate.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings twistCrossC --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_twistCrossC_after_diagonal_gate_fix.json --output-log build/ai_eval/b9_twistCrossC_after_diagonal_gate_fix.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 9 --ai-side both --openings twistCrossD --max-ai-move-ms 5000 --max-moves 80 --progress-every 4 --output build/ai_eval/b9_twistCrossD_after_diagonal_gate_fix.json --output-log build/ai_eval/b9_twistCrossD_after_diagonal_gate_fix.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 13,19 --ai-side both --openings empty --max-ai-move-ms 5000 --max-moves 80 --progress-every 14 --output build/ai_eval/large_empty_after_policy_cap.json --output-log build/ai_eval/large_empty_after_policy_cap.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 13,19 --ai-side both --openings twistCrossA --max-ai-move-ms 5000 --max-moves 80 --progress-every 14 --output build/ai_eval/large_twistCrossA_after_policy_cap.json --output-log build/ai_eval/large_twistCrossA_after_policy_cap.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 13,19 --ai-side both --openings twistCrossB --max-ai-move-ms 5000 --max-moves 80 --progress-every 14 --output build/ai_eval/large_twistCrossB_after_policy_cap.json --output-log build/ai_eval/large_twistCrossB_after_policy_cap.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 13,19 --ai-side both --openings twistCrossC --max-ai-move-ms 5000 --max-moves 80 --progress-every 14 --output build/ai_eval/large_twistCrossC_after_policy_caps.json --output-log build/ai_eval/large_twistCrossC_after_policy_caps.jsonl
+dart run tool/capture_ai_scripted_trials_probe.dart --style hunter --difficulty advanced --board-sizes 13,19 --ai-side both --openings twistCrossD --max-ai-move-ms 5000 --max-moves 80 --progress-every 14 --output build/ai_eval/large_twistCrossD_after_policy_caps.json --output-log build/ai_eval/large_twistCrossD_after_policy_caps.jsonl
+```
+
+Result:
+
+- Trials: 420
+- Passed: 420
+- Failed: 0
+- Score: 1.0000
+- Max AI move: 4949ms
+- Slow moves over 5000ms: 0
+
+Split report summary:
+
+| Scope | Trials | Passed | Failed | Max AI Move | p95 / p99 AI Move | Slow Moves |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 9x9 `empty` | 28 | 28 | 0 | 4949ms | 3460ms / 4079ms | 0 |
+| 9x9 `twistCrossA` | 28 | 28 | 0 | 3930ms | 2877ms / 3246ms | 0 |
+| 9x9 `twistCrossB` | 28 | 28 | 0 | 4016ms | 2824ms / 3216ms | 0 |
+| 9x9 `twistCrossC` | 28 | 28 | 0 | 2693ms | 1324ms / 1588ms | 0 |
+| 9x9 `twistCrossD` | 28 | 28 | 0 | 2246ms | 1358ms / 1713ms | 0 |
+| 13x13/19x19 `empty` | 56 | 56 | 0 | 184ms | 67ms / 96ms | 0 |
+| 13x13/19x19 `twistCrossA` | 56 | 56 | 0 | 120ms | 62ms / 72ms | 0 |
+| 13x13/19x19 `twistCrossB` | 56 | 56 | 0 | 173ms | 65ms / 78ms | 0 |
+| 13x13/19x19 `twistCrossC` | 56 | 56 | 0 | 200ms | 62ms / 75ms | 0 |
+| 13x13/19x19 `twistCrossD` | 56 | 56 | 0 | 260ms | 62ms / 75ms | 0 |
+
+Validation:
+
+- `dart analyze lib/game/capture_ai.dart lib/game/capture_ai_scripted_trials.dart tool/capture_ai_scripted_trials_probe.dart test/capture_ai_scripted_trials_test.dart`
+- `flutter test test/capture_ai_scripted_trials_test.dart`
+- `flutter test test/capture_ai_evaluation_test.dart`
+
+Notes:
+
+- This checkpoint satisfies the planned 420-trial gate:
+  `3 board sizes * 5 openings * 14 policies * 2 AI sides`.
+- The large-board scripted `ladderChase` and `sacrificeRace` policies are
+  bounded to forcing candidates on 13x13/19x19 so the gate remains practical
+  while preserving real tactical lookahead.
