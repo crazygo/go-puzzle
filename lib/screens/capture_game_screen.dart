@@ -5399,6 +5399,10 @@ class _TapBoard extends StatelessWidget {
 /// (0–0.5 = round 1, 0.5–1.0 = round 2). Three concentric rings are staggered
 /// at 1/3-round intervals so the board always shows rings at different
 /// expansion stages, like a water droplet ripple.
+///
+/// Each ring is rendered as a wide filled annulus (donut) so the wave area is
+/// clearly visible. The last-placed stone also brightens as each wave sweeps
+/// over it, giving a shockwave highlight effect.
 class _StoneRipplePainter extends CustomPainter {
   const _StoneRipplePainter({
     required this.boardSize,
@@ -5417,6 +5421,9 @@ class _StoneRipplePainter extends CustomPainter {
   // Board layout constants — must match GoBoardPainter / _TapBoard.
   static const double _kPadding = 0.5;
 
+  // Stone radius ratio — must match GoBoardPainter._stoneSizeRatio.
+  static const double _kStoneRatio = 0.48;
+
   @override
   void paint(Canvas canvas, Size size) {
     final n = boardSize;
@@ -5424,33 +5431,68 @@ class _StoneRipplePainter extends CustomPainter {
     final origin = cellSize * _kPadding;
     final cx = origin + col * cellSize;
     final cy = origin + row * cellSize;
+    final center = Offset(cx, cy);
 
-    // Maximum ring radius: 2.5 cells, capped at half the board.
+    // Stone radius (matches GoBoardPainter).
+    final stoneRadius = cellSize * _kStoneRatio;
+
+    // Maximum ring outer radius: 2.5 cells, capped at half the board.
     final maxRadius = (cellSize * 2.5).clamp(0.0, size.width / 2);
+
+    // Width of each filled annular band — wide enough to be clearly visible.
+    final ringWidth = cellSize * 0.55;
 
     // Derive per-round progress (0–1) that completes twice over the full run.
     final roundT = (progress * 2) % 1.0;
 
+    // ---------- filled annular waves ----------
     const ringCount = 3;
     for (int i = 0; i < ringCount; i++) {
       // Each ring starts 1/3 of a round after the previous one.
       final phase = (roundT + i / ringCount) % 1.0;
 
-      final radius = maxRadius * phase;
-      // Opacity: fully visible when ring is small, fully gone when at max.
-      final opacity = (1.0 - phase) * 0.55;
-      if (opacity <= 0) continue;
+      final outerR = maxRadius * phase;
+      final innerR = (outerR - ringWidth).clamp(0.0, outerR);
 
-      // Stroke width tapers as the ring expands.
-      final strokeWidth = (2.5 * (1.0 - phase * 0.6)).clamp(0.5, 2.5);
+      // Opacity: strong at small phase (near stone), fades to 0 at maxRadius.
+      final opacity = (1.0 - phase) * 0.70;
+      if (opacity <= 0 || outerR <= 0) continue;
 
-      canvas.drawCircle(
-        Offset(cx, cy),
-        radius,
+      // Draw a filled donut using evenOdd winding so only the band is filled.
+      final path = Path()
+        ..fillType = PathFillType.evenOdd
+        ..addOval(Rect.fromCircle(center: center, radius: outerR))
+        ..addOval(Rect.fromCircle(center: center, radius: innerR));
+      canvas.drawPath(
+        path,
         Paint()
           ..color = const Color(0xFFD4A843).withValues(alpha: opacity)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = strokeWidth,
+          ..style = PaintingStyle.fill,
+      );
+    }
+
+    // ---------- stone glow when a wave sweeps over it ----------
+    // The stone brightens as each ring's leading edge crosses its circumference.
+    // Peak brightness is when outerR ≈ stoneRadius; then fades outward.
+    double maxGlow = 0.0;
+    for (int i = 0; i < ringCount; i++) {
+      final phase = (roundT + i / ringCount) % 1.0;
+      final outerR = maxRadius * phase;
+      // How close is the leading edge to the stone's circumference?
+      final edgeDist = (outerR - stoneRadius).abs();
+      final proximity =
+          (1.0 - (edgeDist / (cellSize * 1.2)).clamp(0.0, 1.0));
+      final contribution = proximity * (1.0 - phase);
+      if (contribution > maxGlow) maxGlow = contribution;
+    }
+
+    if (maxGlow > 0.01) {
+      // White-golden flash on the stone surface.
+      canvas.drawCircle(
+        center,
+        stoneRadius,
+        Paint()
+          ..color = const Color(0xFFFFEEAA).withValues(alpha: maxGlow * 0.75),
       );
     }
   }
