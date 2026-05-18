@@ -4866,7 +4866,6 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
 
   Future<void> _copyMovesAsSgf(CaptureGameProvider provider) async {
     final moves = provider.moveLog;
-    if (moves.isEmpty) return;
     final boardSize = provider.boardSize;
 
     // Reconstruct the initial board position.

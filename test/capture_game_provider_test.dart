@@ -596,6 +596,70 @@ void main() {
       expect(clipboardWrites.last, '1 1一\n2 2二\n---\n3 3三\n4 4四');
     });
 
+    testWidgets('copies SGF immediately after fork when inherited moves exist',
+        (tester) async {
+      final board = List.generate(
+        9,
+        (_) => List<StoneColor>.filled(9, StoneColor.empty),
+      );
+      board[8][0] = StoneColor.black;
+      board[7][1] = StoneColor.white;
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        initialBoardOverride: board,
+        minMoveDelay: Duration.zero,
+      );
+      final settings = SettingsProvider();
+
+      final clipboardWrites = <String>[];
+      final messenger = TestDefaultBinaryMessengerBinding
+          .instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform,
+          (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          final payload = Map<String, dynamic>.from(call.arguments as Map);
+          clipboardWrites.add(payload['text'] as String? ?? '');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              initialMode: CaptureInitialMode.setup,
+              initialBoardOverride: board,
+              inheritedMoves: [
+                [8, 0],
+                [7, 1],
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為 SGF'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(clipboardWrites.last, '(;FF[4]GM[1]SZ[9]AB[ai]AW[bh])');
+    });
+
     testWidgets(
         'ripple animation runs before result dialog appears on win',
         (tester) async {
