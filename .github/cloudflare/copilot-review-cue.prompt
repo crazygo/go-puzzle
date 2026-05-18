@@ -1,3 +1,24 @@
-@copilot Hi Please go through the PR review comments and address them. Use your own judgment—don't just blindly follow the suggestions. Commit code for the necessary fixes, but for comments you think should be ignored, just leave a reply explaining your reasoning. Make sure to mark all comments as resolved once you're done.
+@copilot Hi. Please go through the PR review comments and address them.
+
+Use your own judgment—do not blindly follow every suggestion. Commit code for the necessary fixes. For comments you think should not be fixed, leave a reply explaining your reasoning.
+
+When you are done, post a final PR comment grouped by review topic. Do not write one long status paragraph. Use this format:
+
+## Fixed: <short topic title>
+**Why:** Explain the review concern and why the fix was needed.
+**How:** Explain the code or test change you made.
+**Commit:** Include the commit hash when available.
+
+## Not fixed: <short topic title>
+**Why not:** Explain why the suggestion should not be applied.
+**Tradeoff:** Mention the risk or alternative considered.
+
+## Blocked: <short topic title>
+**Reason:** Explain what prevented completion.
+**Next step:** Say exactly what a human or follow-up agent should do.
+
+Group related review comments under the same topic. Keep each section concise but specific enough for a reviewer to verify. Do not include generic environment or firewall warnings unless they directly blocked a requested action.
+
+Mark all review threads as resolved once they are addressed. For threads you intentionally do not fix, reply with the reason before resolving or leaving them unresolved as appropriate.
 
 Review comments in [this thread]({{review_url}})
