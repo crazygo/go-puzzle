@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/ai_algorithm_framework.dart';
 import 'package:go_puzzle/game/mcts_engine.dart';
+import 'package:go_puzzle/models/board_position.dart';
 
 void main() {
   group('AI algorithm framework registry', () {
@@ -80,5 +81,65 @@ void main() {
         expect(config.parameters['backend'], 'fallback');
       }
     });
+
+    test('neutral tactical analysis does not change selected move', () {
+      final config =
+          AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1');
+      final baseline = AiAlgorithmRegistry.createAgent(config, seedOverride: 7);
+      final analyzed = AiAlgorithmRegistry.createAgent(
+        config,
+        seedOverride: 7,
+        tacticalAnalyzer: const NeutralTacticalAnalyzer(),
+      );
+
+      final baselineMove =
+          baseline.chooseMove(SimBoard(9, captureTarget: 5))!.position;
+      final analyzedMove =
+          analyzed.chooseMove(SimBoard(9, captureTarget: 5))!.position;
+
+      expect(analyzedMove.row, baselineMove.row);
+      expect(analyzedMove.col, baselineMove.col);
+    });
+
+    test('low-confidence tactical analysis does not force a move', () {
+      final config =
+          AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1');
+      final baseline =
+          AiAlgorithmRegistry.createAgent(config, seedOverride: 11);
+      final analyzed = AiAlgorithmRegistry.createAgent(
+        config,
+        seedOverride: 11,
+        tacticalAnalyzer: const _FixedTacticalAnalyzer(
+          TacticalAnalysis(
+            signal: TacticalSignal.ladderRisk,
+            confidence: 0.40,
+            recommendedMove: BoardPosition(0, 0),
+            reason: 'low confidence probe',
+          ),
+        ),
+      );
+
+      final baselineMove =
+          baseline.chooseMove(SimBoard(9, captureTarget: 5))!.position;
+      final analyzedMove =
+          analyzed.chooseMove(SimBoard(9, captureTarget: 5))!.position;
+
+      expect(analyzedMove.row, baselineMove.row);
+      expect(analyzedMove.col, baselineMove.col);
+    });
   });
+}
+
+class _FixedTacticalAnalyzer implements TacticalAnalyzer {
+  const _FixedTacticalAnalyzer(this.analysis);
+
+  final TacticalAnalysis analysis;
+
+  @override
+  TacticalAnalysis analyze({
+    required SimBoard board,
+    required AiAlgorithmConfig config,
+  }) {
+    return analysis;
+  }
 }

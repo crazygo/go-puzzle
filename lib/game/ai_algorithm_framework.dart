@@ -1,5 +1,7 @@
+import '../models/board_position.dart';
 import 'capture_ai.dart';
 import 'difficulty_level.dart';
+import 'mcts_engine.dart';
 
 enum AiAlgorithmFrameworkId {
   heuristic,
@@ -17,6 +19,57 @@ enum AiAlgorithmStrengthTier {
 enum AiAlgorithmRuntimeMode {
   native,
   fallback,
+}
+
+enum TacticalSignal {
+  neutral,
+  ladderRisk,
+  twistClampRisk,
+  lossCuttingRisk,
+}
+
+class TacticalAnalysis {
+  const TacticalAnalysis({
+    required this.signal,
+    required this.confidence,
+    this.recommendedMove,
+    this.reason,
+  });
+
+  const TacticalAnalysis.neutral()
+      : signal = TacticalSignal.neutral,
+        confidence = 0,
+        recommendedMove = null,
+        reason = null;
+
+  final TacticalSignal signal;
+  final double confidence;
+  final BoardPosition? recommendedMove;
+  final String? reason;
+
+  bool get canForceMove =>
+      signal != TacticalSignal.neutral &&
+      confidence >= 0.95 &&
+      recommendedMove != null;
+}
+
+abstract class TacticalAnalyzer {
+  TacticalAnalysis analyze({
+    required SimBoard board,
+    required AiAlgorithmConfig config,
+  });
+}
+
+class NeutralTacticalAnalyzer implements TacticalAnalyzer {
+  const NeutralTacticalAnalyzer();
+
+  @override
+  TacticalAnalysis analyze({
+    required SimBoard board,
+    required AiAlgorithmConfig config,
+  }) {
+    return const TacticalAnalysis.neutral();
+  }
 }
 
 class AiAlgorithmFramework {
@@ -132,11 +185,16 @@ class AiAlgorithmRegistry {
   static CaptureAiAgent createAgent(
     AiAlgorithmConfig config, {
     int? seedOverride,
+    TacticalAnalyzer tacticalAnalyzer = const NeutralTacticalAnalyzer(),
   }) {
     final robotConfig = seedOverride == null
         ? config.robotConfig
         : config.robotConfig.copyWith(seed: seedOverride);
-    return CaptureAiRegistry.createFromConfig(robotConfig);
+    return _TacticalAnalyzerAgent(
+      config: config,
+      inner: CaptureAiRegistry.createFromConfig(robotConfig),
+      tacticalAnalyzer: tacticalAnalyzer,
+    );
   }
 
   static final AiAlgorithmConfig _heuristicWeak = AiAlgorithmConfig(
@@ -302,4 +360,35 @@ class AiAlgorithmRegistry {
       difficulty: DifficultyLevel.intermediate,
     ),
   );
+}
+
+class _TacticalAnalyzerAgent implements CaptureAiAgent {
+  const _TacticalAnalyzerAgent({
+    required this.config,
+    required CaptureAiAgent inner,
+    required TacticalAnalyzer tacticalAnalyzer,
+  })  : _inner = inner,
+        _tacticalAnalyzer = tacticalAnalyzer;
+
+  final AiAlgorithmConfig config;
+  final CaptureAiAgent _inner;
+  final TacticalAnalyzer _tacticalAnalyzer;
+
+  @override
+  CaptureAiStyle get style => _inner.style;
+
+  @override
+  CaptureAiMove? chooseMove(SimBoard board) {
+    final analysis = _tacticalAnalyzer.analyze(
+      board: SimBoard.copy(board),
+      config: config,
+    );
+    if (analysis.canForceMove) {
+      final move = analysis.recommendedMove!;
+      if (board.analyzeMove(move.row, move.col).isLegal) {
+        return CaptureAiMove(position: move, score: 100000);
+      }
+    }
+    return _inner.chooseMove(board);
+  }
 }
