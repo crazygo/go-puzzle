@@ -17,6 +17,7 @@ import '../models/game_record.dart';
 import '../models/game_state.dart';
 import '../providers/capture_game_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/app_log_store.dart';
 import '../services/game_history_repository.dart';
 import '../services/player_rank_repository.dart';
 import '../theme/app_theme.dart';
@@ -1258,11 +1259,29 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       final bytes = await file.readAsBytes();
       if (!mounted) return;
 
+      AppLogStore.instance.add(
+        category: AppLogCategory.screenshotRecognition,
+        level: AppLogLevel.info,
+        message: '開始截圖識別',
+        details: 'algorithm: ${algorithm.storageValue}\n'
+            'file: ${file.name}\n'
+            'bytes: ${bytes.length}',
+      );
+
       setState(() {
         _isRecognizingScreenshot = true;
       });
       final result = await _recognizeBoard(bytes, algorithm: algorithm);
       if (!mounted) return;
+
+      AppLogStore.instance.add(
+        category: AppLogCategory.screenshotRecognition,
+        level: AppLogLevel.info,
+        message: '截圖識別完成',
+        details: 'algorithm: ${algorithm.storageValue}\n'
+            'boardSize: ${result.boardSize}\n'
+            'confidence: ${result.confidence.toStringAsFixed(4)}',
+      );
 
       final edited = await Navigator.of(context).push<_ImportBoardDraft>(
         CupertinoPageRoute(
@@ -1287,7 +1306,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         forceSetup: true,
         initialBoard: edited.board,
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogStore.instance.add(
+        category: AppLogCategory.screenshotRecognition,
+        level: AppLogLevel.error,
+        message: '截圖匯入失敗',
+        details: 'algorithm: ${algorithm.storageValue}',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       await showCupertinoDialog<void>(
         context: context,
@@ -3662,9 +3689,21 @@ class _ModelRecognitionLoadingDialogState
       } else {
         await widget.reloadModel();
       }
+      AppLogStore.instance.add(
+        category: AppLogCategory.screenshotRecognition,
+        level: AppLogLevel.info,
+        message: '模型載入完成',
+      );
       if (!mounted) return;
       Navigator.of(context).pop(_ModelLoadDecision.ready);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogStore.instance.add(
+        category: AppLogCategory.screenshotRecognition,
+        level: AppLogLevel.error,
+        message: '模型載入失敗',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       setState(() {
         _isLoading = false;
@@ -3958,7 +3997,8 @@ class CaptureGamePlayScreen extends StatefulWidget {
   State<CaptureGamePlayScreen> createState() => _CaptureGamePlayScreenState();
 }
 
-class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
+class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
+    with SingleTickerProviderStateMixin {
   List<_HintMark> _hintMarks = const [];
   bool _isLoadingHints = false;
   bool _gameSaved = false;
@@ -3969,11 +4009,19 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
   int? _reviewMoveIndex;
   List<GameState>? _reviewStates;
 
+  /// Last-move coordinates shown while the ripple animation plays.
+  List<int>? _rippleMove;
+  late final AnimationController _rippleController;
+
   final _historyRepo = GameHistoryRepository();
 
   @override
   void initState() {
     super.initState();
+    _rippleController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final settings = context.read<SettingsProvider?>();
@@ -3984,6 +4032,12 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _rippleController.dispose();
+    super.dispose();
   }
 
   /// Converts a board of [StoneColor] to a list of int indices.
@@ -4066,7 +4120,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
             _resultDialogShown = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
-              _showGameResultDialog(context, provider);
+              _startRippleAnimation(context, provider);
             });
           }
           final settings = context.watch<SettingsProvider?>();
@@ -4177,6 +4231,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
                                 reviewGameState?.capturedByWhite.length ??
                                     whiteCaptured,
                             humanColor: widget.humanColor,
+                            rippleMove: _rippleMove,
+                            rippleAnimation: _rippleController,
                             onTap: (row, col) => _handleBoardTap(
                               provider: provider,
                               row: row,
@@ -4431,6 +4487,21 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen> {
     return humanWins ? _ResultDialogState.victory : _ResultDialogState.notWin;
   }
 
+  Future<void> _startRippleAnimation(
+    BuildContext context,
+    CaptureGameProvider provider,
+  ) async {
+    final lastMove =
+        provider.moveLog.isNotEmpty ? provider.moveLog.last : null;
+    setState(() => _rippleMove = lastMove);
+    _rippleController.reset();
+    await _rippleController.forward();
+    if (!mounted) return;
+    setState(() => _rippleMove = null);
+    // ignore: use_build_context_synchronously
+    await _showGameResultDialog(this.context, provider);
+  }
+
   Future<void> _showGameResultDialog(
     BuildContext context,
     CaptureGameProvider provider,
@@ -4609,6 +4680,8 @@ class _CaptureBoardArea extends StatelessWidget {
     required this.humanColor,
     required this.onTap,
     this.onReviewTap,
+    this.rippleMove,
+    this.rippleAnimation,
   });
 
   final GameState gameState;
@@ -4622,6 +4695,8 @@ class _CaptureBoardArea extends StatelessWidget {
   final StoneColor humanColor;
   final Future<bool> Function(int row, int col) onTap;
   final VoidCallback? onReviewTap;
+  final List<int>? rippleMove;
+  final Animation<double>? rippleAnimation;
 
   @override
   Widget build(BuildContext context) {
@@ -4687,6 +4762,8 @@ class _CaptureBoardArea extends StatelessWidget {
                         showCaptureWarning: showCaptureWarning,
                         onTap: onTap,
                         onDisabledTap: onReviewTap,
+                        rippleMove: rippleMove,
+                        rippleAnimation: rippleAnimation,
                       ),
                     ),
                   ),
@@ -5249,6 +5326,8 @@ class _TapBoard extends StatelessWidget {
     required this.showCaptureWarning,
     required this.onTap,
     this.onDisabledTap,
+    this.rippleMove,
+    this.rippleAnimation,
   });
 
   final GameState gameState;
@@ -5258,12 +5337,16 @@ class _TapBoard extends StatelessWidget {
   final bool showCaptureWarning;
   final Future<bool> Function(int row, int col) onTap;
   final VoidCallback? onDisabledTap;
+  final List<int>? rippleMove;
+  final Animation<double>? rippleAnimation;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final boardSizePx = constraints.biggest.shortestSide;
+        final showRipple =
+            rippleMove != null && rippleAnimation != null;
         return GestureDetector(
           onTapUp: enabled
               ? (d) => _handleTap(d.localPosition, boardSizePx)
@@ -5290,6 +5373,20 @@ class _TapBoard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (showRipple)
+                  IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: rippleAnimation!,
+                      builder: (_, __) => CustomPaint(
+                        painter: _StoneRipplePainter(
+                          boardSize: gameState.boardSize,
+                          row: rippleMove![0],
+                          col: rippleMove![1],
+                          progress: rippleAnimation!.value,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -5309,6 +5406,122 @@ class _TapBoard extends StatelessWidget {
       onTap(row, col);
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Stone ripple painter
+// ---------------------------------------------------------------------------
+
+/// Draws a water-ripple animation radiating outward from the last-placed stone.
+///
+/// [progress] runs from 0.0 to 1.0 and covers exactly 1 animation round.
+/// Three concentric rings are staggered
+/// at 1/3-round intervals so the board always shows rings at different
+/// expansion stages, like a water droplet ripple.
+///
+/// Each ring is rendered as a wide filled annulus (donut) so the wave area is
+/// clearly visible. The last-placed stone also brightens as each wave sweeps
+/// over it, giving a shockwave highlight effect.
+class _StoneRipplePainter extends CustomPainter {
+  const _StoneRipplePainter({
+    required this.boardSize,
+    required this.row,
+    required this.col,
+    required this.progress,
+  });
+
+  final int boardSize;
+  final int row;
+  final int col;
+
+  /// 0.0 → 1.0 spanning 1 complete round.
+  final double progress;
+
+  // Board layout constants — must match GoBoardPainter / _TapBoard.
+  static const double _kPadding = 0.5;
+
+  // Stone radius ratio — must match GoBoardPainter._stoneSizeRatio.
+  static const double _kStoneRatio = 0.48;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final n = boardSize;
+    final cellSize = size.width / (n - 1 + 2 * _kPadding);
+    final origin = cellSize * _kPadding;
+    final cx = origin + col * cellSize;
+    final cy = origin + row * cellSize;
+    final center = Offset(cx, cy);
+
+    // Stone radius (matches GoBoardPainter).
+    final stoneRadius = cellSize * _kStoneRatio;
+
+    // Maximum ring outer radius: 2.5 cells, capped at half the board.
+    final maxRadius = (cellSize * 2.5).clamp(0.0, size.width / 2);
+
+    // Width of each filled annular band — wide enough to be clearly visible.
+    final ringWidth = cellSize * 0.55;
+
+    // Derive per-round progress (0–1) that completes twice over the full run.
+    final roundT = progress;
+
+    // ---------- filled annular waves ----------
+    const ringCount = 3;
+    for (int i = 0; i < ringCount; i++) {
+      // Each ring starts 1/3 of a round after the previous one.
+      final phase = (roundT + i / ringCount) % 1.0;
+
+      final outerR = maxRadius * phase;
+      final innerR = (outerR - ringWidth).clamp(0.0, outerR);
+
+      // Opacity: strong at small phase (near stone), fades to 0 at maxRadius.
+      final opacity = (1.0 - phase) * 0.70;
+      if (opacity <= 0 || outerR <= 0) continue;
+
+      // Draw a filled donut using evenOdd winding so only the band is filled.
+      final path = Path()
+        ..fillType = PathFillType.evenOdd
+        ..addOval(Rect.fromCircle(center: center, radius: outerR))
+        ..addOval(Rect.fromCircle(center: center, radius: innerR));
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = const Color(0xFFD4A843).withValues(alpha: opacity)
+          ..style = PaintingStyle.fill,
+      );
+    }
+
+    // ---------- stone glow when a wave sweeps over it ----------
+    // The stone brightens as each ring's leading edge crosses its circumference.
+    // Peak brightness is when outerR ≈ stoneRadius; then fades outward.
+    double maxGlow = 0.0;
+    for (int i = 0; i < ringCount; i++) {
+      final phase = (roundT + i / ringCount) % 1.0;
+      final outerR = maxRadius * phase;
+      // How close is the leading edge to the stone's circumference?
+      final edgeDist = (outerR - stoneRadius).abs();
+      final proximity =
+          (1.0 - (edgeDist / (cellSize * 1.2)).clamp(0.0, 1.0));
+      final contribution = proximity * (1.0 - phase);
+      if (contribution > maxGlow) maxGlow = contribution;
+    }
+
+    if (maxGlow > 0.01) {
+      // White-golden flash on the stone surface.
+      canvas.drawCircle(
+        center,
+        stoneRadius,
+        Paint()
+          ..color = const Color(0xFFFFEEAA).withValues(alpha: maxGlow * 0.75),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_StoneRipplePainter old) =>
+      old.progress != progress ||
+      old.row != row ||
+      old.col != col ||
+      old.boardSize != boardSize;
 }
 
 // ---------------------------------------------------------------------------
