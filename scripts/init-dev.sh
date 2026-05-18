@@ -29,16 +29,25 @@ case "${HOST_OS}:${HOST_ARCH}" in
     FLUTTER_PLATFORM_DIR="macos"
     FLUTTER_ARCHIVE="flutter_macos_arm64_${FLUTTER_VERSION}-stable.zip"
     FLUTTER_EXTRACT_MODE="zip"
+    FLUTTER_PRECACHE_PLATFORM="macos"
     ;;
   Darwin:x86_64)
     FLUTTER_PLATFORM_DIR="macos"
     FLUTTER_ARCHIVE="flutter_macos_${FLUTTER_VERSION}-stable.zip"
     FLUTTER_EXTRACT_MODE="zip"
+    FLUTTER_PRECACHE_PLATFORM="macos"
     ;;
-  Linux:*)
+  Linux:x86_64)
     FLUTTER_PLATFORM_DIR="linux"
     FLUTTER_ARCHIVE="flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
     FLUTTER_EXTRACT_MODE="tar.xz"
+    FLUTTER_PRECACHE_PLATFORM="linux"
+    ;;
+  Linux:aarch64|Linux:arm64)
+    FLUTTER_PLATFORM_DIR="linux"
+    FLUTTER_ARCHIVE="flutter_linux_arm64_${FLUTTER_VERSION}-stable.tar.xz"
+    FLUTTER_EXTRACT_MODE="tar.xz"
+    FLUTTER_PRECACHE_PLATFORM="linux"
     ;;
   *)
     echo "[init-dev] Unsupported Flutter bootstrap host: ${HOST_OS} ${HOST_ARCH}"
@@ -99,8 +108,14 @@ download_archive_if_needed() {
       return 0
     fi
 
-    log "Removing incomplete or invalid Flutter archive: ${FLUTTER_ARCHIVE_LOCAL}"
-    rm -f "${FLUTTER_ARCHIVE_LOCAL}"
+    if archive_is_cache_owned "${FLUTTER_ARCHIVE_LOCAL}"; then
+      log "Removing incomplete or invalid cached Flutter archive: ${FLUTTER_ARCHIVE_LOCAL}"
+      rm -f "${FLUTTER_ARCHIVE_LOCAL}"
+    else
+      log "Flutter archive is invalid: ${FLUTTER_ARCHIVE_LOCAL}"
+      log "Replace the archive or unset FLUTTER_ARCHIVE_LOCAL to let init-dev download a fresh copy."
+      return 1
+    fi
   fi
 
   log "Downloading Flutter archive from: ${FLUTTER_DIST_URL}"
@@ -121,7 +136,9 @@ download_archive_if_needed() {
   mv "${partial_archive}" "${FLUTTER_ARCHIVE_LOCAL}"
   if ! archive_is_valid "${FLUTTER_ARCHIVE_LOCAL}"; then
     log "Downloaded Flutter archive is invalid: ${FLUTTER_ARCHIVE_LOCAL}"
-    rm -f "${FLUTTER_ARCHIVE_LOCAL}"
+    if archive_is_cache_owned "${FLUTTER_ARCHIVE_LOCAL}"; then
+      rm -f "${FLUTTER_ARCHIVE_LOCAL}"
+    fi
     return 1
   fi
 }
@@ -136,6 +153,15 @@ archive_is_valid() {
     tar.xz)
       tar -tJf "${archive}" >/dev/null
       ;;
+  esac
+}
+
+archive_is_cache_owned() {
+  local archive="$1"
+
+  case "${archive}" in
+    "${CACHE_DIR}"/*) return 0 ;;
+    *) return 1 ;;
   esac
 }
 
@@ -178,9 +204,10 @@ install_flutter() {
   if [[ ! -x "${FLUTTER_DIR}/bin/flutter" ]]; then
     download_archive_if_needed
     log "Extracting Flutter SDK ..."
+    rm -rf "${FLUTTER_DIR}"
     case "${FLUTTER_EXTRACT_MODE}" in
       zip)
-        unzip -q "${FLUTTER_ARCHIVE_LOCAL}" -d "${TOOLS_DIR}"
+        unzip -oq "${FLUTTER_ARCHIVE_LOCAL}" -d "${TOOLS_DIR}"
         ;;
       tar.xz)
         tar --no-same-owner -xJf "${FLUTTER_ARCHIVE_LOCAL}" -C "${TOOLS_DIR}"
@@ -198,7 +225,7 @@ install_flutter() {
 warmup() {
   flutter config --no-analytics >/dev/null 2>&1 || true
   dart --disable-analytics >/dev/null 2>&1 || true
-  flutter precache --linux
+  flutter precache "--${FLUTTER_PRECACHE_PLATFORM}"
 }
 
 ensure_recognition_models() {
