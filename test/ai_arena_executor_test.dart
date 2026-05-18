@@ -231,6 +231,30 @@ void main() {
     );
   });
 
+  test('hybrid MCTS weak config beats basic weak config without failures', () {
+    const executor = AiArenaExecutor(
+      boardSize: 9,
+      captureTarget: 5,
+      rounds: 2,
+      maxMoves: 80,
+      openingPolicy: 'empty_cross_twist_cross_random_v1',
+    );
+    final result = executor.runFrameworkMatch(
+      configA:
+          AiAlgorithmRegistry.configById('hybrid_tactical_counter_weak_v1'),
+      configB: AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
+      matchSeed: 20260519,
+      openingSeed: 1,
+    );
+
+    expect(result.aWins, greaterThan(result.bWins));
+    expect(result.aWinRate, 1.0);
+    expect(result.games.every((game) => game.opening == 'cross'), isTrue);
+    expect(result.games.every((game) => !game.illegalMove), isTrue);
+    expect(result.games.every((game) => !game.timedOut), isTrue);
+    expect(result.games.every((game) => game.failureReason == null), isTrue);
+  });
+
   test(
       'random opening policy uses pair-based board seed so color-swapped games share the same opening',
       () {
