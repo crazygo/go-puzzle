@@ -5303,13 +5303,13 @@ class _OperationContextMenu extends StatelessWidget {
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
-              text: '複製為文字',
+              text: '复制棋谱为文字',
               enabled: canCopyMoveLog,
               onPressed: onCopyText,
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
-              text: '複製為 SGF',
+              text: '复制棋谱为SGF',
               enabled: canCopyMoveLog,
               onPressed: onCopySgf,
             ),
