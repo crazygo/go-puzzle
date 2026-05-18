@@ -439,6 +439,7 @@ class _ForkRequest {
   const _ForkRequest({
     required this.forkBoard,
     required this.initialPlayerOverride,
+    required this.inheritedMoves,
     required this.boardSize,
     required this.captureTarget,
     required this.difficulty,
@@ -450,6 +451,7 @@ class _ForkRequest {
 
   final List<List<StoneColor>> forkBoard;
   final StoneColor initialPlayerOverride;
+  final List<List<int>> inheritedMoves;
   final int boardSize;
   final int captureTarget;
   final DifficultyLevel difficulty;
@@ -1447,6 +1449,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                 initialMode: fork.initialMode,
                 initialBoardOverride: fork.forkBoard,
                 initialPlayerOverride: fork.initialPlayerOverride,
+                inheritedMoves: fork.inheritedMoves,
               ),
             ),
           ),
@@ -3979,6 +3982,7 @@ class CaptureGamePlayScreen extends StatefulWidget {
     this.initialMode = CaptureInitialMode.cross,
     this.initialBoardOverride,
     this.initialPlayerOverride,
+    this.inheritedMoves = const [],
   });
 
   final int aiRank;
@@ -3993,6 +3997,7 @@ class CaptureGamePlayScreen extends StatefulWidget {
   /// with White to move. Persisted in [GameRecord] so history replay is
   /// correct.
   final StoneColor? initialPlayerOverride;
+  final List<List<int>> inheritedMoves;
 
   @override
   State<CaptureGamePlayScreen> createState() => _CaptureGamePlayScreenState();
@@ -4314,7 +4319,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     final canUndo = provider.canUndo;
     final canHint = !_isLoadingHints;
     final canMarkMove = provider.moveLog.isNotEmpty;
-    final canCopyMoveLog = provider.moveLog.isNotEmpty;
+    final canCopyMoveLog =
+        provider.moveLog.isNotEmpty || widget.inheritedMoves.isNotEmpty;
     final currentMoveMarked =
         _markedMoveNumbers.contains(provider.moveLog.length);
     final showCaptureWarning = settings?.showCaptureWarning ?? true;
@@ -4784,6 +4790,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
         _ForkRequest(
           forkBoard: forkBoard,
           initialPlayerOverride: nextPlayer,
+          inheritedMoves: provider.moveLog
+              .take(_reviewMoveIndex!)
+              .map((move) => List<int>.from(move))
+              .toList(),
           boardSize: provider.boardSize,
           captureTarget: provider.captureTarget,
           difficulty: provider.difficulty,
@@ -4827,15 +4837,27 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   }
 
   Future<void> _copyMovesAsText(CaptureGameProvider provider) async {
+    final inheritedMoves = widget.inheritedMoves;
     final moves = provider.moveLog;
-    if (moves.isEmpty) return;
+    if (inheritedMoves.isEmpty && moves.isEmpty) return;
     final boardSize = provider.boardSize;
-    final total = moves.length;
+    final total = inheritedMoves.length + moves.length;
     final padWidth = total.toString().length;
     final buffer = StringBuffer();
-    for (var i = 0; i < moves.length; i++) {
+    for (var i = 0; i < inheritedMoves.length; i++) {
       if (i > 0) buffer.write('\n');
       final numStr = '${i + 1}'.padLeft(padWidth, '0');
+      buffer.write(
+        '$numStr ${_formatChineseCoordinate(inheritedMoves[i], boardSize)}',
+      );
+    }
+    if (inheritedMoves.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write('\n');
+      buffer.write('---');
+    }
+    for (var i = 0; i < moves.length; i++) {
+      if (buffer.isNotEmpty) buffer.write('\n');
+      final numStr = '${inheritedMoves.length + i + 1}'.padLeft(padWidth, '0');
       buffer.write('$numStr ${_formatChineseCoordinate(moves[i], boardSize)}');
     }
     await Clipboard.setData(ClipboardData(text: buffer.toString()));
