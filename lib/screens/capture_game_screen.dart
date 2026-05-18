@@ -4321,7 +4321,13 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     );
     final buttonRect = buttonTopLeft & buttonBox.size;
     const menuWidth = 178.0;
-    const menuHeight = 388.0;
+    // 8 items × 48 px each + 7 dividers × 0.6 px each
+    const menuItemHeight = 48.0;
+    const menuDividerHeight = 0.6;
+    const menuItemCount = 8;
+    const menuHeight =
+        menuItemCount * menuItemHeight +
+        (menuItemCount - 1) * menuDividerHeight;
     const edgePadding = 12.0;
     final media = MediaQuery.of(context);
     final preferredTop = buttonRect.top - menuHeight - 8;
@@ -4685,44 +4691,14 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     if (moves.isEmpty) return;
     final boardSize = provider.boardSize;
     final total = moves.length;
-    final String text;
-    if (total < 10) {
-      // Single-digit max: no padding needed
-      final buffer = StringBuffer();
-      for (var i = 0; i < moves.length; i++) {
-        if (i > 0) buffer.write('\n');
-        buffer.write('${i + 1} ${_formatChineseCoordinate(moves[i], boardSize)}');
-      }
-      text = buffer.toString();
-    } else if (total < 100) {
-      // Max is 2 digits: pad 1-9 with a leading '0'
-      final buffer = StringBuffer();
-      for (var i = 0; i < moves.length; i++) {
-        if (i > 0) buffer.write('\n');
-        final num = i + 1;
-        final numStr = num < 10 ? '0$num' : '$num';
-        buffer.write('$numStr ${_formatChineseCoordinate(moves[i], boardSize)}');
-      }
-      text = buffer.toString();
-    } else {
-      // Max is 3+ digits: pad 1-9 with '00', 10-99 with '0'
-      final buffer = StringBuffer();
-      for (var i = 0; i < moves.length; i++) {
-        if (i > 0) buffer.write('\n');
-        final num = i + 1;
-        final String numStr;
-        if (num < 10) {
-          numStr = '00$num';
-        } else if (num < 100) {
-          numStr = '0$num';
-        } else {
-          numStr = '$num';
-        }
-        buffer.write('$numStr ${_formatChineseCoordinate(moves[i], boardSize)}');
-      }
-      text = buffer.toString();
+    final padWidth = total.toString().length;
+    final buffer = StringBuffer();
+    for (var i = 0; i < moves.length; i++) {
+      if (i > 0) buffer.write('\n');
+      final numStr = '${i + 1}'.padLeft(padWidth, '0');
+      buffer.write('$numStr ${_formatChineseCoordinate(moves[i], boardSize)}');
     }
-    await Clipboard.setData(ClipboardData(text: text));
+    await Clipboard.setData(ClipboardData(text: buffer.toString()));
     if (mounted) _showCopyBanner('棋譜已複製');
   }
 
@@ -4730,16 +4706,57 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     final moves = provider.moveLog;
     if (moves.isEmpty) return;
     final boardSize = provider.boardSize;
+
+    // Reconstruct the initial board position.
+    final initialBoard = List.generate(
+      boardSize,
+      (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
+    );
+    if (provider.initialBoardOverride != null) {
+      for (int r = 0; r < boardSize; r++) {
+        for (int c = 0; c < boardSize; c++) {
+          initialBoard[r][c] = provider.initialBoardOverride![r][c];
+        }
+      }
+    } else {
+      applyCaptureInitialLayout(initialBoard, provider.initialMode);
+    }
+
+    final initialPlayer = provider.initialPlayerOverride ?? StoneColor.black;
+
+    // Collect initial stones for AB / AW root properties.
+    final abCoords = <String>[];
+    final awCoords = <String>[];
+    for (int r = 0; r < boardSize; r++) {
+      for (int c = 0; c < boardSize; c++) {
+        final stone = initialBoard[r][c];
+        if (stone == StoneColor.black) {
+          abCoords.add(_toSgfCoord(c, r));
+        } else if (stone == StoneColor.white) {
+          awCoords.add(_toSgfCoord(c, r));
+        }
+      }
+    }
+
     final buffer = StringBuffer('(;FF[4]GM[1]SZ[$boardSize]');
-    for (var i = 0; i < moves.length; i++) {
-      final move = moves[i];
+    if (abCoords.isNotEmpty) {
+      buffer.write('AB${abCoords.map((s) => '[$s]').join()}');
+    }
+    if (awCoords.isNotEmpty) {
+      buffer.write('AW${awCoords.map((s) => '[$s]').join()}');
+    }
+    if (initialPlayer != StoneColor.black) {
+      buffer.write('PL[W]');
+    }
+
+    var currentColor = initialPlayer;
+    for (final move in moves) {
       if (move.length < 2) break;
-      final row = move[0];
-      final col = move[1];
-      final color = i.isEven ? 'B' : 'W';
-      final colChar = String.fromCharCode('a'.codeUnitAt(0) + col);
-      final rowChar = String.fromCharCode('a'.codeUnitAt(0) + row);
-      buffer.write(';$color[$colChar$rowChar]');
+      final colorChar = currentColor == StoneColor.black ? 'B' : 'W';
+      buffer.write(';$colorChar[${_toSgfCoord(move[1], move[0])}]');
+      currentColor = currentColor == StoneColor.black
+          ? StoneColor.white
+          : StoneColor.black;
     }
     buffer.write(')');
     await Clipboard.setData(ClipboardData(text: buffer.toString()));
@@ -4948,6 +4965,14 @@ String _formatChineseCoordinate(List<int> move, int boardSize) {
       rowFromBottom < chineseNums.length ? chineseNums[rowFromBottom] : '$rowFromBottom';
   return '${col + 1}$rowLabel';
 }
+
+/// Converts a 0-based (col, row) board position to the two-letter SGF
+/// coordinate string (e.g., col=4, row=5 → "ef").
+String _toSgfCoord(int col, int row) {
+  return '${String.fromCharCode('a'.codeUnitAt(0) + col)}'
+      '${String.fromCharCode('a'.codeUnitAt(0) + row)}';
+}
+
 
 class _CopyBannerOverlay extends StatefulWidget {
   const _CopyBannerOverlay({
