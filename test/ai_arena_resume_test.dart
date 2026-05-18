@@ -771,7 +771,7 @@ void main() {
       );
       expect(m.toJson()['configHash'], m.configHash);
       expect(m.toJson()['maxMoves'], 512);
-      expect(m.toJson()['openingPolicy'], 'empty_twist_cross_random_v1');
+      expect(m.toJson()['openingPolicy'], 'empty_cross_twist_cross_random_v1');
     });
 
     test('empty JSONL produces empty event list', () {

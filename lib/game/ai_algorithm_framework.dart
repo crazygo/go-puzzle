@@ -129,8 +129,14 @@ class AiAlgorithmRegistry {
     return configs.firstWhere((config) => config.id == id);
   }
 
-  static CaptureAiAgent createAgent(AiAlgorithmConfig config) {
-    return CaptureAiRegistry.createFromConfig(config.robotConfig);
+  static CaptureAiAgent createAgent(
+    AiAlgorithmConfig config, {
+    int? seedOverride,
+  }) {
+    final robotConfig = seedOverride == null
+        ? config.robotConfig
+        : config.robotConfig.copyWith(seed: seedOverride);
+    return CaptureAiRegistry.createFromConfig(robotConfig);
   }
 
   static final AiAlgorithmConfig _heuristicWeak = AiAlgorithmConfig(

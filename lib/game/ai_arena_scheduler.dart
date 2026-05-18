@@ -27,7 +27,7 @@ class AiArenaRunManifest {
     required this.promotionThreshold,
     required this.baseSeed,
     this.maxMoves = 512,
-    this.openingPolicy = 'empty_twist_cross_random_v1',
+    this.openingPolicy = 'empty_cross_twist_cross_random_v1',
     this.schemaVersion = 1,
   });
 
@@ -90,8 +90,7 @@ class AiArenaRunManifest {
       promotionThreshold: json['promotionThreshold'] as int,
       baseSeed: json['baseSeed'] as int,
       maxMoves: json['maxMoves'] as int? ?? 512,
-      openingPolicy:
-          json['openingPolicy'] as String? ?? 'fixed_twist_cross_v1',
+      openingPolicy: json['openingPolicy'] as String? ?? 'fixed_twist_cross_v1',
     );
   }
 }

@@ -1,15 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_puzzle/game/ai_algorithm_framework.dart';
 import 'package:go_puzzle/game/ai_arena_executor.dart';
 import 'package:go_puzzle/game/ai_arena_ladder.dart';
 
 void main() {
   test(
-      'default opening policy applies balanced empty, twist-cross, and random games',
+      'default opening policy applies balanced empty, cross, twist-cross, and random games',
       () {
     const executor = AiArenaExecutor(
       boardSize: 9,
       captureTarget: 1,
-      rounds: 12,
+      rounds: 16,
       maxMoves: 4,
     );
 
@@ -25,48 +26,46 @@ void main() {
         difficulty: 'beginner',
       ),
       matchSeed: 1,
-      // openingSeed=0 → pairOffset = 0 % 3 = 0: empty/twistCross/random repeat.
+      // openingSeed=0 -> pairOffset = 0 % 4:
+      // empty/cross/twistCross/random repeat.
       openingSeed: 0,
     );
 
-    expect(result.openingPolicy, 'empty_twist_cross_random_v1');
-    expect(result.games, hasLength(12));
+    expect(result.openingPolicy, 'empty_cross_twist_cross_random_v1');
+    expect(result.games, hasLength(16));
     expect(result.games.where((game) => game.opening == 'empty'), hasLength(4));
+    expect(result.games.where((game) => game.opening == 'cross'), hasLength(4));
     expect(
       result.games.where((game) => game.opening.startsWith('twistCross')),
       hasLength(4),
     );
     expect(
-      result.games.where((game) => game.opening == 'twistCrossA'),
-      hasLength(2),
-    );
-    expect(
-      result.games.where((game) => game.opening == 'twistCrossB'),
-      hasLength(2),
+      result.games.where((game) => game.opening == 'twistCrossC'),
+      hasLength(4),
     );
     expect(
       result.games.where((game) => game.opening == 'random'),
       hasLength(4),
     );
 
-    for (final opening in const ['empty', 'random']) {
+    for (final opening in const ['empty', 'cross', 'random']) {
       final games = result.games.where((game) => game.opening == opening);
       expect(games.where((game) => game.black == 'a'), hasLength(2));
       expect(games.where((game) => game.black == 'b'), hasLength(2));
     }
-    for (final opening in const ['twistCrossA', 'twistCrossB']) {
+    for (final opening in const ['twistCrossC']) {
       final games = result.games.where((game) => game.opening == opening);
-      expect(games.where((game) => game.black == 'a'), hasLength(1));
-      expect(games.where((game) => game.black == 'b'), hasLength(1));
+      expect(games.where((game) => game.black == 'a'), hasLength(2));
+      expect(games.where((game) => game.black == 'b'), hasLength(2));
     }
   });
 
   test(
       'openingSeed modulo fully determines pair offset for mixed opening policy',
       () {
-    // With 3 opening families, openingSeed % 3 is the offset.
-    // Seeds 0,3,6 → offset 0; seeds 1,4,7 → offset 1; seeds 2,5,8 → offset 2.
-    // Verify that seeds 0 and 3 produce the same schedule, but 0 and 1 differ.
+    // With 4 opening families, openingSeed % 4 is the offset.
+    // Seeds 0,4,8 -> offset 0; seeds 1,5,9 -> offset 1.
+    // Verify that seeds 0 and 4 produce the same schedule, but 0 and 1 differ.
     const executor = AiArenaExecutor(
       boardSize: 9,
       captureTarget: 1,
@@ -86,20 +85,61 @@ void main() {
 
     final run0 = executor.runMatch(
         configA: configA, configB: configB, matchSeed: 5, openingSeed: 0);
-    final run3 = executor.runMatch(
-        configA: configA, configB: configB, matchSeed: 5, openingSeed: 3);
+    final run4 = executor.runMatch(
+        configA: configA, configB: configB, matchSeed: 5, openingSeed: 4);
     final run1 = executor.runMatch(
         configA: configA, configB: configB, matchSeed: 5, openingSeed: 1);
 
-    // openingSeed=0 and openingSeed=3 both give offset=0: same opening schedule.
+    // openingSeed=0 and openingSeed=4 both give offset=0: same opening schedule.
     expect(
       run0.games.map((g) => g.opening).toList(),
-      run3.games.map((g) => g.opening).toList(),
+      run4.games.map((g) => g.opening).toList(),
     );
     // openingSeed=1 gives offset=1: different schedule from offset=0.
     expect(
       run0.games.map((g) => g.opening).toList(),
       isNot(run1.games.map((g) => g.opening).toList()),
+    );
+  });
+
+  test('framework matches run selected algorithm configs reproducibly', () {
+    const executor = AiArenaExecutor(
+      boardSize: 9,
+      captureTarget: 1,
+      rounds: 2,
+      maxMoves: 8,
+      openingPolicy: 'cross_v1',
+    );
+    final configA =
+        AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1');
+    final configB = AiAlgorithmRegistry.configById('katago_fallback_weak_v1');
+
+    final first = executor.runFrameworkMatch(
+      configA: configA,
+      configB: configB,
+      matchSeed: 77,
+      openingSeed: 0,
+    );
+    final replay = executor.runFrameworkMatch(
+      configA: configA,
+      configB: configB,
+      matchSeed: 77,
+      openingSeed: 0,
+    );
+
+    expect(first.configA.id, configA.id);
+    expect(first.configB.id, configB.id);
+    expect(first.games, hasLength(2));
+    expect(first.games.every((game) => game.opening == 'cross'), isTrue);
+    expect(first.games.where((game) => game.black == 'a'), hasLength(1));
+    expect(first.games.where((game) => game.black == 'b'), hasLength(1));
+    expect(
+      first.games.every((game) => game.endReason != 'invalidMove'),
+      isTrue,
+    );
+    expect(
+      replay.games.map((game) => game.toJson()).toList(),
+      first.games.map((game) => game.toJson()).toList(),
     );
   });
 

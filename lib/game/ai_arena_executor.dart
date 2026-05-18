@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../models/board_position.dart' show StoneColor;
+import 'ai_algorithm_framework.dart';
 import 'capture_ai.dart';
 import 'ai_arena_ladder.dart';
 import 'difficulty_level.dart';
@@ -23,7 +24,7 @@ class AiArenaExecutor {
     this.captureTarget = 5,
     this.rounds = 12,
     this.maxMoves = 512,
-    this.openingPolicy = 'empty_twist_cross_random_v1',
+    this.openingPolicy = 'empty_cross_twist_cross_random_v1',
   });
 
   final int boardSize;
@@ -124,8 +125,96 @@ class AiArenaExecutor {
     );
   }
 
+  AiMatchResult runFrameworkMatch({
+    required AiAlgorithmConfig configA,
+    required AiAlgorithmConfig configB,
+    required int matchSeed,
+    required int openingSeed,
+  }) {
+    final legacyConfigA = _legacyBattleConfig(configA);
+    final legacyConfigB = _legacyBattleConfig(configB);
+    final games = <AiGameRecord>[];
+    var aWins = 0;
+    var bWins = 0;
+    var draws = 0;
+
+    for (var i = 0; i < rounds; i++) {
+      final aIsBlack = i.isEven;
+      final gameSeed = matchSeed * 1000 + i;
+      final pairSeed = matchSeed * 1000 + (i ~/ 2);
+      final opening = _openingForGame(i, openingSeed);
+      final openingVariant = _openingVariantForGame(i);
+
+      final blackAgent = AiAlgorithmRegistry.createAgent(
+        aIsBlack ? configA : configB,
+        seedOverride: gameSeed * 2,
+      );
+      final whiteAgent = AiAlgorithmRegistry.createAgent(
+        aIsBlack ? configB : configA,
+        seedOverride: gameSeed * 2 + 1,
+      );
+
+      final result = CaptureAiArena.playMatch(
+        blackAgent: blackAgent,
+        whiteAgent: whiteAgent,
+        boardSize: boardSize,
+        captureTarget: captureTarget,
+        maxMoves: maxMoves,
+        initialBoard: _buildOpeningBoard(
+          opening,
+          pairSeed: pairSeed,
+          variant: openingVariant,
+        ),
+      );
+
+      final winnerLabel = switch (result.winner) {
+        final w when w == StoneColor.black => aIsBlack ? 'a' : 'b',
+        final w when w == StoneColor.white => aIsBlack ? 'b' : 'a',
+        _ => 'draw',
+      };
+
+      if (winnerLabel == 'a') {
+        aWins++;
+      } else if (winnerLabel == 'b') {
+        bWins++;
+      } else {
+        draws++;
+      }
+
+      games.add(AiGameRecord(
+        index: i,
+        gameSeed: gameSeed,
+        openingIndex: opening.index,
+        opening: _openingName(opening, openingVariant),
+        black: aIsBlack ? 'a' : 'b',
+        winner: winnerLabel,
+        moves: result.totalMoves,
+        blackCaptures: result.blackCaptures,
+        whiteCaptures: result.whiteCaptures,
+        endReason: result.endReason.name,
+      ));
+    }
+
+    return AiMatchResult(
+      matchSeed: matchSeed,
+      openingSeed: openingSeed,
+      openingPolicy: openingPolicy,
+      boardSize: boardSize,
+      captureTarget: captureTarget,
+      rounds: rounds,
+      maxMoves: maxMoves,
+      configA: legacyConfigA,
+      configB: legacyConfigB,
+      aWins: aWins,
+      bWins: bWins,
+      draws: draws,
+      games: games,
+    );
+  }
+
   _AiArenaOpening _openingForGame(int gameIndex, int openingSeed) {
     if (openingPolicy == 'empty_v1') return _AiArenaOpening.empty;
+    if (openingPolicy == 'cross_v1') return _AiArenaOpening.cross;
     if (openingPolicy == 'twist_cross_v1' ||
         openingPolicy == 'fixed_twist_cross_v1') {
       return _AiArenaOpening.twistCross;
@@ -196,10 +285,25 @@ class AiArenaExecutor {
         board.cells[board.idx(row, col)] = SimBoard.white;
       }
       board.currentPlayer = SimBoard.black;
+    } else if (opening == _AiArenaOpening.cross) {
+      _applyCrossOpening(board);
     } else if (opening == _AiArenaOpening.random) {
       _applyRandomOpening(board, pairSeed);
     }
     return board;
+  }
+
+  void _applyCrossOpening(SimBoard board) {
+    final center = boardSize ~/ 2;
+    if (boardSize < 3) {
+      board.currentPlayer = SimBoard.black;
+      return;
+    }
+    board.cells[board.idx(center - 1, center)] = SimBoard.black;
+    board.cells[board.idx(center + 1, center)] = SimBoard.black;
+    board.cells[board.idx(center, center - 1)] = SimBoard.white;
+    board.cells[board.idx(center, center + 1)] = SimBoard.white;
+    board.currentPlayer = SimBoard.black;
   }
 
   void _applyRandomOpening(SimBoard board, int pairSeed) {
@@ -254,8 +358,19 @@ class AiArenaExecutor {
 
 enum _AiArenaOpening {
   empty,
+  cross,
   twistCross,
   random,
 }
 
 const int _openingSeedSalt = 0x5eed;
+
+AiBattleConfig _legacyBattleConfig(AiAlgorithmConfig config) {
+  return AiBattleConfig(
+    id: config.id,
+    style: config.frameworkId.name,
+    difficulty: config.strengthTier.name,
+    profileVersion: 'ai_algorithm_framework_v1',
+    parameters: config.toJson(),
+  );
+}
