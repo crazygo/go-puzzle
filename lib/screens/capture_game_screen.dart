@@ -4014,7 +4014,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   void initState() {
     super.initState();
     _rippleController = AnimationController(
-      duration: const Duration(milliseconds: 6000),
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -5395,8 +5395,8 @@ class _TapBoard extends StatelessWidget {
 
 /// Draws a water-ripple animation radiating outward from the last-placed stone.
 ///
-/// [progress] runs from 0.0 to 1.0 and covers exactly 2 animation rounds
-/// (0–0.5 = round 1, 0.5–1.0 = round 2). Three concentric rings are staggered
+/// [progress] runs from 0.0 to 1.0 and covers exactly 1 animation round.
+/// Three concentric rings are staggered
 /// at 1/3-round intervals so the board always shows rings at different
 /// expansion stages, like a water droplet ripple.
 ///
@@ -5415,7 +5415,7 @@ class _StoneRipplePainter extends CustomPainter {
   final int row;
   final int col;
 
-  /// 0.0 → 1.0 spanning 2 complete rounds.
+  /// 0.0 → 1.0 spanning 1 complete round.
   final double progress;
 
   // Board layout constants — must match GoBoardPainter / _TapBoard.
@@ -5443,7 +5443,7 @@ class _StoneRipplePainter extends CustomPainter {
     final ringWidth = cellSize * 0.55;
 
     // Derive per-round progress (0–1) that completes twice over the full run.
-    final roundT = (progress * 2) % 1.0;
+    final roundT = progress;
 
     // ---------- filled annular waves ----------
     const ringCount = 3;
