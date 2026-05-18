@@ -21,10 +21,15 @@ enum ScreenshotRecognitionAlgorithm {
   final String label;
   const ScreenshotRecognitionAlgorithm(this.storageValue, this.label);
 
+  static ScreenshotRecognitionAlgorithm get platformDefault =>
+      (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS)
+          ? ScreenshotRecognitionAlgorithm.model
+          : ScreenshotRecognitionAlgorithm.rules;
+
   static ScreenshotRecognitionAlgorithm fromStorageValue(String? value) {
     return ScreenshotRecognitionAlgorithm.values.firstWhere(
       (algorithm) => algorithm.storageValue == value,
-      orElse: () => ScreenshotRecognitionAlgorithm.rules,
+      orElse: () => platformDefault,
     );
   }
 }
@@ -65,7 +70,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _showMoveLog = false;
   BoardCoordinateSystem _boardCoordinateSystem = BoardCoordinateSystem.chinese;
   ScreenshotRecognitionAlgorithm _screenshotRecognitionAlgorithm =
-      ScreenshotRecognitionAlgorithm.rules;
+      ScreenshotRecognitionAlgorithm.platformDefault;
 
   AppVisualTheme get appTheme => _appTheme;
   BoardSizeOption get boardSize => _boardSize;
