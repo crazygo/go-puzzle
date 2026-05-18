@@ -5,8 +5,10 @@ import 'package:flutter/widgets.dart';
 
 import '../models/board_position.dart';
 import '../models/game_state.dart';
+import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_context.dart';
+import '../ui/board_coordinates.dart';
 
 // Board visual constants – shared between painter and widget
 const double _kBoardPadding = 0.5; // padding in cell units
@@ -18,6 +20,7 @@ class GoBoardPainter extends CustomPainter {
   final bool showMoveNumbers;
   final bool showCaptureWarning;
   final AppThemePalette palette;
+  final BoardCoordinateSystem coordinateSystem;
 
   // Stone radius / cell size ratio
   static const double _stoneSizeRatio = 0.48;
@@ -25,6 +28,7 @@ class GoBoardPainter extends CustomPainter {
   GoBoardPainter({
     required this.gameState,
     required this.palette,
+    this.coordinateSystem = BoardCoordinateSystem.chinese,
     this.hintPosition,
     this.showMoveNumbers = false,
     this.showCaptureWarning = true,
@@ -210,7 +214,6 @@ class GoBoardPainter extends CustomPainter {
     double cellSize,
   ) {
     const fontSize = 9.0;
-    const columns = 'ABCDEFGHJKLMNOPQRST'; // skip I
     for (int i = 0; i < n; i++) {
       final x = origin + i * cellSize;
       final y = origin + i * cellSize;
@@ -218,14 +221,22 @@ class GoBoardPainter extends CustomPainter {
       // Column labels (top)
       _drawText(
         canvas,
-        columns[i],
+        boardAxisColumnLabel(
+          col: i,
+          boardSize: n,
+          coordinateSystem: coordinateSystem,
+        ),
         Offset(x, origin - cellSize * 0.35),
         fontSize,
       );
       // Row labels (left) – numbers from bottom (Go convention)
       _drawText(
         canvas,
-        '${n - i}',
+        boardAxisRowLabel(
+          row: i,
+          boardSize: n,
+          coordinateSystem: coordinateSystem,
+        ),
         Offset(origin - cellSize * 0.35, y),
         fontSize,
       );
@@ -365,6 +376,7 @@ class GoBoardPainter extends CustomPainter {
         oldDelegate.hintPosition != hintPosition ||
         oldDelegate.showMoveNumbers != showMoveNumbers ||
         oldDelegate.showCaptureWarning != showCaptureWarning ||
+        oldDelegate.coordinateSystem != coordinateSystem ||
         oldDelegate.palette != palette;
   }
 }
@@ -377,6 +389,7 @@ class GoBoardWidget extends StatelessWidget {
   final bool showMoveNumbers;
   final bool showCaptureWarning;
   final double? size;
+  final BoardCoordinateSystem coordinateSystem;
 
   const GoBoardWidget({
     super.key,
@@ -385,6 +398,7 @@ class GoBoardWidget extends StatelessWidget {
     this.hintPosition,
     this.showMoveNumbers = false,
     this.showCaptureWarning = true,
+    this.coordinateSystem = BoardCoordinateSystem.chinese,
     this.size,
   });
 
@@ -409,6 +423,7 @@ class GoBoardWidget extends StatelessWidget {
                 showMoveNumbers: showMoveNumbers,
                 showCaptureWarning: showCaptureWarning,
                 palette: palette,
+                coordinateSystem: coordinateSystem,
               ),
             ),
           ),
