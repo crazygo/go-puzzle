@@ -4014,7 +4014,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   void initState() {
     super.initState();
     _rippleController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 6000),
       vsync: this,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {

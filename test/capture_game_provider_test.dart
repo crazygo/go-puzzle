@@ -517,13 +517,13 @@ void main() {
       expect(find.text('勝利'), findsNothing);
       expect(find.text('未獲勝'), findsNothing);
 
-      // Advance to just before the 2 000 ms animation ends – no dialog yet.
-      await tester.pump(const Duration(milliseconds: 1900));
+      // Advance to just before the 6 000 ms animation ends – no dialog yet.
+      await tester.pump(const Duration(milliseconds: 5700));
       expect(find.text('勝利'), findsNothing);
 
-      // Cross the 2 000 ms threshold; the animation completes and the dialog
+      // Cross the 6 000 ms threshold; the animation completes and the dialog
       // is shown in the same async continuation.
-      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 500));
       // Let the dialog route build and its entry animation complete.
       await tester.pumpAndSettle();
 
