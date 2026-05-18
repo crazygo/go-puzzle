@@ -2,25 +2,20 @@ import '../providers/settings_provider.dart';
 
 const _internationalColumns = 'ABCDEFGHJKLMNOPQRST';
 const _koreanColumns = [
-  'ㄱ',
-  'ㄲ',
-  'ㄴ',
-  'ㄷ',
-  'ㄸ',
-  'ㄹ',
-  'ㅁ',
-  'ㅂ',
-  'ㅃ',
-  'ㅅ',
-  'ㅆ',
-  'ㅇ',
-  'ㅈ',
-  'ㅉ',
-  'ㅊ',
-  'ㅋ',
-  'ㅌ',
-  'ㅍ',
-  'ㅎ',
+  '가',
+  '나',
+  '다',
+  '라',
+  '마',
+  '바',
+  '사',
+  '아',
+  '자',
+  '차',
+  '카',
+  '타',
+  '파',
+  '하',
 ];
 
 String boardAxisColumnLabel({
@@ -33,8 +28,7 @@ String boardAxisColumnLabel({
     BoardCoordinateSystem.international =>
       col < _internationalColumns.length ? _internationalColumns[col] : '?',
     BoardCoordinateSystem.chinese => '${col + 1}',
-    BoardCoordinateSystem.korean =>
-      col < _koreanColumns.length ? _koreanColumns[col] : '?',
+    BoardCoordinateSystem.korean => _koreanColumnLabel(col),
   };
 }
 
@@ -69,6 +63,12 @@ String formatBoardCoordinate({
     BoardCoordinateSystem.korean => '${row + 1}',
   };
   return '$column$rowLabel';
+}
+
+String _koreanColumnLabel(int col) {
+  final base = _koreanColumns[col % _koreanColumns.length];
+  final cycle = col ~/ _koreanColumns.length;
+  return cycle == 0 ? base : '$base${cycle + 1}';
 }
 
 String _toChineseNumber(int value) {

@@ -511,7 +511,7 @@ void main() {
 
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('复制棋谱为文字'));
+      await tester.tap(find.text('複製棋譜為文字'));
       await tester.pumpAndSettle();
 
       expect(clipboardWrites.last, '1 A1\n2 B2');
@@ -521,7 +521,7 @@ void main() {
 
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('复制棋谱为SGF'));
+      await tester.tap(find.text('複製棋譜為 SGF'));
       await tester.pumpAndSettle();
 
       expect(
