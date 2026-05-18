@@ -72,12 +72,12 @@ void main() {
       rounds: 6,
       maxMoves: 4,
     );
-    final configA = const AiBattleConfig(
+    const configA = AiBattleConfig(
       id: 'adaptive_beginner_v1',
       style: 'adaptive',
       difficulty: 'beginner',
     );
-    final configB = const AiBattleConfig(
+    const configB = AiBattleConfig(
       id: 'hunter_beginner_v1',
       style: 'hunter',
       difficulty: 'beginner',
@@ -141,6 +141,50 @@ void main() {
       replay.games.map((game) => game.toJson()).toList(),
       first.games.map((game) => game.toJson()).toList(),
     );
+    expect(first.games.every((game) => game.fallbackUsed), isTrue);
+    expect(
+      first.games.every((game) => game.failureReason?.contains('b:') ?? false),
+      isTrue,
+    );
+  });
+
+  test('framework match output reports per-opening fallback and timeout status',
+      () {
+    const executor = AiArenaExecutor(
+      boardSize: 9,
+      captureTarget: 5,
+      rounds: 4,
+      maxMoves: 0,
+      openingPolicy: 'empty_v1',
+    );
+    final result = executor.runFrameworkMatch(
+      configA: AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
+      configB: AiAlgorithmRegistry.configById('katago_fallback_weak_v1'),
+      matchSeed: 12,
+      openingSeed: 0,
+    );
+
+    expect(result.games, hasLength(4));
+    expect(result.games.every((game) => game.timedOut), isTrue);
+    expect(result.games.every((game) => !game.illegalMove), isTrue);
+    expect(result.games.every((game) => game.fallbackUsed), isTrue);
+    expect(
+      result.games.every(
+        (game) => game.failureReason == null
+            ? false
+            : game.failureReason!.contains('max_moves_reached') &&
+                game.failureReason!.contains('b:'),
+      ),
+      isTrue,
+    );
+
+    final performance = result.openingPerformance.single;
+    expect(performance.opening, 'empty');
+    expect(performance.games, 4);
+    expect(performance.timeouts, 4);
+    expect(performance.illegalMoves, 0);
+    expect(performance.fallbackGames, 4);
+    expect(result.toJson()['openingPerformance'], isNotEmpty);
   });
 
   test(
@@ -156,12 +200,12 @@ void main() {
       maxMoves: 8,
       openingPolicy: 'random_v1',
     );
-    final configA = const AiBattleConfig(
+    const configA = AiBattleConfig(
       id: 'adaptive_beginner_v1',
       style: 'adaptive',
       difficulty: 'beginner',
     );
-    final configB = const AiBattleConfig(
+    const configB = AiBattleConfig(
       id: 'hunter_beginner_v1',
       style: 'hunter',
       difficulty: 'beginner',

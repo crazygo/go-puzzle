@@ -76,6 +76,10 @@ class AiGameRecord {
     required this.blackCaptures,
     required this.whiteCaptures,
     required this.endReason,
+    this.illegalMove = false,
+    this.timedOut = false,
+    this.fallbackUsed = false,
+    this.failureReason,
   });
 
   final int index;
@@ -95,6 +99,10 @@ class AiGameRecord {
   final int blackCaptures;
   final int whiteCaptures;
   final String endReason;
+  final bool illegalMove;
+  final bool timedOut;
+  final bool fallbackUsed;
+  final String? failureReason;
 
   Map<String, dynamic> toJson() => {
         'index': index,
@@ -107,6 +115,10 @@ class AiGameRecord {
         'blackCaptures': blackCaptures,
         'whiteCaptures': whiteCaptures,
         'endReason': endReason,
+        'illegalMove': illegalMove,
+        'timedOut': timedOut,
+        'fallbackUsed': fallbackUsed,
+        if (failureReason != null) 'failureReason': failureReason,
       };
 
   factory AiGameRecord.fromJson(Map<String, dynamic> json) {
@@ -121,8 +133,50 @@ class AiGameRecord {
       blackCaptures: json['blackCaptures'] as int,
       whiteCaptures: json['whiteCaptures'] as int,
       endReason: json['endReason'] as String,
+      illegalMove: json['illegalMove'] as bool? ?? false,
+      timedOut: json['timedOut'] as bool? ?? false,
+      fallbackUsed: json['fallbackUsed'] as bool? ?? false,
+      failureReason: json['failureReason'] as String?,
     );
   }
+}
+
+class AiOpeningPerformance {
+  const AiOpeningPerformance({
+    required this.opening,
+    required this.games,
+    required this.aWins,
+    required this.bWins,
+    required this.draws,
+    required this.illegalMoves,
+    required this.timeouts,
+    required this.fallbackGames,
+  });
+
+  final String opening;
+  final int games;
+  final int aWins;
+  final int bWins;
+  final int draws;
+  final int illegalMoves;
+  final int timeouts;
+  final int fallbackGames;
+
+  double get aWinRate => games == 0 ? 0 : aWins / games;
+  double get bWinRate => games == 0 ? 0 : bWins / games;
+
+  Map<String, dynamic> toJson() => {
+        'opening': opening,
+        'games': games,
+        'aWins': aWins,
+        'bWins': bWins,
+        'draws': draws,
+        'aWinRate': aWinRate,
+        'bWinRate': bWinRate,
+        'illegalMoves': illegalMoves,
+        'timeouts': timeouts,
+        'fallbackGames': fallbackGames,
+      };
 }
 
 /// Raw, reproducible executor output. Contains no promotion or ranking
@@ -161,6 +215,47 @@ class AiMatchResult {
   double get aWinRate => rounds == 0 ? 0 : aWins / rounds;
   double get bWinRate => rounds == 0 ? 0 : bWins / rounds;
 
+  List<AiOpeningPerformance> get openingPerformance {
+    final grouped = <String, List<AiGameRecord>>{};
+    for (final game in games) {
+      grouped.putIfAbsent(game.opening, () => []).add(game);
+    }
+    final entries = <AiOpeningPerformance>[];
+    for (final entry in grouped.entries) {
+      var aWins = 0;
+      var bWins = 0;
+      var draws = 0;
+      var illegalMoves = 0;
+      var timeouts = 0;
+      var fallbackGames = 0;
+      for (final game in entry.value) {
+        switch (game.winner) {
+          case 'a':
+            aWins++;
+          case 'b':
+            bWins++;
+          default:
+            draws++;
+        }
+        if (game.illegalMove) illegalMoves++;
+        if (game.timedOut) timeouts++;
+        if (game.fallbackUsed) fallbackGames++;
+      }
+      entries.add(AiOpeningPerformance(
+        opening: entry.key,
+        games: entry.value.length,
+        aWins: aWins,
+        bWins: bWins,
+        draws: draws,
+        illegalMoves: illegalMoves,
+        timeouts: timeouts,
+        fallbackGames: fallbackGames,
+      ));
+    }
+    entries.sort((a, b) => a.opening.compareTo(b.opening));
+    return entries;
+  }
+
   Map<String, dynamic> toJson() => {
         'matchSeed': matchSeed,
         'openingSeed': openingSeed,
@@ -177,6 +272,8 @@ class AiMatchResult {
         'aWinRate': aWinRate,
         'bWinRate': bWinRate,
         'games': games.map((g) => g.toJson()).toList(),
+        'openingPerformance':
+            openingPerformance.map((entry) => entry.toJson()).toList(),
       };
 
   factory AiMatchResult.fromJson(Map<String, dynamic> json) {

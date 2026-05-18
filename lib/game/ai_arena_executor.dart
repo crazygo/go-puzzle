@@ -105,6 +105,9 @@ class AiArenaExecutor {
         blackCaptures: result.blackCaptures,
         whiteCaptures: result.whiteCaptures,
         endReason: result.endReason.name,
+        illegalMove: result.endReason == CaptureAiMatchEndReason.invalidMove,
+        timedOut: result.endReason == CaptureAiMatchEndReason.maxMovesReached,
+        failureReason: _failureReason(result.endReason),
       ));
     }
 
@@ -192,6 +195,14 @@ class AiArenaExecutor {
         blackCaptures: result.blackCaptures,
         whiteCaptures: result.whiteCaptures,
         endReason: result.endReason.name,
+        illegalMove: result.endReason == CaptureAiMatchEndReason.invalidMove,
+        timedOut: result.endReason == CaptureAiMatchEndReason.maxMovesReached,
+        fallbackUsed: configA.usesFallback || configB.usesFallback,
+        failureReason: _frameworkFailureReason(
+          result.endReason,
+          configA,
+          configB,
+        ),
       ));
     }
 
@@ -373,4 +384,30 @@ AiBattleConfig _legacyBattleConfig(AiAlgorithmConfig config) {
     profileVersion: 'ai_algorithm_framework_v1',
     parameters: config.toJson(),
   );
+}
+
+String? _failureReason(CaptureAiMatchEndReason endReason) {
+  return switch (endReason) {
+    CaptureAiMatchEndReason.captureTargetReached => null,
+    CaptureAiMatchEndReason.noLegalMove => 'agent_returned_no_legal_move',
+    CaptureAiMatchEndReason.invalidMove => 'agent_returned_invalid_move',
+    CaptureAiMatchEndReason.maxMovesReached => 'max_moves_reached',
+  };
+}
+
+String? _frameworkFailureReason(
+  CaptureAiMatchEndReason endReason,
+  AiAlgorithmConfig configA,
+  AiAlgorithmConfig configB,
+) {
+  final base = _failureReason(endReason);
+  final fallbackReasons = [
+    if (configA.failureMode != null) 'a:${configA.failureMode}',
+    if (configB.failureMode != null) 'b:${configB.failureMode}',
+  ];
+  if (base == null && fallbackReasons.isEmpty) return null;
+  return [
+    if (base != null) base,
+    ...fallbackReasons,
+  ].join(';');
 }
