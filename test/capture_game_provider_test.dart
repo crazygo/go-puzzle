@@ -471,11 +471,13 @@ void main() {
         minMoveDelay: Duration.zero,
       );
       final settings = SettingsProvider();
-      await settings.setBoardCoordinateSystem(BoardCoordinateSystem.international);
+      await settings.setBoardCoordinateSystem(
+        BoardCoordinateSystem.international,
+      );
 
       final clipboardWrites = <String>[];
-      final messenger = TestDefaultBinaryMessengerBinding
-          .instance.defaultBinaryMessenger;
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
       messenger.setMockMethodCallHandler(SystemChannels.platform,
           (MethodCall call) async {
         if (call.method == 'Clipboard.setData') {
@@ -511,28 +513,374 @@ void main() {
 
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('顯示棋譜'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 A1'), findsOneWidget);
+      expect(find.text('2 B2'), findsOneWidget);
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      expect(find.text('複製文字棋譜'), findsNothing);
+      expect(find.text('複製 SGF'), findsNothing);
+      expect(find.text('複製棋譜為文字'), findsOneWidget);
+      expect(find.text('複製棋譜為 SGF'), findsOneWidget);
       await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(clipboardWrites.last, '01 B[A1]\n02 W[B2]\n');
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為 SGF'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(
+        clipboardWrites.last,
+        '(;FF[4]GM[1]SZ[9];B[ai];W[bh])',
+      );
+    });
+
+    testWidgets('copies initial position checkpoint before opening moves',
+        (tester) async {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.cross,
+        minMoveDelay: const Duration(seconds: 30),
+        maxMoveDelay: const Duration(seconds: 30),
+      );
+      final settings = SettingsProvider();
+
+      final clipboardWrites = <String>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform,
+          (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          final payload = Map<String, dynamic>.from(call.arguments as Map);
+          clipboardWrites.add(payload['text'] as String? ?? '');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: const CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              initialMode: CaptureInitialMode.cross,
+            ),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
-      expect(clipboardWrites.last, '1 A1\n2 B2');
-      expect(find.text('已複製'), findsOneWidget);
-      await tester.tap(find.text('好'));
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(
+        clipboardWrites.last,
+        '01 B[5四]\n02 W[4五]\n03 B[5六]\n04 W[6五]\n---\n',
+      );
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為 SGF'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(
+        clipboardWrites.last,
+        '(;FF[4]GM[1]SZ[9]AB[ed][ef]AW[de][fe])',
+      );
+
+      await provider.placeStone(4, 4);
+      await tester.pump();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(
+        clipboardWrites.last,
+        '01 B[5四]\n02 W[4五]\n03 B[5六]\n04 W[6五]\n---\n05 B[5五]\n',
+      );
+    });
+
+    testWidgets('copies each opening type with the right initial move count',
+        (tester) async {
+      final clipboardWrites = <String>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform,
+          (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          final payload = Map<String, dynamic>.from(call.arguments as Map);
+          clipboardWrites.add(payload['text'] as String? ?? '');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      Future<void> pumpGame({
+        required CaptureGameProvider provider,
+        required CaptureInitialMode initialMode,
+        List<List<StoneColor>>? initialBoardOverride,
+      }) async {
+        final settings = SettingsProvider();
+        await tester.pumpWidget(
+          CupertinoApp(
+            home: MultiProvider(
+              providers: [
+                ChangeNotifierProvider.value(value: settings),
+                ChangeNotifierProvider.value(value: provider),
+              ],
+              child: CaptureGamePlayScreen(
+                aiRank: AiRankLevel.min,
+                captureTarget: 5,
+                initialMode: initialMode,
+                initialBoardOverride: initialBoardOverride,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> copyText() async {
+        await tester.tap(find.text('操作'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('複製棋譜為文字'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 1500));
+      }
+
+      final twistProvider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.twistCross,
+        minMoveDelay: const Duration(seconds: 30),
+        maxMoveDelay: const Duration(seconds: 30),
+      );
+      await pumpGame(
+        provider: twistProvider,
+        initialMode: CaptureInitialMode.twistCross,
+      );
+      await copyText();
+      expect(
+        clipboardWrites.last,
+        '01 B[5五]\n02 W[6五]\n03 B[6四]\n04 W[5四]\n---\n',
+      );
+
+      await twistProvider.placeStone(2, 2);
+      await tester.pump();
+      await copyText();
+      expect(
+        clipboardWrites.last,
+        '01 B[5五]\n02 W[6五]\n03 B[6四]\n04 W[5四]\n---\n05 B[3三]\n',
+      );
+
+      final customBoard = List.generate(
+        9,
+        (_) => List<StoneColor>.filled(9, StoneColor.empty),
+      );
+      customBoard[0][0] = StoneColor.black;
+      customBoard[0][1] = StoneColor.white;
+      customBoard[1][1] = StoneColor.black;
+      customBoard[1][2] = StoneColor.white;
+      final customProvider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        initialBoardOverride: customBoard,
+        minMoveDelay: Duration.zero,
+      );
+      await pumpGame(
+        provider: customProvider,
+        initialMode: CaptureInitialMode.setup,
+        initialBoardOverride: customBoard,
+      );
+      await copyText();
+      expect(
+        clipboardWrites.last,
+        '01 B[1一]\n02 W[2一]\n03 B[2二]\n04 W[3二]\n---\n',
+      );
+
+      final emptyProvider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.empty,
+        minMoveDelay: Duration.zero,
+      );
+      await pumpGame(
+        provider: emptyProvider,
+        initialMode: CaptureInitialMode.empty,
+      );
+      final writesBeforeDisabledCopy = clipboardWrites.length;
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pump();
+      expect(clipboardWrites.length, writesBeforeDisabledCopy);
+    });
+
+    testWidgets('copies forked move log with checkpoint and continued numbers',
+        (tester) async {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        minMoveDelay: Duration.zero,
+      );
+      final settings = SettingsProvider();
+
+      final clipboardWrites = <String>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform,
+          (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          final payload = Map<String, dynamic>.from(call.arguments as Map);
+          clipboardWrites.add(payload['text'] as String? ?? '');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: const CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              initialMode: CaptureInitialMode.setup,
+              inheritedMoves: [
+                [8, 0],
+                [7, 1],
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(clipboardWrites.last, '01 B[1九]\n02 W[2八]\n---\n');
+
+      await provider.placeStone(6, 2);
+      await provider.placeStone(5, 3);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(
+        clipboardWrites.last,
+        '01 B[1九]\n02 W[2八]\n---\n03 B[3七]\n04 W[4六]\n',
+      );
+    });
+
+    testWidgets('copies SGF immediately after fork when inherited moves exist',
+        (tester) async {
+      final board = List.generate(
+        9,
+        (_) => List<StoneColor>.filled(9, StoneColor.empty),
+      );
+      board[8][0] = StoneColor.black;
+      board[7][1] = StoneColor.white;
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        initialBoardOverride: board,
+        minMoveDelay: Duration.zero,
+      );
+      final settings = SettingsProvider();
+
+      final clipboardWrites = <String>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform,
+          (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          final payload = Map<String, dynamic>.from(call.arguments as Map);
+          clipboardWrites.add(payload['text'] as String? ?? '');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              initialMode: CaptureInitialMode.setup,
+              initialBoardOverride: board,
+              inheritedMoves: [
+                [8, 0],
+                [7, 1],
+              ],
+            ),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('複製棋譜為 SGF'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
 
-      expect(
-        clipboardWrites.last,
-        '(;FF[4]GM[1]CA[UTF-8]AP[go-puzzle]SZ[9];B[ai];W[bh])',
-      );
-      expect(find.text('已複製'), findsOneWidget);
+      expect(clipboardWrites.last, '(;FF[4]GM[1]SZ[9]AB[ai]AW[bh])');
     });
 
-    testWidgets(
-        'ripple animation runs before result dialog appears on win',
+    testWidgets('ripple animation runs before result dialog appears on win',
         (tester) async {
       // Build a 9×9 board where black can win immediately with captureTarget=1.
       // White stone at (4,4) has three liberties blocked by black stones; the

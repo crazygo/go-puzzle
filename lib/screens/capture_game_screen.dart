@@ -439,6 +439,7 @@ class _ForkRequest {
   const _ForkRequest({
     required this.forkBoard,
     required this.initialPlayerOverride,
+    required this.inheritedMoves,
     required this.boardSize,
     required this.captureTarget,
     required this.difficulty,
@@ -450,6 +451,7 @@ class _ForkRequest {
 
   final List<List<StoneColor>> forkBoard;
   final StoneColor initialPlayerOverride;
+  final List<List<int>> inheritedMoves;
   final int boardSize;
   final int captureTarget;
   final DifficultyLevel difficulty;
@@ -1447,6 +1449,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                 initialMode: fork.initialMode,
                 initialBoardOverride: fork.forkBoard,
                 initialPlayerOverride: fork.initialPlayerOverride,
+                inheritedMoves: fork.inheritedMoves,
               ),
             ),
           ),
@@ -3979,6 +3982,7 @@ class CaptureGamePlayScreen extends StatefulWidget {
     this.initialMode = CaptureInitialMode.cross,
     this.initialBoardOverride,
     this.initialPlayerOverride,
+    this.inheritedMoves = const [],
   });
 
   final int aiRank;
@@ -3993,6 +3997,7 @@ class CaptureGamePlayScreen extends StatefulWidget {
   /// with White to move. Persisted in [GameRecord] so history replay is
   /// correct.
   final StoneColor? initialPlayerOverride;
+  final List<List<int>> inheritedMoves;
 
   @override
   State<CaptureGamePlayScreen> createState() => _CaptureGamePlayScreenState();
@@ -4314,7 +4319,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     final canUndo = provider.canUndo;
     final canHint = !_isLoadingHints;
     final canMarkMove = provider.moveLog.isNotEmpty;
-    final canCopyMoveLog = provider.moveLog.isNotEmpty;
+    final canCopyMoveLog = provider.moveLog.isNotEmpty ||
+        widget.inheritedMoves.isNotEmpty ||
+        _initialPositionMoves(provider).isNotEmpty;
     final currentMoveMarked =
         _markedMoveNumbers.contains(provider.moveLog.length);
     final showCaptureWarning = settings?.showCaptureWarning ?? true;
@@ -4335,8 +4342,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     const menuItemHeight = 48.0;
     const menuDividerHeight = 0.6;
     const menuItemCount = 8;
-    const menuHeight =
-        menuItemCount * menuItemHeight +
+    const menuHeight = menuItemCount * menuItemHeight +
         (menuItemCount - 1) * menuDividerHeight;
     const edgePadding = 12.0;
     final media = MediaQuery.of(context);
@@ -4417,7 +4423,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                 },
                 onCopyText: () {
                   Navigator.of(menuContext).pop();
-                  _copyMovesAsText(provider);
+                  _copyMovesAsText(provider, coordinateSystem);
                 },
                 onCopySgf: () {
                   Navigator.of(menuContext).pop();
@@ -4510,8 +4516,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     BuildContext context,
     CaptureGameProvider provider,
   ) async {
-    final lastMove =
-        provider.moveLog.isNotEmpty ? provider.moveLog.last : null;
+    final lastMove = provider.moveLog.isNotEmpty ? provider.moveLog.last : null;
     setState(() => _rippleMove = lastMove);
     _rippleController.reset();
     await _rippleController.forward();
@@ -4784,6 +4789,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
         _ForkRequest(
           forkBoard: forkBoard,
           initialPlayerOverride: nextPlayer,
+          inheritedMoves: provider.moveLog
+              .take(_reviewMoveIndex!)
+              .map((move) => List<int>.from(move))
+              .toList(),
           boardSize: provider.boardSize,
           captureTarget: provider.captureTarget,
           difficulty: provider.difficulty,
@@ -4826,25 +4835,131 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     overlay.insert(entry);
   }
 
-  Future<void> _copyMovesAsText(CaptureGameProvider provider) async {
+  Future<void> _copyMovesAsText(
+    CaptureGameProvider provider,
+    BoardCoordinateSystem coordinateSystem,
+  ) async {
+    final inheritedMoves = widget.inheritedMoves.isNotEmpty
+        ? widget.inheritedMoves
+        : _initialPositionMoves(provider);
     final moves = provider.moveLog;
-    if (moves.isEmpty) return;
+    if (inheritedMoves.isEmpty && moves.isEmpty) return;
     final boardSize = provider.boardSize;
-    final total = moves.length;
-    final padWidth = total.toString().length;
+    final total = inheritedMoves.length + moves.length;
+    final padWidth = total.toString().length < 2 ? 2 : total.toString().length;
+    final initialPlayer = provider.initialPlayerOverride ?? StoneColor.black;
     final buffer = StringBuffer();
-    for (var i = 0; i < moves.length; i++) {
+    for (var i = 0; i < inheritedMoves.length; i++) {
       if (i > 0) buffer.write('\n');
-      final numStr = '${i + 1}'.padLeft(padWidth, '0');
-      buffer.write('$numStr ${_formatChineseCoordinate(moves[i], boardSize)}');
+      buffer.write(
+        _formatMoveTextLine(
+          moveNumber: i + 1,
+          move: inheritedMoves[i],
+          boardSize: boardSize,
+          coordinateSystem: coordinateSystem,
+          initialPlayer: initialPlayer,
+          padWidth: padWidth,
+        ),
+      );
     }
-    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+    if (inheritedMoves.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write('\n');
+      buffer.write('---');
+    }
+    for (var i = 0; i < moves.length; i++) {
+      if (buffer.isNotEmpty) buffer.write('\n');
+      buffer.write(
+        _formatMoveTextLine(
+          moveNumber: inheritedMoves.length + i + 1,
+          move: moves[i],
+          boardSize: boardSize,
+          coordinateSystem: coordinateSystem,
+          initialPlayer: initialPlayer,
+          padWidth: padWidth,
+        ),
+      );
+    }
+    await Clipboard.setData(ClipboardData(text: '${buffer.toString()}\n'));
     if (mounted) _showCopyBanner('棋譜已複製');
+  }
+
+  String _formatMoveTextLine({
+    required int moveNumber,
+    required List<int> move,
+    required int boardSize,
+    required BoardCoordinateSystem coordinateSystem,
+    required StoneColor initialPlayer,
+    required int padWidth,
+  }) {
+    final numStr = '$moveNumber'.padLeft(padWidth, '0');
+    final isInitialColor = moveNumber.isOdd;
+    final color = initialPlayer == StoneColor.black
+        ? (isInitialColor ? 'B' : 'W')
+        : (isInitialColor ? 'W' : 'B');
+    final coordinate = _formatBoardCoordinate(
+      move,
+      boardSize,
+      coordinateSystem,
+    );
+    return '$numStr $color[$coordinate]';
+  }
+
+  List<List<int>> _initialPositionMoves(CaptureGameProvider provider) {
+    if (provider.initialBoardOverride == null) {
+      final center = provider.boardSize ~/ 2;
+      if (center <= 0 || center >= provider.boardSize - 1) return const [];
+      return switch (provider.initialMode) {
+        CaptureInitialMode.cross => [
+            [center - 1, center],
+            [center, center - 1],
+            [center + 1, center],
+            [center, center + 1],
+          ],
+        CaptureInitialMode.twistCross => [
+            [center, center],
+            [center, center + 1],
+            [center - 1, center + 1],
+            [center - 1, center],
+          ],
+        CaptureInitialMode.empty || CaptureInitialMode.setup => const [],
+      };
+    }
+
+    final board = _buildInitialBoard(provider);
+    final blackMoves = <List<int>>[];
+    final whiteMoves = <List<int>>[];
+    for (var row = 0; row < provider.boardSize; row++) {
+      for (var col = 0; col < provider.boardSize; col++) {
+        final stone = board[row][col];
+        if (stone == StoneColor.black) {
+          blackMoves.add([row, col]);
+        } else if (stone == StoneColor.white) {
+          whiteMoves.add([row, col]);
+        }
+      }
+    }
+
+    final moves = <List<int>>[];
+    final blackQueue = List<List<int>>.from(blackMoves);
+    final whiteQueue = List<List<int>>.from(whiteMoves);
+    var nextColor = provider.initialPlayerOverride ?? StoneColor.black;
+    while (blackQueue.isNotEmpty || whiteQueue.isNotEmpty) {
+      final queue = nextColor == StoneColor.black ? blackQueue : whiteQueue;
+      final fallbackQueue =
+          nextColor == StoneColor.black ? whiteQueue : blackQueue;
+      if (queue.isNotEmpty) {
+        moves.add(queue.removeAt(0));
+      } else if (fallbackQueue.isNotEmpty) {
+        moves.add(fallbackQueue.removeAt(0));
+      }
+      nextColor =
+          nextColor == StoneColor.black ? StoneColor.white : StoneColor.black;
+    }
+    return moves;
   }
 
   Future<void> _copyMovesAsSgf(CaptureGameProvider provider) async {
     final moves = provider.moveLog;
-    if (moves.isEmpty) return;
     final boardSize = provider.boardSize;
 
     // Reconstruct the initial board position.
@@ -5104,12 +5219,30 @@ String _formatChineseCoordinate(List<int> move, int boardSize) {
     return '-';
   }
   const chineseNums = [
-    '一', '二', '三', '四', '五', '六', '七', '八', '九', '十',
-    '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九',
+    '一',
+    '二',
+    '三',
+    '四',
+    '五',
+    '六',
+    '七',
+    '八',
+    '九',
+    '十',
+    '十一',
+    '十二',
+    '十三',
+    '十四',
+    '十五',
+    '十六',
+    '十七',
+    '十八',
+    '十九',
   ];
   final rowFromBottom = boardSize - row - 1;
-  final rowLabel =
-      rowFromBottom < chineseNums.length ? chineseNums[rowFromBottom] : '$rowFromBottom';
+  final rowLabel = rowFromBottom < chineseNums.length
+      ? chineseNums[rowFromBottom]
+      : '$rowFromBottom';
   return '${col + 1}$rowLabel';
 }
 
@@ -5119,7 +5252,6 @@ String _toSgfCoord(int col, int row) {
   return '${String.fromCharCode('a'.codeUnitAt(0) + col)}'
       '${String.fromCharCode('a'.codeUnitAt(0) + row)}';
 }
-
 
 class _CopyBannerOverlay extends StatefulWidget {
   const _CopyBannerOverlay({
@@ -5174,8 +5306,7 @@ class _CopyBannerOverlayState extends State<_CopyBannerOverlay>
           opacity: _opacity,
           child: Center(
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
                 color: const Color(0xE6333333),
                 borderRadius: BorderRadius.circular(20),
@@ -5196,7 +5327,6 @@ class _CopyBannerOverlayState extends State<_CopyBannerOverlay>
     );
   }
 }
-
 
 class _MoveLogStrip extends StatefulWidget {
   const _MoveLogStrip({
@@ -5488,18 +5618,6 @@ class _OperationContextMenu extends StatelessWidget {
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
-              text: '複製文字棋譜',
-              enabled: canMarkMove,
-              onPressed: onCopyText,
-            ),
-            _OperationMenuDivider(),
-            _OperationMenuItem(
-              text: '複製 SGF',
-              enabled: canMarkMove,
-              onPressed: onCopySgf,
-            ),
-            _OperationMenuDivider(),
-            _OperationMenuItem(
               text: '後退一手',
               enabled: canUndo,
               onPressed: onUndo,
@@ -5714,8 +5832,7 @@ class _TapBoard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final boardSizePx = constraints.biggest.shortestSide;
-        final showRipple =
-            rippleMove != null && rippleAnimation != null;
+        final showRipple = rippleMove != null && rippleAnimation != null;
         return GestureDetector(
           onTapUp: enabled
               ? (d) => _handleTap(d.localPosition, boardSizePx)
@@ -5868,8 +5985,7 @@ class _StoneRipplePainter extends CustomPainter {
       final outerR = maxRadius * phase;
       // How close is the leading edge to the stone's circumference?
       final edgeDist = (outerR - stoneRadius).abs();
-      final proximity =
-          (1.0 - (edgeDist / (cellSize * 1.2)).clamp(0.0, 1.0));
+      final proximity = (1.0 - (edgeDist / (cellSize * 1.2)).clamp(0.0, 1.0));
       final contribution = proximity * (1.0 - phase);
       if (contribution > maxGlow) maxGlow = contribution;
     }
