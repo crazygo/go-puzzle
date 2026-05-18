@@ -22,6 +22,7 @@ frameworks under the five-capture rule.
 | framework-arena-v1 | 2026-05-19 | framework arena | existing framework configs | Prove arena can run framework configs directly and cover the `cross` opening in the default mixed policy | `empty_cross_twist_cross_random_v1`; `cross_v1`; framework agent seed overrides per game | `flutter test test/ai_arena_executor_test.dart test/ai_algorithm_framework_test.dart test/ai_arena_resume_test.dart`; `flutter analyze --no-fatal-infos --no-fatal-warnings` | 32 tests passed; analyzer exited successfully with non-fatal existing warnings/infos | Good structural slice | Initial framework smoke uses weak configs for speed. A heavier hybrid-vs-weak strength proof remains a separate experiment. |
 | tactical-analyzer-v1 | 2026-05-19 | hybridTactical extension | neutral/default analyzer | Add extension point for ladder, twist-clamp, and loss-cutting analysis without changing existing move choices | `NeutralTacticalAnalyzer`; low-confidence `ladderRisk` probe with confidence 0.40 | `flutter test test/ai_algorithm_framework_test.dart`; `flutter analyze --no-fatal-infos --no-fatal-warnings` | 7 tests passed; analyzer exited successfully with non-fatal existing warnings/infos | Good extension slice | Neutral and low-confidence tactical analysis are verified to defer to the wrapped bot. |
 | arena-output-v1 | 2026-05-19 | framework arena | existing framework configs | Add failure-aware result fields and per-opening performance summaries for later ranking/evaluation output | `illegalMove`, `timedOut`, `fallbackUsed`, `failureReason`, `openingPerformance` | `flutter test test/ai_arena_executor_test.dart test/ai_arena_resume_test.dart` | 28 tests passed | Good reporting slice | This does not tune a bot config. It makes timeout/fallback/failure evidence visible so future strength experiments can be compared without reading raw game logs. |
+| framework-evaluation-summary-v1 | 2026-05-19 | framework arena | existing framework configs | Add selected-config round-robin aggregation with pairwise summaries and overall ranking output | Pairwise once per selected config pair; deterministic per-pair seed offsets; ranking by match wins, game win rate, then config id | `flutter test test/ai_arena_executor_test.dart test/ai_arena_ladder_test.dart test/ai_arena_resume_test.dart` | 50 tests passed | Good reporting slice | The first assertion over-constrained opening count; shifted seeds correctly expanded aggregate openings. Final test checks required openings and schema fields instead. |
 
 ## Good Experiments
 
@@ -37,6 +38,9 @@ frameworks under the five-capture rule.
 - `arena-output-v1`: exposes per-game failure causes and per-opening aggregate
   status, making weak/fallback experiments auditable without changing bot
   behavior.
+- `framework-evaluation-summary-v1`: produces a stable comparison artifact for
+  selected framework configs, including raw matches, pairwise rates, rankings,
+  and aggregate opening performance.
 
 ## Bad Experiments
 
@@ -47,6 +51,10 @@ frameworks under the five-capture rule.
   against `katago_fallback_weak_v1` with capture target 5 made the unit-level
   framework replay test take about a minute. Structural tests now use weak
   configs; strength proof should run as an explicit experiment.
+- Over-specific aggregate opening assertion: assuming three pairwise matches
+  with shifted seeds would only include `empty` and `cross` was wrong. The
+  aggregate may include random and twist-cross variants; tests now assert
+  required coverage rather than an exact two-opening list.
 
 ## Open Questions
 

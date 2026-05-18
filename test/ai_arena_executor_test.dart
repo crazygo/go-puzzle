@@ -187,6 +187,50 @@ void main() {
     expect(result.toJson()['openingPerformance'], isNotEmpty);
   });
 
+  test('framework evaluation summarizes selected pairwise matches and ranking',
+      () {
+    const executor = AiArenaExecutor(
+      boardSize: 9,
+      captureTarget: 1,
+      rounds: 4,
+      maxMoves: 8,
+      openingPolicy: 'empty_cross_twist_cross_random_v1',
+    );
+    final summary = executor.runFrameworkEvaluation(
+      configs: [
+        AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
+        AiAlgorithmRegistry.configById('mcts_counter_weak_v1'),
+        AiAlgorithmRegistry.configById('katago_fallback_weak_v1'),
+      ],
+      matchSeed: 30,
+      openingSeed: 0,
+    );
+
+    expect(summary.matches, hasLength(3));
+    expect(summary.pairwise, hasLength(3));
+    expect(summary.rankings, hasLength(3));
+    expect(
+      summary.openingPerformance.map((entry) => entry.opening),
+      containsAll(['cross', 'empty']),
+    );
+    expect(summary.pairwise.every((entry) => entry.games == 4), isTrue);
+    expect(
+      summary.pairwise.any((entry) => entry.fallbackGames == entry.games),
+      isTrue,
+    );
+    expect(
+      summary.rankings.map((entry) => entry.rank).toList(),
+      [1, 2, 3],
+    );
+    expect(summary.toJson()['matches'], hasLength(3));
+    expect(summary.toJson()['pairwise'], hasLength(3));
+    expect(summary.toJson()['rankings'], hasLength(3));
+    expect(
+      summary.toJson()['openingPerformance'],
+      hasLength(greaterThanOrEqualTo(2)),
+    );
+  });
+
   test(
       'random opening policy uses pair-based board seed so color-swapped games share the same opening',
       () {

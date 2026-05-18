@@ -223,6 +223,37 @@ class AiArenaExecutor {
     );
   }
 
+  /// Runs every selected framework config against every other selected config
+  /// exactly once and returns aggregate evaluation output.
+  AiArenaEvaluationSummary runFrameworkEvaluation({
+    required List<AiAlgorithmConfig> configs,
+    required int matchSeed,
+    required int openingSeed,
+  }) {
+    if (configs.length < 2) {
+      throw ArgumentError.value(
+        configs.length,
+        'configs.length',
+        'At least two configs are required for pairwise evaluation.',
+      );
+    }
+
+    final matches = <AiMatchResult>[];
+    var pairIndex = 0;
+    for (var i = 0; i < configs.length - 1; i++) {
+      for (var j = i + 1; j < configs.length; j++) {
+        matches.add(runFrameworkMatch(
+          configA: configs[i],
+          configB: configs[j],
+          matchSeed: matchSeed + pairIndex * 7919,
+          openingSeed: openingSeed + pairIndex * 1337,
+        ));
+        pairIndex++;
+      }
+    }
+    return AiArenaEvaluationSummary.fromMatches(matches);
+  }
+
   _AiArenaOpening _openingForGame(int gameIndex, int openingSeed) {
     if (openingPolicy == 'empty_v1') return _AiArenaOpening.empty;
     if (openingPolicy == 'cross_v1') return _AiArenaOpening.cross;
