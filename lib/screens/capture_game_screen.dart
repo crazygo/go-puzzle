@@ -4331,7 +4331,13 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     );
     final buttonRect = buttonTopLeft & buttonBox.size;
     const menuWidth = 178.0;
-    const menuHeight = 390.0;
+    // 8 items × 48 px each + 7 dividers × 0.6 px each
+    const menuItemHeight = 48.0;
+    const menuDividerHeight = 0.6;
+    const menuItemCount = 8;
+    const menuHeight =
+        menuItemCount * menuItemHeight +
+        (menuItemCount - 1) * menuDividerHeight;
     const edgePadding = 12.0;
     final media = MediaQuery.of(context);
     final preferredTop = buttonRect.top - menuHeight - 8;
@@ -4411,11 +4417,11 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                 },
                 onCopyText: () {
                   Navigator.of(menuContext).pop();
-                  unawaited(_copyMoveLogAsText(provider, coordinateSystem));
+                  _copyMovesAsText(provider);
                 },
                 onCopySgf: () {
                   Navigator.of(menuContext).pop();
-                  unawaited(_copyMoveLogAsSgf(provider));
+                  _copyMovesAsSgf(provider);
                 },
               ),
             ),
@@ -4807,6 +4813,95 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
       ),
     );
   }
+
+  void _showCopyBanner(String message) {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _CopyBannerOverlay(
+        message: message,
+        onDone: () => entry.remove(),
+      ),
+    );
+    overlay.insert(entry);
+  }
+
+  Future<void> _copyMovesAsText(CaptureGameProvider provider) async {
+    final moves = provider.moveLog;
+    if (moves.isEmpty) return;
+    final boardSize = provider.boardSize;
+    final total = moves.length;
+    final padWidth = total.toString().length;
+    final buffer = StringBuffer();
+    for (var i = 0; i < moves.length; i++) {
+      if (i > 0) buffer.write('\n');
+      final numStr = '${i + 1}'.padLeft(padWidth, '0');
+      buffer.write('$numStr ${_formatChineseCoordinate(moves[i], boardSize)}');
+    }
+    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+    if (mounted) _showCopyBanner('棋譜已複製');
+  }
+
+  Future<void> _copyMovesAsSgf(CaptureGameProvider provider) async {
+    final moves = provider.moveLog;
+    if (moves.isEmpty) return;
+    final boardSize = provider.boardSize;
+
+    // Reconstruct the initial board position.
+    final initialBoard = List.generate(
+      boardSize,
+      (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
+    );
+    if (provider.initialBoardOverride != null) {
+      for (int r = 0; r < boardSize; r++) {
+        for (int c = 0; c < boardSize; c++) {
+          initialBoard[r][c] = provider.initialBoardOverride![r][c];
+        }
+      }
+    } else {
+      applyCaptureInitialLayout(initialBoard, provider.initialMode);
+    }
+
+    final initialPlayer = provider.initialPlayerOverride ?? StoneColor.black;
+
+    // Collect initial stones for AB / AW root properties.
+    final abCoords = <String>[];
+    final awCoords = <String>[];
+    for (int r = 0; r < boardSize; r++) {
+      for (int c = 0; c < boardSize; c++) {
+        final stone = initialBoard[r][c];
+        if (stone == StoneColor.black) {
+          abCoords.add(_toSgfCoord(c, r));
+        } else if (stone == StoneColor.white) {
+          awCoords.add(_toSgfCoord(c, r));
+        }
+      }
+    }
+
+    final buffer = StringBuffer('(;FF[4]GM[1]SZ[$boardSize]');
+    if (abCoords.isNotEmpty) {
+      buffer.write('AB${abCoords.map((s) => '[$s]').join()}');
+    }
+    if (awCoords.isNotEmpty) {
+      buffer.write('AW${awCoords.map((s) => '[$s]').join()}');
+    }
+    if (initialPlayer != StoneColor.black) {
+      buffer.write('PL[W]');
+    }
+
+    var currentColor = initialPlayer;
+    for (final move in moves) {
+      if (move.length < 2) break;
+      final colorChar = currentColor == StoneColor.black ? 'B' : 'W';
+      buffer.write(';$colorChar[${_toSgfCoord(move[1], move[0])}]');
+      currentColor = currentColor == StoneColor.black
+          ? StoneColor.white
+          : StoneColor.black;
+    }
+    buffer.write(')');
+    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+    if (mounted) _showCopyBanner('SGF 已複製');
+  }
 }
 
 class _CaptureBoardArea extends StatelessWidget {
@@ -5000,6 +5095,108 @@ String _formatBoardCoordinate(
     coordinateSystem: coordinateSystem,
   );
 }
+
+String _formatChineseCoordinate(List<int> move, int boardSize) {
+  if (move.length < 2) return '-';
+  final row = move[0];
+  final col = move[1];
+  if (col < 0 || col >= boardSize || row < 0 || row >= boardSize) {
+    return '-';
+  }
+  const chineseNums = [
+    '一', '二', '三', '四', '五', '六', '七', '八', '九', '十',
+    '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九',
+  ];
+  final rowFromBottom = boardSize - row - 1;
+  final rowLabel =
+      rowFromBottom < chineseNums.length ? chineseNums[rowFromBottom] : '$rowFromBottom';
+  return '${col + 1}$rowLabel';
+}
+
+/// Converts a 0-based (col, row) board position to the two-letter SGF
+/// coordinate string (e.g., col=4, row=5 → "ef").
+String _toSgfCoord(int col, int row) {
+  return '${String.fromCharCode('a'.codeUnitAt(0) + col)}'
+      '${String.fromCharCode('a'.codeUnitAt(0) + row)}';
+}
+
+
+class _CopyBannerOverlay extends StatefulWidget {
+  const _CopyBannerOverlay({
+    required this.message,
+    required this.onDone,
+  });
+
+  final String message;
+  final VoidCallback onDone;
+
+  @override
+  State<_CopyBannerOverlay> createState() => _CopyBannerOverlayState();
+}
+
+class _CopyBannerOverlayState extends State<_CopyBannerOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    );
+    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _controller.forward();
+    Future<void>.delayed(const Duration(milliseconds: 1400), _dismiss);
+  }
+
+  void _dismiss() async {
+    if (!mounted) return;
+    await _controller.reverse();
+    widget.onDone();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      bottom: MediaQuery.of(context).padding.bottom + 48,
+      left: 0,
+      right: 0,
+      child: IgnorePointer(
+        child: FadeTransition(
+          opacity: _opacity,
+          child: Center(
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xE6333333),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                widget.message,
+                style: const TextStyle(
+                  color: CupertinoColors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class _MoveLogStrip extends StatefulWidget {
   const _MoveLogStrip({
@@ -5288,6 +5485,18 @@ class _OperationContextMenu extends StatelessWidget {
               text: currentMoveMarked ? '取消標記此手' : '標記此手',
               enabled: canMarkMove,
               onPressed: onToggleMarkMove,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: '複製文字棋譜',
+              enabled: canMarkMove,
+              onPressed: onCopyText,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: '複製 SGF',
+              enabled: canMarkMove,
+              onPressed: onCopySgf,
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
