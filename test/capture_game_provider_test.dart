@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/ai_rank_level.dart';
 import 'package:go_puzzle/game/capture_ai.dart';
@@ -361,7 +362,8 @@ void main() {
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      expect(find.text('AI 風格：${CaptureAiStyle.adaptive.label}'), findsOneWidget);
+      expect(
+          find.text('AI 風格：${CaptureAiStyle.adaptive.label}'), findsOneWidget);
       expect(find.text('吃子預警：開'), findsOneWidget);
 
       await tester.tap(find.text('AI 風格：${CaptureAiStyle.adaptive.label}'));
@@ -413,8 +415,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('等待黑棋落子'), findsNothing);
-      expect(find.text('1 A1'), findsNothing);
-      expect(find.text('2 B2'), findsNothing);
+      expect(find.text('1 1九'), findsNothing);
+      expect(find.text('2 2八'), findsNothing);
       expect(find.text('紀錄'), findsNothing);
 
       await tester.tap(find.text('操作'));
@@ -425,10 +427,10 @@ void main() {
       await tester.tap(find.text('顯示棋譜'));
       await tester.pumpAndSettle();
 
-      expect(find.text('1 A1'), findsOneWidget);
-      expect(find.text('2 B2'), findsOneWidget);
+      expect(find.text('1 1九'), findsOneWidget);
+      expect(find.text('2 2八'), findsOneWidget);
       expect(
-        tester.widget<Text>(find.text('2 B2')).style?.fontWeight,
+        tester.widget<Text>(find.text('2 2八')).style?.fontWeight,
         FontWeight.w500,
       );
 
@@ -441,7 +443,7 @@ void main() {
       // 1.2.0: marking a move shows a ⭐ overlay instead of changing fontWeight.
       expect(find.text('⭐'), findsOneWidget);
       expect(
-        tester.widget<Text>(find.text('2 B2')).style?.fontWeight,
+        tester.widget<Text>(find.text('2 2八')).style?.fontWeight,
         FontWeight.w500,
       );
 
@@ -455,8 +457,78 @@ void main() {
       await tester.tap(find.text('後退一手'));
       await tester.pumpAndSettle();
 
-      expect(find.text('1 A1'), findsOneWidget);
-      expect(find.text('2 B2'), findsNothing);
+      expect(find.text('1 1九'), findsOneWidget);
+      expect(find.text('2 2八'), findsNothing);
+    });
+
+    testWidgets('copies move log as text and SGF from operation menu',
+        (tester) async {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        minMoveDelay: Duration.zero,
+      );
+      final settings = SettingsProvider();
+      await settings.setBoardCoordinateSystem(BoardCoordinateSystem.international);
+
+      final clipboardWrites = <String>[];
+      final messenger = TestDefaultBinaryMessengerBinding
+          .instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform,
+          (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          final payload = Map<String, dynamic>.from(call.arguments as Map);
+          clipboardWrites.add(payload['text'] as String? ?? '');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: const CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              initialMode: CaptureInitialMode.setup,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await provider.placeStone(8, 0);
+      await provider.placeStone(7, 1);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pumpAndSettle();
+
+      expect(clipboardWrites.last, '1 A1\n2 B2');
+      expect(find.text('已複製'), findsOneWidget);
+      await tester.tap(find.text('好'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為 SGF'));
+      await tester.pumpAndSettle();
+
+      expect(
+        clipboardWrites.last,
+        '(;FF[4]GM[1]CA[UTF-8]AP[go-puzzle]SZ[9];B[ai];W[bh])',
+      );
+      expect(find.text('已複製'), findsOneWidget);
     });
 
     testWidgets(

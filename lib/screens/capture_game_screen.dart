@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +23,7 @@ import '../services/game_history_repository.dart';
 import '../services/player_rank_repository.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_context.dart';
+import '../ui/board_coordinates.dart';
 import '../widgets/go_board_widget.dart';
 import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
@@ -3841,6 +3843,9 @@ class _ImportPreviewScreenState extends State<_ImportPreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final coordinateSystem =
+        context.select<SettingsProvider, BoardCoordinateSystem>(
+            (settings) => settings.boardCoordinateSystem);
     final gameState = GameState(
       boardSize: _boardSize,
       board: _board,
@@ -3906,6 +3911,7 @@ class _ImportPreviewScreenState extends State<_ImportPreviewScreen> {
                     padding: const EdgeInsets.all(10),
                     child: GoBoardWidget(
                       gameState: gameState,
+                      coordinateSystem: coordinateSystem,
                       onTap: (row, col) => _toggleStone(row, col),
                     ),
                   ),
@@ -4190,8 +4196,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                             ? _MoveLogStrip(
                                 moves: provider.moveLog,
                                 boardSize: provider.boardSize,
-                                currentPlayer:
-                                    provider.gameState.currentPlayer,
+                                coordinateSystem:
+                                    settings?.boardCoordinateSystem ??
+                                        BoardCoordinateSystem.chinese,
+                                currentPlayer: provider.gameState.currentPlayer,
                                 markedMoveNumbers: _markedMoveNumbers,
                                 palette: palette,
                                 reviewMoveIndex: _reviewMoveIndex,
@@ -4210,19 +4218,19 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                           padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
                           child: _CaptureBoardArea(
                             gameState: reviewGameState ?? provider.gameState,
-                            enabled: !aiThinking &&
-                                !isFinished &&
-                                !inReviewMode,
-                            hintMarks:
-                                inReviewMode ? const [] : _hintMarks,
+                            coordinateSystem: settings?.boardCoordinateSystem ??
+                                BoardCoordinateSystem.chinese,
+                            enabled:
+                                !aiThinking && !isFinished && !inReviewMode,
+                            hintMarks: inReviewMode ? const [] : _hintMarks,
                             showCaptureWarning: showCaptureWarning,
                             captureTarget: widget.captureTarget,
-                            blackCaptured: reviewGameState
-                                    ?.capturedByBlack.length ??
-                                blackCaptured,
-                            whiteCaptured: reviewGameState
-                                    ?.capturedByWhite.length ??
-                                whiteCaptured,
+                            blackCaptured:
+                                reviewGameState?.capturedByBlack.length ??
+                                    blackCaptured,
+                            whiteCaptured:
+                                reviewGameState?.capturedByWhite.length ??
+                                    whiteCaptured,
                             humanColor: widget.humanColor,
                             rippleMove: _rippleMove,
                             rippleAnimation: _rippleController,
@@ -4306,9 +4314,12 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     final canUndo = provider.canUndo;
     final canHint = !_isLoadingHints;
     final canMarkMove = provider.moveLog.isNotEmpty;
+    final canCopyMoveLog = provider.moveLog.isNotEmpty;
     final currentMoveMarked =
         _markedMoveNumbers.contains(provider.moveLog.length);
     final showCaptureWarning = settings?.showCaptureWarning ?? true;
+    final coordinateSystem =
+        settings?.boardCoordinateSystem ?? BoardCoordinateSystem.chinese;
     final buttonBox = buttonContext.findRenderObject() as RenderBox?;
     final overlayBox =
         Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
@@ -4320,7 +4331,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     );
     final buttonRect = buttonTopLeft & buttonBox.size;
     const menuWidth = 178.0;
-    const menuHeight = 292.0;
+    const menuHeight = 390.0;
     const edgePadding = 12.0;
     final media = MediaQuery.of(context);
     final preferredTop = buttonRect.top - menuHeight - 8;
@@ -4358,6 +4369,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                 canUndo: canUndo,
                 canHint: canHint,
                 canMarkMove: canMarkMove,
+                canCopyMoveLog: canCopyMoveLog,
                 canToggleCaptureWarning: settings != null,
                 onAiStyle: () {
                   Navigator.of(menuContext).pop();
@@ -4396,6 +4408,14 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                 onHint: () {
                   Navigator.of(menuContext).pop();
                   _showHintsOnBoard(provider);
+                },
+                onCopyText: () {
+                  Navigator.of(menuContext).pop();
+                  unawaited(_copyMoveLogAsText(provider, coordinateSystem));
+                },
+                onCopySgf: () {
+                  Navigator.of(menuContext).pop();
+                  unawaited(_copyMoveLogAsSgf(provider));
                 },
               ),
             ),
@@ -4559,6 +4579,135 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     );
   }
 
+  Future<void> _copyMoveLogAsText(
+    CaptureGameProvider provider,
+    BoardCoordinateSystem coordinateSystem,
+  ) async {
+    if (provider.moveLog.isEmpty) return;
+    final text = _buildMoveLogPlainText(provider, coordinateSystem);
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    _showCopiedDialog('已複製棋譜文字');
+  }
+
+  Future<void> _copyMoveLogAsSgf(CaptureGameProvider provider) async {
+    if (provider.moveLog.isEmpty) return;
+    final sgf = _buildMoveLogSgf(provider);
+    await Clipboard.setData(ClipboardData(text: sgf));
+    if (!mounted) return;
+    _showCopiedDialog('已複製 SGF');
+  }
+
+  void _showCopiedDialog(String message) {
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('已複製'),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('好'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _buildMoveLogPlainText(
+    CaptureGameProvider provider,
+    BoardCoordinateSystem coordinateSystem,
+  ) {
+    final lines = <String>[];
+    for (var i = 0; i < provider.moveLog.length; i++) {
+      final coordinate = _formatBoardCoordinate(
+        provider.moveLog[i],
+        provider.boardSize,
+        coordinateSystem,
+      );
+      lines.add('${i + 1} $coordinate');
+    }
+    return lines.join('\n');
+  }
+
+  String _buildMoveLogSgf(CaptureGameProvider provider) {
+    final root = StringBuffer(
+      '(;FF[4]GM[1]CA[UTF-8]AP[go-puzzle]SZ[${provider.boardSize}]',
+    );
+    final initialPlayer = provider.initialPlayerOverride ?? StoneColor.black;
+    if (initialPlayer == StoneColor.white) {
+      root.write('PL[W]');
+    }
+
+    final board = _buildInitialBoard(provider);
+    final blackSetup = <String>[];
+    final whiteSetup = <String>[];
+    for (var row = 0; row < provider.boardSize; row++) {
+      for (var col = 0; col < provider.boardSize; col++) {
+        final stone = board[row][col];
+        if (stone == StoneColor.black) {
+          blackSetup.add(_toSgfPoint(row, col));
+        } else if (stone == StoneColor.white) {
+          whiteSetup.add(_toSgfPoint(row, col));
+        }
+      }
+    }
+    if (blackSetup.isNotEmpty) {
+      root.write('AB');
+      for (final point in blackSetup) {
+        root.write('[$point]');
+      }
+    }
+    if (whiteSetup.isNotEmpty) {
+      root.write('AW');
+      for (final point in whiteSetup) {
+        root.write('[$point]');
+      }
+    }
+    for (var i = 0; i < provider.moveLog.length; i++) {
+      final move = provider.moveLog[i];
+      if (move.length < 2) break;
+      final row = move[0];
+      final col = move[1];
+      if (row < 0 ||
+          row >= provider.boardSize ||
+          col < 0 ||
+          col >= provider.boardSize) {
+        break;
+      }
+      final isBlackMove = i.isEven
+          ? initialPlayer == StoneColor.black
+          : initialPlayer == StoneColor.white;
+      root.write(isBlackMove ? ';B[' : ';W[');
+      root.write(_toSgfPoint(row, col));
+      root.write(']');
+    }
+    root.write(')');
+    return root.toString();
+  }
+
+  List<List<StoneColor>> _buildInitialBoard(CaptureGameProvider provider) {
+    final board = List.generate(
+      provider.boardSize,
+      (_) => List<StoneColor>.filled(provider.boardSize, StoneColor.empty),
+    );
+    if (provider.initialBoardOverride != null) {
+      final source = provider.initialBoardOverride!;
+      for (var row = 0; row < provider.boardSize; row++) {
+        for (var col = 0; col < provider.boardSize; col++) {
+          board[row][col] = source[row][col];
+        }
+      }
+      return board;
+    }
+    applyCaptureInitialLayout(board, provider.initialMode);
+    return board;
+  }
+
+  String _toSgfPoint(int row, int col) {
+    return '${String.fromCharCode(97 + col)}${String.fromCharCode(97 + row)}';
+  }
+
   // ---------------------------------------------------------------------------
   // Review mode helpers
   // ---------------------------------------------------------------------------
@@ -4663,6 +4812,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
 class _CaptureBoardArea extends StatelessWidget {
   const _CaptureBoardArea({
     required this.gameState,
+    required this.coordinateSystem,
     required this.enabled,
     required this.hintMarks,
     required this.showCaptureWarning,
@@ -4677,6 +4827,7 @@ class _CaptureBoardArea extends StatelessWidget {
   });
 
   final GameState gameState;
+  final BoardCoordinateSystem coordinateSystem;
   final bool enabled;
   final List<_HintMark> hintMarks;
   final bool showCaptureWarning;
@@ -4747,6 +4898,7 @@ class _CaptureBoardArea extends StatelessWidget {
                       padding: const EdgeInsets.all(8),
                       child: _TapBoard(
                         gameState: gameState,
+                        coordinateSystem: coordinateSystem,
                         enabled: enabled,
                         hintMarks: hintMarks,
                         showCaptureWarning: showCaptureWarning,
@@ -4830,25 +4982,30 @@ class _PlayerSideCard extends StatelessWidget {
   }
 }
 
-String _formatBoardCoordinate(List<int> move, int boardSize) {
+String _formatBoardCoordinate(
+  List<int> move,
+  int boardSize,
+  BoardCoordinateSystem coordinateSystem,
+) {
   if (move.length < 2) return '-';
-  const columns = 'ABCDEFGHJKLMNOPQRST';
   final row = move[0];
   final col = move[1];
-  if (col < 0 ||
-      col >= boardSize ||
-      col >= columns.length ||
-      row < 0 ||
-      row >= boardSize) {
+  if (col < 0 || col >= boardSize || row < 0 || row >= boardSize) {
     return '-';
   }
-  return '${columns[col]}${boardSize - row}';
+  return formatBoardCoordinate(
+    row: row,
+    col: col,
+    boardSize: boardSize,
+    coordinateSystem: coordinateSystem,
+  );
 }
 
 class _MoveLogStrip extends StatefulWidget {
   const _MoveLogStrip({
     required this.moves,
     required this.boardSize,
+    required this.coordinateSystem,
     required this.currentPlayer,
     required this.markedMoveNumbers,
     required this.palette,
@@ -4859,6 +5016,7 @@ class _MoveLogStrip extends StatefulWidget {
 
   final List<List<int>> moves;
   final int boardSize;
+  final BoardCoordinateSystem coordinateSystem;
   final StoneColor currentPlayer;
   final Set<int> markedMoveNumbers;
   final AppThemePalette palette;
@@ -4947,6 +5105,7 @@ class _MoveLogStripState extends State<_MoveLogStrip> {
                         coordinate: _formatBoardCoordinate(
                           widget.moves[index],
                           widget.boardSize,
+                          widget.coordinateSystem,
                         ),
                         marked: widget.markedMoveNumbers.contains(index + 1),
                         palette: widget.palette,
@@ -4992,8 +5151,7 @@ class _MoveLogChip extends StatelessWidget {
         : palette.segmentTrack.withValues(alpha: 0.82);
     final borderColor =
         isReviewing ? palette.primary : palette.primary.withValues(alpha: 0.16);
-    final textColor =
-        isReviewing ? CupertinoColors.white : palette.segmentText;
+    final textColor = isReviewing ? CupertinoColors.white : palette.segmentText;
 
     final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
@@ -5051,6 +5209,7 @@ class _OperationContextMenu extends StatelessWidget {
     required this.canUndo,
     required this.canHint,
     required this.canMarkMove,
+    required this.canCopyMoveLog,
     required this.canToggleCaptureWarning,
     required this.onAiStyle,
     required this.onToggleCaptureWarning,
@@ -5058,6 +5217,8 @@ class _OperationContextMenu extends StatelessWidget {
     required this.onToggleMarkMove,
     required this.onUndo,
     required this.onHint,
+    required this.onCopyText,
+    required this.onCopySgf,
   });
 
   final String aiStyleLabel;
@@ -5067,6 +5228,7 @@ class _OperationContextMenu extends StatelessWidget {
   final bool canUndo;
   final bool canHint;
   final bool canMarkMove;
+  final bool canCopyMoveLog;
   final bool canToggleCaptureWarning;
   final VoidCallback onAiStyle;
   final VoidCallback onToggleCaptureWarning;
@@ -5074,6 +5236,8 @@ class _OperationContextMenu extends StatelessWidget {
   final VoidCallback onToggleMarkMove;
   final VoidCallback onUndo;
   final VoidCallback onHint;
+  final VoidCallback onCopyText;
+  final VoidCallback onCopySgf;
 
   @override
   Widget build(BuildContext context) {
@@ -5136,6 +5300,18 @@ class _OperationContextMenu extends StatelessWidget {
               text: '提示一手',
               enabled: canHint,
               onPressed: onHint,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: '複製棋譜為文字',
+              enabled: canCopyMoveLog,
+              onPressed: onCopyText,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: '複製棋譜為 SGF',
+              enabled: canCopyMoveLog,
+              onPressed: onCopySgf,
             ),
           ],
         ),
@@ -5304,6 +5480,7 @@ class _HintOverlayPainter extends CustomPainter {
 class _TapBoard extends StatelessWidget {
   const _TapBoard({
     required this.gameState,
+    required this.coordinateSystem,
     required this.enabled,
     required this.hintMarks,
     required this.showCaptureWarning,
@@ -5314,6 +5491,7 @@ class _TapBoard extends StatelessWidget {
   });
 
   final GameState gameState;
+  final BoardCoordinateSystem coordinateSystem;
   final bool enabled;
   final List<_HintMark> hintMarks;
   final bool showCaptureWarning;
@@ -5343,6 +5521,7 @@ class _TapBoard extends StatelessWidget {
                   painter: GoBoardPainter(
                     gameState: gameState,
                     palette: context.appPalette,
+                    coordinateSystem: coordinateSystem,
                     showCaptureWarning: showCaptureWarning,
                   ),
                 ),
@@ -5740,6 +5919,9 @@ class _HistoryDetailSheet extends StatelessWidget {
     final boardState = _buildFinalBoardState(record);
     final palette = context.appPalette;
     final isClassic = context.isClassicAppTheme;
+    final coordinateSystem =
+        context.select<SettingsProvider, BoardCoordinateSystem>(
+            (settings) => settings.boardCoordinateSystem);
 
     return Container(
       decoration: BoxDecoration(
@@ -5823,6 +6005,7 @@ class _HistoryDetailSheet extends StatelessWidget {
                       padding: const EdgeInsets.all(8),
                       child: GoBoardWidget(
                         gameState: boardState,
+                        coordinateSystem: coordinateSystem,
                         onTap: null,
                       ),
                     ),
@@ -6037,16 +6220,20 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
   Set<int> get _markedMoves => widget.record.markedMoveNumbers.toSet();
   List<int> get _sortedMarkedMoves => _markedMoves.toList()..sort();
 
-  String _moveCoordinate(int moveNo) {
+  String _moveCoordinate(int moveNo, BoardCoordinateSystem coordinateSystem) {
     if (moveNo <= 0 || moveNo > widget.record.moves.length) return '-';
     return _formatBoardCoordinate(
       widget.record.moves[moveNo - 1],
       widget.record.boardSize,
+      coordinateSystem,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final coordinateSystem =
+        context.select<SettingsProvider, BoardCoordinateSystem>(
+            (settings) => settings.boardCoordinateSystem);
     final markedMoves = _sortedMarkedMoves;
     final hasMarkedMoves = markedMoves.isNotEmpty;
     final markedStart = hasMarkedMoves ? markedMoves.first : 0;
@@ -6082,6 +6269,7 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                         padding: const EdgeInsets.all(8),
                         child: GoBoardWidget(
                           gameState: current,
+                          coordinateSystem: coordinateSystem,
                           onTap: null,
                         ),
                       ),
@@ -6097,7 +6285,7 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                   Text(
                     _index == 0
                         ? '初始局面'
-                        : '第 $_index 手 / 共 $_totalMoves 手 · 座標 ${_moveCoordinate(_index)}',
+                        : '第 $_index 手 / 共 $_totalMoves 手 · 座標 ${_moveCoordinate(_index, coordinateSystem)}',
                     style: const TextStyle(
                       fontSize: 13,
                       color: Color(0xFF8C7966),
@@ -6136,7 +6324,7 @@ class _GameBrowseScreenState extends State<_GameBrowseScreen> {
                           onPressed: () => setState(
                               () => _index = move.clamp(0, _totalMoves)),
                           child: Text(
-                            '第$move手 ${_moveCoordinate(move)}',
+                            '第$move手 ${_moveCoordinate(move, coordinateSystem)}',
                             style: TextStyle(
                               color: _index == move
                                   ? const Color(0xFFFFFFFF)

@@ -1,6 +1,9 @@
 /// Shared display-label helpers for tactics categories, tactic types, and
 /// player colours. Used by both [SkillsScreen] and [TacticsProblemScreen].
 
+import '../providers/settings_provider.dart';
+import 'board_coordinates.dart';
+
 String categoryName(String category) {
   return switch (category) {
     'group_fate' => '棋形生死',
@@ -42,8 +45,16 @@ String playerName(int player) {
 /// [row] is the 0-based row index from the top of the board.
 /// [col] is the 0-based column index from the left.
 /// [boardSize] is the number of rows/columns on the board.
-String formatPosition(int row, int col, int boardSize) {
-  const columns = 'ABCDEFGHJKLMNOPQRST';
-  final colLabel = col >= 0 && col < columns.length ? columns[col] : '?';
-  return '$colLabel${boardSize - row}';
+String formatPosition(
+  int row,
+  int col,
+  int boardSize, {
+  BoardCoordinateSystem coordinateSystem = BoardCoordinateSystem.international,
+}) {
+  return formatBoardCoordinate(
+    row: row,
+    col: col,
+    boardSize: boardSize,
+    coordinateSystem: coordinateSystem,
+  );
 }
