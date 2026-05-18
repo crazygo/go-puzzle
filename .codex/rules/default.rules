@@ -1,0 +1,75 @@
+prefix_rule(
+    pattern = ["gh", "pr", "view"],
+    decision = "allow",
+    justification = "Viewing pull request details is safe for review workflows.",
+    match = [
+        "gh pr view 132",
+        "gh pr view 132 --json title,body,comments",
+        "gh pr view --repo crazygo/go-puzzle 132",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", "checks"],
+    decision = "allow",
+    justification = "Viewing pull request check status is safe for review workflows.",
+    match = [
+        "gh pr checks 132",
+        "gh pr checks 132 --watch",
+        "gh pr checks --repo crazygo/go-puzzle 132",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", "diff"],
+    decision = "allow",
+    justification = "Viewing pull request diffs is safe for review workflows.",
+    match = [
+        "gh pr diff 132",
+        "gh pr diff 132 --name-only",
+        "gh pr diff --repo crazygo/go-puzzle 132",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", "list"],
+    decision = "allow",
+    justification = "Listing pull requests is safe for review workflows.",
+    match = [
+        "gh pr list",
+        "gh pr list --state open",
+        "gh pr list --repo crazygo/go-puzzle",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", "status"],
+    decision = "allow",
+    justification = "Viewing pull request status is safe for review workflows.",
+    match = [
+        "gh pr status",
+        "gh pr status --repo crazygo/go-puzzle",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gh", "run", "view"],
+    decision = "allow",
+    justification = "Viewing workflow run details is safe for review workflows.",
+    match = [
+        "gh run view 123456789",
+        "gh run view 123456789 --log",
+        "gh run view --repo crazygo/go-puzzle 123456789",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gh", "run", "list"],
+    decision = "allow",
+    justification = "Listing workflow runs is safe for review workflows.",
+    match = [
+        "gh run list",
+        "gh run list --branch main",
+        "gh run list --repo crazygo/go-puzzle",
+    ],
+)
