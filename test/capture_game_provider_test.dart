@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/ai_rank_level.dart';
 import 'package:go_puzzle/game/capture_ai.dart';
@@ -456,6 +457,76 @@ void main() {
 
       expect(find.text('1 1九'), findsOneWidget);
       expect(find.text('2 2八'), findsNothing);
+    });
+
+    testWidgets('copies move log as text and SGF from operation menu',
+        (tester) async {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        minMoveDelay: Duration.zero,
+      );
+      final settings = SettingsProvider();
+      await settings.setBoardCoordinateSystem(BoardCoordinateSystem.international);
+
+      final clipboardWrites = <String>[];
+      final messenger = TestDefaultBinaryMessengerBinding
+          .instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform,
+          (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          final payload = Map<String, dynamic>.from(call.arguments as Map);
+          clipboardWrites.add(payload['text'] as String? ?? '');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: const CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              initialMode: CaptureInitialMode.setup,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await provider.placeStone(8, 0);
+      await provider.placeStone(7, 1);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製為文字'));
+      await tester.pumpAndSettle();
+
+      expect(clipboardWrites.last, '1 A1\n2 B2');
+      expect(find.text('已複製'), findsOneWidget);
+      await tester.tap(find.text('好'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製為 SGF'));
+      await tester.pumpAndSettle();
+
+      expect(
+        clipboardWrites.last,
+        '(;FF[4]GM[1]CA[UTF-8]AP[go-puzzle]SZ[9];B[ai];W[bh])',
+      );
+      expect(find.text('已複製'), findsOneWidget);
     });
   });
 }
