@@ -172,3 +172,18 @@ frameworks under the five-capture rule.
 - Decide the exact timeout threshold for synchronous Dart agents in local tests.
 - Wire a real KataGo ONNX model asset into `KatagoModelAdapter` when a capture-go
   compatible model is available.
+
+## TODO
+
+- Calibrate the KataGo ONNX strength tiers so `katago_onnx_standard_v1` beats
+  `katago_onnx_weak_v1` by about 7-3 in their direct repeated matchup, while
+  `katago_onnx_weak_v1` remains roughly comparable to
+  `mcts_counter_standard_v1`. This should be proven with the same
+  opening-by-first-player matrix structure and must keep illegal moves,
+  timeouts, fallback games, and failure reasons at zero.
+- Use the headless strength path for repeated tuning runs:
+  `dart run tool/headless_full_matrix_arena_probe.dart --workers 4`.
+  This path keeps Dart in charge of arena/config/rules and uses
+  `onnxruntime-node` only for KataGo ONNX inference. Chrome/Playwright should
+  be kept as a lower-frequency Flutter Web integration smoke, not the default
+  strength loop.
