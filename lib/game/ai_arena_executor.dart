@@ -25,7 +25,7 @@ class AiArenaExecutor {
     this.rounds = 12,
     this.maxMoves = 512,
     this.openingPolicy = 'empty_cross_twist_cross_random_v1',
-    this.decisionTimeout = const Duration(seconds: 10),
+    this.decisionTimeout = const Duration(seconds: 5),
   });
 
   final int boardSize;
@@ -157,10 +157,12 @@ class AiArenaExecutor {
         aIsBlack ? configA : configB,
         seedOverride: gameSeed * 2,
       );
+      final blackConfig = aIsBlack ? configA : configB;
       final whiteAgent = AiAlgorithmRegistry.createAgent(
         aIsBlack ? configB : configA,
         seedOverride: gameSeed * 2 + 1,
       );
+      final whiteConfig = aIsBlack ? configB : configA;
 
       final result = CaptureAiArena.playMatch(
         blackAgent: blackAgent,
@@ -169,6 +171,14 @@ class AiArenaExecutor {
         captureTarget: captureTarget,
         maxMoves: maxMoves,
         decisionTimeout: decisionTimeout,
+        blackDecisionTimeout: _decisionTimeoutForConfig(
+          blackConfig,
+          defaultTimeout: decisionTimeout,
+        ),
+        whiteDecisionTimeout: _decisionTimeoutForConfig(
+          whiteConfig,
+          defaultTimeout: decisionTimeout,
+        ),
         initialBoard: _buildOpeningBoard(
           opening,
           pairSeed: pairSeed,
@@ -432,6 +442,19 @@ String? _failureReason(CaptureAiMatchEndReason endReason) {
     CaptureAiMatchEndReason.invalidMove => 'agent_returned_invalid_move',
     CaptureAiMatchEndReason.maxMovesReached => 'max_moves_reached',
     CaptureAiMatchEndReason.decisionTimeout => 'decision_timeout',
+  };
+}
+
+Duration _decisionTimeoutForConfig(
+  AiAlgorithmConfig config, {
+  required Duration defaultTimeout,
+}) {
+  if (config.frameworkId != AiAlgorithmFrameworkId.katago) {
+    return defaultTimeout;
+  }
+  return switch (config.parameters['timeBudgetMillis']) {
+    final int value => Duration(milliseconds: value),
+    _ => const Duration(seconds: 10),
   };
 }
 

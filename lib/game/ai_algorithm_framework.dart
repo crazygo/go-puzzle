@@ -370,7 +370,7 @@ class AiAlgorithmRegistry {
       'backend': 'onnx',
       'modelAsset': 'assets/models/katago_capture_weak.onnx',
       'visits': 4,
-      'timeBudgetMillis': 1000,
+      'timeBudgetMillis': 10000,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.adaptive,
@@ -389,7 +389,7 @@ class AiAlgorithmRegistry {
       'backend': 'onnx',
       'modelAsset': 'assets/models/katago_capture_standard.onnx',
       'visits': 32,
-      'timeBudgetMillis': 1000,
+      'timeBudgetMillis': 10000,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,

@@ -86,6 +86,7 @@ void main() {
         expect(config.failureMode, 'katago_onnx_model_unavailable');
         expect(config.parameters['modelAsset'], isA<String>());
         expect(config.parameters['visits'], isA<int>());
+        expect(config.parameters['timeBudgetMillis'], 10000);
       }
     });
 

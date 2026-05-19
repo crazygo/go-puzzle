@@ -1728,6 +1728,8 @@ class CaptureAiArena {
     required int captureTarget,
     int maxMoves = 512,
     Duration decisionTimeout = const Duration(seconds: 10),
+    Duration? blackDecisionTimeout,
+    Duration? whiteDecisionTimeout,
     SimBoard? initialBoard,
   }) {
     final board = initialBoard == null
@@ -1740,6 +1742,9 @@ class CaptureAiArena {
     while (!board.isTerminal && totalMoves < maxMoves) {
       final agent =
           board.currentPlayer == SimBoard.black ? blackAgent : whiteAgent;
+      final currentDecisionTimeout = board.currentPlayer == SimBoard.black
+          ? blackDecisionTimeout ?? decisionTimeout
+          : whiteDecisionTimeout ?? decisionTimeout;
       final stopwatch = Stopwatch()..start();
       final move = agent.chooseMove(board);
       stopwatch.stop();
@@ -1747,7 +1752,7 @@ class CaptureAiArena {
         maxDecisionMillis,
         stopwatch.elapsedMilliseconds,
       );
-      if (stopwatch.elapsed > decisionTimeout) {
+      if (stopwatch.elapsed > currentDecisionTimeout) {
         endReason = CaptureAiMatchEndReason.decisionTimeout;
         break;
       }

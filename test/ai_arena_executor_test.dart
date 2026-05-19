@@ -2,6 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/ai_algorithm_framework.dart';
 import 'package:go_puzzle/game/ai_arena_executor.dart';
 import 'package:go_puzzle/game/ai_arena_ladder.dart';
+import 'package:go_puzzle/game/capture_ai.dart';
+import 'package:go_puzzle/game/mcts_engine.dart';
+import 'package:go_puzzle/models/board_position.dart';
 
 void main() {
   test(
@@ -209,6 +212,23 @@ void main() {
     expect(result.games.single.maxDecisionMillis, greaterThanOrEqualTo(0));
   });
 
+  test('arena supports per-color decision timeout overrides', () {
+    final result = CaptureAiArena.playMatch(
+      blackAgent: const _SlowOpeningAgent(),
+      whiteAgent: const _NoMoveAgent(),
+      boardSize: 9,
+      captureTarget: 1,
+      maxMoves: 2,
+      decisionTimeout: Duration.zero,
+      blackDecisionTimeout: const Duration(milliseconds: 50),
+      whiteDecisionTimeout: const Duration(milliseconds: 50),
+    );
+
+    expect(result.endReason, CaptureAiMatchEndReason.noLegalMove);
+    expect(result.totalMoves, 1);
+    expect(result.maxDecisionMillis, greaterThanOrEqualTo(1));
+  });
+
   test('framework output reports ONNX model unavailable without fallback', () {
     const executor = AiArenaExecutor(
       boardSize: 9,
@@ -402,4 +422,31 @@ void main() {
       first.games.map((game) => game.toJson()).toList(),
     );
   });
+}
+
+class _SlowOpeningAgent implements CaptureAiAgent {
+  const _SlowOpeningAgent();
+
+  @override
+  CaptureAiStyle get style => CaptureAiStyle.adaptive;
+
+  @override
+  CaptureAiMove? chooseMove(SimBoard board) {
+    final watch = Stopwatch()..start();
+    while (watch.elapsedMilliseconds < 2) {}
+    return const CaptureAiMove(
+      position: BoardPosition(0, 0),
+      score: 0,
+    );
+  }
+}
+
+class _NoMoveAgent implements CaptureAiAgent {
+  const _NoMoveAgent();
+
+  @override
+  CaptureAiStyle get style => CaptureAiStyle.adaptive;
+
+  @override
+  CaptureAiMove? chooseMove(SimBoard board) => null;
 }
