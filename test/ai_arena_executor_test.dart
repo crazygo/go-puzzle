@@ -210,6 +210,29 @@ void main() {
     expect(result.games.single.maxDecisionMillis, greaterThanOrEqualTo(0));
   });
 
+  test('framework output reports ONNX adapter fallback path', () {
+    const executor = AiArenaExecutor(
+      boardSize: 9,
+      captureTarget: 1,
+      rounds: 1,
+      maxMoves: 8,
+      openingPolicy: 'empty_v1',
+    );
+    final result = executor.runFrameworkMatch(
+      configA: AiAlgorithmRegistry.configById('katago_onnx_weak_v1'),
+      configB: AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
+      matchSeed: 19,
+      openingSeed: 0,
+    );
+
+    expect(result.games, hasLength(1));
+    expect(result.games.single.fallbackUsed, isTrue);
+    expect(
+      result.games.single.failureReason,
+      contains('a:katago_onnx_unavailable_uses_legal_heuristic_fallback'),
+    );
+  });
+
   test('framework evaluation summarizes selected pairwise matches and ranking',
       () {
     const executor = AiArenaExecutor(

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/ai_algorithm_framework.dart';
+import 'package:go_puzzle/game/katago_model_adapter.dart';
 import 'package:go_puzzle/game/mcts_engine.dart';
 import 'package:go_puzzle/models/board_position.dart';
 
@@ -69,17 +70,56 @@ void main() {
       }
     });
 
-    test('KataGo configs are represented as fallback-capable framework configs',
-        () {
+    test('KataGo exposes fallback and native ONNX framework configs', () {
       final katagoConfigs =
           AiAlgorithmRegistry.configsFor(AiAlgorithmFrameworkId.katago);
+      final onnxConfigs = katagoConfigs
+          .where((config) => config.parameters['backend'] == 'onnx')
+          .toList(growable: false);
+      final fallbackConfigs = katagoConfigs
+          .where((config) => config.parameters['backend'] == 'fallback')
+          .toList(growable: false);
 
-      expect(katagoConfigs, hasLength(greaterThanOrEqualTo(2)));
-      for (final config in katagoConfigs) {
+      expect(fallbackConfigs, hasLength(greaterThanOrEqualTo(2)));
+      expect(onnxConfigs, hasLength(greaterThanOrEqualTo(2)));
+      for (final config in fallbackConfigs) {
         expect(config.usesFallback, isTrue);
         expect(config.failureMode, isNotNull);
-        expect(config.parameters['backend'], 'fallback');
       }
+      for (final config in onnxConfigs) {
+        expect(config.runtimeMode, AiAlgorithmRuntimeMode.native);
+        expect(config.failureMode, contains('katago_onnx'));
+        expect(config.parameters['modelAsset'], isA<String>());
+        expect(config.parameters['visits'], isA<int>());
+      }
+    });
+
+    test('KataGo ONNX config falls back legally when model is unavailable', () {
+      final config = AiAlgorithmRegistry.configById('katago_onnx_weak_v1');
+      final board = SimBoard(9, captureTarget: 5);
+      final agent = AiAlgorithmRegistry.createAgent(
+        config,
+        katagoModelAdapter: const UnavailableKatagoOnnxModelAdapter(),
+      );
+      final move = agent.chooseMove(board);
+
+      expect(move, isNotNull);
+      expect(board.applyMove(move!.position.row, move.position.col), isTrue);
+    });
+
+    test('KataGo ONNX adapter move is used when legal', () {
+      final config = AiAlgorithmRegistry.configById('katago_onnx_standard_v1');
+      final agent = AiAlgorithmRegistry.createAgent(
+        config,
+        katagoModelAdapter: const _FixedKatagoModelAdapter(
+          BoardPosition(4, 4),
+        ),
+      );
+      final move = agent.chooseMove(SimBoard(9, captureTarget: 5));
+
+      expect(move, isNotNull);
+      expect(move!.position.row, 4);
+      expect(move.position.col, 4);
     });
 
     test('neutral tactical analysis does not change selected move', () {
@@ -128,6 +168,20 @@ void main() {
       expect(analyzedMove.col, baselineMove.col);
     });
   });
+}
+
+class _FixedKatagoModelAdapter implements KatagoModelAdapter {
+  const _FixedKatagoModelAdapter(this.move);
+
+  final BoardPosition move;
+
+  @override
+  KatagoModelEvaluation chooseMove(KatagoModelRequest request) {
+    return KatagoModelEvaluation(
+      status: KatagoBackendStatus.ready,
+      move: move,
+    );
+  }
 }
 
 class _FixedTacticalAnalyzer implements TacticalAnalyzer {

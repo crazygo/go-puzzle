@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import '../models/board_position.dart';
 import 'capture_ai.dart';
 import 'difficulty_level.dart';
+import 'katago_model_adapter.dart';
 import 'mcts_engine.dart';
 
 enum AiAlgorithmFrameworkId {
@@ -113,6 +114,9 @@ class AiAlgorithmConfig {
 
   bool get usesFallback => runtimeMode == AiAlgorithmRuntimeMode.fallback;
 
+  bool get reportsFallbackPath =>
+      usesFallback || (failureMode?.contains('uses_legal') ?? false);
+
   Map<String, Object?> toJson() => {
         'id': id,
         'frameworkId': frameworkId.name,
@@ -158,7 +162,8 @@ class AiAlgorithmRegistry {
     AiAlgorithmFramework(
       id: AiAlgorithmFrameworkId.katago,
       displayName: 'KataGo',
-      summary: 'KataGo-style framework slot with legal fallback behavior.',
+      summary:
+          'KataGo framework with ONNX adapter and legal fallback behavior.',
     ),
   ];
 
@@ -171,6 +176,8 @@ class AiAlgorithmRegistry {
         _hybridStandard,
         _katagoFallbackWeak,
         _katagoFallbackStandard,
+        _katagoOnnxWeak,
+        _katagoOnnxStandard,
       ];
 
   static List<AiAlgorithmConfig> configsFor(
@@ -188,20 +195,30 @@ class AiAlgorithmRegistry {
     AiAlgorithmConfig config, {
     int? seedOverride,
     TacticalAnalyzer tacticalAnalyzer = const NeutralTacticalAnalyzer(),
+    KatagoModelAdapter katagoModelAdapter =
+        const UnavailableKatagoOnnxModelAdapter(),
   }) {
     final robotConfig = seedOverride == null
         ? config.robotConfig
         : config.robotConfig.copyWith(seed: seedOverride);
-    final randomized = _randomLegalMoveRate(config) <= 0
-        ? CaptureAiRegistry.createFromConfig(robotConfig)
-        : _RandomizedLegalAgent(
-            inner: CaptureAiRegistry.createFromConfig(robotConfig),
-            randomLegalMoveRate: _randomLegalMoveRate(config),
-            seed: seedOverride ?? config.robotConfig.seed,
-          );
+    CaptureAiAgent agent = CaptureAiRegistry.createFromConfig(robotConfig);
+    if (_randomLegalMoveRate(config) > 0) {
+      agent = _RandomizedLegalAgent(
+        inner: agent,
+        randomLegalMoveRate: _randomLegalMoveRate(config),
+        seed: seedOverride ?? config.robotConfig.seed,
+      );
+    }
+    if (_katagoBackend(config) == 'onnx') {
+      agent = _KatagoOnnxAgent(
+        config: config,
+        fallback: agent,
+        modelAdapter: katagoModelAdapter,
+      );
+    }
     return _TacticalAnalyzerAgent(
       config: config,
-      inner: randomized,
+      inner: agent,
       tacticalAnalyzer: tacticalAnalyzer,
     );
   }
@@ -255,7 +272,7 @@ class AiAlgorithmRegistry {
       'mctsRolloutDepth': 2,
       'mctsCandidateLimit': 3,
       'rolloutTemperature': 30.0,
-      'randomLegalMoveRate': 0.85,
+      'randomLegalMoveRate': 0.55,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.adaptive,
@@ -307,7 +324,7 @@ class AiAlgorithmRegistry {
       'heuristicPlayouts': 12,
       'mctsPlayouts': 24,
       'mctsRolloutDepth': 14,
-      'randomLegalMoveRate': 0.35,
+      'randomLegalMoveRate': 0.20,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,
@@ -354,7 +371,7 @@ class AiAlgorithmRegistry {
       'model': 'katago_capture_placeholder_small',
       'fallbackStyle': 'adaptive',
       'fallbackDifficulty': 'beginner',
-      'randomLegalMoveRate': 0.85,
+      'randomLegalMoveRate': 0.55,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.adaptive,
@@ -380,6 +397,56 @@ class AiAlgorithmRegistry {
       difficulty: DifficultyLevel.intermediate,
     ),
   );
+
+  static final AiAlgorithmConfig _katagoOnnxWeak = AiAlgorithmConfig(
+    id: 'katago_onnx_weak_v1',
+    frameworkId: AiAlgorithmFrameworkId.katago,
+    displayName: 'KataGo ONNX Weak',
+    strengthTier: AiAlgorithmStrengthTier.weak,
+    runtimeMode: AiAlgorithmRuntimeMode.native,
+    failureMode: 'katago_onnx_unavailable_uses_legal_heuristic_fallback',
+    parameters: const {
+      'backend': 'onnx',
+      'modelAsset': 'assets/models/katago_capture_weak.onnx',
+      'visits': 4,
+      'timeBudgetMillis': 1000,
+      'fallbackStyle': 'adaptive',
+      'fallbackDifficulty': 'beginner',
+      'randomLegalMoveRate': 0.55,
+    },
+    robotConfig: CaptureAiRegistry.resolveConfig(
+      style: CaptureAiStyle.adaptive,
+      difficulty: DifficultyLevel.beginner,
+    ),
+  );
+
+  static final AiAlgorithmConfig _katagoOnnxStandard = AiAlgorithmConfig(
+    id: 'katago_onnx_standard_v1',
+    frameworkId: AiAlgorithmFrameworkId.katago,
+    displayName: 'KataGo ONNX Standard',
+    strengthTier: AiAlgorithmStrengthTier.standard,
+    runtimeMode: AiAlgorithmRuntimeMode.native,
+    failureMode: 'katago_onnx_unavailable_uses_legal_hybrid_fallback',
+    parameters: const {
+      'backend': 'onnx',
+      'modelAsset': 'assets/models/katago_capture_standard.onnx',
+      'visits': 32,
+      'timeBudgetMillis': 1000,
+      'fallbackStyle': 'counter',
+      'fallbackDifficulty': 'intermediate',
+    },
+    robotConfig: CaptureAiRegistry.resolveConfig(
+      style: CaptureAiStyle.counter,
+      difficulty: DifficultyLevel.intermediate,
+    ),
+  );
+}
+
+String _katagoBackend(AiAlgorithmConfig config) {
+  return switch (config.parameters['backend']) {
+    final String value => value,
+    _ => '',
+  };
 }
 
 class _TacticalAnalyzerAgent implements CaptureAiAgent {
@@ -457,6 +524,53 @@ class _RandomizedLegalAgent implements CaptureAiAgent {
     }
     return _inner.chooseMove(board);
   }
+}
+
+class _KatagoOnnxAgent implements CaptureAiAgent {
+  const _KatagoOnnxAgent({
+    required this.config,
+    required CaptureAiAgent fallback,
+    required KatagoModelAdapter modelAdapter,
+  })  : _fallback = fallback,
+        _modelAdapter = modelAdapter;
+
+  final AiAlgorithmConfig config;
+  final CaptureAiAgent _fallback;
+  final KatagoModelAdapter _modelAdapter;
+
+  @override
+  CaptureAiStyle get style => _fallback.style;
+
+  @override
+  CaptureAiMove? chooseMove(SimBoard board) {
+    final evaluation = _modelAdapter.chooseMove(
+      KatagoModelRequest(
+        board: SimBoard.copy(board),
+        modelAsset: _stringParameter(config, 'modelAsset'),
+        visits: _intParameter(config, 'visits'),
+        timeBudgetMillis: _intParameter(config, 'timeBudgetMillis'),
+      ),
+    );
+    final move = evaluation.move;
+    if (move != null && board.analyzeMove(move.row, move.col).isLegal) {
+      return CaptureAiMove(position: move, score: 100000);
+    }
+    return _fallback.chooseMove(board);
+  }
+}
+
+String _stringParameter(AiAlgorithmConfig config, String key) {
+  return switch (config.parameters[key]) {
+    final String value => value,
+    _ => '',
+  };
+}
+
+int _intParameter(AiAlgorithmConfig config, String key) {
+  return switch (config.parameters[key]) {
+    final int value => value,
+    _ => 0,
+  };
 }
 
 int _boardFingerprint(SimBoard board) {

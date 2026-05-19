@@ -203,7 +203,8 @@ class AiArenaExecutor {
         endReason: result.endReason.name,
         illegalMove: result.endReason == CaptureAiMatchEndReason.invalidMove,
         timedOut: _isTimeout(result.endReason),
-        fallbackUsed: configA.usesFallback || configB.usesFallback,
+        fallbackUsed:
+            configA.reportsFallbackPath || configB.reportsFallbackPath,
         maxDecisionMillis: result.maxDecisionMillis,
         failureReason: _frameworkFailureReason(
           result.endReason,
