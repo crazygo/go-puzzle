@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../models/board_position.dart';
 import 'capture_ai.dart';
 import 'difficulty_level.dart';
@@ -190,9 +192,16 @@ class AiAlgorithmRegistry {
     final robotConfig = seedOverride == null
         ? config.robotConfig
         : config.robotConfig.copyWith(seed: seedOverride);
+    final randomized = _randomLegalMoveRate(config) <= 0
+        ? CaptureAiRegistry.createFromConfig(robotConfig)
+        : _RandomizedLegalAgent(
+            inner: CaptureAiRegistry.createFromConfig(robotConfig),
+            randomLegalMoveRate: _randomLegalMoveRate(config),
+            seed: seedOverride ?? config.robotConfig.seed,
+          );
     return _TacticalAnalyzerAgent(
       config: config,
-      inner: CaptureAiRegistry.createFromConfig(robotConfig),
+      inner: randomized,
       tacticalAnalyzer: tacticalAnalyzer,
     );
   }
@@ -240,22 +249,23 @@ class AiAlgorithmRegistry {
     strengthTier: AiAlgorithmStrengthTier.weak,
     runtimeMode: AiAlgorithmRuntimeMode.native,
     parameters: const {
-      'style': 'counter',
-      'difficulty': 'intermediate',
-      'mctsPlayouts': 16,
-      'mctsRolloutDepth': 10,
-      'mctsCandidateLimit': 8,
-      'rolloutTemperature': 10.0,
+      'style': 'adaptive',
+      'difficulty': 'beginner',
+      'mctsPlayouts': 1,
+      'mctsRolloutDepth': 2,
+      'mctsCandidateLimit': 3,
+      'rolloutTemperature': 30.0,
+      'randomLegalMoveRate': 0.85,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
-      style: CaptureAiStyle.counter,
-      difficulty: DifficultyLevel.intermediate,
+      style: CaptureAiStyle.adaptive,
+      difficulty: DifficultyLevel.beginner,
     ).copyWith(
       engine: CaptureAiEngine.mcts,
-      mctsPlayouts: 16,
-      mctsRolloutDepth: 10,
-      mctsCandidateLimit: 8,
-      rolloutTemperature: 10.0,
+      mctsPlayouts: 1,
+      mctsRolloutDepth: 2,
+      mctsCandidateLimit: 3,
+      rolloutTemperature: 30.0,
     ),
   );
 
@@ -267,21 +277,21 @@ class AiAlgorithmRegistry {
     runtimeMode: AiAlgorithmRuntimeMode.native,
     parameters: const {
       'style': 'counter',
-      'difficulty': 'advanced',
-      'mctsPlayouts': 64,
-      'mctsRolloutDepth': 18,
-      'mctsCandidateLimit': 12,
-      'rolloutTemperature': 6.0,
+      'difficulty': 'intermediate',
+      'mctsPlayouts': 4,
+      'mctsRolloutDepth': 4,
+      'mctsCandidateLimit': 5,
+      'rolloutTemperature': 2.0,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,
-      difficulty: DifficultyLevel.advanced,
+      difficulty: DifficultyLevel.intermediate,
     ).copyWith(
       engine: CaptureAiEngine.mcts,
-      mctsPlayouts: 64,
-      mctsRolloutDepth: 18,
-      mctsCandidateLimit: 12,
-      rolloutTemperature: 6.0,
+      mctsPlayouts: 4,
+      mctsRolloutDepth: 4,
+      mctsCandidateLimit: 5,
+      rolloutTemperature: 2.0,
     ),
   );
 
@@ -297,6 +307,7 @@ class AiAlgorithmRegistry {
       'heuristicPlayouts': 12,
       'mctsPlayouts': 24,
       'mctsRolloutDepth': 14,
+      'randomLegalMoveRate': 0.35,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,
@@ -312,14 +323,22 @@ class AiAlgorithmRegistry {
     runtimeMode: AiAlgorithmRuntimeMode.native,
     parameters: const {
       'style': 'counter',
-      'difficulty': 'advanced',
-      'heuristicPlayouts': 40,
-      'mctsPlayouts': 72,
-      'mctsRolloutDepth': 20,
+      'difficulty': 'intermediate',
+      'heuristicPlayouts': 24,
+      'mctsPlayouts': 8,
+      'mctsRolloutDepth': 6,
+      'mctsCandidateLimit': 6,
+      'rolloutTemperature': 3.0,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,
-      difficulty: DifficultyLevel.advanced,
+      difficulty: DifficultyLevel.intermediate,
+    ).copyWith(
+      heuristicPlayouts: 24,
+      mctsPlayouts: 8,
+      mctsRolloutDepth: 6,
+      mctsCandidateLimit: 6,
+      rolloutTemperature: 3.0,
     ),
   );
 
@@ -335,6 +354,7 @@ class AiAlgorithmRegistry {
       'model': 'katago_capture_placeholder_small',
       'fallbackStyle': 'adaptive',
       'fallbackDifficulty': 'beginner',
+      'randomLegalMoveRate': 0.85,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.adaptive,
@@ -391,4 +411,59 @@ class _TacticalAnalyzerAgent implements CaptureAiAgent {
     }
     return _inner.chooseMove(board);
   }
+}
+
+double _randomLegalMoveRate(AiAlgorithmConfig config) {
+  return switch (config.parameters['randomLegalMoveRate']) {
+    final int value => value.toDouble(),
+    final double value => value,
+    _ => 0,
+  };
+}
+
+class _RandomizedLegalAgent implements CaptureAiAgent {
+  const _RandomizedLegalAgent({
+    required CaptureAiAgent inner,
+    required this.randomLegalMoveRate,
+    required this.seed,
+  }) : _inner = inner;
+
+  final CaptureAiAgent _inner;
+  final double randomLegalMoveRate;
+  final int seed;
+
+  @override
+  CaptureAiStyle get style => _inner.style;
+
+  @override
+  CaptureAiMove? chooseMove(SimBoard board) {
+    final legalMoves = board.getLegalMoves().where((moveIndex) {
+      return board
+          .analyzeMove(
+            moveIndex ~/ board.size,
+            moveIndex % board.size,
+          )
+          .isLegal;
+    }).toList(growable: false);
+    if (legalMoves.isEmpty) return null;
+    final rng = math.Random(seed ^ _boardFingerprint(board));
+    if (rng.nextDouble() < randomLegalMoveRate.clamp(0, 1)) {
+      final moveIndex = legalMoves[rng.nextInt(legalMoves.length)];
+      return CaptureAiMove(
+        position:
+            BoardPosition(moveIndex ~/ board.size, moveIndex % board.size),
+        score: 0,
+      );
+    }
+    return _inner.chooseMove(board);
+  }
+}
+
+int _boardFingerprint(SimBoard board) {
+  var hash = board.currentPlayer * 31 + board.capturedByBlack * 17;
+  hash = hash * 31 + board.capturedByWhite * 19;
+  for (var i = 0; i < board.cells.length; i++) {
+    hash = 0x1fffffff & (hash * 33 + board.cells[i] * (i + 1));
+  }
+  return hash;
 }
