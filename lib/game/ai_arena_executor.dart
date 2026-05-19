@@ -5,6 +5,7 @@ import 'ai_algorithm_framework.dart';
 import 'capture_ai.dart';
 import 'ai_arena_ladder.dart';
 import 'difficulty_level.dart';
+import 'katago_model_adapter.dart';
 import 'mcts_engine.dart';
 
 const String _executorVersion = 'ai_arena_executor_v1';
@@ -26,6 +27,7 @@ class AiArenaExecutor {
     this.maxMoves = 512,
     this.openingPolicy = 'empty_cross_twist_cross_random_v1',
     this.decisionTimeout = const Duration(seconds: 5),
+    this.katagoModelAdapter,
   });
 
   final int boardSize;
@@ -34,6 +36,7 @@ class AiArenaExecutor {
   final int maxMoves;
   final String openingPolicy;
   final Duration decisionTimeout;
+  final KatagoModelAdapter? katagoModelAdapter;
 
   String get executorVersion => _executorVersion;
 
@@ -156,11 +159,15 @@ class AiArenaExecutor {
       final blackAgent = AiAlgorithmRegistry.createAgent(
         aIsBlack ? configA : configB,
         seedOverride: gameSeed * 2,
+        katagoModelAdapter:
+            katagoModelAdapter ?? const UnavailableKatagoOnnxModelAdapter(),
       );
       final blackConfig = aIsBlack ? configA : configB;
       final whiteAgent = AiAlgorithmRegistry.createAgent(
         aIsBlack ? configB : configA,
         seedOverride: gameSeed * 2 + 1,
+        katagoModelAdapter:
+            katagoModelAdapter ?? const UnavailableKatagoOnnxModelAdapter(),
       );
       final whiteConfig = aIsBlack ? configB : configA;
 
@@ -469,13 +476,13 @@ String? _frameworkFailureReason(
   AiAlgorithmConfig configB,
 ) {
   final base = _failureReason(endReason);
+  if (base == null) return null;
   final fallbackReasons = [
     if (configA.failureMode != null) 'a:${configA.failureMode}',
     if (configB.failureMode != null) 'b:${configB.failureMode}',
   ];
-  if (base == null && fallbackReasons.isEmpty) return null;
   return [
-    if (base != null) base,
+    base,
     ...fallbackReasons,
   ].join(';');
 }

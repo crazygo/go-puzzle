@@ -13,12 +13,16 @@ class KatagoModelRequest {
     required this.modelAsset,
     required this.visits,
     required this.timeBudgetMillis,
+    required this.policyTemperature,
+    required this.candidateLimit,
   });
 
   final SimBoard board;
   final String modelAsset;
   final int visits;
   final int timeBudgetMillis;
+  final double policyTemperature;
+  final int candidateLimit;
 }
 
 class KatagoModelEvaluation {

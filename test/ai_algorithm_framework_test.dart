@@ -87,6 +87,8 @@ void main() {
         expect(config.parameters['modelAsset'], isA<String>());
         expect(config.parameters['visits'], isA<int>());
         expect(config.parameters['timeBudgetMillis'], 10000);
+        expect(config.parameters['policyTemperature'], isA<num>());
+        expect(config.parameters['candidateLimit'], isA<int>());
       }
     });
 

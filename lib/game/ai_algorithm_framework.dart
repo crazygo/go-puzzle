@@ -371,6 +371,8 @@ class AiAlgorithmRegistry {
       'modelAsset': 'assets/models/katago_capture_weak.onnx',
       'visits': 4,
       'timeBudgetMillis': 10000,
+      'policyTemperature': 1.35,
+      'candidateLimit': 12,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.adaptive,
@@ -390,6 +392,8 @@ class AiAlgorithmRegistry {
       'modelAsset': 'assets/models/katago_capture_standard.onnx',
       'visits': 32,
       'timeBudgetMillis': 10000,
+      'policyTemperature': 0.0,
+      'candidateLimit': 1,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,
@@ -505,6 +509,8 @@ class _KatagoOnnxAgent implements CaptureAiAgent {
         modelAsset: _stringParameter(config, 'modelAsset'),
         visits: _intParameter(config, 'visits'),
         timeBudgetMillis: _intParameter(config, 'timeBudgetMillis'),
+        policyTemperature: _doubleParameter(config, 'policyTemperature'),
+        candidateLimit: _intParameter(config, 'candidateLimit'),
       ),
     );
     final move = evaluation.move;
@@ -525,6 +531,14 @@ String _stringParameter(AiAlgorithmConfig config, String key) {
 int _intParameter(AiAlgorithmConfig config, String key) {
   return switch (config.parameters[key]) {
     final int value => value,
+    _ => 0,
+  };
+}
+
+double _doubleParameter(AiAlgorithmConfig config, String key) {
+  return switch (config.parameters[key]) {
+    final int value => value.toDouble(),
+    final double value => value,
     _ => 0,
   };
 }
