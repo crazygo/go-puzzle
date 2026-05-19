@@ -216,6 +216,13 @@ class AiAlgorithmRegistry {
         seed: seedOverride ?? config.robotConfig.seed,
       );
     }
+    if (_katagoBackend(config) != 'onnx' &&
+        _intParameter(config, 'captureSearchDepth') > 0) {
+      agent = _ConfigCaptureSearchAgent(
+        config: config,
+        inner: agent,
+      );
+    }
     return _TacticalAnalyzerAgent(
       config: config,
       inner: agent,
@@ -249,6 +256,13 @@ class AiAlgorithmRegistry {
         inner: agent,
         randomLegalMoveRate: _randomLegalMoveRate(config),
         seed: seedOverride ?? config.robotConfig.seed,
+      );
+    }
+    if (_katagoBackend(config) != 'onnx' &&
+        _intParameter(config, 'captureSearchDepth') > 0) {
+      agent = _ConfigCaptureSearchAgent(
+        config: config,
+        inner: agent,
       );
     }
     return _AsyncTacticalAnalyzerAgent(
@@ -330,20 +344,21 @@ class AiAlgorithmRegistry {
     parameters: const {
       'style': 'counter',
       'difficulty': 'intermediate',
-      'mctsPlayouts': 4,
-      'mctsRolloutDepth': 4,
-      'mctsCandidateLimit': 5,
-      'rolloutTemperature': 2.0,
+      'mctsPlayouts': 12,
+      'mctsRolloutDepth': 6,
+      'mctsCandidateLimit': 7,
+      'rolloutTemperature': 1.25,
+      'captureSearchDepth': 2,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,
       difficulty: DifficultyLevel.intermediate,
     ).copyWith(
       engine: CaptureAiEngine.mcts,
-      mctsPlayouts: 4,
-      mctsRolloutDepth: 4,
-      mctsCandidateLimit: 5,
-      rolloutTemperature: 2.0,
+      mctsPlayouts: 12,
+      mctsRolloutDepth: 6,
+      mctsCandidateLimit: 7,
+      rolloutTemperature: 1.25,
     ),
   );
 
@@ -407,6 +422,7 @@ class AiAlgorithmRegistry {
       'timeBudgetMillis': 10000,
       'policyTemperature': 1.35,
       'candidateLimit': 12,
+      'captureSearchDepth': 0,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.adaptive,
@@ -427,6 +443,7 @@ class AiAlgorithmRegistry {
       'timeBudgetMillis': 10000,
       'policyTemperature': 0.0,
       'candidateLimit': 1,
+      'captureSearchDepth': 2,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,
@@ -507,6 +524,39 @@ class _AsyncTacticalAnalyzerAgent implements AsyncCaptureAiAgent {
       }
     }
     return _inner.chooseMove(board);
+  }
+}
+
+class _ConfigCaptureSearchAgent implements CaptureAiAgent {
+  const _ConfigCaptureSearchAgent({
+    required this.config,
+    required CaptureAiAgent inner,
+  }) : _inner = inner;
+
+  final AiAlgorithmConfig config;
+  final CaptureAiAgent _inner;
+
+  @override
+  CaptureAiStyle get style => _inner.style;
+
+  @override
+  CaptureAiMove? chooseMove(SimBoard board) {
+    final baseMove = _inner.chooseMove(board);
+    if (baseMove == null) return null;
+    final position = baseMove.position;
+    if (!board.analyzeMove(position.row, position.col).isLegal) {
+      return baseMove;
+    }
+    final searchedMove = _captureSearchMove(
+      board,
+      depth: _intParameter(config, 'captureSearchDepth'),
+      baseMove: position,
+    );
+    if (searchedMove == null) return baseMove;
+    return CaptureAiMove(
+      position: searchedMove,
+      score: baseMove.score + 1000,
+    );
   }
 }
 
@@ -599,7 +649,12 @@ class _KatagoOnnxAgent implements CaptureAiAgent {
     );
     final move = evaluation.move;
     if (move != null && board.analyzeMove(move.row, move.col).isLegal) {
-      return CaptureAiMove(position: move, score: 100000);
+      final tacticalMove = _captureSearchMove(
+        board,
+        depth: _intParameter(config, 'captureSearchDepth'),
+        baseMove: move,
+      );
+      return CaptureAiMove(position: tacticalMove ?? move, score: 100000);
     }
     return null;
   }
@@ -634,12 +689,104 @@ class _AsyncKatagoOnnxAgent implements AsyncCaptureAiAgent {
     );
     final move = evaluation.move;
     if (move != null && board.analyzeMove(move.row, move.col).isLegal) {
-      return CaptureAiMove(position: move, score: 100000);
+      final tacticalMove = _captureSearchMove(
+        board,
+        depth: _intParameter(config, 'captureSearchDepth'),
+        baseMove: move,
+      );
+      return CaptureAiMove(position: tacticalMove ?? move, score: 100000);
     }
     throw KatagoModelException(
       evaluation.failureReason ?? 'katago_onnx_returned_no_legal_move',
     );
   }
+}
+
+BoardPosition? _captureSearchMove(
+  SimBoard board, {
+  required int depth,
+  required BoardPosition baseMove,
+}) {
+  if (depth <= 0) return null;
+  final baseIndex = baseMove.row * board.size + baseMove.col;
+  final baseScore = _captureSearchScore(board, baseIndex, depth: depth);
+  var bestMove = baseIndex;
+  var bestScore = baseScore;
+  for (final moveIndex in board.getLegalMoves()) {
+    final analysis = board.analyzeMove(
+      moveIndex ~/ board.size,
+      moveIndex % board.size,
+    );
+    if (!analysis.isLegal) continue;
+    final ownCaptureDelta = board.currentPlayer == SimBoard.black
+        ? analysis.blackCaptureDelta
+        : analysis.whiteCaptureDelta;
+    final capturesNeeded = board.currentPlayer == SimBoard.black
+        ? board.captureTarget - board.capturedByBlack
+        : board.captureTarget - board.capturedByWhite;
+    if (ownCaptureDelta >= capturesNeeded) {
+      return BoardPosition(moveIndex ~/ board.size, moveIndex % board.size);
+    }
+    final score = _captureSearchScore(board, moveIndex, depth: depth);
+    if (score > bestScore) {
+      bestScore = score;
+      bestMove = moveIndex;
+    }
+  }
+  if (bestMove == baseIndex) return null;
+  return BoardPosition(bestMove ~/ board.size, bestMove % board.size);
+}
+
+double _captureSearchScore(
+  SimBoard board,
+  int moveIndex, {
+  required int depth,
+}) {
+  final analysis = board.analyzeMove(
+    moveIndex ~/ board.size,
+    moveIndex % board.size,
+  );
+  if (!analysis.isLegal) return double.negativeInfinity;
+  final ownCaptureDelta = board.currentPlayer == SimBoard.black
+      ? analysis.blackCaptureDelta
+      : analysis.whiteCaptureDelta;
+  var score = ownCaptureDelta * 1200.0 +
+      analysis.opponentAtariStones * 80.0 +
+      analysis.ownRescuedStones * 35.0 +
+      analysis.adjacentOpponentStones * 12.0 +
+      analysis.libertiesAfterMove * 4.0 +
+      analysis.centerProximityScore.toDouble();
+  if (depth < 2) return score;
+
+  final probe = SimBoard.copy(board);
+  if (!probe.applyMove(moveIndex ~/ board.size, moveIndex % board.size)) {
+    return double.negativeInfinity;
+  }
+  if (probe.isTerminal) return score + 100000;
+
+  var opponentBestCapture = 0;
+  var opponentBestAtari = 0;
+  final opponentCapturesNeeded = probe.currentPlayer == SimBoard.black
+      ? probe.captureTarget - probe.capturedByBlack
+      : probe.captureTarget - probe.capturedByWhite;
+  for (final replyIndex in probe.getLegalMoves()) {
+    final reply = probe.analyzeMove(
+      replyIndex ~/ probe.size,
+      replyIndex % probe.size,
+    );
+    if (!reply.isLegal) continue;
+    final replyCaptureDelta = probe.currentPlayer == SimBoard.black
+        ? reply.blackCaptureDelta
+        : reply.whiteCaptureDelta;
+    if (replyCaptureDelta >= opponentCapturesNeeded) {
+      return score - 100000;
+    }
+    opponentBestCapture = math.max(opponentBestCapture, replyCaptureDelta);
+    opponentBestAtari = math.max(opponentBestAtari, reply.opponentAtariStones);
+  }
+  score -= opponentBestCapture * 950.0;
+  score -= opponentBestAtari * 45.0;
+  return score;
 }
 
 String _stringParameter(AiAlgorithmConfig config, String key) {
