@@ -8,18 +8,27 @@ class FlutterKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
   FlutterKatagoOnnxModelAdapter({
     OnnxRuntime? runtime,
     KatagoOnnxFeatureEncoder encoder = const KatagoOnnxFeatureEncoder(),
+    Duration sessionLoadTimeout = const Duration(seconds: 60),
   })  : _runtime = runtime ?? OnnxRuntime(),
-        _encoder = encoder;
+        _encoder = encoder,
+        _sessionLoadTimeout = sessionLoadTimeout;
 
   final OnnxRuntime _runtime;
   final KatagoOnnxFeatureEncoder _encoder;
+  final Duration _sessionLoadTimeout;
   final Map<String, OrtSession> _sessions = {};
+  final Map<String, String> _loadFailures = {};
 
   @override
   Future<void> preload(Iterable<KatagoModelRequest> requests) async {
     final assets = requests.map((request) => request.modelAsset).toSet();
     for (final asset in assets) {
-      await _sessionFor(asset);
+      try {
+        await _sessionFor(asset);
+      } catch (_) {
+        // Store the failure in _sessionFor and let chooseMove surface it as a
+        // structured failed evaluation for each affected game.
+      }
     }
   }
 
@@ -46,15 +55,19 @@ class FlutterKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
 
       final session = await _sessionFor(request.modelAsset);
       final features = _encoder.encode(request.board);
-      binInput = await OrtValue.fromList(features.binInput, features.binShape);
+      final decisionTimeout = Duration(
+        milliseconds: request.timeBudgetMillis,
+      );
+      binInput = await OrtValue.fromList(features.binInput, features.binShape)
+          .timeout(decisionTimeout);
       globalInput = await OrtValue.fromList(
         features.globalInput,
         features.globalShape,
-      );
+      ).timeout(decisionTimeout);
       outputs = await session.run({
         'bin_input': binInput,
         'global_input': globalInput,
-      });
+      }).timeout(decisionTimeout);
       final policyOutput =
           outputs['policy'] ?? outputs[outputs.keys.firstOrNull ?? ''];
       if (policyOutput == null) {
@@ -96,14 +109,27 @@ class FlutterKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
       await session.close();
     }
     _sessions.clear();
+    _loadFailures.clear();
   }
 
   Future<OrtSession> _sessionFor(String modelAsset) async {
     final existing = _sessions[modelAsset];
     if (existing != null) return existing;
-    final session = await _runtime.createSessionFromAsset(modelAsset);
-    _sessions[modelAsset] = session;
-    return session;
+    final previousFailure = _loadFailures[modelAsset];
+    if (previousFailure != null) {
+      throw StateError(previousFailure);
+    }
+    try {
+      final session = await _runtime
+          .createSessionFromAsset(modelAsset)
+          .timeout(_sessionLoadTimeout);
+      _sessions[modelAsset] = session;
+      return session;
+    } catch (error) {
+      final reason = 'katago_flutter_onnx_load_failed:$modelAsset:$error';
+      _loadFailures[modelAsset] = reason;
+      throw StateError(reason);
+    }
   }
 
   int _selectMove({

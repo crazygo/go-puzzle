@@ -1,0 +1,2015 @@
+{
+  "matches": [
+    {
+      "matchSeed": 20260519,
+      "openingSeed": 0,
+      "openingPolicy": "empty_cross_twist_cross_random_v1",
+      "boardSize": 9,
+      "captureTarget": 1,
+      "rounds": 4,
+      "maxMoves": 120,
+      "configA": {
+        "id": "heuristic_adaptive_weak_v1",
+        "style": "heuristic",
+        "difficulty": "weak",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "heuristic_adaptive_weak_v1",
+          "frameworkId": "heuristic",
+          "displayName": "Heuristic Weak",
+          "strengthTier": "weak",
+          "runtimeMode": "native",
+          "parameters": {
+            "style": "adaptive",
+            "difficulty": "beginner",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 0
+          },
+          "robotConfig": {
+            "style": "adaptive",
+            "difficulty": "beginner",
+            "engine": "heuristic",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 0,
+            "mctsRolloutDepth": 0,
+            "mctsCandidateLimit": 6,
+            "mctsExploration": 1.414,
+            "rolloutTemperature": 0,
+            "seed": 1009
+          }
+        }
+      },
+      "configB": {
+        "id": "mcts_counter_standard_v1",
+        "style": "mcts",
+        "difficulty": "standard",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "mcts_counter_standard_v1",
+          "frameworkId": "mcts",
+          "displayName": "MCTS Standard",
+          "strengthTier": "standard",
+          "runtimeMode": "native",
+          "parameters": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "mctsPlayouts": 4,
+            "mctsRolloutDepth": 4,
+            "mctsCandidateLimit": 5,
+            "rolloutTemperature": 2
+          },
+          "robotConfig": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "engine": "mcts",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 4,
+            "mctsRolloutDepth": 4,
+            "mctsCandidateLimit": 5,
+            "mctsExploration": 1.25,
+            "rolloutTemperature": 2,
+            "seed": 3242
+          }
+        }
+      },
+      "aWins": 2,
+      "bWins": 2,
+      "draws": 0,
+      "aWinRate": 0.5,
+      "bWinRate": 0.5,
+      "games": [
+        {
+          "index": 0,
+          "gameSeed": 20260519000,
+          "openingIndex": 0,
+          "opening": "empty",
+          "black": "a",
+          "winner": "a",
+          "moves": 73,
+          "blackCaptures": 1,
+          "whiteCaptures": 0,
+          "endReason": "captureTargetReached",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false
+        },
+        {
+          "index": 1,
+          "gameSeed": 20260519001,
+          "openingIndex": 0,
+          "opening": "empty",
+          "black": "b",
+          "winner": "b",
+          "moves": 61,
+          "blackCaptures": 1,
+          "whiteCaptures": 0,
+          "endReason": "captureTargetReached",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false
+        },
+        {
+          "index": 2,
+          "gameSeed": 20260519002,
+          "openingIndex": 1,
+          "opening": "cross",
+          "black": "a",
+          "winner": "a",
+          "moves": 21,
+          "blackCaptures": 4,
+          "whiteCaptures": 0,
+          "endReason": "captureTargetReached",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false
+        },
+        {
+          "index": 3,
+          "gameSeed": 20260519003,
+          "openingIndex": 1,
+          "opening": "cross",
+          "black": "b",
+          "winner": "b",
+          "moves": 31,
+          "blackCaptures": 4,
+          "whiteCaptures": 0,
+          "endReason": "captureTargetReached",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false
+        }
+      ],
+      "openingPerformance": [
+        {
+          "opening": "cross",
+          "games": 2,
+          "aWins": 1,
+          "bWins": 1,
+          "draws": 0,
+          "aWinRate": 0.5,
+          "bWinRate": 0.5,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        },
+        {
+          "opening": "empty",
+          "games": 2,
+          "aWins": 1,
+          "bWins": 1,
+          "draws": 0,
+          "aWinRate": 0.5,
+          "bWinRate": 0.5,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        }
+      ]
+    },
+    {
+      "matchSeed": 20268438,
+      "openingSeed": 1337,
+      "openingPolicy": "empty_cross_twist_cross_random_v1",
+      "boardSize": 9,
+      "captureTarget": 1,
+      "rounds": 4,
+      "maxMoves": 120,
+      "configA": {
+        "id": "heuristic_adaptive_weak_v1",
+        "style": "heuristic",
+        "difficulty": "weak",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "heuristic_adaptive_weak_v1",
+          "frameworkId": "heuristic",
+          "displayName": "Heuristic Weak",
+          "strengthTier": "weak",
+          "runtimeMode": "native",
+          "parameters": {
+            "style": "adaptive",
+            "difficulty": "beginner",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 0
+          },
+          "robotConfig": {
+            "style": "adaptive",
+            "difficulty": "beginner",
+            "engine": "heuristic",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 0,
+            "mctsRolloutDepth": 0,
+            "mctsCandidateLimit": 6,
+            "mctsExploration": 1.414,
+            "rolloutTemperature": 0,
+            "seed": 1009
+          }
+        }
+      },
+      "configB": {
+        "id": "hybrid_tactical_counter_standard_v1",
+        "style": "hybridTactical",
+        "difficulty": "standard",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "hybrid_tactical_counter_standard_v1",
+          "frameworkId": "hybridTactical",
+          "displayName": "Hybrid Tactical Standard",
+          "strengthTier": "standard",
+          "runtimeMode": "native",
+          "parameters": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "heuristicPlayouts": 24,
+            "mctsPlayouts": 8,
+            "mctsRolloutDepth": 6,
+            "mctsCandidateLimit": 6,
+            "rolloutTemperature": 3
+          },
+          "robotConfig": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "engine": "hybridMcts",
+            "heuristicPlayouts": 24,
+            "mctsPlayouts": 8,
+            "mctsRolloutDepth": 6,
+            "mctsCandidateLimit": 6,
+            "mctsExploration": 1.25,
+            "rolloutTemperature": 3,
+            "seed": 3242
+          }
+        }
+      },
+      "aWins": 2,
+      "bWins": 2,
+      "draws": 0,
+      "aWinRate": 0.5,
+      "bWinRate": 0.5,
+      "games": [
+        {
+          "index": 0,
+          "gameSeed": 20268438000,
+          "openingIndex": 1,
+          "opening": "cross",
+          "black": "a",
+          "winner": "a",
+          "moves": 21,
+          "blackCaptures": 4,
+          "whiteCaptures": 0,
+          "endReason": "captureTargetReached",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false
+        },
+        {
+          "index": 1,
+          "gameSeed": 20268438001,
+          "openingIndex": 1,
+          "opening": "cross",
+          "black": "b",
+          "winner": "b",
+          "moves": 27,
+          "blackCaptures": 4,
+          "whiteCaptures": 0,
+          "endReason": "captureTargetReached",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false
+        },
+        {
+          "index": 2,
+          "gameSeed": 20268438002,
+          "openingIndex": 2,
+          "opening": "twistCrossB",
+          "black": "a",
+          "winner": "a",
+          "moves": 37,
+          "blackCaptures": 2,
+          "whiteCaptures": 0,
+          "endReason": "captureTargetReached",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false
+        },
+        {
+          "index": 3,
+          "gameSeed": 20268438003,
+          "openingIndex": 2,
+          "opening": "twistCrossB",
+          "black": "b",
+          "winner": "b",
+          "moves": 49,
+          "blackCaptures": 2,
+          "whiteCaptures": 0,
+          "endReason": "captureTargetReached",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false
+        }
+      ],
+      "openingPerformance": [
+        {
+          "opening": "cross",
+          "games": 2,
+          "aWins": 1,
+          "bWins": 1,
+          "draws": 0,
+          "aWinRate": 0.5,
+          "bWinRate": 0.5,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        },
+        {
+          "opening": "twistCrossB",
+          "games": 2,
+          "aWins": 1,
+          "bWins": 1,
+          "draws": 0,
+          "aWinRate": 0.5,
+          "bWinRate": 0.5,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        }
+      ]
+    },
+    {
+      "matchSeed": 20276357,
+      "openingSeed": 2674,
+      "openingPolicy": "empty_cross_twist_cross_random_v1",
+      "boardSize": 9,
+      "captureTarget": 1,
+      "rounds": 4,
+      "maxMoves": 120,
+      "configA": {
+        "id": "heuristic_adaptive_weak_v1",
+        "style": "heuristic",
+        "difficulty": "weak",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "heuristic_adaptive_weak_v1",
+          "frameworkId": "heuristic",
+          "displayName": "Heuristic Weak",
+          "strengthTier": "weak",
+          "runtimeMode": "native",
+          "parameters": {
+            "style": "adaptive",
+            "difficulty": "beginner",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 0
+          },
+          "robotConfig": {
+            "style": "adaptive",
+            "difficulty": "beginner",
+            "engine": "heuristic",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 0,
+            "mctsRolloutDepth": 0,
+            "mctsCandidateLimit": 6,
+            "mctsExploration": 1.414,
+            "rolloutTemperature": 0,
+            "seed": 1009
+          }
+        }
+      },
+      "configB": {
+        "id": "katago_onnx_weak_v1",
+        "style": "katago",
+        "difficulty": "weak",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "katago_onnx_weak_v1",
+          "frameworkId": "katago",
+          "displayName": "KataGo ONNX Weak",
+          "strengthTier": "weak",
+          "runtimeMode": "native",
+          "parameters": {
+            "backend": "onnx",
+            "modelAsset": "assets/models/katago_capture_weak.onnx",
+            "visits": 4,
+            "timeBudgetMillis": 10000,
+            "policyTemperature": 1.35,
+            "candidateLimit": 12
+          },
+          "robotConfig": {
+            "style": "adaptive",
+            "difficulty": "beginner",
+            "engine": "heuristic",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 0,
+            "mctsRolloutDepth": 0,
+            "mctsCandidateLimit": 6,
+            "mctsExploration": 1.414,
+            "rolloutTemperature": 0,
+            "seed": 1009
+          }
+        }
+      },
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "games": [
+        {
+          "index": 0,
+          "gameSeed": 20276357000,
+          "openingIndex": 2,
+          "opening": "twistCrossA",
+          "black": "a",
+          "winner": "draw",
+          "moves": 1,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        },
+        {
+          "index": 1,
+          "gameSeed": 20276357001,
+          "openingIndex": 2,
+          "opening": "twistCrossA",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        },
+        {
+          "index": 2,
+          "gameSeed": 20276357002,
+          "openingIndex": 3,
+          "opening": "random",
+          "black": "a",
+          "winner": "draw",
+          "moves": 1,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        },
+        {
+          "index": 3,
+          "gameSeed": 20276357003,
+          "openingIndex": 3,
+          "opening": "random",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        }
+      ],
+      "openingPerformance": [
+        {
+          "opening": "random",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        },
+        {
+          "opening": "twistCrossA",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        }
+      ]
+    },
+    {
+      "matchSeed": 20284276,
+      "openingSeed": 4011,
+      "openingPolicy": "empty_cross_twist_cross_random_v1",
+      "boardSize": 9,
+      "captureTarget": 1,
+      "rounds": 4,
+      "maxMoves": 120,
+      "configA": {
+        "id": "heuristic_adaptive_weak_v1",
+        "style": "heuristic",
+        "difficulty": "weak",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "heuristic_adaptive_weak_v1",
+          "frameworkId": "heuristic",
+          "displayName": "Heuristic Weak",
+          "strengthTier": "weak",
+          "runtimeMode": "native",
+          "parameters": {
+            "style": "adaptive",
+            "difficulty": "beginner",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 0
+          },
+          "robotConfig": {
+            "style": "adaptive",
+            "difficulty": "beginner",
+            "engine": "heuristic",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 0,
+            "mctsRolloutDepth": 0,
+            "mctsCandidateLimit": 6,
+            "mctsExploration": 1.414,
+            "rolloutTemperature": 0,
+            "seed": 1009
+          }
+        }
+      },
+      "configB": {
+        "id": "katago_onnx_standard_v1",
+        "style": "katago",
+        "difficulty": "standard",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "katago_onnx_standard_v1",
+          "frameworkId": "katago",
+          "displayName": "KataGo ONNX Standard",
+          "strengthTier": "standard",
+          "runtimeMode": "native",
+          "parameters": {
+            "backend": "onnx",
+            "modelAsset": "assets/models/katago_capture_standard.onnx",
+            "visits": 32,
+            "timeBudgetMillis": 10000,
+            "policyTemperature": 0,
+            "candidateLimit": 1
+          },
+          "robotConfig": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "engine": "hybridMcts",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 24,
+            "mctsRolloutDepth": 14,
+            "mctsCandidateLimit": 11,
+            "mctsExploration": 1.25,
+            "rolloutTemperature": 8,
+            "seed": 3242
+          }
+        }
+      },
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "games": [
+        {
+          "index": 0,
+          "gameSeed": 20284276000,
+          "openingIndex": 3,
+          "opening": "random",
+          "black": "a",
+          "winner": "draw",
+          "moves": 1,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        },
+        {
+          "index": 1,
+          "gameSeed": 20284276001,
+          "openingIndex": 3,
+          "opening": "random",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        },
+        {
+          "index": 2,
+          "gameSeed": 20284276002,
+          "openingIndex": 0,
+          "opening": "empty",
+          "black": "a",
+          "winner": "draw",
+          "moves": 1,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        },
+        {
+          "index": 3,
+          "gameSeed": 20284276003,
+          "openingIndex": 0,
+          "opening": "empty",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        }
+      ],
+      "openingPerformance": [
+        {
+          "opening": "empty",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        },
+        {
+          "opening": "random",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        }
+      ]
+    },
+    {
+      "matchSeed": 20292195,
+      "openingSeed": 5348,
+      "openingPolicy": "empty_cross_twist_cross_random_v1",
+      "boardSize": 9,
+      "captureTarget": 1,
+      "rounds": 4,
+      "maxMoves": 120,
+      "configA": {
+        "id": "mcts_counter_standard_v1",
+        "style": "mcts",
+        "difficulty": "standard",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "mcts_counter_standard_v1",
+          "frameworkId": "mcts",
+          "displayName": "MCTS Standard",
+          "strengthTier": "standard",
+          "runtimeMode": "native",
+          "parameters": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "mctsPlayouts": 4,
+            "mctsRolloutDepth": 4,
+            "mctsCandidateLimit": 5,
+            "rolloutTemperature": 2
+          },
+          "robotConfig": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "engine": "mcts",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 4,
+            "mctsRolloutDepth": 4,
+            "mctsCandidateLimit": 5,
+            "mctsExploration": 1.25,
+            "rolloutTemperature": 2,
+            "seed": 3242
+          }
+        }
+      },
+      "configB": {
+        "id": "hybrid_tactical_counter_standard_v1",
+        "style": "hybridTactical",
+        "difficulty": "standard",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "hybrid_tactical_counter_standard_v1",
+          "frameworkId": "hybridTactical",
+          "displayName": "Hybrid Tactical Standard",
+          "strengthTier": "standard",
+          "runtimeMode": "native",
+          "parameters": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "heuristicPlayouts": 24,
+            "mctsPlayouts": 8,
+            "mctsRolloutDepth": 6,
+            "mctsCandidateLimit": 6,
+            "rolloutTemperature": 3
+          },
+          "robotConfig": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "engine": "hybridMcts",
+            "heuristicPlayouts": 24,
+            "mctsPlayouts": 8,
+            "mctsRolloutDepth": 6,
+            "mctsCandidateLimit": 6,
+            "mctsExploration": 1.25,
+            "rolloutTemperature": 3,
+            "seed": 3242
+          }
+        }
+      },
+      "aWins": 2,
+      "bWins": 2,
+      "draws": 0,
+      "aWinRate": 0.5,
+      "bWinRate": 0.5,
+      "games": [
+        {
+          "index": 0,
+          "gameSeed": 20292195000,
+          "openingIndex": 0,
+          "opening": "empty",
+          "black": "a",
+          "winner": "a",
+          "moves": 61,
+          "blackCaptures": 5,
+          "whiteCaptures": 0,
+          "endReason": "captureTargetReached",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false
+        },
+        {
+          "index": 1,
+          "gameSeed": 20292195001,
+          "openingIndex": 0,
+          "opening": "empty",
+          "black": "b",
+          "winner": "b",
+          "moves": 73,
+          "blackCaptures": 1,
+          "whiteCaptures": 0,
+          "endReason": "captureTargetReached",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false
+        },
+        {
+          "index": 2,
+          "gameSeed": 20292195002,
+          "openingIndex": 1,
+          "opening": "cross",
+          "black": "a",
+          "winner": "a",
+          "moves": 25,
+          "blackCaptures": 4,
+          "whiteCaptures": 0,
+          "endReason": "captureTargetReached",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false
+        },
+        {
+          "index": 3,
+          "gameSeed": 20292195003,
+          "openingIndex": 1,
+          "opening": "cross",
+          "black": "b",
+          "winner": "b",
+          "moves": 23,
+          "blackCaptures": 4,
+          "whiteCaptures": 0,
+          "endReason": "captureTargetReached",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false
+        }
+      ],
+      "openingPerformance": [
+        {
+          "opening": "cross",
+          "games": 2,
+          "aWins": 1,
+          "bWins": 1,
+          "draws": 0,
+          "aWinRate": 0.5,
+          "bWinRate": 0.5,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        },
+        {
+          "opening": "empty",
+          "games": 2,
+          "aWins": 1,
+          "bWins": 1,
+          "draws": 0,
+          "aWinRate": 0.5,
+          "bWinRate": 0.5,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        }
+      ]
+    },
+    {
+      "matchSeed": 20300114,
+      "openingSeed": 6685,
+      "openingPolicy": "empty_cross_twist_cross_random_v1",
+      "boardSize": 9,
+      "captureTarget": 1,
+      "rounds": 4,
+      "maxMoves": 120,
+      "configA": {
+        "id": "mcts_counter_standard_v1",
+        "style": "mcts",
+        "difficulty": "standard",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "mcts_counter_standard_v1",
+          "frameworkId": "mcts",
+          "displayName": "MCTS Standard",
+          "strengthTier": "standard",
+          "runtimeMode": "native",
+          "parameters": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "mctsPlayouts": 4,
+            "mctsRolloutDepth": 4,
+            "mctsCandidateLimit": 5,
+            "rolloutTemperature": 2
+          },
+          "robotConfig": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "engine": "mcts",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 4,
+            "mctsRolloutDepth": 4,
+            "mctsCandidateLimit": 5,
+            "mctsExploration": 1.25,
+            "rolloutTemperature": 2,
+            "seed": 3242
+          }
+        }
+      },
+      "configB": {
+        "id": "katago_onnx_weak_v1",
+        "style": "katago",
+        "difficulty": "weak",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "katago_onnx_weak_v1",
+          "frameworkId": "katago",
+          "displayName": "KataGo ONNX Weak",
+          "strengthTier": "weak",
+          "runtimeMode": "native",
+          "parameters": {
+            "backend": "onnx",
+            "modelAsset": "assets/models/katago_capture_weak.onnx",
+            "visits": 4,
+            "timeBudgetMillis": 10000,
+            "policyTemperature": 1.35,
+            "candidateLimit": 12
+          },
+          "robotConfig": {
+            "style": "adaptive",
+            "difficulty": "beginner",
+            "engine": "heuristic",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 0,
+            "mctsRolloutDepth": 0,
+            "mctsCandidateLimit": 6,
+            "mctsExploration": 1.414,
+            "rolloutTemperature": 0,
+            "seed": 1009
+          }
+        }
+      },
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "games": [
+        {
+          "index": 0,
+          "gameSeed": 20300114000,
+          "openingIndex": 1,
+          "opening": "cross",
+          "black": "a",
+          "winner": "draw",
+          "moves": 1,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        },
+        {
+          "index": 1,
+          "gameSeed": 20300114001,
+          "openingIndex": 1,
+          "opening": "cross",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        },
+        {
+          "index": 2,
+          "gameSeed": 20300114002,
+          "openingIndex": 2,
+          "opening": "twistCrossB",
+          "black": "a",
+          "winner": "draw",
+          "moves": 1,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        },
+        {
+          "index": 3,
+          "gameSeed": 20300114003,
+          "openingIndex": 2,
+          "opening": "twistCrossB",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        }
+      ],
+      "openingPerformance": [
+        {
+          "opening": "cross",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        },
+        {
+          "opening": "twistCrossB",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        }
+      ]
+    },
+    {
+      "matchSeed": 20308033,
+      "openingSeed": 8022,
+      "openingPolicy": "empty_cross_twist_cross_random_v1",
+      "boardSize": 9,
+      "captureTarget": 1,
+      "rounds": 4,
+      "maxMoves": 120,
+      "configA": {
+        "id": "mcts_counter_standard_v1",
+        "style": "mcts",
+        "difficulty": "standard",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "mcts_counter_standard_v1",
+          "frameworkId": "mcts",
+          "displayName": "MCTS Standard",
+          "strengthTier": "standard",
+          "runtimeMode": "native",
+          "parameters": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "mctsPlayouts": 4,
+            "mctsRolloutDepth": 4,
+            "mctsCandidateLimit": 5,
+            "rolloutTemperature": 2
+          },
+          "robotConfig": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "engine": "mcts",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 4,
+            "mctsRolloutDepth": 4,
+            "mctsCandidateLimit": 5,
+            "mctsExploration": 1.25,
+            "rolloutTemperature": 2,
+            "seed": 3242
+          }
+        }
+      },
+      "configB": {
+        "id": "katago_onnx_standard_v1",
+        "style": "katago",
+        "difficulty": "standard",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "katago_onnx_standard_v1",
+          "frameworkId": "katago",
+          "displayName": "KataGo ONNX Standard",
+          "strengthTier": "standard",
+          "runtimeMode": "native",
+          "parameters": {
+            "backend": "onnx",
+            "modelAsset": "assets/models/katago_capture_standard.onnx",
+            "visits": 32,
+            "timeBudgetMillis": 10000,
+            "policyTemperature": 0,
+            "candidateLimit": 1
+          },
+          "robotConfig": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "engine": "hybridMcts",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 24,
+            "mctsRolloutDepth": 14,
+            "mctsCandidateLimit": 11,
+            "mctsExploration": 1.25,
+            "rolloutTemperature": 8,
+            "seed": 3242
+          }
+        }
+      },
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "games": [
+        {
+          "index": 0,
+          "gameSeed": 20308033000,
+          "openingIndex": 2,
+          "opening": "twistCrossA",
+          "black": "a",
+          "winner": "draw",
+          "moves": 1,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        },
+        {
+          "index": 1,
+          "gameSeed": 20308033001,
+          "openingIndex": 2,
+          "opening": "twistCrossA",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        },
+        {
+          "index": 2,
+          "gameSeed": 20308033002,
+          "openingIndex": 3,
+          "opening": "random",
+          "black": "a",
+          "winner": "draw",
+          "moves": 1,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        },
+        {
+          "index": 3,
+          "gameSeed": 20308033003,
+          "openingIndex": 3,
+          "opening": "random",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        }
+      ],
+      "openingPerformance": [
+        {
+          "opening": "random",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        },
+        {
+          "opening": "twistCrossA",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        }
+      ]
+    },
+    {
+      "matchSeed": 20315952,
+      "openingSeed": 9359,
+      "openingPolicy": "empty_cross_twist_cross_random_v1",
+      "boardSize": 9,
+      "captureTarget": 1,
+      "rounds": 4,
+      "maxMoves": 120,
+      "configA": {
+        "id": "hybrid_tactical_counter_standard_v1",
+        "style": "hybridTactical",
+        "difficulty": "standard",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "hybrid_tactical_counter_standard_v1",
+          "frameworkId": "hybridTactical",
+          "displayName": "Hybrid Tactical Standard",
+          "strengthTier": "standard",
+          "runtimeMode": "native",
+          "parameters": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "heuristicPlayouts": 24,
+            "mctsPlayouts": 8,
+            "mctsRolloutDepth": 6,
+            "mctsCandidateLimit": 6,
+            "rolloutTemperature": 3
+          },
+          "robotConfig": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "engine": "hybridMcts",
+            "heuristicPlayouts": 24,
+            "mctsPlayouts": 8,
+            "mctsRolloutDepth": 6,
+            "mctsCandidateLimit": 6,
+            "mctsExploration": 1.25,
+            "rolloutTemperature": 3,
+            "seed": 3242
+          }
+        }
+      },
+      "configB": {
+        "id": "katago_onnx_weak_v1",
+        "style": "katago",
+        "difficulty": "weak",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "katago_onnx_weak_v1",
+          "frameworkId": "katago",
+          "displayName": "KataGo ONNX Weak",
+          "strengthTier": "weak",
+          "runtimeMode": "native",
+          "parameters": {
+            "backend": "onnx",
+            "modelAsset": "assets/models/katago_capture_weak.onnx",
+            "visits": 4,
+            "timeBudgetMillis": 10000,
+            "policyTemperature": 1.35,
+            "candidateLimit": 12
+          },
+          "robotConfig": {
+            "style": "adaptive",
+            "difficulty": "beginner",
+            "engine": "heuristic",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 0,
+            "mctsRolloutDepth": 0,
+            "mctsCandidateLimit": 6,
+            "mctsExploration": 1.414,
+            "rolloutTemperature": 0,
+            "seed": 1009
+          }
+        }
+      },
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "games": [
+        {
+          "index": 0,
+          "gameSeed": 20315952000,
+          "openingIndex": 3,
+          "opening": "random",
+          "black": "a",
+          "winner": "draw",
+          "moves": 1,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        },
+        {
+          "index": 1,
+          "gameSeed": 20315952001,
+          "openingIndex": 3,
+          "opening": "random",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        },
+        {
+          "index": 2,
+          "gameSeed": 20315952002,
+          "openingIndex": 0,
+          "opening": "empty",
+          "black": "a",
+          "winner": "draw",
+          "moves": 1,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        },
+        {
+          "index": 3,
+          "gameSeed": 20315952003,
+          "openingIndex": 0,
+          "opening": "empty",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        }
+      ],
+      "openingPerformance": [
+        {
+          "opening": "empty",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        },
+        {
+          "opening": "random",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        }
+      ]
+    },
+    {
+      "matchSeed": 20323871,
+      "openingSeed": 10696,
+      "openingPolicy": "empty_cross_twist_cross_random_v1",
+      "boardSize": 9,
+      "captureTarget": 1,
+      "rounds": 4,
+      "maxMoves": 120,
+      "configA": {
+        "id": "hybrid_tactical_counter_standard_v1",
+        "style": "hybridTactical",
+        "difficulty": "standard",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "hybrid_tactical_counter_standard_v1",
+          "frameworkId": "hybridTactical",
+          "displayName": "Hybrid Tactical Standard",
+          "strengthTier": "standard",
+          "runtimeMode": "native",
+          "parameters": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "heuristicPlayouts": 24,
+            "mctsPlayouts": 8,
+            "mctsRolloutDepth": 6,
+            "mctsCandidateLimit": 6,
+            "rolloutTemperature": 3
+          },
+          "robotConfig": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "engine": "hybridMcts",
+            "heuristicPlayouts": 24,
+            "mctsPlayouts": 8,
+            "mctsRolloutDepth": 6,
+            "mctsCandidateLimit": 6,
+            "mctsExploration": 1.25,
+            "rolloutTemperature": 3,
+            "seed": 3242
+          }
+        }
+      },
+      "configB": {
+        "id": "katago_onnx_standard_v1",
+        "style": "katago",
+        "difficulty": "standard",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "katago_onnx_standard_v1",
+          "frameworkId": "katago",
+          "displayName": "KataGo ONNX Standard",
+          "strengthTier": "standard",
+          "runtimeMode": "native",
+          "parameters": {
+            "backend": "onnx",
+            "modelAsset": "assets/models/katago_capture_standard.onnx",
+            "visits": 32,
+            "timeBudgetMillis": 10000,
+            "policyTemperature": 0,
+            "candidateLimit": 1
+          },
+          "robotConfig": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "engine": "hybridMcts",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 24,
+            "mctsRolloutDepth": 14,
+            "mctsCandidateLimit": 11,
+            "mctsExploration": 1.25,
+            "rolloutTemperature": 8,
+            "seed": 3242
+          }
+        }
+      },
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "games": [
+        {
+          "index": 0,
+          "gameSeed": 20323871000,
+          "openingIndex": 0,
+          "opening": "empty",
+          "black": "a",
+          "winner": "draw",
+          "moves": 1,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        },
+        {
+          "index": 1,
+          "gameSeed": 20323871001,
+          "openingIndex": 0,
+          "opening": "empty",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        },
+        {
+          "index": 2,
+          "gameSeed": 20323871002,
+          "openingIndex": 1,
+          "opening": "cross",
+          "black": "a",
+          "winner": "draw",
+          "moves": 1,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        },
+        {
+          "index": 3,
+          "gameSeed": 20323871003,
+          "openingIndex": 1,
+          "opening": "cross",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        }
+      ],
+      "openingPerformance": [
+        {
+          "opening": "cross",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        },
+        {
+          "opening": "empty",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        }
+      ]
+    },
+    {
+      "matchSeed": 20331790,
+      "openingSeed": 12033,
+      "openingPolicy": "empty_cross_twist_cross_random_v1",
+      "boardSize": 9,
+      "captureTarget": 1,
+      "rounds": 4,
+      "maxMoves": 120,
+      "configA": {
+        "id": "katago_onnx_weak_v1",
+        "style": "katago",
+        "difficulty": "weak",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "katago_onnx_weak_v1",
+          "frameworkId": "katago",
+          "displayName": "KataGo ONNX Weak",
+          "strengthTier": "weak",
+          "runtimeMode": "native",
+          "parameters": {
+            "backend": "onnx",
+            "modelAsset": "assets/models/katago_capture_weak.onnx",
+            "visits": 4,
+            "timeBudgetMillis": 10000,
+            "policyTemperature": 1.35,
+            "candidateLimit": 12
+          },
+          "robotConfig": {
+            "style": "adaptive",
+            "difficulty": "beginner",
+            "engine": "heuristic",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 0,
+            "mctsRolloutDepth": 0,
+            "mctsCandidateLimit": 6,
+            "mctsExploration": 1.414,
+            "rolloutTemperature": 0,
+            "seed": 1009
+          }
+        }
+      },
+      "configB": {
+        "id": "katago_onnx_standard_v1",
+        "style": "katago",
+        "difficulty": "standard",
+        "profileVersion": "ai_algorithm_framework_v1",
+        "parameters": {
+          "id": "katago_onnx_standard_v1",
+          "frameworkId": "katago",
+          "displayName": "KataGo ONNX Standard",
+          "strengthTier": "standard",
+          "runtimeMode": "native",
+          "parameters": {
+            "backend": "onnx",
+            "modelAsset": "assets/models/katago_capture_standard.onnx",
+            "visits": 32,
+            "timeBudgetMillis": 10000,
+            "policyTemperature": 0,
+            "candidateLimit": 1
+          },
+          "robotConfig": {
+            "style": "counter",
+            "difficulty": "intermediate",
+            "engine": "hybridMcts",
+            "heuristicPlayouts": 12,
+            "mctsPlayouts": 24,
+            "mctsRolloutDepth": 14,
+            "mctsCandidateLimit": 11,
+            "mctsExploration": 1.25,
+            "rolloutTemperature": 8,
+            "seed": 3242
+          }
+        }
+      },
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "games": [
+        {
+          "index": 0,
+          "gameSeed": 20331790000,
+          "openingIndex": 1,
+          "opening": "cross",
+          "black": "a",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        },
+        {
+          "index": 1,
+          "gameSeed": 20331790001,
+          "openingIndex": 1,
+          "opening": "cross",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        },
+        {
+          "index": 2,
+          "gameSeed": 20331790002,
+          "openingIndex": 2,
+          "opening": "twistCrossB",
+          "black": "a",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+        },
+        {
+          "index": 3,
+          "gameSeed": 20331790003,
+          "openingIndex": 2,
+          "opening": "twistCrossB",
+          "black": "b",
+          "winner": "draw",
+          "moves": 0,
+          "blackCaptures": 0,
+          "whiteCaptures": 0,
+          "endReason": "noLegalMove",
+          "illegalMove": false,
+          "timedOut": false,
+          "fallbackUsed": false,
+          "failureReason": "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+        }
+      ],
+      "openingPerformance": [
+        {
+          "opening": "cross",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        },
+        {
+          "opening": "twistCrossB",
+          "games": 2,
+          "aWins": 0,
+          "bWins": 0,
+          "draws": 2,
+          "aWinRate": 0,
+          "bWinRate": 0,
+          "illegalMoves": 0,
+          "timeouts": 0,
+          "fallbackGames": 0
+        }
+      ]
+    }
+  ],
+  "pairwise": [
+    {
+      "configAId": "heuristic_adaptive_weak_v1",
+      "configBId": "mcts_counter_standard_v1",
+      "games": 4,
+      "aWins": 2,
+      "bWins": 2,
+      "draws": 0,
+      "aWinRate": 0.5,
+      "bWinRate": 0.5,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0,
+      "failureReasons": []
+    },
+    {
+      "configAId": "heuristic_adaptive_weak_v1",
+      "configBId": "hybrid_tactical_counter_standard_v1",
+      "games": 4,
+      "aWins": 2,
+      "bWins": 2,
+      "draws": 0,
+      "aWinRate": 0.5,
+      "bWinRate": 0.5,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0,
+      "failureReasons": []
+    },
+    {
+      "configAId": "heuristic_adaptive_weak_v1",
+      "configBId": "katago_onnx_weak_v1",
+      "games": 4,
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0,
+      "failureReasons": [
+        "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)",
+        "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+      ]
+    },
+    {
+      "configAId": "heuristic_adaptive_weak_v1",
+      "configBId": "katago_onnx_standard_v1",
+      "games": 4,
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0,
+      "failureReasons": [
+        "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)",
+        "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+      ]
+    },
+    {
+      "configAId": "mcts_counter_standard_v1",
+      "configBId": "hybrid_tactical_counter_standard_v1",
+      "games": 4,
+      "aWins": 2,
+      "bWins": 2,
+      "draws": 0,
+      "aWinRate": 0.5,
+      "bWinRate": 0.5,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0,
+      "failureReasons": []
+    },
+    {
+      "configAId": "mcts_counter_standard_v1",
+      "configBId": "katago_onnx_weak_v1",
+      "games": 4,
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0,
+      "failureReasons": [
+        "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)",
+        "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+      ]
+    },
+    {
+      "configAId": "mcts_counter_standard_v1",
+      "configBId": "katago_onnx_standard_v1",
+      "games": 4,
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0,
+      "failureReasons": [
+        "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)",
+        "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+      ]
+    },
+    {
+      "configAId": "hybrid_tactical_counter_standard_v1",
+      "configBId": "katago_onnx_weak_v1",
+      "games": 4,
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0,
+      "failureReasons": [
+        "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)",
+        "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+      ]
+    },
+    {
+      "configAId": "hybrid_tactical_counter_standard_v1",
+      "configBId": "katago_onnx_standard_v1",
+      "games": 4,
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0,
+      "failureReasons": [
+        "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)",
+        "white:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)"
+      ]
+    },
+    {
+      "configAId": "katago_onnx_weak_v1",
+      "configBId": "katago_onnx_standard_v1",
+      "games": 4,
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0,
+      "failureReasons": [
+        "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_standard.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_standard.onnx, null, null)",
+        "black:katago_flutter_onnx_error:Bad state: katago_flutter_onnx_load_failed:assets/models/katago_capture_weak.onnx:PlatformException(PLUGIN_ERROR, Failed to create ONNX session: Failed to create inference session: Error: failed to load external data file: assets/models/katago_capture_weak.onnx, null, null)"
+      ]
+    }
+  ],
+  "rankings": [
+    {
+      "rank": 1,
+      "configId": "heuristic_adaptive_weak_v1",
+      "matchWins": 0,
+      "matchLosses": 0,
+      "matchDraws": 4,
+      "matchWinRate": 0,
+      "gameWins": 4,
+      "gameLosses": 4,
+      "draws": 8,
+      "games": 16,
+      "gameWinRate": 0.25,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0
+    },
+    {
+      "rank": 2,
+      "configId": "hybrid_tactical_counter_standard_v1",
+      "matchWins": 0,
+      "matchLosses": 0,
+      "matchDraws": 4,
+      "matchWinRate": 0,
+      "gameWins": 4,
+      "gameLosses": 4,
+      "draws": 8,
+      "games": 16,
+      "gameWinRate": 0.25,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0
+    },
+    {
+      "rank": 3,
+      "configId": "mcts_counter_standard_v1",
+      "matchWins": 0,
+      "matchLosses": 0,
+      "matchDraws": 4,
+      "matchWinRate": 0,
+      "gameWins": 4,
+      "gameLosses": 4,
+      "draws": 8,
+      "games": 16,
+      "gameWinRate": 0.25,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0
+    },
+    {
+      "rank": 4,
+      "configId": "katago_onnx_standard_v1",
+      "matchWins": 0,
+      "matchLosses": 0,
+      "matchDraws": 4,
+      "matchWinRate": 0,
+      "gameWins": 0,
+      "gameLosses": 0,
+      "draws": 16,
+      "games": 16,
+      "gameWinRate": 0,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0
+    },
+    {
+      "rank": 5,
+      "configId": "katago_onnx_weak_v1",
+      "matchWins": 0,
+      "matchLosses": 0,
+      "matchDraws": 4,
+      "matchWinRate": 0,
+      "gameWins": 0,
+      "gameLosses": 0,
+      "draws": 16,
+      "games": 16,
+      "gameWinRate": 0,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0
+    }
+  ],
+  "openingPerformance": [
+    {
+      "opening": "cross",
+      "games": 12,
+      "aWins": 3,
+      "bWins": 3,
+      "draws": 6,
+      "aWinRate": 0.25,
+      "bWinRate": 0.25,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0
+    },
+    {
+      "opening": "empty",
+      "games": 10,
+      "aWins": 2,
+      "bWins": 2,
+      "draws": 6,
+      "aWinRate": 0.2,
+      "bWinRate": 0.2,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0
+    },
+    {
+      "opening": "random",
+      "games": 8,
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 8,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0
+    },
+    {
+      "opening": "twistCrossA",
+      "games": 4,
+      "aWins": 0,
+      "bWins": 0,
+      "draws": 4,
+      "aWinRate": 0,
+      "bWinRate": 0,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0
+    },
+    {
+      "opening": "twistCrossB",
+      "games": 6,
+      "aWins": 1,
+      "bWins": 1,
+      "draws": 4,
+      "aWinRate": 0.16666666666666666,
+      "bWinRate": 0.16666666666666666,
+      "illegalMoves": 0,
+      "timeouts": 0,
+      "fallbackGames": 0
+    }
+  ]
+}

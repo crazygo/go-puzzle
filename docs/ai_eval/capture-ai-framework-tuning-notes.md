@@ -38,7 +38,7 @@ frameworks under the five-capture rule.
 | katago-no-fallback-v1 | 2026-05-19 | katago | `katago_onnx_weak_v1`, `katago_onnx_standard_v1` | Remove all KataGo fallback behavior so missing models are visible to users and evaluators | Only ONNX configs remain. No fallback style, no fallback difficulty, no random weakening. Missing model returns no move and reports `katago_onnx_model_unavailable`. | `flutter test test/ai_algorithm_framework_test.dart test/ai_arena_executor_test.dart`; `dart run tool/capture_ai_framework_probe.dart --configs heuristic_adaptive_weak_v1,heuristic_counter_standard_v1,mcts_counter_weak_v1,mcts_counter_standard_v1,hybrid_tactical_counter_weak_v1,hybrid_tactical_counter_standard_v1,katago_onnx_weak_v1,katago_onnx_standard_v1 --rounds 1 --max-moves 120 --capture-target 1 --opening-policy empty_cross_twist_cross_random_v1 --match-seed 20260519 --opening-seed 0` | 20 focused tests passed. Current 8-config smoke completed 28 pairwise games, illegal 0, timeout 0, fallback 0. KataGo games report `agent_returned_no_legal_move` plus `katago_onnx_model_unavailable`. | Good truthfulness fix | KataGo strength is intentionally not scored until a real model adapter can return moves. This prevents false confidence from heuristic/hybrid fallback. |
 | per-framework-timeout-v1 | 2026-05-19 | all frameworks | timeout policy | Align timeout policy with algorithm cost | Non-KataGo framework configs use a 5s arena decision timeout by default. KataGo ONNX configs expose `timeBudgetMillis: 10000`, and framework matches pass that as the KataGo side's per-color timeout. | `flutter test test/ai_algorithm_framework_test.dart test/ai_arena_executor_test.dart` | 21 focused tests passed | Good timeout policy slice | This separates each side's timeout inside one game, so a KataGo-vs-non-KataGo match can apply 10s to KataGo and 5s to the other agent. |
 | real-katago-onnx-policy-v1 | 2026-05-19 | katago | `katago_onnx_weak_v1`, `katago_onnx_standard_v1` | Verify a real ONNX model can participate in capture-go arena games without fallback | Downloaded Kaya/KataGo-family uint8 ONNX model through `scripts/download-katago-capture-models.sh`. Weak uses policyTemperature 1.35 and candidateLimit 12; standard uses deterministic top policy with candidateLimit 1. Both use the real model file, no heuristic fallback. | `python3 tool/katago_onnx_move.py <json>`; `dart run tool/capture_ai_framework_probe.dart --real-katago-onnx --configs heuristic_adaptive_weak_v1,mcts_counter_standard_v1,hybrid_tactical_counter_standard_v1,katago_onnx_weak_v1,katago_onnx_standard_v1 --rounds 4 --max-moves 120 --capture-target 1 --opening-policy empty_cross_twist_cross_random_v1 --match-seed 20260519 --opening-seed 0` | Model helper returned a legal move. 5-config cross arena completed 40 games, illegal 0, timeout 0, fallback 0. KataGo weak and standard each scored 2-14 overall and tied each other 2-2. | Superseded by Flutter ONNX direction | This proved real model inference but used a Python process adapter. It is kept only as historical/debug evidence because the product path should use Dart/Flutter ONNX. |
-| flutter-onnx-adapter-v1 | 2026-05-19 | katago | `katago_onnx_weak_v1`, `katago_onnx_standard_v1` | Replace Python process inference with a Dart/Flutter ONNX adapter boundary | `FlutterKatagoOnnxModelAdapter` loads model assets through `flutter_onnxruntime`, encodes `bin_input [1,22,N,N]` and `global_input [1,19]`, reads policy output, and selects legal moves by temperature/candidate limit. Async arena requires an injected adapter for KataGo configs; no default fallback is allowed. | `flutter test test/ai_arena_executor_test.dart test/katago_onnx_features_test.dart`; real Flutter ONNX cross-play still requires a Flutter runtime entrypoint, not `dart run` CLI | Pending validation | In progress | This is the correct architecture direction, but a real Flutter plugin cross-play run has not yet replaced the old Python evidence. The next tuning step must run the adapter in a Flutter-supported environment and record actual weak/standard scores. |
+| flutter-onnx-adapter-v1 | 2026-05-19 | katago | `katago_onnx_weak_v1`, `katago_onnx_standard_v1` | Replace Python process inference with a Dart/Flutter ONNX adapter boundary | `FlutterKatagoOnnxModelAdapter` loads model assets through `flutter_onnxruntime`, encodes `bin_input [1,22,N,N]` and `global_input [1,19]`, reads policy output, and selects legal moves by temperature/candidate limit. Async arena requires an injected adapter for KataGo configs; no default fallback is allowed. Web runtime loads `onnxruntime-web` before Flutter bootstrap. | `flutter test test/ai_arena_executor_test.dart test/katago_onnx_features_test.dart`; `flutter build web -t tool/flutter_katago_arena_probe.dart`; `python3 -m http.server 8092 --bind 127.0.0.1 --directory build/web`; Playwright capture of `tool/flutter_katago_arena_probe.dart` output to `docs/ai_eval/runs/2026-05-19-flutter-katago-arena-probe.json` | Focused tests passed. Web probe produced 10 pairwise matches, illegal 0, timeout 0, fallback 0, but KataGo model session creation failed with `failed to load external data file: assets/models/katago_capture_*.onnx`. | Correct architecture, model packaging blocked | This replaces the Python arena path and proves clear no-fallback failure reporting in the real Flutter Web arena. It does not yet prove playable KataGo strength because the current ONNX assets require external data handling that the Flutter/web runtime did not load from the single asset path. |
 
 ## Good Experiments
 
@@ -76,7 +76,9 @@ frameworks under the five-capture rule.
   capture-go moves, but it used the rejected Python process path and is now
   historical/debug evidence only.
 - `flutter-onnx-adapter-v1`: moves KataGo toward the requested Dart/Flutter
-  ONNX path with async adapter injection and no fallback default.
+  ONNX path with async adapter injection and no fallback default. The web probe
+  generated a reproducible arena artifact, but model packaging blocked playable
+  KataGo moves.
 
 ## Bad Experiments
 
@@ -98,6 +100,16 @@ frameworks under the five-capture rule.
 - Weak MCTS tie: `mcts_counter_weak_v1` vs `heuristic_adaptive_weak_v1` at
   4 rounds / max moves 80 produced a 2-2 tie, which is useful evidence but not
   sufficient for the required above-baseline proof.
+- Flutter tester real ONNX attempt: `flutter test -d macos` and
+  `flutter test -d chrome` with real ONNX tests entered the model/plugin path
+  but did not complete. The replacement validation path is the Flutter Web
+  probe target served from `build/web`, which produced a structured arena
+  artifact instead of hanging.
+- Flutter Web ONNX model packaging: the real arena probe loaded the Flutter
+  app and `onnxruntime-web`, but session creation failed for both
+  `katago_capture_weak.onnx` and `katago_capture_standard.onnx` with
+  `failed to load external data file`. This means the current model files are
+  not a complete playable Flutter/Web packaging format yet.
 - Too-low max moves: reducing the hybrid proof to max moves 40 produced four
   timeouts; max moves 60 still produced three timeouts. The fast proof keeps
   max moves 80 to avoid decision failures.
