@@ -79,6 +79,11 @@ Run a parallel headless matrix:
 dart run tool/headless_full_matrix_arena_probe.dart --workers 4 --board-size 9
 ```
 
+`--workers N` starts N Dart isolate workers. Each worker sequentially consumes
+assigned cells and owns its own Node ONNX worker/session. Do not start one OS
+process per cell; keep cells independent in the artifact, but batch execution
+inside long-lived workers for speed and model-session reuse.
+
 For selected configs:
 
 ```bash
