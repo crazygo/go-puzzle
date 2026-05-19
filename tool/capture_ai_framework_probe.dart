@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:go_puzzle/game/ai_algorithm_framework.dart';
 import 'package:go_puzzle/game/ai_arena_executor.dart';
 import 'package:go_puzzle/game/ai_arena_ladder.dart';
-import 'package:go_puzzle/game/katago_process_model_adapter.dart';
 
 void main(List<String> args) {
   final opts = _parseArgs(args);
@@ -47,7 +46,6 @@ void main(List<String> args) {
   final minWinRate = double.tryParse(opts['min-win-rate'] ?? '0.55') ?? 0.55;
   final jsonOutput = opts.containsKey('json');
   final matrixOutput = opts.containsKey('matrix');
-  final realKatagoOnnx = opts.containsKey('real-katago-onnx');
 
   if (matrixOutput && configs.length != 2) {
     stderr.writeln('ERROR: --matrix requires exactly two config ids.');
@@ -65,7 +63,6 @@ void main(List<String> args) {
           maxMoves: maxMoves,
           matchSeed: matchSeed,
           openingSeed: openingSeed,
-          realKatagoOnnx: realKatagoOnnx,
         )
       : AiArenaExecutor(
           boardSize: boardSize,
@@ -73,8 +70,6 @@ void main(List<String> args) {
           rounds: rounds,
           maxMoves: maxMoves,
           openingPolicy: openingPolicy,
-          katagoModelAdapter:
-              realKatagoOnnx ? const ProcessKatagoOnnxModelAdapter() : null,
         ).runFrameworkEvaluation(
           configs: configs,
           matchSeed: matchSeed,
@@ -158,7 +153,6 @@ AiArenaEvaluationSummary _runOpeningFirstMatrix(
   required int maxMoves,
   required int matchSeed,
   required int openingSeed,
-  required bool realKatagoOnnx,
 }) {
   const openings = [
     ('empty', 'empty_v1'),
@@ -174,8 +168,6 @@ AiArenaEvaluationSummary _runOpeningFirstMatrix(
       rounds: rounds,
       maxMoves: maxMoves,
       openingPolicy: openingPolicy,
-      katagoModelAdapter:
-          realKatagoOnnx ? const ProcessKatagoOnnxModelAdapter() : null,
     );
     matches.add(executor.runFrameworkMatch(
       configA: configA,
@@ -334,7 +326,7 @@ Map<String, String> _parseArgs(List<String> args) {
   final opts = <String, String>{};
   for (var i = 0; i < args.length; i++) {
     final arg = args[i];
-    if (arg == '--json' || arg == '--matrix' || arg == '--real-katago-onnx') {
+    if (arg == '--json' || arg == '--matrix') {
       opts[arg.substring(2)] = 'true';
     } else if (arg.startsWith('--') && i + 1 < args.length) {
       opts[arg.substring(2)] = args[i + 1];

@@ -83,7 +83,7 @@ void main() {
       for (final config in onnxConfigs) {
         expect(config.usesFallback, isFalse);
         expect(config.runtimeMode, AiAlgorithmRuntimeMode.native);
-        expect(config.failureMode, 'katago_onnx_model_unavailable');
+        expect(config.failureMode, isNull);
         expect(config.parameters['modelAsset'], isA<String>());
         expect(config.parameters['visits'], isA<int>());
         expect(config.parameters['timeBudgetMillis'], 10000);

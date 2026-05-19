@@ -1406,6 +1406,7 @@ class CaptureAiArenaResult {
     required this.whiteCaptures,
     required this.endReason,
     this.maxDecisionMillis = 0,
+    this.failureReason,
   });
 
   final StoneColor winner;
@@ -1414,6 +1415,7 @@ class CaptureAiArenaResult {
   final int whiteCaptures;
   final CaptureAiMatchEndReason endReason;
   final int maxDecisionMillis;
+  final String? failureReason;
 
   bool get reachedCaptureTarget =>
       endReason == CaptureAiMatchEndReason.captureTargetReached;

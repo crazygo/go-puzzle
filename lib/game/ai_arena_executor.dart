@@ -227,6 +227,12 @@ class AiArenaExecutor {
           result.endReason,
           configA,
           configB,
+          configAFailureMode: katagoModelAdapter == null
+              ? _katagoUnavailableFailureMode(configA)
+              : null,
+          configBFailureMode: katagoModelAdapter == null
+              ? _katagoUnavailableFailureMode(configB)
+              : null,
         ),
       ));
     }
@@ -246,6 +252,159 @@ class AiArenaExecutor {
       draws: draws,
       games: games,
     );
+  }
+
+  Future<AiMatchResult> runFrameworkMatchAsync({
+    required AiAlgorithmConfig configA,
+    required AiAlgorithmConfig configB,
+    required int matchSeed,
+    required int openingSeed,
+    bool alternateColors = true,
+    AsyncKatagoModelAdapter? asyncKatagoModelAdapter,
+  }) async {
+    final adapter = _resolveAsyncKatagoAdapter(
+      [configA, configB],
+      asyncKatagoModelAdapter,
+    );
+    await adapter.preload(_katagoRequestsFor(
+      [configA, configB],
+      boardSize: boardSize,
+      captureTarget: captureTarget,
+    ));
+    final legacyConfigA = _legacyBattleConfig(configA);
+    final legacyConfigB = _legacyBattleConfig(configB);
+    final games = <AiGameRecord>[];
+    var aWins = 0;
+    var bWins = 0;
+    var draws = 0;
+
+    for (var i = 0; i < rounds; i++) {
+      final aIsBlack = alternateColors ? i.isEven : true;
+      final gameSeed = matchSeed * 1000 + i;
+      final pairSeed = matchSeed * 1000 + (i ~/ 2);
+      final opening = _openingForGame(i, openingSeed);
+      final openingVariant = _openingVariantForGame(i);
+      final blackConfig = aIsBlack ? configA : configB;
+      final whiteConfig = aIsBlack ? configB : configA;
+      final blackAgent = AiAlgorithmRegistry.createAsyncAgent(
+        blackConfig,
+        seedOverride: gameSeed * 2,
+        katagoModelAdapter: adapter,
+      );
+      final whiteAgent = AiAlgorithmRegistry.createAsyncAgent(
+        whiteConfig,
+        seedOverride: gameSeed * 2 + 1,
+        katagoModelAdapter: adapter,
+      );
+
+      final result = await _playAsyncMatch(
+        blackAgent: blackAgent,
+        whiteAgent: whiteAgent,
+        initialBoard: _buildOpeningBoard(
+          opening,
+          pairSeed: pairSeed,
+          variant: openingVariant,
+        ),
+        maxMoves: maxMoves,
+        blackDecisionTimeout: _decisionTimeoutForConfig(
+          blackConfig,
+          defaultTimeout: decisionTimeout,
+        ),
+        whiteDecisionTimeout: _decisionTimeoutForConfig(
+          whiteConfig,
+          defaultTimeout: decisionTimeout,
+        ),
+      );
+
+      final winnerLabel = switch (result.winner) {
+        final w when w == StoneColor.black => aIsBlack ? 'a' : 'b',
+        final w when w == StoneColor.white => aIsBlack ? 'b' : 'a',
+        _ => 'draw',
+      };
+      if (winnerLabel == 'a') {
+        aWins++;
+      } else if (winnerLabel == 'b') {
+        bWins++;
+      } else {
+        draws++;
+      }
+      games.add(AiGameRecord(
+        index: i,
+        gameSeed: gameSeed,
+        openingIndex: opening.index,
+        opening: _openingName(opening, openingVariant),
+        black: aIsBlack ? 'a' : 'b',
+        winner: winnerLabel,
+        moves: result.totalMoves,
+        blackCaptures: result.blackCaptures,
+        whiteCaptures: result.whiteCaptures,
+        endReason: result.endReason.name,
+        illegalMove: result.endReason == CaptureAiMatchEndReason.invalidMove,
+        timedOut: _isTimeout(result.endReason),
+        fallbackUsed:
+            configA.reportsFallbackPath || configB.reportsFallbackPath,
+        maxDecisionMillis: result.maxDecisionMillis,
+        failureReason: result.failureReason ??
+            _frameworkFailureReason(
+              result.endReason,
+              configA,
+              configB,
+            ),
+      ));
+    }
+
+    return AiMatchResult(
+      matchSeed: matchSeed,
+      openingSeed: openingSeed,
+      openingPolicy: openingPolicy,
+      boardSize: boardSize,
+      captureTarget: captureTarget,
+      rounds: rounds,
+      maxMoves: maxMoves,
+      configA: legacyConfigA,
+      configB: legacyConfigB,
+      aWins: aWins,
+      bWins: bWins,
+      draws: draws,
+      games: games,
+    );
+  }
+
+  Future<AiArenaEvaluationSummary> runFrameworkEvaluationAsync({
+    required List<AiAlgorithmConfig> configs,
+    required int matchSeed,
+    required int openingSeed,
+    AsyncKatagoModelAdapter? asyncKatagoModelAdapter,
+  }) async {
+    if (configs.length < 2) {
+      throw ArgumentError.value(
+        configs.length,
+        'configs.length',
+        'At least two configs are required for pairwise evaluation.',
+      );
+    }
+    final adapter =
+        _resolveAsyncKatagoAdapter(configs, asyncKatagoModelAdapter);
+    await adapter.preload(_katagoRequestsFor(
+      configs,
+      boardSize: boardSize,
+      captureTarget: captureTarget,
+    ));
+    final matches = <AiMatchResult>[];
+    var pairIndex = 0;
+    for (var i = 0; i < configs.length - 1; i++) {
+      for (var j = i + 1; j < configs.length; j++) {
+        matches.add(await runFrameworkMatchAsync(
+          configA: configs[i],
+          configB: configs[j],
+          matchSeed: matchSeed + pairIndex * 7919,
+          openingSeed: openingSeed + pairIndex * 1337,
+          asyncKatagoModelAdapter: adapter,
+        ));
+        pairIndex++;
+      }
+    }
+    return AiArenaEvaluationSummary.fromMatches(matches);
   }
 
   /// Runs every selected framework config against every other selected config
@@ -465,6 +624,120 @@ Duration _decisionTimeoutForConfig(
   };
 }
 
+AsyncKatagoModelAdapter _resolveAsyncKatagoAdapter(
+  List<AiAlgorithmConfig> configs,
+  AsyncKatagoModelAdapter? adapter,
+) {
+  final requiresKatago = configs.any(
+    (config) => config.frameworkId == AiAlgorithmFrameworkId.katago,
+  );
+  if (requiresKatago && adapter == null) {
+    throw StateError(
+      'asyncKatagoModelAdapter is required for KataGo ONNX configs.',
+    );
+  }
+  return adapter ?? const UnavailableAsyncKatagoOnnxModelAdapter();
+}
+
+List<KatagoModelRequest> _katagoRequestsFor(
+  List<AiAlgorithmConfig> configs, {
+  required int boardSize,
+  required int captureTarget,
+}) {
+  final requests = <KatagoModelRequest>[];
+  for (final config in configs) {
+    if (config.frameworkId != AiAlgorithmFrameworkId.katago) continue;
+    requests.add(KatagoModelRequest(
+      board: SimBoard(boardSize, captureTarget: captureTarget),
+      modelAsset: _configStringParameter(config, 'modelAsset'),
+      visits: _configIntParameter(config, 'visits'),
+      timeBudgetMillis: _configIntParameter(config, 'timeBudgetMillis'),
+      policyTemperature: _configDoubleParameter(config, 'policyTemperature'),
+      candidateLimit: _configIntParameter(config, 'candidateLimit'),
+    ));
+  }
+  return requests;
+}
+
+Future<CaptureAiArenaResult> _playAsyncMatch({
+  required AsyncCaptureAiAgent blackAgent,
+  required AsyncCaptureAiAgent whiteAgent,
+  required SimBoard initialBoard,
+  required Duration blackDecisionTimeout,
+  required Duration whiteDecisionTimeout,
+  required int maxMoves,
+}) async {
+  final board = SimBoard.copy(initialBoard);
+  var totalMoves = 0;
+  var endReason = CaptureAiMatchEndReason.maxMovesReached;
+  var maxDecisionMillis = 0;
+  String? failureReason;
+
+  while (!board.isTerminal && totalMoves < maxMoves) {
+    final agent =
+        board.currentPlayer == SimBoard.black ? blackAgent : whiteAgent;
+    final timeout = board.currentPlayer == SimBoard.black
+        ? blackDecisionTimeout
+        : whiteDecisionTimeout;
+    final stopwatch = Stopwatch()..start();
+    CaptureAiMove? move;
+    try {
+      move = await agent.chooseMove(board);
+    } catch (error) {
+      stopwatch.stop();
+      maxDecisionMillis = math.max(
+        maxDecisionMillis,
+        stopwatch.elapsedMilliseconds,
+      );
+      endReason = CaptureAiMatchEndReason.noLegalMove;
+      final color = board.currentPlayer == SimBoard.black ? 'black' : 'white';
+      failureReason = '$color:$error';
+      break;
+    }
+    stopwatch.stop();
+    maxDecisionMillis = math.max(
+      maxDecisionMillis,
+      stopwatch.elapsedMilliseconds,
+    );
+    if (stopwatch.elapsed > timeout) {
+      endReason = CaptureAiMatchEndReason.decisionTimeout;
+      break;
+    }
+    if (move == null) {
+      endReason = CaptureAiMatchEndReason.noLegalMove;
+      break;
+    }
+    if (!board.applyMove(move.position.row, move.position.col)) {
+      endReason = CaptureAiMatchEndReason.invalidMove;
+      break;
+    }
+    totalMoves++;
+  }
+
+  if (board.isTerminal) {
+    endReason = CaptureAiMatchEndReason.captureTargetReached;
+  } else if (totalMoves >= maxMoves &&
+      endReason == CaptureAiMatchEndReason.maxMovesReached) {
+    endReason = CaptureAiMatchEndReason.maxMovesReached;
+  }
+
+  final winner = switch (board.winner) {
+    SimBoard.black => StoneColor.black,
+    SimBoard.white => StoneColor.white,
+    _ => StoneColor.empty,
+  };
+
+  return CaptureAiArenaResult(
+    winner: winner,
+    totalMoves: totalMoves,
+    blackCaptures: board.capturedByBlack,
+    whiteCaptures: board.capturedByWhite,
+    endReason: endReason,
+    maxDecisionMillis: maxDecisionMillis,
+    failureReason: failureReason,
+  );
+}
+
 bool _isTimeout(CaptureAiMatchEndReason endReason) {
   return endReason == CaptureAiMatchEndReason.maxMovesReached ||
       endReason == CaptureAiMatchEndReason.decisionTimeout;
@@ -473,16 +746,48 @@ bool _isTimeout(CaptureAiMatchEndReason endReason) {
 String? _frameworkFailureReason(
   CaptureAiMatchEndReason endReason,
   AiAlgorithmConfig configA,
-  AiAlgorithmConfig configB,
-) {
+  AiAlgorithmConfig configB, {
+  String? configAFailureMode,
+  String? configBFailureMode,
+}) {
   final base = _failureReason(endReason);
   if (base == null) return null;
   final fallbackReasons = [
-    if (configA.failureMode != null) 'a:${configA.failureMode}',
-    if (configB.failureMode != null) 'b:${configB.failureMode}',
+    if ((configAFailureMode ?? configA.failureMode) != null)
+      'a:${configAFailureMode ?? configA.failureMode}',
+    if ((configBFailureMode ?? configB.failureMode) != null)
+      'b:${configBFailureMode ?? configB.failureMode}',
   ];
   return [
     base,
     ...fallbackReasons,
   ].join(';');
+}
+
+String? _katagoUnavailableFailureMode(AiAlgorithmConfig config) {
+  if (config.frameworkId != AiAlgorithmFrameworkId.katago) return null;
+  if (_configStringParameter(config, 'backend') != 'onnx') return null;
+  return 'katago_onnx_model_unavailable';
+}
+
+String _configStringParameter(AiAlgorithmConfig config, String key) {
+  return switch (config.parameters[key]) {
+    final String value => value,
+    _ => '',
+  };
+}
+
+int _configIntParameter(AiAlgorithmConfig config, String key) {
+  return switch (config.parameters[key]) {
+    final int value => value,
+    _ => 0,
+  };
+}
+
+double _configDoubleParameter(AiAlgorithmConfig config, String key) {
+  return switch (config.parameters[key]) {
+    final int value => value.toDouble(),
+    final double value => value,
+    _ => 0,
+  };
 }

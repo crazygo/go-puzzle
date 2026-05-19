@@ -223,6 +223,41 @@ class AiAlgorithmRegistry {
     );
   }
 
+  static AsyncCaptureAiAgent createAsyncAgent(
+    AiAlgorithmConfig config, {
+    int? seedOverride,
+    TacticalAnalyzer tacticalAnalyzer = const NeutralTacticalAnalyzer(),
+    required AsyncKatagoModelAdapter katagoModelAdapter,
+  }) {
+    final robotConfig = seedOverride == null
+        ? config.robotConfig
+        : config.robotConfig.copyWith(seed: seedOverride);
+    if (_katagoBackend(config) == 'onnx') {
+      return _AsyncTacticalAnalyzerAgent(
+        config: config,
+        inner: _AsyncKatagoOnnxAgent(
+          config: config,
+          style: robotConfig.style,
+          modelAdapter: katagoModelAdapter,
+        ),
+        tacticalAnalyzer: tacticalAnalyzer,
+      );
+    }
+    CaptureAiAgent agent = CaptureAiRegistry.createFromConfig(robotConfig);
+    if (_randomLegalMoveRate(config) > 0) {
+      agent = _RandomizedLegalAgent(
+        inner: agent,
+        randomLegalMoveRate: _randomLegalMoveRate(config),
+        seed: seedOverride ?? config.robotConfig.seed,
+      );
+    }
+    return _AsyncTacticalAnalyzerAgent(
+      config: config,
+      inner: _SyncAsyncCaptureAiAgent(agent),
+      tacticalAnalyzer: tacticalAnalyzer,
+    );
+  }
+
   static final AiAlgorithmConfig _heuristicWeak = AiAlgorithmConfig(
     id: 'heuristic_adaptive_weak_v1',
     frameworkId: AiAlgorithmFrameworkId.heuristic,
@@ -365,7 +400,6 @@ class AiAlgorithmRegistry {
     displayName: 'KataGo ONNX Weak',
     strengthTier: AiAlgorithmStrengthTier.weak,
     runtimeMode: AiAlgorithmRuntimeMode.native,
-    failureMode: 'katago_onnx_model_unavailable',
     parameters: const {
       'backend': 'onnx',
       'modelAsset': 'assets/models/katago_capture_weak.onnx',
@@ -386,7 +420,6 @@ class AiAlgorithmRegistry {
     displayName: 'KataGo ONNX Standard',
     strengthTier: AiAlgorithmStrengthTier.standard,
     runtimeMode: AiAlgorithmRuntimeMode.native,
-    failureMode: 'katago_onnx_model_unavailable',
     parameters: const {
       'backend': 'onnx',
       'modelAsset': 'assets/models/katago_capture_standard.onnx',
@@ -400,6 +433,12 @@ class AiAlgorithmRegistry {
       difficulty: DifficultyLevel.intermediate,
     ),
   );
+}
+
+abstract class AsyncCaptureAiAgent {
+  CaptureAiStyle get style;
+
+  Future<CaptureAiMove?> chooseMove(SimBoard board);
 }
 
 String _katagoBackend(AiAlgorithmConfig config) {
@@ -436,6 +475,51 @@ class _TacticalAnalyzerAgent implements CaptureAiAgent {
         return CaptureAiMove(position: move, score: 100000);
       }
     }
+    return _inner.chooseMove(board);
+  }
+}
+
+class _AsyncTacticalAnalyzerAgent implements AsyncCaptureAiAgent {
+  const _AsyncTacticalAnalyzerAgent({
+    required this.config,
+    required AsyncCaptureAiAgent inner,
+    required TacticalAnalyzer tacticalAnalyzer,
+  })  : _inner = inner,
+        _tacticalAnalyzer = tacticalAnalyzer;
+
+  final AiAlgorithmConfig config;
+  final AsyncCaptureAiAgent _inner;
+  final TacticalAnalyzer _tacticalAnalyzer;
+
+  @override
+  CaptureAiStyle get style => _inner.style;
+
+  @override
+  Future<CaptureAiMove?> chooseMove(SimBoard board) async {
+    final analysis = _tacticalAnalyzer.analyze(
+      board: SimBoard.copy(board),
+      config: config,
+    );
+    if (analysis.canForceMove) {
+      final move = analysis.recommendedMove!;
+      if (board.analyzeMove(move.row, move.col).isLegal) {
+        return CaptureAiMove(position: move, score: 100000);
+      }
+    }
+    return _inner.chooseMove(board);
+  }
+}
+
+class _SyncAsyncCaptureAiAgent implements AsyncCaptureAiAgent {
+  const _SyncAsyncCaptureAiAgent(this._inner);
+
+  final CaptureAiAgent _inner;
+
+  @override
+  CaptureAiStyle get style => _inner.style;
+
+  @override
+  Future<CaptureAiMove?> chooseMove(SimBoard board) async {
     return _inner.chooseMove(board);
   }
 }
@@ -518,6 +602,43 @@ class _KatagoOnnxAgent implements CaptureAiAgent {
       return CaptureAiMove(position: move, score: 100000);
     }
     return null;
+  }
+}
+
+class _AsyncKatagoOnnxAgent implements AsyncCaptureAiAgent {
+  const _AsyncKatagoOnnxAgent({
+    required this.config,
+    required CaptureAiStyle style,
+    required AsyncKatagoModelAdapter modelAdapter,
+  })  : _style = style,
+        _modelAdapter = modelAdapter;
+
+  final AiAlgorithmConfig config;
+  final CaptureAiStyle _style;
+  final AsyncKatagoModelAdapter _modelAdapter;
+
+  @override
+  CaptureAiStyle get style => _style;
+
+  @override
+  Future<CaptureAiMove?> chooseMove(SimBoard board) async {
+    final evaluation = await _modelAdapter.chooseMove(
+      KatagoModelRequest(
+        board: SimBoard.copy(board),
+        modelAsset: _stringParameter(config, 'modelAsset'),
+        visits: _intParameter(config, 'visits'),
+        timeBudgetMillis: _intParameter(config, 'timeBudgetMillis'),
+        policyTemperature: _doubleParameter(config, 'policyTemperature'),
+        candidateLimit: _intParameter(config, 'candidateLimit'),
+      ),
+    );
+    final move = evaluation.move;
+    if (move != null && board.analyzeMove(move.row, move.col).isLegal) {
+      return CaptureAiMove(position: move, score: 100000);
+    }
+    throw KatagoModelException(
+      evaluation.failureReason ?? 'katago_onnx_returned_no_legal_move',
+    );
   }
 }
 

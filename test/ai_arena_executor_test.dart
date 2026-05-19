@@ -3,6 +3,7 @@ import 'package:go_puzzle/game/ai_algorithm_framework.dart';
 import 'package:go_puzzle/game/ai_arena_executor.dart';
 import 'package:go_puzzle/game/ai_arena_ladder.dart';
 import 'package:go_puzzle/game/capture_ai.dart';
+import 'package:go_puzzle/game/katago_model_adapter.dart';
 import 'package:go_puzzle/game/mcts_engine.dart';
 import 'package:go_puzzle/models/board_position.dart';
 
@@ -253,6 +254,65 @@ void main() {
     );
   });
 
+  test('async framework match requires an injected KataGo ONNX adapter', () {
+    const executor = AiArenaExecutor(
+      boardSize: 9,
+      captureTarget: 1,
+      rounds: 1,
+      maxMoves: 8,
+      openingPolicy: 'empty_v1',
+    );
+
+    expect(
+      () => executor.runFrameworkMatchAsync(
+        configA: AiAlgorithmRegistry.configById('katago_onnx_weak_v1'),
+        configB: AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
+        matchSeed: 19,
+        openingSeed: 0,
+      ),
+      throwsStateError,
+    );
+  });
+
+  test(
+      'async framework match uses injected KataGo ONNX adapter without fallback',
+      () async {
+    final adapter = _CapturingAsyncKatagoAdapter();
+    const executor = AiArenaExecutor(
+      boardSize: 9,
+      captureTarget: 1,
+      rounds: 2,
+      maxMoves: 12,
+      openingPolicy: 'cross_v1',
+    );
+
+    final result = await executor.runFrameworkMatchAsync(
+      configA: AiAlgorithmRegistry.configById('katago_onnx_standard_v1'),
+      configB: AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
+      matchSeed: 21,
+      openingSeed: 0,
+      asyncKatagoModelAdapter: adapter,
+    );
+
+    expect(adapter.preloadedAssets,
+        contains('assets/models/katago_capture_standard.onnx'));
+    expect(adapter.requests, isNotEmpty);
+    expect(
+        adapter.requests.every((request) => request.timeBudgetMillis == 10000),
+        isTrue);
+    expect(result.games, hasLength(2));
+    expect(result.games.every((game) => game.fallbackUsed), isFalse);
+    expect(result.games.every((game) => !game.illegalMove), isTrue);
+    expect(
+      result.games.every(
+        (game) =>
+            game.failureReason?.contains('katago_onnx_model_unavailable') !=
+            true,
+      ),
+      isTrue,
+    );
+  });
+
   test('framework evaluation summarizes selected pairwise matches and ranking',
       () {
     const executor = AiArenaExecutor(
@@ -449,4 +509,49 @@ class _NoMoveAgent implements CaptureAiAgent {
 
   @override
   CaptureAiMove? chooseMove(SimBoard board) => null;
+}
+
+class _CapturingAsyncKatagoAdapter implements AsyncKatagoModelAdapter {
+  final preloadedAssets = <String>{};
+  final requests = <KatagoModelRequest>[];
+
+  @override
+  Future<void> preload(Iterable<KatagoModelRequest> requests) async {
+    preloadedAssets.addAll(requests.map((request) => request.modelAsset));
+  }
+
+  @override
+  Future<KatagoModelEvaluation> chooseMove(KatagoModelRequest request) async {
+    requests.add(request);
+    final board = request.board;
+    final legalMoves = board.getLegalMoves();
+    int? fallback;
+    for (final move in legalMoves) {
+      final row = move ~/ board.size;
+      final col = move % board.size;
+      final analysis = board.analyzeMove(row, col);
+      if (!analysis.isLegal) continue;
+      fallback ??= move;
+      final captureDelta = board.currentPlayer == SimBoard.black
+          ? analysis.blackCaptureDelta
+          : analysis.whiteCaptureDelta;
+      if (captureDelta > 0) {
+        return KatagoModelEvaluation(
+          status: KatagoBackendStatus.ready,
+          move: BoardPosition(row, col),
+        );
+      }
+    }
+    final move = fallback;
+    if (move == null) {
+      return const KatagoModelEvaluation(
+        status: KatagoBackendStatus.failed,
+        failureReason: 'test_adapter_no_legal_moves',
+      );
+    }
+    return KatagoModelEvaluation(
+      status: KatagoBackendStatus.ready,
+      move: BoardPosition(move ~/ board.size, move % board.size),
+    );
+  }
 }

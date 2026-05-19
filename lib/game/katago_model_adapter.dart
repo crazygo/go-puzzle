@@ -43,11 +43,42 @@ abstract class KatagoModelAdapter {
   KatagoModelEvaluation chooseMove(KatagoModelRequest request);
 }
 
+abstract class AsyncKatagoModelAdapter {
+  Future<void> preload(Iterable<KatagoModelRequest> requests);
+
+  Future<KatagoModelEvaluation> chooseMove(KatagoModelRequest request);
+}
+
+class KatagoModelException implements Exception {
+  const KatagoModelException(this.reason);
+
+  final String reason;
+
+  @override
+  String toString() => reason;
+}
+
 class UnavailableKatagoOnnxModelAdapter implements KatagoModelAdapter {
   const UnavailableKatagoOnnxModelAdapter();
 
   @override
   KatagoModelEvaluation chooseMove(KatagoModelRequest request) {
+    return KatagoModelEvaluation(
+      status: KatagoBackendStatus.unavailable,
+      failureReason: 'katago_onnx_model_unavailable:${request.modelAsset}',
+    );
+  }
+}
+
+class UnavailableAsyncKatagoOnnxModelAdapter
+    implements AsyncKatagoModelAdapter {
+  const UnavailableAsyncKatagoOnnxModelAdapter();
+
+  @override
+  Future<void> preload(Iterable<KatagoModelRequest> requests) async {}
+
+  @override
+  Future<KatagoModelEvaluation> chooseMove(KatagoModelRequest request) async {
     return KatagoModelEvaluation(
       status: KatagoBackendStatus.unavailable,
       failureReason: 'katago_onnx_model_unavailable:${request.modelAsset}',
