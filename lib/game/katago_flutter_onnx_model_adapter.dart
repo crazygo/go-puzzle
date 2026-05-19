@@ -10,13 +10,16 @@ class FlutterKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
     OnnxRuntime? runtime,
     KatagoOnnxFeatureEncoder encoder = const KatagoOnnxFeatureEncoder(),
     Duration sessionLoadTimeout = const Duration(seconds: 60),
+    int policyPlane = 0,
   })  : _runtime = runtime ?? OnnxRuntime(),
         _encoder = encoder,
-        _sessionLoadTimeout = sessionLoadTimeout;
+        _sessionLoadTimeout = sessionLoadTimeout,
+        _policyPlane = policyPlane;
 
   final OnnxRuntime _runtime;
   final KatagoOnnxFeatureEncoder _encoder;
   final Duration _sessionLoadTimeout;
+  final int _policyPlane;
   final Map<String, OrtSession> _sessions = {};
   final Map<String, String> _loadFailures = {};
 
@@ -69,8 +72,11 @@ class FlutterKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
         'bin_input': binInput,
         'global_input': globalInput,
       }).timeout(decisionTimeout);
-      final policyOutput =
-          outputs['policy'] ?? outputs[outputs.keys.firstOrNull ?? ''];
+      final policyOutput = await _policyOutputFor(
+        outputs,
+        minPolicyLength:
+            (_policyPlane + 1) * (request.board.size * request.board.size + 1),
+      );
       if (policyOutput == null) {
         return const KatagoModelEvaluation(
           status: KatagoBackendStatus.failed,
@@ -81,6 +87,7 @@ class FlutterKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
       final moveIndex = _selectMove(
         policy: policy,
         legalMoves: legalMoves,
+        boardPointCount: request.board.size * request.board.size,
         temperature: request.policyTemperature,
         candidateLimit: request.candidateLimit,
       );
@@ -133,6 +140,23 @@ class FlutterKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
     }
   }
 
+  Future<OrtValue?> _policyOutputFor(
+    Map<String, OrtValue> outputs, {
+    required int minPolicyLength,
+  }) async {
+    final named = outputs['policy'];
+    if (named != null) {
+      final data = await named.asFlattenedList();
+      if (data.length >= minPolicyLength) return named;
+    }
+    for (final output in outputs.values) {
+      if (identical(output, named)) continue;
+      final data = await output.asFlattenedList();
+      if (data.length >= minPolicyLength) return output;
+    }
+    return null;
+  }
+
   String _runtimeAssetPath(String modelAsset) {
     if (!kIsWeb) return modelAsset;
     return modelAsset.startsWith('assets/') ? 'assets/$modelAsset' : modelAsset;
@@ -141,11 +165,20 @@ class FlutterKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
   int _selectMove({
     required List<dynamic> policy,
     required List<int> legalMoves,
+    required int boardPointCount,
     required double temperature,
     required int candidateLimit,
   }) {
     final scored = <({double score, int move})>[];
-    const policyPlaneOffset = 0;
+    final policyPlaneStride = boardPointCount + 1;
+    final policyPlaneOffset = _policyPlane * policyPlaneStride;
+    if (policyPlaneOffset + boardPointCount >= policy.length) {
+      throw RangeError.index(
+        policyPlaneOffset + boardPointCount,
+        policy,
+        'policyPlaneOffset + boardPointCount',
+      );
+    }
     for (final move in legalMoves) {
       final scoreValue = policy[policyPlaneOffset + move];
       if (scoreValue is! num) continue;
@@ -165,8 +198,4 @@ class FlutterKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
         .reduce((best, entry) => entry.score > best.score ? entry : best)
         .move;
   }
-}
-
-extension _FirstOrNull<T> on Iterable<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }

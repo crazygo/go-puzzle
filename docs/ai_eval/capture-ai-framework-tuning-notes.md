@@ -39,6 +39,7 @@ frameworks under the five-capture rule.
 | per-framework-timeout-v1 | 2026-05-19 | all frameworks | timeout policy | Align timeout policy with algorithm cost | Non-KataGo framework configs use a 5s arena decision timeout by default. KataGo ONNX configs expose `timeBudgetMillis: 10000`, and framework matches pass that as the KataGo side's per-color timeout. | `flutter test test/ai_algorithm_framework_test.dart test/ai_arena_executor_test.dart` | 21 focused tests passed | Good timeout policy slice | This separates each side's timeout inside one game, so a KataGo-vs-non-KataGo match can apply 10s to KataGo and 5s to the other agent. |
 | real-katago-onnx-policy-v1 | 2026-05-19 | katago | `katago_onnx_weak_v1`, `katago_onnx_standard_v1` | Verify a real ONNX model can participate in capture-go arena games without fallback | Downloaded Kaya/KataGo-family uint8 ONNX model through `scripts/download-katago-capture-models.sh`. Weak uses policyTemperature 1.35 and candidateLimit 12; standard uses deterministic top policy with candidateLimit 1. Both use the real model file, no heuristic fallback. | `python3 tool/katago_onnx_move.py <json>`; `dart run tool/capture_ai_framework_probe.dart --real-katago-onnx --configs heuristic_adaptive_weak_v1,mcts_counter_standard_v1,hybrid_tactical_counter_standard_v1,katago_onnx_weak_v1,katago_onnx_standard_v1 --rounds 4 --max-moves 120 --capture-target 1 --opening-policy empty_cross_twist_cross_random_v1 --match-seed 20260519 --opening-seed 0` | Model helper returned a legal move. 5-config cross arena completed 40 games, illegal 0, timeout 0, fallback 0. KataGo weak and standard each scored 2-14 overall and tied each other 2-2. | Superseded by Flutter ONNX direction | This proved real model inference but used a Python process adapter. It is kept only as historical/debug evidence because the product path should use Dart/Flutter ONNX. |
 | flutter-onnx-adapter-v1 | 2026-05-19 | katago | `katago_onnx_weak_v1`, `katago_onnx_standard_v1` | Replace Python process inference with a Dart/Flutter ONNX adapter boundary | `FlutterKatagoOnnxModelAdapter` loads model assets through `flutter_onnxruntime`, encodes `bin_input [1,22,N,N]` and `global_input [1,19]`, reads policy output, and selects legal moves by temperature/candidate limit. Async arena requires an injected adapter for KataGo configs; no default fallback is allowed. Web runtime loads `onnxruntime-web` before Flutter bootstrap and maps Flutter asset keys to web asset URLs. | `flutter test test/ai_arena_executor_test.dart test/katago_onnx_features_test.dart test/ai_algorithm_framework_test.dart`; `flutter build web -t tool/flutter_katago_arena_probe.dart`; `python3 -m http.server 8092 --bind 127.0.0.1 --directory build/web`; Playwright capture of `tool/flutter_katago_arena_probe.dart` output to `docs/ai_eval/runs/2026-05-19-flutter-katago-arena-probe.json` | Focused tests passed. Web probe completed 10 pairwise matches / 40 games, illegal 0, timeout 0, fallback 0, failure 0. KataGo weak and standard each scored 2-14 overall and tied each other 2-2. | Real but weak | This replaces the Python arena path with Dart/Flutter ONNX evidence. The model is playable and truthful, but weak because the current encoder/search is minimal; use this as architecture proof, not strength proof. |
+| katago-policy-plane-probe-v1 | 2026-05-19 | katago | `katago_onnx_standard_v1` vs `mcts_counter_weak_v1` | Check whether KataGo's 0% score is caused by a Flutter ONNX integration issue or by weak policy/search behavior | Policy planes 0..5, openings empty/cross/twist-cross, both first-player directions, repeat 2, capture target 5, max moves 120, no fallback. Adapter now chooses a policy output long enough for the selected plane instead of accepting any output that covers only plane 0. | `flutter build web -t tool/flutter_katago_policy_plane_probe.dart`; `python3 -m http.server 8093 --bind 127.0.0.1 --directory build/web`; `node tool/capture_katago_policy_plane_probe.js` | 72 games completed. Plane 0: 0-12, illegal 0, timeout 0, fallback 0, failures 0. Plane 1: 0-11-1 with one `INFERENCE_ERROR Invalid rank for input: bin_input Got: 2 Expected: 4`. Planes 2-5: each 0-12, illegal 0, timeout 0, fallback 0, failures 0. | Integration mostly stable, strength not proven | The probe rules out fake fallback and broad illegal/timeout/crash problems for the default plane. It does not prove KataGo strength: the model is still a one-step normal-go policy with minimal feature planes and no search/value use. Plane 1's single runtime inference error remains an integration risk to isolate before treating non-default planes as usable. |
 
 ## Good Experiments
 
@@ -79,6 +80,11 @@ frameworks under the five-capture rule.
   ONNX path with async adapter injection and no fallback default. The web probe
   generated a reproducible arena artifact with real legal KataGo moves and no
   failures.
+- `katago-policy-plane-probe-v1`: directly tests the suspected ONNX policy
+  plane issue in Flutter Web. The default plane 0 has no illegal moves,
+  timeouts, fallback use, or failures across the targeted KataGo-vs-MCTS-weak
+  probe, so the 0% result is not explained by missing board state, invalid
+  move generation, or a fake fallback path.
 
 ## Bad Experiments
 
@@ -140,6 +146,14 @@ frameworks under the five-capture rule.
   capture-go bots at capture target 1. This is not a model-loading failure; it
   is an encoding/search-quality problem to fix before treating KataGo as a
   strong baseline.
+- Policy-output length bug: the first policy-plane probe allowed an output that
+  covered only lower policy planes, then indexed a higher plane and produced
+  `RangeError`. The adapter now requires the selected policy output to be long
+  enough for the selected plane before move selection.
+- Non-default KataGo plane 1 produced one `INFERENCE_ERROR Invalid rank for
+  input: bin_input Got: 2 Expected: 4` after many moves in the Flutter Web
+  probe. Keep default plane 0 as the stable integration baseline until this
+  runtime/plugin issue is isolated.
 
 ## Open Questions
 
