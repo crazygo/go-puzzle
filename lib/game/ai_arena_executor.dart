@@ -345,11 +345,13 @@ class AiArenaExecutor {
             configA.reportsFallbackPath || configB.reportsFallbackPath,
         maxDecisionMillis: result.maxDecisionMillis,
         failureReason: result.failureReason ??
-            _frameworkFailureReason(
-              result.endReason,
-              configA,
-              configB,
-            ),
+            (result.endReason == CaptureAiMatchEndReason.noLegalMove
+                ? null
+                : _frameworkFailureReason(
+                    result.endReason,
+                    configA,
+                    configB,
+                  )),
       ));
     }
 
@@ -674,6 +676,10 @@ Future<CaptureAiArenaResult> _playAsyncMatch({
   String? failureReason;
 
   while (!board.isTerminal && totalMoves < maxMoves) {
+    if (!_hasLegalMove(board)) {
+      endReason = CaptureAiMatchEndReason.noLegalMove;
+      break;
+    }
     final agent =
         board.currentPlayer == SimBoard.black ? blackAgent : whiteAgent;
     final timeout = board.currentPlayer == SimBoard.black
@@ -705,6 +711,8 @@ Future<CaptureAiArenaResult> _playAsyncMatch({
     }
     if (move == null) {
       endReason = CaptureAiMatchEndReason.noLegalMove;
+      final color = board.currentPlayer == SimBoard.black ? 'black' : 'white';
+      failureReason = '$color:agent_returned_no_legal_move';
       break;
     }
     if (!board.applyMove(move.position.row, move.position.col)) {
@@ -736,6 +744,17 @@ Future<CaptureAiArenaResult> _playAsyncMatch({
     maxDecisionMillis: maxDecisionMillis,
     failureReason: failureReason,
   );
+}
+
+bool _hasLegalMove(SimBoard board) {
+  for (final moveIndex in board.getLegalMoves()) {
+    if (board
+        .analyzeMove(moveIndex ~/ board.size, moveIndex % board.size)
+        .isLegal) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool _isTimeout(CaptureAiMatchEndReason endReason) {

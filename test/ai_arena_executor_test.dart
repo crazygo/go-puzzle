@@ -313,6 +313,30 @@ void main() {
     );
   });
 
+  test('async framework match treats full board no-legal as draw status',
+      () async {
+    const executor = AiArenaExecutor(
+      boardSize: 1,
+      captureTarget: 5,
+      rounds: 1,
+      maxMoves: 4,
+      openingPolicy: 'empty_v1',
+    );
+
+    final result = await executor.runFrameworkMatchAsync(
+      configA: AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
+      configB: AiAlgorithmRegistry.configById('heuristic_counter_standard_v1'),
+      matchSeed: 27,
+      openingSeed: 0,
+    );
+
+    expect(result.games.single.endReason, 'noLegalMove');
+    expect(result.games.single.winner, 'draw');
+    expect(result.games.single.failureReason, isNull);
+    expect(result.games.single.illegalMove, isFalse);
+    expect(result.games.single.timedOut, isFalse);
+  });
+
   test('framework evaluation summarizes selected pairwise matches and ranking',
       () {
     const executor = AiArenaExecutor(
