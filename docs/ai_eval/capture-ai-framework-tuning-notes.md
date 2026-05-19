@@ -10,7 +10,10 @@ frameworks under the five-capture rule.
   validation output summary, and this notebook entry.
 - Record unsuccessful experiments as well as successful ones.
 - Treat a configuration as runnable only when it returns legal moves or reports
-  a clear structured fallback/failure without crashing the arena.
+  a clear structured failure without crashing the arena.
+- KataGo must not use a heuristic/hybrid fallback. If its model adapter cannot
+  load a model, it must report unavailable and the arena must surface the
+  failure.
 - Do not let low-confidence tactical analysis force a move choice.
 
 ## Experiment Log
@@ -28,10 +31,11 @@ frameworks under the five-capture rule.
 | decision-timeout-v1 | 2026-05-19 | arena | all configs | Enforce and report per-decision time budget | Default decision timeout 10 seconds; runtime-only max decision measurement; deterministic JSON excludes measured milliseconds | `flutter test test/ai_arena_executor_test.dart test/ai_algorithm_framework_test.dart`; `flutter analyze --no-fatal-infos --no-fatal-warnings` | 17 focused tests passed; analyzer completed with existing warnings/infos | Good safety slice | `decisionTimeout` is reported as timeout/failure reason without making reproducible JSON unstable. |
 | mcts-matrix-tuning-v1 | 2026-05-19 | mcts | `mcts_counter_standard_v1` vs `mcts_counter_weak_v1` | Make MCTS standard beat weak in the full opening x first-player matrix | Weak: adaptive/beginner MCTS, playouts 1, depth 2, candidates 3, temp 30, randomLegalMoveRate 0.85. Standard: counter/intermediate MCTS, playouts 4, depth 4, candidates 5, temp 2 | `dart run tool/capture_ai_framework_probe.dart --matrix --configs mcts_counter_standard_v1,mcts_counter_weak_v1 --rounds 4 --max-moves 120 --capture-target 5 --match-seed 20260519 --opening-seed 0 --expected-winner mcts_counter_standard_v1 --min-win-rate 0.55` | Standard won 24-0, illegal 0, timeout 0 | Good tuning slice | Earlier pure-budget-only MCTS tied 12-12 because first-player advantage dominated; explicit weak randomness produced a legal but meaningfully weaker bot. |
 | hybrid-matrix-tuning-v1 | 2026-05-19 | hybridTactical | `hybrid_tactical_counter_standard_v1` vs `hybrid_tactical_counter_weak_v1` | Make Hybrid standard beat weak in the full opening x first-player matrix | Weak keeps intermediate hybrid plus randomLegalMoveRate 0.35. Standard uses intermediate hybrid, heuristicPlayouts 24, mctsPlayouts 8, rolloutDepth 6, candidates 6, temp 3 | `dart run tool/capture_ai_framework_probe.dart --matrix --configs hybrid_tactical_counter_standard_v1,hybrid_tactical_counter_weak_v1 --rounds 4 --max-moves 120 --capture-target 5 --match-seed 20260519 --opening-seed 0 --expected-winner hybrid_tactical_counter_standard_v1 --min-win-rate 0.55` | Standard won 18-6, illegal 0, timeout 0 | Good tuning slice | Advanced hybrid was too slow for matrix iteration; intermediate standard keeps the framework behavior while staying within the per-decision budget. |
-| katago-fallback-matrix-v1 | 2026-05-19 | katago | `katago_fallback_standard_v1` vs `katago_fallback_weak_v1` | Complete KataGo fallback two-config scoring and tuning | Weak fallback adaptive/beginner plus randomLegalMoveRate 0.85. Standard fallback counter/intermediate | `dart run tool/capture_ai_framework_probe.dart --matrix --configs katago_fallback_standard_v1,katago_fallback_weak_v1 --rounds 4 --max-moves 120 --capture-target 5 --match-seed 20260519 --opening-seed 0 --expected-winner katago_fallback_standard_v1 --min-win-rate 0.55` | Standard won 24-0, illegal 0, timeout 0, fallback expected | Good fallback tuning slice | This is still fallback scoring, not native KataGo inference. |
-| katago-onnx-adapter-v1 | 2026-05-19 | katago | `katago_onnx_weak_v1`, `katago_onnx_standard_v1` | Add a native/external backend interface so KataGo is not only a virtual fallback framework | ONNX adapter request includes model asset, visits, and time budget. Current local adapter reports `katago_onnx_model_unavailable:*` and then uses legal fallback. Weak fallback randomLegalMoveRate reduced to 0.55; standard uses counter/intermediate fallback. | `flutter test test/ai_algorithm_framework_test.dart`; `dart run tool/capture_ai_framework_probe.dart --matrix --configs katago_onnx_standard_v1,katago_onnx_weak_v1 --rounds 4 --max-moves 120 --capture-target 5 --match-seed 20260519 --opening-seed 0 --expected-winner katago_onnx_standard_v1 --min-win-rate 0.55` | 9 framework tests passed. Matrix standard won 24-0, illegal 0, timeout 0 | Good architecture slice | This is a real adapter boundary and native-mode config surface, but no KataGo ONNX model asset is present yet; fallback is explicit and auditable. |
-| reduced-randomness-v1 | 2026-05-19 | mcts, hybridTactical, katago | `mcts_counter_weak_v1`, `hybrid_tactical_counter_weak_v1`, `katago_*_weak_v1` | Reduce explicit random weakening while keeping standard stronger than weak in five-capture matrix games | MCTS weak randomLegalMoveRate 0.85 -> 0.55 with visits/depth/candidates/temp still weak. Hybrid weak 0.35 -> 0.20 with intermediate hybrid budget. KataGo weak 0.85 -> 0.55 pending native model availability. | MCTS matrix command above with updated params; Hybrid matrix command above with updated params; KataGo ONNX matrix command above | MCTS standard won 24-0; Hybrid standard won 15-9; KataGo ONNX standard won 24-0. All illegal 0, timeout 0 | Good credibility improvement | Hybrid now looks less artificially weakened while preserving a stable standard-over-weak signal. MCTS and KataGo remain too separated at 24-0 and can be tuned further downward later. |
-| all-config-timeout-smoke-v1 | 2026-05-19 | all frameworks | all 10 current configs | Prove every config can be evaluated by the arena under the 10s decision budget | Pairwise one-game smoke, capture target 1, maxMoves 120, mixed opening policy | `dart run tool/capture_ai_framework_probe.dart --configs heuristic_adaptive_weak_v1,heuristic_counter_standard_v1,mcts_counter_weak_v1,mcts_counter_standard_v1,hybrid_tactical_counter_weak_v1,hybrid_tactical_counter_standard_v1,katago_fallback_weak_v1,katago_fallback_standard_v1,katago_onnx_weak_v1,katago_onnx_standard_v1 --rounds 1 --max-moves 120 --capture-target 1 --opening-policy empty_cross_twist_cross_random_v1 --match-seed 20260519 --opening-seed 0` | 45 pairwise games completed, illegal 0, timeout 0; fallback reasons reported for fallback and ONNX-unavailable configs | Good safety smoke | This is not a strength benchmark because each pair has only one game and capture target 1. It verifies evaluation compatibility and decision-timeout safety across the full config list. |
+| katago-fallback-matrix-v1 | 2026-05-19 | katago | `katago_fallback_standard_v1` vs `katago_fallback_weak_v1` | Complete KataGo fallback two-config scoring and tuning | Weak fallback adaptive/beginner plus randomLegalMoveRate 0.85. Standard fallback counter/intermediate | `dart run tool/capture_ai_framework_probe.dart --matrix --configs katago_fallback_standard_v1,katago_fallback_weak_v1 --rounds 4 --max-moves 120 --capture-target 5 --match-seed 20260519 --opening-seed 0 --expected-winner katago_fallback_standard_v1 --min-win-rate 0.55` | Standard won 24-0, illegal 0, timeout 0, fallback expected | Rejected | This made KataGo look playable without a model and was removed because fallback hides the real model availability state. |
+| katago-onnx-adapter-v1 | 2026-05-19 | katago | `katago_onnx_weak_v1`, `katago_onnx_standard_v1` | Add a native/external backend interface so KataGo is not only a virtual fallback framework | ONNX adapter request includes model asset, visits, and time budget. Initial implementation still used legal fallback when the model was unavailable. | `flutter test test/ai_algorithm_framework_test.dart`; `dart run tool/capture_ai_framework_probe.dart --matrix --configs katago_onnx_standard_v1,katago_onnx_weak_v1 --rounds 4 --max-moves 120 --capture-target 5 --match-seed 20260519 --opening-seed 0 --expected-winner katago_onnx_standard_v1 --min-win-rate 0.55` | 9 framework tests passed. Matrix standard won 24-0, illegal 0, timeout 0 | Rejected fallback behavior | The adapter boundary was useful, but the fallback behavior was removed because it obscured whether a real KataGo model was loaded. |
+| reduced-randomness-v1 | 2026-05-19 | mcts, hybridTactical | `mcts_counter_weak_v1`, `hybrid_tactical_counter_weak_v1` | Reduce explicit random weakening while keeping standard stronger than weak in five-capture matrix games | MCTS weak randomLegalMoveRate 0.85 -> 0.55 then 0.25 with visits/depth/candidates/temp still weak. Hybrid weak 0.35 -> 0.20 with intermediate hybrid budget. | MCTS and Hybrid matrix commands above with updated params | MCTS standard won 18-6 at randomLegalMoveRate 0.25. Hybrid standard won 15-9 at randomLegalMoveRate 0.20. All illegal 0, timeout 0 | Good credibility improvement | Hybrid and MCTS now look less artificially weakened while preserving a stable standard-over-weak signal. KataGo was removed from this randomness tuning because it must be model-backed only. |
+| all-config-timeout-smoke-v1 | 2026-05-19 | all frameworks | all 10 then-current configs | Prove every config can be evaluated by the arena under the 10s decision budget | Pairwise one-game smoke, capture target 1, maxMoves 120, mixed opening policy | `dart run tool/capture_ai_framework_probe.dart --configs heuristic_adaptive_weak_v1,heuristic_counter_standard_v1,mcts_counter_weak_v1,mcts_counter_standard_v1,hybrid_tactical_counter_weak_v1,hybrid_tactical_counter_standard_v1,katago_fallback_weak_v1,katago_fallback_standard_v1,katago_onnx_weak_v1,katago_onnx_standard_v1 --rounds 1 --max-moves 120 --capture-target 1 --opening-policy empty_cross_twist_cross_random_v1 --match-seed 20260519 --opening-seed 0` | 45 pairwise games completed, illegal 0, timeout 0; fallback reasons reported for fallback and ONNX-unavailable configs | Superseded | This covered the old fallback-inclusive config list. It is kept as historical evidence only and must be replaced by a no-fallback smoke. |
+| katago-no-fallback-v1 | 2026-05-19 | katago | `katago_onnx_weak_v1`, `katago_onnx_standard_v1` | Remove all KataGo fallback behavior so missing models are visible to users and evaluators | Only ONNX configs remain. No fallback style, no fallback difficulty, no random weakening. Missing model returns no move and reports `katago_onnx_model_unavailable`. | `flutter test test/ai_algorithm_framework_test.dart test/ai_arena_executor_test.dart`; `dart run tool/capture_ai_framework_probe.dart --configs heuristic_adaptive_weak_v1,heuristic_counter_standard_v1,mcts_counter_weak_v1,mcts_counter_standard_v1,hybrid_tactical_counter_weak_v1,hybrid_tactical_counter_standard_v1,katago_onnx_weak_v1,katago_onnx_standard_v1 --rounds 1 --max-moves 120 --capture-target 1 --opening-policy empty_cross_twist_cross_random_v1 --match-seed 20260519 --opening-seed 0` | 20 focused tests passed. Current 8-config smoke completed 28 pairwise games, illegal 0, timeout 0, fallback 0. KataGo games report `agent_returned_no_legal_move` plus `katago_onnx_model_unavailable`. | Good truthfulness fix | KataGo strength is intentionally not scored until a real model adapter can return moves. This prevents false confidence from heuristic/hybrid fallback. |
 
 ## Good Experiments
 
@@ -54,17 +58,17 @@ frameworks under the five-capture rule.
   strength signal over the basic weak heuristic config without failures.
 - `opening-first-matrix-v1`: adds the requested opening-by-first-player-by-4
   evaluation matrix and verifies it with a full 24-game heuristic run.
-- `mcts-matrix-tuning-v1`, `hybrid-matrix-tuning-v1`, and
-  `katago-fallback-matrix-v1`: produce full five-capture matrix wins for
-  standard over weak with no illegal moves and no timeouts.
+- `mcts-matrix-tuning-v1` and `hybrid-matrix-tuning-v1`: produce full
+  five-capture matrix wins for standard over weak with no illegal moves and no
+  timeouts.
 - `katago-onnx-adapter-v1`: adds a native/external KataGo adapter boundary and
-  native-mode ONNX configs while keeping fallback explicit when no model asset
-  is available.
-- `reduced-randomness-v1`: reduces explicit weak randomness for MCTS, Hybrid,
-  and KataGo while preserving five-capture matrix wins with no illegal moves and
-  no timeouts.
-- `all-config-timeout-smoke-v1`: covers the full current config list through
-  arena pairwise evaluation and verifies no illegal moves or timeouts.
+  native-mode ONNX configs. The first fallback behavior was rejected; the
+  adapter boundary remains the useful part.
+- `reduced-randomness-v1`: reduces explicit weak randomness for MCTS and Hybrid
+  while preserving five-capture matrix wins with no illegal moves and no
+  timeouts.
+- `katago-no-fallback-v1`: removes all KataGo fallback behavior. Missing models
+  now produce a clear unavailable failure instead of a fake legal move.
 
 ## Bad Experiments
 
@@ -107,6 +111,12 @@ frameworks under the five-capture rule.
   maxMoves 20 and many games hit `max_moves_reached`. It was not a decision
   timeout or illegal-move failure, but the probe correctly failed it as an
   incomplete evaluation. The passing smoke uses maxMoves 120.
+- KataGo fallback configs: `katago_fallback_*_v1` and the first ONNX fallback
+  path made missing-model KataGo appear playable. This was rejected because it
+  hides the real model availability state.
+- KataGo fallback-path matrix with randomLegalMoveRate 0.25 produced a 16-7-1
+  standard-over-weak result, illegal 0, timeout 0, but it is invalid evidence
+  because it still used fallback instead of a loaded model.
 
 ## Open Questions
 

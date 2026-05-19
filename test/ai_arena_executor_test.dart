@@ -107,12 +107,12 @@ void main() {
       boardSize: 9,
       captureTarget: 1,
       rounds: 2,
-      maxMoves: 8,
+      maxMoves: 80,
       openingPolicy: 'cross_v1',
     );
     final configA =
         AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1');
-    final configB = AiAlgorithmRegistry.configById('katago_fallback_weak_v1');
+    final configB = AiAlgorithmRegistry.configById('mcts_counter_weak_v1');
 
     final first = executor.runFrameworkMatch(
       configA: configA,
@@ -141,14 +141,14 @@ void main() {
       replay.games.map((game) => game.toJson()).toList(),
       first.games.map((game) => game.toJson()).toList(),
     );
-    expect(first.games.every((game) => game.fallbackUsed), isTrue);
+    expect(first.games.every((game) => game.fallbackUsed), isFalse);
     expect(
-      first.games.every((game) => game.failureReason?.contains('b:') ?? false),
+      first.games.every((game) => game.failureReason == null),
       isTrue,
     );
   });
 
-  test('framework match output reports per-opening fallback and timeout status',
+  test('framework match output reports per-opening failure and timeout status',
       () {
     const executor = AiArenaExecutor(
       boardSize: 9,
@@ -159,7 +159,7 @@ void main() {
     );
     final result = executor.runFrameworkMatch(
       configA: AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
-      configB: AiAlgorithmRegistry.configById('katago_fallback_weak_v1'),
+      configB: AiAlgorithmRegistry.configById('heuristic_counter_standard_v1'),
       matchSeed: 12,
       openingSeed: 0,
     );
@@ -167,13 +167,12 @@ void main() {
     expect(result.games, hasLength(4));
     expect(result.games.every((game) => game.timedOut), isTrue);
     expect(result.games.every((game) => !game.illegalMove), isTrue);
-    expect(result.games.every((game) => game.fallbackUsed), isTrue);
+    expect(result.games.every((game) => !game.fallbackUsed), isTrue);
     expect(
       result.games.every(
         (game) => game.failureReason == null
             ? false
-            : game.failureReason!.contains('max_moves_reached') &&
-                game.failureReason!.contains('b:'),
+            : game.failureReason!.contains('max_moves_reached'),
       ),
       isTrue,
     );
@@ -183,7 +182,7 @@ void main() {
     expect(performance.games, 4);
     expect(performance.timeouts, 4);
     expect(performance.illegalMoves, 0);
-    expect(performance.fallbackGames, 4);
+    expect(performance.fallbackGames, 0);
     expect(result.toJson()['openingPerformance'], isNotEmpty);
   });
 
@@ -210,7 +209,7 @@ void main() {
     expect(result.games.single.maxDecisionMillis, greaterThanOrEqualTo(0));
   });
 
-  test('framework output reports ONNX adapter fallback path', () {
+  test('framework output reports ONNX model unavailable without fallback', () {
     const executor = AiArenaExecutor(
       boardSize: 9,
       captureTarget: 1,
@@ -226,10 +225,11 @@ void main() {
     );
 
     expect(result.games, hasLength(1));
-    expect(result.games.single.fallbackUsed, isTrue);
+    expect(result.games.single.endReason, 'noLegalMove');
+    expect(result.games.single.fallbackUsed, isFalse);
     expect(
       result.games.single.failureReason,
-      contains('a:katago_onnx_unavailable_uses_legal_heuristic_fallback'),
+      contains('a:katago_onnx_model_unavailable'),
     );
   });
 
@@ -246,7 +246,7 @@ void main() {
       configs: [
         AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
         AiAlgorithmRegistry.configById('mcts_counter_weak_v1'),
-        AiAlgorithmRegistry.configById('katago_fallback_weak_v1'),
+        AiAlgorithmRegistry.configById('hybrid_tactical_counter_weak_v1'),
       ],
       matchSeed: 30,
       openingSeed: 0,
@@ -260,10 +260,7 @@ void main() {
       containsAll(['cross', 'empty']),
     );
     expect(summary.pairwise.every((entry) => entry.games == 4), isTrue);
-    expect(
-      summary.pairwise.any((entry) => entry.fallbackGames == entry.games),
-      isTrue,
-    );
+    expect(summary.pairwise.every((entry) => entry.fallbackGames == 0), isTrue);
     expect(
       summary.rankings.map((entry) => entry.rank).toList(),
       [1, 2, 3],

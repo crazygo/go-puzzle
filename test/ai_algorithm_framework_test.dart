@@ -55,8 +55,9 @@ void main() {
       }
     });
 
-    test('all current framework configs produce legal opening moves', () {
+    test('native playable configs produce legal opening moves', () {
       for (final config in AiAlgorithmRegistry.configs) {
+        if (config.frameworkId == AiAlgorithmFrameworkId.katago) continue;
         final board = SimBoard(9, captureTarget: 5);
         final agent = AiAlgorithmRegistry.createAgent(config);
         final move = agent.chooseMove(board);
@@ -70,31 +71,25 @@ void main() {
       }
     });
 
-    test('KataGo exposes fallback and native ONNX framework configs', () {
+    test('KataGo exposes only native ONNX framework configs', () {
       final katagoConfigs =
           AiAlgorithmRegistry.configsFor(AiAlgorithmFrameworkId.katago);
       final onnxConfigs = katagoConfigs
           .where((config) => config.parameters['backend'] == 'onnx')
           .toList(growable: false);
-      final fallbackConfigs = katagoConfigs
-          .where((config) => config.parameters['backend'] == 'fallback')
-          .toList(growable: false);
 
-      expect(fallbackConfigs, hasLength(greaterThanOrEqualTo(2)));
+      expect(katagoConfigs, hasLength(2));
       expect(onnxConfigs, hasLength(greaterThanOrEqualTo(2)));
-      for (final config in fallbackConfigs) {
-        expect(config.usesFallback, isTrue);
-        expect(config.failureMode, isNotNull);
-      }
       for (final config in onnxConfigs) {
+        expect(config.usesFallback, isFalse);
         expect(config.runtimeMode, AiAlgorithmRuntimeMode.native);
-        expect(config.failureMode, contains('katago_onnx'));
+        expect(config.failureMode, 'katago_onnx_model_unavailable');
         expect(config.parameters['modelAsset'], isA<String>());
         expect(config.parameters['visits'], isA<int>());
       }
     });
 
-    test('KataGo ONNX config falls back legally when model is unavailable', () {
+    test('KataGo ONNX config reports unavailable when model is missing', () {
       final config = AiAlgorithmRegistry.configById('katago_onnx_weak_v1');
       final board = SimBoard(9, captureTarget: 5);
       final agent = AiAlgorithmRegistry.createAgent(
@@ -103,8 +98,7 @@ void main() {
       );
       final move = agent.chooseMove(board);
 
-      expect(move, isNotNull);
-      expect(board.applyMove(move!.position.row, move.position.col), isTrue);
+      expect(move, isNull);
     });
 
     test('KataGo ONNX adapter move is used when legal', () {
