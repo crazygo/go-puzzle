@@ -45,22 +45,41 @@ void main(List<String> args) {
   final expectedWinner = opts['expected-winner'];
   final minWinRate = double.tryParse(opts['min-win-rate'] ?? '0.55') ?? 0.55;
   final jsonOutput = opts.containsKey('json');
+  final matrixOutput = opts.containsKey('matrix');
 
-  final executor = AiArenaExecutor(
-    boardSize: boardSize,
-    captureTarget: captureTarget,
-    rounds: rounds,
-    maxMoves: maxMoves,
-    openingPolicy: openingPolicy,
-  );
-  final summary = executor.runFrameworkEvaluation(
-    configs: configs,
-    matchSeed: matchSeed,
-    openingSeed: openingSeed,
-  );
+  if (matrixOutput && configs.length != 2) {
+    stderr.writeln('ERROR: --matrix requires exactly two config ids.');
+    exitCode = 2;
+    return;
+  }
+
+  final summary = matrixOutput
+      ? _runOpeningFirstMatrix(
+          configs[0],
+          configs[1],
+          boardSize: boardSize,
+          captureTarget: captureTarget,
+          rounds: rounds,
+          maxMoves: maxMoves,
+          matchSeed: matchSeed,
+          openingSeed: openingSeed,
+        )
+      : AiArenaExecutor(
+          boardSize: boardSize,
+          captureTarget: captureTarget,
+          rounds: rounds,
+          maxMoves: maxMoves,
+          openingPolicy: openingPolicy,
+        ).runFrameworkEvaluation(
+          configs: configs,
+          matchSeed: matchSeed,
+          openingSeed: openingSeed,
+        );
 
   if (jsonOutput) {
     print(const JsonEncoder.withIndent('  ').convert(summary.toJson()));
+  } else if (matrixOutput) {
+    _printMatrixSummary(summary);
   } else {
     _printHumanSummary(summary);
   }
@@ -76,7 +95,23 @@ void main(List<String> args) {
     }
   }
 
-  if (expectedWinner != null) {
+  if (expectedWinner != null && matrixOutput) {
+    final expected = _scoreFor(summary, expectedWinner);
+    final opponentGames = summary.matches.fold<int>(
+      0,
+      (sum, match) => sum + match.rounds,
+    );
+    final expectedRate =
+        opponentGames == 0 ? 0.0 : expected.wins / opponentGames;
+    if (expectedRate < minWinRate || expected.wins <= expected.losses) {
+      stderr.writeln(
+        'FAIL $expectedWinner: wins=${expected.wins} '
+        'losses=${expected.losses} draws=${expected.draws} '
+        'winRate=${_pct(expectedRate)} min=${_pct(minWinRate)}',
+      );
+      failed = true;
+    }
+  } else if (expectedWinner != null) {
     final pair = summary.pairwise.singleWhere(
       (entry) =>
           entry.configAId == expectedWinner ||
@@ -106,6 +141,93 @@ void main(List<String> args) {
 
   if (failed) {
     exitCode = 1;
+  }
+}
+
+AiArenaEvaluationSummary _runOpeningFirstMatrix(
+  AiAlgorithmConfig configA,
+  AiAlgorithmConfig configB, {
+  required int boardSize,
+  required int captureTarget,
+  required int rounds,
+  required int maxMoves,
+  required int matchSeed,
+  required int openingSeed,
+}) {
+  const openings = [
+    ('empty', 'empty_v1'),
+    ('cross', 'cross_v1'),
+    ('twistCross', 'twist_cross_v1'),
+  ];
+  final matches = <AiMatchResult>[];
+  var index = 0;
+  for (final (_, openingPolicy) in openings) {
+    final executor = AiArenaExecutor(
+      boardSize: boardSize,
+      captureTarget: captureTarget,
+      rounds: rounds,
+      maxMoves: maxMoves,
+      openingPolicy: openingPolicy,
+    );
+    matches.add(executor.runFrameworkMatch(
+      configA: configA,
+      configB: configB,
+      matchSeed: matchSeed + index * 7919,
+      openingSeed: openingSeed,
+      alternateColors: false,
+    ));
+    index++;
+    matches.add(executor.runFrameworkMatch(
+      configA: configB,
+      configB: configA,
+      matchSeed: matchSeed + index * 7919,
+      openingSeed: openingSeed,
+      alternateColors: false,
+    ));
+    index++;
+  }
+  return AiArenaEvaluationSummary.fromMatches(matches);
+}
+
+void _printMatrixSummary(AiArenaEvaluationSummary summary) {
+  print('=== Capture AI Framework Matrix Probe ===');
+  print('Matrix: opening x first algorithm x repeated games');
+  for (final match in summary.matches) {
+    final first = match.configA.id;
+    final second = match.configB.id;
+    final opening = _openingFamily(match.games.first.opening);
+    print(
+      '  opening=$opening first=$first second=$second: '
+      '${match.aWins}-${match.bWins}-${match.draws} '
+      'firstWinRate=${_pct(match.aWinRate)} '
+      'illegal=${match.games.where((g) => g.illegalMove).length} '
+      'timeout=${match.games.where((g) => g.timedOut).length}',
+    );
+  }
+  print('Aggregate ranking:');
+  for (final entry in summary.rankings) {
+    print(
+      '  #${entry.rank} ${entry.configId}: '
+      'games=${entry.gameWins}-${entry.gameLosses}-${entry.draws} '
+      'winRate=${_pct(entry.gameWinRate)}',
+    );
+  }
+  print('Opening aggregate:');
+  final openingScores = <String, _OpeningScore>{};
+  for (final match in summary.matches) {
+    for (final game in match.games) {
+      final opening = _openingFamily(game.opening);
+      openingScores
+          .putIfAbsent(opening, () => _OpeningScore(opening))
+          .add(game);
+    }
+  }
+  for (final score in openingScores.values) {
+    print(
+      '  ${score.opening}: games=${score.games} a=${score.aWins} '
+      'b=${score.bWins} draws=${score.draws} illegal=${score.illegalMoves} '
+      'timeout=${score.timeouts}',
+    );
   }
 }
 
@@ -144,12 +266,68 @@ void _printHumanSummary(AiArenaEvaluationSummary summary) {
   }
 }
 
+_ConfigScore _scoreFor(AiArenaEvaluationSummary summary, String configId) {
+  final score = _ConfigScore(configId);
+  for (final match in summary.matches) {
+    if (match.configA.id == configId) {
+      score.wins += match.aWins;
+      score.losses += match.bWins;
+      score.draws += match.draws;
+    } else if (match.configB.id == configId) {
+      score.wins += match.bWins;
+      score.losses += match.aWins;
+      score.draws += match.draws;
+    }
+  }
+  return score;
+}
+
+String _openingFamily(String opening) {
+  if (opening.startsWith('twistCross')) return 'twistCross';
+  return opening;
+}
+
+class _ConfigScore {
+  _ConfigScore(this.configId);
+
+  final String configId;
+  int wins = 0;
+  int losses = 0;
+  int draws = 0;
+}
+
+class _OpeningScore {
+  _OpeningScore(this.opening);
+
+  final String opening;
+  int games = 0;
+  int aWins = 0;
+  int bWins = 0;
+  int draws = 0;
+  int illegalMoves = 0;
+  int timeouts = 0;
+
+  void add(AiGameRecord game) {
+    games++;
+    switch (game.winner) {
+      case 'a':
+        aWins++;
+      case 'b':
+        bWins++;
+      default:
+        draws++;
+    }
+    if (game.illegalMove) illegalMoves++;
+    if (game.timedOut) timeouts++;
+  }
+}
+
 Map<String, String> _parseArgs(List<String> args) {
   final opts = <String, String>{};
   for (var i = 0; i < args.length; i++) {
     final arg = args[i];
-    if (arg == '--json') {
-      opts['json'] = 'true';
+    if (arg == '--json' || arg == '--matrix') {
+      opts[arg.substring(2)] = 'true';
     } else if (arg.startsWith('--') && i + 1 < args.length) {
       opts[arg.substring(2)] = args[i + 1];
       i++;

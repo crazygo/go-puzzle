@@ -24,6 +24,7 @@ frameworks under the five-capture rule.
 | arena-output-v1 | 2026-05-19 | framework arena | existing framework configs | Add failure-aware result fields and per-opening performance summaries for later ranking/evaluation output | `illegalMove`, `timedOut`, `fallbackUsed`, `failureReason`, `openingPerformance` | `flutter test test/ai_arena_executor_test.dart test/ai_arena_resume_test.dart` | 28 tests passed | Good reporting slice | This does not tune a bot config. It makes timeout/fallback/failure evidence visible so future strength experiments can be compared without reading raw game logs. |
 | framework-evaluation-summary-v1 | 2026-05-19 | framework arena | existing framework configs | Add selected-config round-robin aggregation with pairwise summaries and overall ranking output | Pairwise once per selected config pair; deterministic per-pair seed offsets; ranking by match wins, game win rate, then config id | `flutter test test/ai_arena_executor_test.dart test/ai_arena_ladder_test.dart test/ai_arena_resume_test.dart` | 50 tests passed | Good reporting slice | The first assertion over-constrained opening count; shifted seeds correctly expanded aggregate openings. Final test checks required openings and schema fields instead. |
 | hybrid-strength-proof-v1 | 2026-05-19 | hybridTactical | `hybrid_tactical_counter_weak_v1` vs `heuristic_adaptive_weak_v1` | Find a fast repeated-game proof that a hybrid/MCTS-family config beats a basic weak config under capture target 5 | Fast regression: 9x9, capture target 5, rounds 2, max moves 80, opening seed 1. Broader probe: rounds 4, opening seed 0 | Fast: `dart run tool/capture_ai_framework_probe.dart --configs hybrid_tactical_counter_weak_v1,heuristic_adaptive_weak_v1 --rounds 2 --max-moves 80 --capture-target 5 --opening-policy empty_cross_twist_cross_random_v1 --match-seed 20260519 --opening-seed 1 --expected-winner hybrid_tactical_counter_weak_v1 --min-win-rate 0.50`; broader: same command with `--rounds 4 --opening-seed 0` | Fast proof won 2-0 on cross color swap; broader proof won 3-1. Both had no illegal moves, no timeouts, no fallback | Good strength proof | The unit regression uses the faster 2-game proof. The 4-game probe remains supporting evidence across empty/cross. |
+| opening-first-matrix-v1 | 2026-05-19 | framework arena | `heuristic_counter_standard_v1` vs `heuristic_adaptive_weak_v1` | Add multidimensional evaluation: opening x first algorithm x 4 games | Matrix mode, 9x9, capture target 1, max moves 80, openings empty/cross/twist-cross, both first-player orders, 4 games per cell | `dart run tool/capture_ai_framework_probe.dart --matrix --configs heuristic_counter_standard_v1,heuristic_adaptive_weak_v1 --rounds 4 --max-moves 80 --capture-target 1 --match-seed 20260519 --opening-seed 0` | 24 games completed, standard aggregate 16-8, illegal 0, timeout 0 | Good evaluation-surface slice | This proves the requested matrix shape and fixed-first execution. Five-capture strength calibration still needs heavier runtime handling before applying the same matrix to hybrid/MCTS configs. |
 
 ## Good Experiments
 
@@ -44,6 +45,8 @@ frameworks under the five-capture rule.
   and aggregate opening performance.
 - `hybrid-strength-proof-v1`: establishes a repeatable hybrid/MCTS-family
   strength signal over the basic weak heuristic config without failures.
+- `opening-first-matrix-v1`: adds the requested opening-by-first-player-by-4
+  evaluation matrix and verifies it with a full 24-game heuristic run.
 
 ## Bad Experiments
 
@@ -68,6 +71,10 @@ frameworks under the five-capture rule.
 - Too-low max moves: reducing the hybrid proof to max moves 40 produced four
   timeouts; max moves 60 still produced three timeouts. The fast proof keeps
   max moves 80 to avoid decision failures.
+- Heavy five-capture matrix: running `hybrid_tactical_counter_weak_v1` vs
+  `heuristic_adaptive_weak_v1` with matrix mode, capture target 5, rounds 4,
+  and max moves 80 was stopped after about two minutes. The matrix shape is
+  valid, but heavier configs need batching or tighter per-decision budgets.
 
 ## Open Questions
 

@@ -231,6 +231,28 @@ void main() {
     );
   });
 
+  test('framework match can keep selected algorithm as first player', () {
+    const executor = AiArenaExecutor(
+      boardSize: 9,
+      captureTarget: 1,
+      rounds: 4,
+      maxMoves: 8,
+      openingPolicy: 'cross_v1',
+    );
+    final result = executor.runFrameworkMatch(
+      configA:
+          AiAlgorithmRegistry.configById('hybrid_tactical_counter_weak_v1'),
+      configB: AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
+      matchSeed: 42,
+      openingSeed: 0,
+      alternateColors: false,
+    );
+
+    expect(result.games, hasLength(4));
+    expect(result.games.every((game) => game.black == 'a'), isTrue);
+    expect(result.games.every((game) => game.opening == 'cross'), isTrue);
+  });
+
   test('hybrid MCTS weak config beats basic weak config without failures', () {
     const executor = AiArenaExecutor(
       boardSize: 9,

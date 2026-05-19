@@ -133,6 +133,7 @@ class AiArenaExecutor {
     required AiAlgorithmConfig configB,
     required int matchSeed,
     required int openingSeed,
+    bool alternateColors = true,
   }) {
     final legacyConfigA = _legacyBattleConfig(configA);
     final legacyConfigB = _legacyBattleConfig(configB);
@@ -142,7 +143,7 @@ class AiArenaExecutor {
     var draws = 0;
 
     for (var i = 0; i < rounds; i++) {
-      final aIsBlack = i.isEven;
+      final aIsBlack = alternateColors ? i.isEven : true;
       final gameSeed = matchSeed * 1000 + i;
       final pairSeed = matchSeed * 1000 + (i ~/ 2);
       final opening = _openingForGame(i, openingSeed);
