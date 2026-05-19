@@ -1,4 +1,5 @@
 import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/board_position.dart';
 import 'katago_model_adapter.dart';
@@ -121,7 +122,7 @@ class FlutterKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
     }
     try {
       final session = await _runtime
-          .createSessionFromAsset(modelAsset)
+          .createSessionFromAsset(_runtimeAssetPath(modelAsset))
           .timeout(_sessionLoadTimeout);
       _sessions[modelAsset] = session;
       return session;
@@ -130,6 +131,11 @@ class FlutterKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
       _loadFailures[modelAsset] = reason;
       throw StateError(reason);
     }
+  }
+
+  String _runtimeAssetPath(String modelAsset) {
+    if (!kIsWeb) return modelAsset;
+    return modelAsset.startsWith('assets/') ? 'assets/$modelAsset' : modelAsset;
   }
 
   int _selectMove({
