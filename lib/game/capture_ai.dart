@@ -1405,6 +1405,7 @@ class CaptureAiArenaResult {
     required this.blackCaptures,
     required this.whiteCaptures,
     required this.endReason,
+    this.maxDecisionMillis = 0,
   });
 
   final StoneColor winner;
@@ -1412,6 +1413,7 @@ class CaptureAiArenaResult {
   final int blackCaptures;
   final int whiteCaptures;
   final CaptureAiMatchEndReason endReason;
+  final int maxDecisionMillis;
 
   bool get reachedCaptureTarget =>
       endReason == CaptureAiMatchEndReason.captureTargetReached;
@@ -1425,6 +1427,7 @@ enum CaptureAiMatchEndReason {
   noLegalMove,
   invalidMove,
   maxMovesReached,
+  decisionTimeout,
 }
 
 class CaptureAiSeriesEntry {
@@ -1724,6 +1727,7 @@ class CaptureAiArena {
     required int boardSize,
     required int captureTarget,
     int maxMoves = 512,
+    Duration decisionTimeout = const Duration(seconds: 10),
     SimBoard? initialBoard,
   }) {
     final board = initialBoard == null
@@ -1731,11 +1735,22 @@ class CaptureAiArena {
         : SimBoard.copy(initialBoard);
     var totalMoves = 0;
     var endReason = CaptureAiMatchEndReason.maxMovesReached;
+    var maxDecisionMillis = 0;
 
     while (!board.isTerminal && totalMoves < maxMoves) {
       final agent =
           board.currentPlayer == SimBoard.black ? blackAgent : whiteAgent;
+      final stopwatch = Stopwatch()..start();
       final move = agent.chooseMove(board);
+      stopwatch.stop();
+      maxDecisionMillis = math.max(
+        maxDecisionMillis,
+        stopwatch.elapsedMilliseconds,
+      );
+      if (stopwatch.elapsed > decisionTimeout) {
+        endReason = CaptureAiMatchEndReason.decisionTimeout;
+        break;
+      }
       if (move == null) {
         endReason = CaptureAiMatchEndReason.noLegalMove;
         break;
@@ -1766,6 +1781,7 @@ class CaptureAiArena {
       blackCaptures: board.capturedByBlack,
       whiteCaptures: board.capturedByWhite,
       endReason: endReason,
+      maxDecisionMillis: maxDecisionMillis,
     );
   }
 

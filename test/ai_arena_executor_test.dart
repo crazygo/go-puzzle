@@ -187,6 +187,29 @@ void main() {
     expect(result.toJson()['openingPerformance'], isNotEmpty);
   });
 
+  test('framework match reports decision timeout when a move exceeds budget',
+      () {
+    const executor = AiArenaExecutor(
+      boardSize: 9,
+      captureTarget: 5,
+      rounds: 1,
+      maxMoves: 80,
+      openingPolicy: 'empty_v1',
+      decisionTimeout: Duration.zero,
+    );
+    final result = executor.runFrameworkMatch(
+      configA: AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
+      configB: AiAlgorithmRegistry.configById('heuristic_counter_standard_v1'),
+      matchSeed: 5,
+      openingSeed: 0,
+    );
+
+    expect(result.games.single.endReason, 'decisionTimeout');
+    expect(result.games.single.timedOut, isTrue);
+    expect(result.games.single.failureReason, 'decision_timeout');
+    expect(result.games.single.maxDecisionMillis, greaterThanOrEqualTo(0));
+  });
+
   test('framework evaluation summarizes selected pairwise matches and ranking',
       () {
     const executor = AiArenaExecutor(

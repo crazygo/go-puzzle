@@ -25,6 +25,7 @@ class AiArenaExecutor {
     this.rounds = 12,
     this.maxMoves = 512,
     this.openingPolicy = 'empty_cross_twist_cross_random_v1',
+    this.decisionTimeout = const Duration(seconds: 10),
   });
 
   final int boardSize;
@@ -32,6 +33,7 @@ class AiArenaExecutor {
   final int rounds;
   final int maxMoves;
   final String openingPolicy;
+  final Duration decisionTimeout;
 
   String get executorVersion => _executorVersion;
 
@@ -73,6 +75,7 @@ class AiArenaExecutor {
         boardSize: boardSize,
         captureTarget: captureTarget,
         maxMoves: maxMoves,
+        decisionTimeout: decisionTimeout,
         initialBoard: _buildOpeningBoard(
           opening,
           pairSeed: pairSeed,
@@ -106,7 +109,8 @@ class AiArenaExecutor {
         whiteCaptures: result.whiteCaptures,
         endReason: result.endReason.name,
         illegalMove: result.endReason == CaptureAiMatchEndReason.invalidMove,
-        timedOut: result.endReason == CaptureAiMatchEndReason.maxMovesReached,
+        timedOut: _isTimeout(result.endReason),
+        maxDecisionMillis: result.maxDecisionMillis,
         failureReason: _failureReason(result.endReason),
       ));
     }
@@ -164,6 +168,7 @@ class AiArenaExecutor {
         boardSize: boardSize,
         captureTarget: captureTarget,
         maxMoves: maxMoves,
+        decisionTimeout: decisionTimeout,
         initialBoard: _buildOpeningBoard(
           opening,
           pairSeed: pairSeed,
@@ -197,8 +202,9 @@ class AiArenaExecutor {
         whiteCaptures: result.whiteCaptures,
         endReason: result.endReason.name,
         illegalMove: result.endReason == CaptureAiMatchEndReason.invalidMove,
-        timedOut: result.endReason == CaptureAiMatchEndReason.maxMovesReached,
+        timedOut: _isTimeout(result.endReason),
         fallbackUsed: configA.usesFallback || configB.usesFallback,
+        maxDecisionMillis: result.maxDecisionMillis,
         failureReason: _frameworkFailureReason(
           result.endReason,
           configA,
@@ -424,7 +430,13 @@ String? _failureReason(CaptureAiMatchEndReason endReason) {
     CaptureAiMatchEndReason.noLegalMove => 'agent_returned_no_legal_move',
     CaptureAiMatchEndReason.invalidMove => 'agent_returned_invalid_move',
     CaptureAiMatchEndReason.maxMovesReached => 'max_moves_reached',
+    CaptureAiMatchEndReason.decisionTimeout => 'decision_timeout',
   };
+}
+
+bool _isTimeout(CaptureAiMatchEndReason endReason) {
+  return endReason == CaptureAiMatchEndReason.maxMovesReached ||
+      endReason == CaptureAiMatchEndReason.decisionTimeout;
 }
 
 String? _frameworkFailureReason(

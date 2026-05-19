@@ -79,6 +79,7 @@ class AiGameRecord {
     this.illegalMove = false,
     this.timedOut = false,
     this.fallbackUsed = false,
+    this.maxDecisionMillis = 0,
     this.failureReason,
   });
 
@@ -102,6 +103,7 @@ class AiGameRecord {
   final bool illegalMove;
   final bool timedOut;
   final bool fallbackUsed;
+  final int maxDecisionMillis;
   final String? failureReason;
 
   Map<String, dynamic> toJson() => {
