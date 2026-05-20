@@ -103,6 +103,116 @@ CaptureAiAgent _captureAgentForProvider({
   return CaptureAiRegistry.create(style: aiStyle, difficulty: difficulty);
 }
 
+// ---------------------------------------------------------------------------
+// Training suggestions: returns up to [count] candidate positions with
+// per-position win-rate estimates for the current player.  Each entry is
+// [row, col, winRateMillis] where winRateMillis = winRate × 1000 (int).
+// ---------------------------------------------------------------------------
+
+List<List<num>> _runTrainingSuggestions(Map<String, dynamic> params) {
+  final boardSize = params['boardSize'] as int;
+  final captureTarget = params['captureTarget'] as int;
+  final cells = List<int>.from(params['cells'] as List);
+  final capturedByBlack = params['capturedByBlack'] as int;
+  final capturedByWhite = params['capturedByWhite'] as int;
+  final currentPlayer = params['currentPlayer'] as int;
+  final aiStyle = CaptureAiStyle.values.byName(params['aiStyle'] as String);
+  final difficulty =
+      DifficultyLevel.values.byName(params['difficulty'] as String);
+  final algorithmConfigId = params['algorithmConfigId'] as String?;
+  final gameMode = GameModeExt.fromStorageKey(params['gameMode'] as String?);
+  final consecutivePasses = (params['consecutivePasses'] as int?) ?? 0;
+  final count = (params['count'] as int?) ?? 3;
+
+  // Build a working board that we'll mutate to enumerate distinct candidates.
+  final workBoard = SimBoard(
+    boardSize,
+    captureTarget: captureTarget,
+    gameMode: gameMode,
+  );
+  for (int i = 0; i < cells.length; i++) {
+    workBoard.cells[i] = cells[i];
+  }
+  workBoard.capturedByBlack = capturedByBlack;
+  workBoard.capturedByWhite = capturedByWhite;
+  workBoard.currentPlayer = currentPlayer;
+  workBoard.consecutivePasses = consecutivePasses;
+
+  final primaryAgent = gameMode == GameMode.capture
+      ? _captureAgentForProvider(
+          algorithmConfigId: algorithmConfigId,
+          aiStyle: aiStyle,
+          difficulty: difficulty,
+        )
+      : null;
+  final territoryEngine =
+      gameMode == GameMode.territory ? TerritoryAiEngine(difficulty: difficulty) : null;
+
+  final origPlayer = currentPlayer;
+  final results = <List<num>>[];
+
+  for (int i = 0; i < count; i++) {
+    if (workBoard.isTerminal) break;
+
+    BoardPosition? move;
+    if (gameMode == GameMode.capture) {
+      move = primaryAgent?.chooseMove(workBoard)?.position;
+    } else {
+      final pos = territoryEngine?.chooseMove(workBoard);
+      if (pos == null || pos == territoryPassMove) break;
+      move = pos;
+    }
+    if (move == null) break;
+
+    // Compute win-rate for the original player after this move is played.
+    final afterBoard = SimBoard.copy(workBoard);
+    if (!afterBoard.applyMove(move.row, move.col)) break;
+    final winRate = _trainingWinRate(afterBoard, origPlayer, captureTarget);
+    results.add([move.row, move.col, (winRate * 1000).round()]);
+
+    // Block this cell so the next iteration finds a distinct candidate.
+    // Setting it to an occupied colour makes getLegalMoves() skip it.
+    workBoard.cells[workBoard.idx(move.row, move.col)] =
+        origPlayer == SimBoard.black ? SimBoard.white : SimBoard.black;
+  }
+  return results;
+}
+
+double _trainingWinRate(SimBoard board, int origPlayer, int captureTarget) {
+  const floor = 0.05;
+  const ceiling = 0.95;
+  if (board.gameMode == GameMode.territory) {
+    final myArea = board.areaScore(origPlayer);
+    final oppArea = board.areaScore(
+      origPlayer == SimBoard.black ? SimBoard.white : SimBoard.black,
+    );
+    final diff = myArea - oppArea;
+    final normalized =
+        (diff / (board.size * board.size)).clamp(-ceiling, ceiling);
+    return (0.5 + normalized * 0.45).clamp(floor, ceiling);
+  }
+  final myCaps =
+      origPlayer == SimBoard.black ? board.capturedByBlack : board.capturedByWhite;
+  final oppCaps =
+      origPlayer == SimBoard.black ? board.capturedByWhite : board.capturedByBlack;
+  final progress = (myCaps - oppCaps) / captureTarget;
+  return (0.5 + progress * 0.35).clamp(floor, ceiling);
+}
+
+/// A single training suggestion: a board position paired with the estimated
+/// win-rate for the player who would place at that position.
+class TrainingSuggestion {
+  const TrainingSuggestion({
+    required this.position,
+    required this.winRate,
+  });
+
+  final BoardPosition position;
+
+  /// Win-rate in the range [0.05, 0.95] for the player to move.
+  final double winRate;
+}
+
 enum CaptureGameResult { none, blackWins, whiteWins, draw }
 
 enum CaptureInitialMode { cross, twistCross, empty, setup }
@@ -354,6 +464,8 @@ class CaptureGameProvider extends ChangeNotifier {
   /// Every move played in the current game, in order: each entry is [row, col].
   final List<List<int>> _moveLog = [];
 
+  bool _trainingMode = false;
+
   GameState get gameState => _gameState;
   CaptureGameResult get result => _result;
   bool get isAiThinking => _isAiThinking;
@@ -365,6 +477,9 @@ class CaptureGameProvider extends ChangeNotifier {
   GameMode get mode => gameMode;
   bool get isTerritoryMode => gameMode == GameMode.territory;
   bool get isPlacementMode => initialMode == CaptureInitialMode.setup;
+
+  /// Whether AI training partner mode is currently active.
+  bool get trainingMode => _trainingMode;
 
   /// An unmodifiable view of the current game's move sequence.
   List<List<int>> get moveLog => List.unmodifiable(_moveLog);
@@ -419,9 +534,74 @@ class CaptureGameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Enters AI training partner mode. Both colours can be placed by the user;
+  /// the AI will not auto-play its turn.
+  void enterTrainingMode() {
+    if (_trainingMode) return;
+    if (_result != CaptureGameResult.none) return;
+    _trainingMode = true;
+    // Cancel any in-flight or pending AI move.
+    _aiMoveTimer?.cancel();
+    _aiMoveTimer = null;
+    if (_pendingAiRequestId != null) {
+      _runner.cancel(_pendingAiRequestId!);
+      _pendingAiRequestId = null;
+    }
+    _isAiThinking = false;
+    notifyListeners();
+  }
+
+  /// Exits AI training partner mode. If it is the AI's turn the AI will
+  /// resume play automatically.
+  void exitTrainingMode() {
+    if (!_trainingMode) return;
+    _trainingMode = false;
+    notifyListeners();
+    // Resume normal play if it is now the AI's turn.
+    if (!isPlacementMode &&
+        _result == CaptureGameResult.none &&
+        _gameState.currentPlayer != humanColor) {
+      _scheduleAiMove();
+    }
+  }
+
+  /// Computes up to [count] candidate training suggestions in a background
+  /// isolate and returns them with per-position win-rate estimates.
+  Future<List<TrainingSuggestion>> suggestMovesWithWinRateAsync({
+    int count = 3,
+  }) async {
+    if (count <= 0) return const [];
+    final sim =
+        SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
+    final params = <String, dynamic>{
+      'cells': sim.cells.toList(),
+      'boardSize': sim.size,
+      'captureTarget': sim.captureTarget,
+      'capturedByBlack': sim.capturedByBlack,
+      'capturedByWhite': sim.capturedByWhite,
+      'currentPlayer': sim.currentPlayer,
+      'aiStyle': _aiStyle.name,
+      'difficulty': difficulty.name,
+      if (aiAlgorithmConfig != null) 'algorithmConfigId': aiAlgorithmConfig!.id,
+      'gameMode': gameMode.storageKey,
+      'consecutivePasses': sim.consecutivePasses,
+      'count': count,
+    };
+    final raw = await compute(_runTrainingSuggestions, params);
+    return raw
+        .map(
+          (entry) => TrainingSuggestion(
+            position: BoardPosition(entry[0].toInt(), entry[1].toInt()),
+            winRate: entry[2].toDouble() / 1000.0,
+          ),
+        )
+        .toList();
+  }
+
   Future<bool> placeStone(int row, int col) async {
     if (_isAiThinking || _result != CaptureGameResult.none) return false;
-    if (!isPlacementMode && _gameState.currentPlayer != humanColor) {
+    if (!isPlacementMode && !_trainingMode &&
+        _gameState.currentPlayer != humanColor) {
       return false;
     }
 
@@ -446,7 +626,7 @@ class CaptureGameProvider extends ChangeNotifier {
         _isAiThinking ||
         _result != CaptureGameResult.none ||
         isPlacementMode ||
-        _gameState.currentPlayer != humanColor) {
+        (!_trainingMode && _gameState.currentPlayer != humanColor)) {
       return false;
     }
     final newState = GoEngine.passTurn(_gameState);
@@ -669,6 +849,7 @@ class CaptureGameProvider extends ChangeNotifier {
   }
 
   void _scheduleAiMove() {
+    if (_trainingMode) return;
     if (_disposed ||
         isPlacementMode ||
         _result != CaptureGameResult.none ||

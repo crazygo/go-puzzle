@@ -4072,6 +4072,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   int? _reviewMoveIndex;
   List<GameState>? _reviewStates;
 
+  // Training partner mode state.
+  _TrainingHintSession? _trainingHintSession;
+  int _trainingRound = 0;
+
   /// Last-move coordinates shown while the ripple animation plays.
   List<int>? _rippleMove;
   late final AnimationController _rippleController;
@@ -4102,6 +4106,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
 
   @override
   void dispose() {
+    _trainingHintSession?.cancel();
+    _trainingHintSession = null;
     _rippleController.dispose();
     super.dispose();
   }
@@ -4273,6 +4279,11 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
             child: SafeArea(
               child: Column(
                 children: [
+                  if (provider.trainingMode)
+                    _TrainingModeStatusBar(
+                      round: _trainingRound,
+                      onLeave: () => _leaveTrainingMode(provider),
+                    ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                     child: (_moveLogVisible || inReviewMode)
@@ -4413,6 +4424,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     final showCaptureWarning = settings?.showCaptureWarning ?? true;
     final coordinateSystem =
         settings?.boardCoordinateSystem ?? BoardCoordinateSystem.chinese;
+    final canEnterTrainingMode = !provider.trainingMode &&
+        provider.result == CaptureGameResult.none &&
+        !provider.isPlacementMode;
     final buttonBox = buttonContext.findRenderObject() as RenderBox?;
     final overlayBox =
         Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
@@ -4476,6 +4490,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                 canCopyMoveLog: canCopyMoveLog,
                 canPass: canPass,
                 canToggleCaptureWarning: settings != null,
+                canEnterTrainingMode: canEnterTrainingMode,
                 onToggleCaptureWarning: () {
                   Navigator.of(menuContext).pop();
                   settings?.setShowCaptureWarning(!showCaptureWarning);
@@ -4515,6 +4530,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                   Navigator.of(menuContext).pop();
                   await provider.passTurn();
                 },
+                onEnterTrainingMode: () {
+                  Navigator.of(menuContext).pop();
+                  _enterTrainingMode(provider);
+                },
                 onCopyText: () {
                   Navigator.of(menuContext).pop();
                   _copyMovesAsText(provider, coordinateSystem);
@@ -4550,6 +4569,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     if (provider.result == CaptureGameResult.blackWins) return '對局結束';
     if (provider.result == CaptureGameResult.whiteWins) return '對局結束';
     if (provider.result == CaptureGameResult.draw) return '對局結束';
+    if (provider.trainingMode) return 'AI 陪練模式';
     final colorName =
         provider.gameState.currentPlayer == StoneColor.black ? '黑棋' : '白棋';
     if (provider.isAiThinking ||
@@ -4570,6 +4590,27 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
       setState(() {
         _hintMarks = const [];
       });
+      if (provider.trainingMode) {
+        // Restart hint session for the new board position.
+        _trainingHintSession?.cancel();
+        _trainingHintSession = _TrainingHintSession(
+          provider: provider,
+          onUpdate: (marks) {
+            if (!mounted) return;
+            setState(() => _hintMarks = marks);
+          },
+          onRoundChange: (round) {
+            if (!mounted) return;
+            setState(() => _trainingRound = round);
+          },
+          onDone: () {
+            if (!mounted) return;
+            setState(() {});
+          },
+        );
+        setState(() => _trainingRound = 0);
+        _trainingHintSession!.start();
+      }
     }
     return placed;
   }
@@ -4595,6 +4636,41 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
         });
       }
     }
+  }
+
+  void _enterTrainingMode(CaptureGameProvider provider) {
+    provider.enterTrainingMode();
+    setState(() {
+      _hintMarks = const [];
+      _trainingRound = 0;
+    });
+    _trainingHintSession?.cancel();
+    _trainingHintSession = _TrainingHintSession(
+      provider: provider,
+      onUpdate: (marks) {
+        if (!mounted) return;
+        setState(() => _hintMarks = marks);
+      },
+      onRoundChange: (round) {
+        if (!mounted) return;
+        setState(() => _trainingRound = round);
+      },
+      onDone: () {
+        if (!mounted) return;
+        setState(() {});
+      },
+    );
+    _trainingHintSession!.start();
+  }
+
+  void _leaveTrainingMode(CaptureGameProvider provider) {
+    _trainingHintSession?.cancel();
+    _trainingHintSession = null;
+    setState(() {
+      _hintMarks = const [];
+      _trainingRound = 0;
+    });
+    provider.exitTrainingMode();
   }
 
   _ResultDialogState _resultDialogState(CaptureGameProvider provider) {
@@ -5827,6 +5903,7 @@ class _OperationContextMenu extends StatelessWidget {
     required this.canCopyMoveLog,
     required this.canPass,
     required this.canToggleCaptureWarning,
+    required this.canEnterTrainingMode,
     required this.onToggleCaptureWarning,
     required this.onToggleMoveLog,
     required this.onToggleMoveNumbers,
@@ -5834,6 +5911,7 @@ class _OperationContextMenu extends StatelessWidget {
     required this.onUndo,
     required this.onHint,
     required this.onPass,
+    required this.onEnterTrainingMode,
     required this.onCopyText,
     required this.onCopySgf,
   });
@@ -5849,6 +5927,7 @@ class _OperationContextMenu extends StatelessWidget {
   final bool canCopyMoveLog;
   final bool canPass;
   final bool canToggleCaptureWarning;
+  final bool canEnterTrainingMode;
   final VoidCallback onToggleCaptureWarning;
   final VoidCallback onToggleMoveLog;
   final VoidCallback onToggleMoveNumbers;
@@ -5856,6 +5935,7 @@ class _OperationContextMenu extends StatelessWidget {
   final VoidCallback onUndo;
   final VoidCallback onHint;
   final VoidCallback onPass;
+  final VoidCallback onEnterTrainingMode;
   final VoidCallback onCopyText;
   final VoidCallback onCopySgf;
 
@@ -5932,6 +6012,12 @@ class _OperationContextMenu extends StatelessWidget {
               text: '提示一手',
               enabled: canHint,
               onPressed: onHint,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: '進入陪練模式',
+              enabled: canEnterTrainingMode,
+              onPressed: onEnterTrainingMode,
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
@@ -6043,10 +6129,15 @@ class _HintMark {
   const _HintMark({
     required this.position,
     required this.color,
+    this.winRate,
   });
 
   final BoardPosition position;
   final StoneColor color;
+
+  /// Optional win-rate for the player to move ([0.05, 0.95]). When non-null
+  /// the painter draws a percentage label inside the dashed circle.
+  final double? winRate;
 }
 
 class _HintOverlayPainter extends CustomPainter {
@@ -6078,6 +6169,28 @@ class _HintOverlayPainter extends CustomPainter {
         ..strokeWidth = 2
         ..color = hintColor;
       _drawDashedCircle(canvas, center, radius, paint);
+
+      if (hint.winRate != null) {
+        final pct = (hint.winRate! * 100).round();
+        final label = '$pct%';
+        final fontSize = (cell * 0.26).clamp(8.0, 18.0);
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: label,
+            style: TextStyle(
+              color: hintColor,
+              fontSize: fontSize,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        textPainter.paint(
+          canvas,
+          center -
+              Offset(textPainter.width / 2, textPainter.height / 2),
+        );
+      }
     }
   }
 
@@ -6208,6 +6321,141 @@ class _TapBoard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Stone ripple painter
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// AI training hint session
+// ---------------------------------------------------------------------------
+
+/// Manages the background computation loop for AI training partner hints.
+///
+/// Fires immediately and then every 3 seconds for up to [_maxRounds] rounds.
+/// Each round calls [provider.suggestMovesWithWinRateAsync] and delivers
+/// results via [onUpdate]. After [_maxRounds] rounds [onDone] is called.
+class _TrainingHintSession {
+  _TrainingHintSession({
+    required this.provider,
+    required this.onUpdate,
+    required this.onRoundChange,
+    required this.onDone,
+  });
+
+  static const int _maxRounds = 5;
+  static const Duration _interval = Duration(seconds: 3);
+
+  final CaptureGameProvider provider;
+  final void Function(List<_HintMark>) onUpdate;
+  final void Function(int round) onRoundChange;
+  final VoidCallback onDone;
+
+  Timer? _timer;
+  bool _cancelled = false;
+  int _round = 0;
+  bool _computing = false;
+
+  void start() {
+    _fire();
+    _timer = Timer.periodic(_interval, (_) => _fire());
+  }
+
+  void cancel() {
+    _cancelled = true;
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  Future<void> _fire() async {
+    if (_cancelled || _computing || _round >= _maxRounds) return;
+    _computing = true;
+    _round++;
+    onRoundChange(_round);
+    try {
+      final suggestions =
+          await provider.suggestMovesWithWinRateAsync(count: 3);
+      if (_cancelled) return;
+      final color = provider.gameState.currentPlayer;
+      final marks = suggestions
+          .map(
+            (s) => _HintMark(
+              position: s.position,
+              color: color,
+              winRate: s.winRate,
+            ),
+          )
+          .toList();
+      onUpdate(marks);
+    } catch (_) {
+      // Silently ignore failures — the board will just show no hints.
+    } finally {
+      _computing = false;
+    }
+    if (!_cancelled && _round >= _maxRounds) {
+      _timer?.cancel();
+      _timer = null;
+      onDone();
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Training mode status bar
+// ---------------------------------------------------------------------------
+
+class _TrainingModeStatusBar extends StatelessWidget {
+  const _TrainingModeStatusBar({
+    required this.round,
+    required this.onLeave,
+  });
+
+  static const int _maxRounds = _TrainingHintSession._maxRounds;
+
+  final int round;
+  final VoidCallback onLeave;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    final String statusText;
+    if (round == 0) {
+      statusText = 'AI 陪練中…';
+    } else if (round >= _maxRounds) {
+      statusText = 'AI 陪練：計算完成';
+    } else {
+      statusText = 'AI 陪練：第 $round / $_maxRounds 輪';
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              statusText,
+              style: TextStyle(
+                fontSize: 13,
+                color: palette.setupTitleText,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            minimumSize: Size.zero,
+            onPressed: onLeave,
+            child: Text(
+              '離開陪練',
+              style: TextStyle(
+                fontSize: 13,
+                color: palette.setupActionText,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
 
 /// Draws a water-ripple animation radiating outward from the last-placed stone.
 ///
