@@ -120,6 +120,7 @@ class AiGameRecord {
         'illegalMove': illegalMove,
         'timedOut': timedOut,
         'fallbackUsed': fallbackUsed,
+        'maxDecisionMillis': maxDecisionMillis,
         if (failureReason != null) 'failureReason': failureReason,
       };
 
@@ -138,6 +139,7 @@ class AiGameRecord {
       illegalMove: json['illegalMove'] as bool? ?? false,
       timedOut: json['timedOut'] as bool? ?? false,
       fallbackUsed: json['fallbackUsed'] as bool? ?? false,
+      maxDecisionMillis: json['maxDecisionMillis'] as int? ?? 0,
       failureReason: json['failureReason'] as String?,
     );
   }

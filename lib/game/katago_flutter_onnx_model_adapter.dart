@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 import 'package:flutter/foundation.dart';
 
@@ -193,9 +195,24 @@ class FlutterKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
     final limit = candidateLimit.clamp(1, scored.length).toInt();
     final shortlisted = scored.take(limit);
     if (temperature <= 0) return shortlisted.first.move;
-    return shortlisted
-        .map((entry) => (score: entry.score / temperature, move: entry.move))
-        .reduce((best, entry) => entry.score > best.score ? entry : best)
-        .move;
+    // Softmax sampling: convert policy scores to probabilities scaled by
+    // temperature, then sample proportionally so higher-scored moves are more
+    // likely without always being deterministic.
+    final candidates = shortlisted.toList();
+    final maxScore = candidates.fold(
+      candidates.first.score,
+      (m, e) => e.score > m ? e.score : m,
+    );
+    final weights = candidates
+        .map((e) => math.exp((e.score - maxScore) / temperature))
+        .toList();
+    final totalWeight = weights.reduce((a, b) => a + b);
+    final threshold = math.Random().nextDouble() * totalWeight;
+    double cumulative = 0;
+    for (var i = 0; i < candidates.length; i++) {
+      cumulative += weights[i];
+      if (cumulative >= threshold) return candidates[i].move;
+    }
+    return candidates.last.move;
   }
 }

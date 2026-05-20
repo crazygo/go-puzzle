@@ -40,7 +40,7 @@ String boardAxisRowLabel({
   if (row < 0 || row >= boardSize) return '?';
   return switch (coordinateSystem) {
     BoardCoordinateSystem.international => '${boardSize - row}',
-    BoardCoordinateSystem.chinese => _toChineseNumber(row + 1),
+    BoardCoordinateSystem.chinese => _toChineseNumber(boardSize - row),
     BoardCoordinateSystem.korean => '${row + 1}',
   };
 }
@@ -57,11 +57,11 @@ String formatBoardCoordinate({
     boardSize: boardSize,
     coordinateSystem: coordinateSystem,
   );
-  final rowLabel = switch (coordinateSystem) {
-    BoardCoordinateSystem.international => '${boardSize - row}',
-    BoardCoordinateSystem.chinese => _toChineseNumber(row + 1),
-    BoardCoordinateSystem.korean => '${row + 1}',
-  };
+  final rowLabel = boardAxisRowLabel(
+    row: row,
+    boardSize: boardSize,
+    coordinateSystem: coordinateSystem,
+  );
   return '$column$rowLabel';
 }
 

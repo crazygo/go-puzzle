@@ -142,8 +142,8 @@ void main() {
       isTrue,
     );
     expect(
-      replay.games.map((game) => game.toJson()).toList(),
-      first.games.map((game) => game.toJson()).toList(),
+      replay.games.map((game) => _gameJsonWithoutTiming(game)).toList(),
+      first.games.map((game) => _gameJsonWithoutTiming(game)).toList(),
     );
     expect(first.games.every((game) => game.fallbackUsed), isFalse);
     expect(
@@ -458,9 +458,10 @@ void main() {
     // Each pair of adjacent games (0,1) and (2,3) must have different gameSeed
     // values (per-game agent seeds), but the same board seed (pairSeed).
     // Full determinism across identical runs is the observable proof.
+    // maxDecisionMillis is timing-dependent so excluded from comparison.
     expect(
-      run1.games.map((g) => g.toJson()).toList(),
-      run2.games.map((g) => g.toJson()).toList(),
+      run1.games.map((g) => _gameJsonWithoutTiming(g)).toList(),
+      run2.games.map((g) => _gameJsonWithoutTiming(g)).toList(),
     );
   });
 
@@ -502,10 +503,18 @@ void main() {
       99005,
     ]);
     expect(
-      replay.games.map((game) => game.toJson()).toList(),
-      first.games.map((game) => game.toJson()).toList(),
+      replay.games.map((game) => _gameJsonWithoutTiming(game)).toList(),
+      first.games.map((game) => _gameJsonWithoutTiming(game)).toList(),
     );
   });
+}
+
+/// Returns the game's JSON map with the timing-dependent [maxDecisionMillis]
+/// field removed, suitable for determinism comparisons.
+Map<String, dynamic> _gameJsonWithoutTiming(AiGameRecord game) {
+  final json = game.toJson();
+  json.remove('maxDecisionMillis');
+  return json;
 }
 
 class _SlowOpeningAgent implements CaptureAiAgent {

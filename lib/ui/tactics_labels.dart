@@ -45,6 +45,8 @@ String playerName(int player) {
 /// [row] is the 0-based row index from the top of the board.
 /// [col] is the 0-based column index from the left.
 /// [boardSize] is the number of rows/columns on the board.
+/// All coordinate systems use bottom-origin row numbering, so row 0 (top)
+/// maps to the highest row label (e.g. "9" for a 9×9 board).
 String formatPosition(
   int row,
   int col,
