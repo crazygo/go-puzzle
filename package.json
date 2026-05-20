@@ -5,6 +5,7 @@
     "init-dev": "bash scripts/init-dev.sh"
   },
   "devDependencies": {
+    "onnxruntime-node": "^1.26.0",
     "playwright-core": "^1.52.0",
     "pngjs": "^7.0.0"
   }

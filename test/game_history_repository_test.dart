@@ -1,3 +1,4 @@
+import 'package:go_puzzle/game/game_mode.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/models/game_record.dart';
 import 'package:go_puzzle/services/game_history_repository.dart';
@@ -11,6 +12,7 @@ GameRecord _makeRecord({
   List<List<int>> moves = const [
     [0, 0]
   ],
+  GameMode gameMode = GameMode.capture,
 }) {
   final at = playedAt ?? DateTime(2024, 1, 1, 12, 0, 0);
   return GameRecord(
@@ -19,6 +21,7 @@ GameRecord _makeRecord({
     boardSize: 9,
     captureTarget: 5,
     difficulty: 'beginner',
+    gameMode: gameMode,
     humanColorIndex: 1,
     initialMode: 'twistCross',
     moves: moves,
@@ -161,6 +164,15 @@ void main() {
       final record = GameRecord.fromJson(json);
       expect(record.markedMoveNumbers, [2, 3]);
       expect(GameRecord.fromJson(record.toJson()).markedMoveNumbers, [2, 3]);
+    });
+
+    test('save and load preserve territory game mode', () async {
+      final repo = GameHistoryRepository();
+      await repo
+          .save(_makeRecord(id: 'territory', gameMode: GameMode.territory));
+
+      final loaded = await repo.loadAll();
+      expect(loaded.single.gameMode, GameMode.territory);
     });
   });
 }

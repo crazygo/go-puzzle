@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_puzzle/game/capture_ai.dart';
 import 'package:go_puzzle/main.dart';
 import 'package:go_puzzle/widgets/page_hero_banner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,15 +14,15 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Baduk Puzzle'), findsOneWidget);
+    expect(find.text('围棋谜题'), findsOneWidget);
     // Motivation text is now rendered by the animated _MotivationHeroTitle
     // widget rather than through PageHeroBanner.subtitle; just verify the
     // banner is present and the rest of the page copy is correct.
     expect(find.byType(PageHeroBanner), findsOneWidget);
     expect(find.text('下一盤'), findsOneWidget);
     expect(find.text('吃 5 子取勝 · 9 路 · 十字'), findsOneWidget);
-    // Default AI style is now 'adaptive' (戰力優先).
-    expect(find.text(CaptureAiStyle.adaptive.label), findsOneWidget);
+    expect(find.text('不分伯仲·奥斯卡'), findsOneWidget);
+    expect(find.textContaining('MCTS-1 · 快速试探'), findsOneWidget);
     expect(find.text('中級 · 9 路 · 吃5子'), findsNothing);
 
     final startButton = find.widgetWithText(CupertinoButton, '執黑先行');
@@ -105,6 +104,24 @@ void main() {
     expect(find.text('圍空 · 9 路 · 十字'), findsOneWidget);
     expect(find.text('吃 5 子取勝 · 9 路 · 十字'), findsNothing);
   });
+
+  testWidgets('territory mode disables AI style selection in setup',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'capture_setup.play_mode': 'territory',
+    });
+
+    await tester.pumpWidget(const GoPuzzleApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('調整 ›'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('围空模式固定使用围空引擎，风格选项不生效；仅难度生效。'), findsOneWidget);
+    expect(find.text('选择 AI 风格'), findsNothing);
+  });
   testWidgets('difficulty mode segment control updates on tap', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());
     await tester.pump();
@@ -114,8 +131,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Default is '不分伯仲'; tap '指定等級' to change it.
-    final manualOption = find.text('指定等級');
+    // Default is '不分伯仲'; tap '指定棋手' to change it.
+    final manualOption = find.text('指定棋手');
     await tester.dragUntilVisible(
       manualOption,
       find.byType(Scrollable),
@@ -130,8 +147,12 @@ void main() {
       return tester.widget<Text>(find.text(label));
     }
 
-    expect(textWidget('指定等級').style?.color, const Color(0xFF8A5A2B));
+    expect(textWidget('指定棋手').style?.color, const Color(0xFF8A5A2B));
     expect(textWidget('不分伯仲').style?.color, const Color(0xFF5A4B3F));
+    expect(find.text('阿尔法'), findsOneWidget);
+    expect(find.text('MCTS-2 · 战术搜索'), findsOneWidget);
+    expect(find.text('指定棋手已绑定真实算法配置；小字显示开发可追踪的算法短码。'), findsNothing);
+    expect(find.text('不分伯仲会按你的历史表现自动选择一位真实棋手。'), findsNothing);
   });
 
   testWidgets('capture game uses Cupertino back affordance', (tester) async {
@@ -154,6 +175,6 @@ void main() {
       find.byType(CupertinoNavigationBar),
     );
     expect(navigationBar.leading, isNull);
-    expect(navigationBar.previousPageTitle, 'Baduk Puzzle');
+    expect(navigationBar.previousPageTitle, '围棋谜题');
   });
 }

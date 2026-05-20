@@ -7,12 +7,17 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    if let controller = window?.rootViewController as? FlutterViewController {
+      registerModelAssetChannel(messenger: controller.binaryMessenger)
+      TerritoryOnnxChannel.register(with: controller.binaryMessenger)
+    }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     registerModelAssetChannel(messenger: engineBridge.applicationRegistrar.messenger())
+    TerritoryOnnxChannel.register(with: engineBridge.applicationRegistrar.messenger())
   }
 
   private func registerModelAssetChannel(messenger: FlutterBinaryMessenger) {

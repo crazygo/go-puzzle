@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:go_puzzle/game/game_mode.dart';
 import 'package:go_puzzle/game/go_engine.dart';
 import 'package:go_puzzle/models/board_position.dart';
 import 'package:go_puzzle/models/game_state.dart';
@@ -109,6 +110,51 @@ void main() {
       final undone = GoEngine.undoMove(afterMove);
       expect(undone, isNotNull);
       expect(undone!.board[4][4], StoneColor.empty);
+    });
+
+    test('passTurn increments consecutive passes and flips player', () {
+      final board = List.generate(9, (_) => List.filled(9, StoneColor.empty));
+      final state = GameState(
+        boardSize: 9,
+        board: board,
+        currentPlayer: StoneColor.black,
+        gameMode: GameMode.territory,
+      );
+
+      final passed = GoEngine.passTurn(state);
+      expect(passed, isNotNull);
+      expect(passed!.currentPlayer, StoneColor.white);
+      expect(passed.consecutivePasses, 1);
+    });
+
+    test('computeTerritoryScore counts surrounded empty points', () {
+      final board = List.generate(5, (_) => List.filled(5, StoneColor.empty));
+      for (final (row, col) in [
+        (1, 1),
+        (1, 2),
+        (1, 3),
+        (2, 1),
+        (2, 3),
+        (3, 1),
+        (3, 2),
+        (3, 3),
+      ]) {
+        board[row][col] = StoneColor.black;
+      }
+      board[0][0] = StoneColor.white;
+
+      final state = GameState(
+        boardSize: 5,
+        board: board,
+        currentPlayer: StoneColor.black,
+        gameMode: GameMode.territory,
+      );
+
+      final score = GoEngine.computeTerritoryScore(state);
+      expect(score.blackTerritory, 1);
+      expect(score.whiteTerritory, 0);
+      expect(score.blackArea, 9);
+      expect(score.whiteArea, 1);
     });
   });
 }

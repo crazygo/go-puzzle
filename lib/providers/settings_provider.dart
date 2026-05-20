@@ -67,7 +67,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _soundEnabled = true;
   bool _hapticEnabled = true;
   bool _developerMode = false;
-  bool _showMoveLog = false;
+  bool _showMoveLog = true;
   BoardCoordinateSystem _boardCoordinateSystem = BoardCoordinateSystem.chinese;
   ScreenshotRecognitionAlgorithm _screenshotRecognitionAlgorithm =
       ScreenshotRecognitionAlgorithm.platformDefault;
@@ -97,7 +97,7 @@ class SettingsProvider extends ChangeNotifier {
       orElse: () => _appTheme,
     );
     final restoredDeveloperMode = prefs.getBool(_developerModeKey) ?? false;
-    final restoredShowMoveLog = prefs.getBool(_showMoveLogKey) ?? false;
+    final restoredShowMoveLog = prefs.getBool(_showMoveLogKey) ?? true;
     final restoredBoardCoordinateSystem =
         BoardCoordinateSystem.fromStorageValue(
       prefs.getString(_boardCoordinateSystemKey),

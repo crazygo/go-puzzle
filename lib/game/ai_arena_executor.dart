@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
 import '../models/board_position.dart' show StoneColor;
+import 'ai_algorithm_framework.dart';
 import 'capture_ai.dart';
 import 'ai_arena_ladder.dart';
 import 'difficulty_level.dart';
+import 'katago_model_adapter.dart';
 import 'mcts_engine.dart';
 
 const String _executorVersion = 'ai_arena_executor_v1';
@@ -23,7 +25,9 @@ class AiArenaExecutor {
     this.captureTarget = 5,
     this.rounds = 12,
     this.maxMoves = 512,
-    this.openingPolicy = 'empty_twist_cross_random_v1',
+    this.openingPolicy = 'empty_cross_twist_cross_random_v1',
+    this.decisionTimeout = const Duration(seconds: 5),
+    this.katagoModelAdapter,
   });
 
   final int boardSize;
@@ -31,6 +35,8 @@ class AiArenaExecutor {
   final int rounds;
   final int maxMoves;
   final String openingPolicy;
+  final Duration decisionTimeout;
+  final KatagoModelAdapter? katagoModelAdapter;
 
   String get executorVersion => _executorVersion;
 
@@ -72,6 +78,7 @@ class AiArenaExecutor {
         boardSize: boardSize,
         captureTarget: captureTarget,
         maxMoves: maxMoves,
+        decisionTimeout: decisionTimeout,
         initialBoard: _buildOpeningBoard(
           opening,
           pairSeed: pairSeed,
@@ -104,6 +111,10 @@ class AiArenaExecutor {
         blackCaptures: result.blackCaptures,
         whiteCaptures: result.whiteCaptures,
         endReason: result.endReason.name,
+        illegalMove: result.endReason == CaptureAiMatchEndReason.invalidMove,
+        timedOut: _isTimeout(result.endReason),
+        maxDecisionMillis: result.maxDecisionMillis,
+        failureReason: _failureReason(result.endReason),
       ));
     }
 
@@ -124,8 +135,314 @@ class AiArenaExecutor {
     );
   }
 
+  AiMatchResult runFrameworkMatch({
+    required AiAlgorithmConfig configA,
+    required AiAlgorithmConfig configB,
+    required int matchSeed,
+    required int openingSeed,
+    bool alternateColors = true,
+  }) {
+    final legacyConfigA = _legacyBattleConfig(configA);
+    final legacyConfigB = _legacyBattleConfig(configB);
+    final games = <AiGameRecord>[];
+    var aWins = 0;
+    var bWins = 0;
+    var draws = 0;
+
+    for (var i = 0; i < rounds; i++) {
+      final aIsBlack = alternateColors ? i.isEven : true;
+      final gameSeed = matchSeed * 1000 + i;
+      final pairSeed = matchSeed * 1000 + (i ~/ 2);
+      final opening = _openingForGame(i, openingSeed);
+      final openingVariant = _openingVariantForGame(i);
+
+      final blackAgent = AiAlgorithmRegistry.createAgent(
+        aIsBlack ? configA : configB,
+        seedOverride: gameSeed * 2,
+        katagoModelAdapter:
+            katagoModelAdapter ?? const UnavailableKatagoOnnxModelAdapter(),
+      );
+      final blackConfig = aIsBlack ? configA : configB;
+      final whiteAgent = AiAlgorithmRegistry.createAgent(
+        aIsBlack ? configB : configA,
+        seedOverride: gameSeed * 2 + 1,
+        katagoModelAdapter:
+            katagoModelAdapter ?? const UnavailableKatagoOnnxModelAdapter(),
+      );
+      final whiteConfig = aIsBlack ? configB : configA;
+
+      final result = CaptureAiArena.playMatch(
+        blackAgent: blackAgent,
+        whiteAgent: whiteAgent,
+        boardSize: boardSize,
+        captureTarget: captureTarget,
+        maxMoves: maxMoves,
+        decisionTimeout: decisionTimeout,
+        blackDecisionTimeout: _decisionTimeoutForConfig(
+          blackConfig,
+          defaultTimeout: decisionTimeout,
+        ),
+        whiteDecisionTimeout: _decisionTimeoutForConfig(
+          whiteConfig,
+          defaultTimeout: decisionTimeout,
+        ),
+        initialBoard: _buildOpeningBoard(
+          opening,
+          pairSeed: pairSeed,
+          variant: openingVariant,
+        ),
+      );
+
+      final winnerLabel = switch (result.winner) {
+        final w when w == StoneColor.black => aIsBlack ? 'a' : 'b',
+        final w when w == StoneColor.white => aIsBlack ? 'b' : 'a',
+        _ => 'draw',
+      };
+
+      if (winnerLabel == 'a') {
+        aWins++;
+      } else if (winnerLabel == 'b') {
+        bWins++;
+      } else {
+        draws++;
+      }
+
+      games.add(AiGameRecord(
+        index: i,
+        gameSeed: gameSeed,
+        openingIndex: opening.index,
+        opening: _openingName(opening, openingVariant),
+        black: aIsBlack ? 'a' : 'b',
+        winner: winnerLabel,
+        moves: result.totalMoves,
+        blackCaptures: result.blackCaptures,
+        whiteCaptures: result.whiteCaptures,
+        endReason: result.endReason.name,
+        illegalMove: result.endReason == CaptureAiMatchEndReason.invalidMove,
+        timedOut: _isTimeout(result.endReason),
+        fallbackUsed:
+            configA.reportsFallbackPath || configB.reportsFallbackPath,
+        maxDecisionMillis: result.maxDecisionMillis,
+        failureReason: _frameworkFailureReason(
+          result.endReason,
+          configA,
+          configB,
+          configAFailureMode: katagoModelAdapter == null
+              ? _katagoUnavailableFailureMode(configA)
+              : null,
+          configBFailureMode: katagoModelAdapter == null
+              ? _katagoUnavailableFailureMode(configB)
+              : null,
+        ),
+      ));
+    }
+
+    return AiMatchResult(
+      matchSeed: matchSeed,
+      openingSeed: openingSeed,
+      openingPolicy: openingPolicy,
+      boardSize: boardSize,
+      captureTarget: captureTarget,
+      rounds: rounds,
+      maxMoves: maxMoves,
+      configA: legacyConfigA,
+      configB: legacyConfigB,
+      aWins: aWins,
+      bWins: bWins,
+      draws: draws,
+      games: games,
+    );
+  }
+
+  Future<AiMatchResult> runFrameworkMatchAsync({
+    required AiAlgorithmConfig configA,
+    required AiAlgorithmConfig configB,
+    required int matchSeed,
+    required int openingSeed,
+    bool alternateColors = true,
+    AsyncKatagoModelAdapter? asyncKatagoModelAdapter,
+  }) async {
+    final adapter = _resolveAsyncKatagoAdapter(
+      [configA, configB],
+      asyncKatagoModelAdapter,
+    );
+    await adapter.preload(_katagoRequestsFor(
+      [configA, configB],
+      boardSize: boardSize,
+      captureTarget: captureTarget,
+    ));
+    final legacyConfigA = _legacyBattleConfig(configA);
+    final legacyConfigB = _legacyBattleConfig(configB);
+    final games = <AiGameRecord>[];
+    var aWins = 0;
+    var bWins = 0;
+    var draws = 0;
+
+    for (var i = 0; i < rounds; i++) {
+      final aIsBlack = alternateColors ? i.isEven : true;
+      final gameSeed = matchSeed * 1000 + i;
+      final pairSeed = matchSeed * 1000 + (i ~/ 2);
+      final opening = _openingForGame(i, openingSeed);
+      final openingVariant = _openingVariantForGame(i);
+      final blackConfig = aIsBlack ? configA : configB;
+      final whiteConfig = aIsBlack ? configB : configA;
+      final blackAgent = AiAlgorithmRegistry.createAsyncAgent(
+        blackConfig,
+        seedOverride: gameSeed * 2,
+        katagoModelAdapter: adapter,
+      );
+      final whiteAgent = AiAlgorithmRegistry.createAsyncAgent(
+        whiteConfig,
+        seedOverride: gameSeed * 2 + 1,
+        katagoModelAdapter: adapter,
+      );
+
+      final result = await _playAsyncMatch(
+        blackAgent: blackAgent,
+        whiteAgent: whiteAgent,
+        initialBoard: _buildOpeningBoard(
+          opening,
+          pairSeed: pairSeed,
+          variant: openingVariant,
+        ),
+        maxMoves: maxMoves,
+        blackDecisionTimeout: _decisionTimeoutForConfig(
+          blackConfig,
+          defaultTimeout: decisionTimeout,
+        ),
+        whiteDecisionTimeout: _decisionTimeoutForConfig(
+          whiteConfig,
+          defaultTimeout: decisionTimeout,
+        ),
+      );
+
+      final winnerLabel = switch (result.winner) {
+        final w when w == StoneColor.black => aIsBlack ? 'a' : 'b',
+        final w when w == StoneColor.white => aIsBlack ? 'b' : 'a',
+        _ => 'draw',
+      };
+      if (winnerLabel == 'a') {
+        aWins++;
+      } else if (winnerLabel == 'b') {
+        bWins++;
+      } else {
+        draws++;
+      }
+      games.add(AiGameRecord(
+        index: i,
+        gameSeed: gameSeed,
+        openingIndex: opening.index,
+        opening: _openingName(opening, openingVariant),
+        black: aIsBlack ? 'a' : 'b',
+        winner: winnerLabel,
+        moves: result.totalMoves,
+        blackCaptures: result.blackCaptures,
+        whiteCaptures: result.whiteCaptures,
+        endReason: result.endReason.name,
+        illegalMove: result.endReason == CaptureAiMatchEndReason.invalidMove,
+        timedOut: _isTimeout(result.endReason),
+        fallbackUsed:
+            configA.reportsFallbackPath || configB.reportsFallbackPath,
+        maxDecisionMillis: result.maxDecisionMillis,
+        failureReason: result.failureReason ??
+            (result.endReason == CaptureAiMatchEndReason.noLegalMove
+                ? null
+                : _frameworkFailureReason(
+                    result.endReason,
+                    configA,
+                    configB,
+                  )),
+      ));
+    }
+
+    return AiMatchResult(
+      matchSeed: matchSeed,
+      openingSeed: openingSeed,
+      openingPolicy: openingPolicy,
+      boardSize: boardSize,
+      captureTarget: captureTarget,
+      rounds: rounds,
+      maxMoves: maxMoves,
+      configA: legacyConfigA,
+      configB: legacyConfigB,
+      aWins: aWins,
+      bWins: bWins,
+      draws: draws,
+      games: games,
+    );
+  }
+
+  Future<AiArenaEvaluationSummary> runFrameworkEvaluationAsync({
+    required List<AiAlgorithmConfig> configs,
+    required int matchSeed,
+    required int openingSeed,
+    AsyncKatagoModelAdapter? asyncKatagoModelAdapter,
+  }) async {
+    if (configs.length < 2) {
+      throw ArgumentError.value(
+        configs.length,
+        'configs.length',
+        'At least two configs are required for pairwise evaluation.',
+      );
+    }
+    final adapter =
+        _resolveAsyncKatagoAdapter(configs, asyncKatagoModelAdapter);
+    await adapter.preload(_katagoRequestsFor(
+      configs,
+      boardSize: boardSize,
+      captureTarget: captureTarget,
+    ));
+    final matches = <AiMatchResult>[];
+    var pairIndex = 0;
+    for (var i = 0; i < configs.length - 1; i++) {
+      for (var j = i + 1; j < configs.length; j++) {
+        matches.add(await runFrameworkMatchAsync(
+          configA: configs[i],
+          configB: configs[j],
+          matchSeed: matchSeed + pairIndex * 7919,
+          openingSeed: openingSeed + pairIndex * 1337,
+          asyncKatagoModelAdapter: adapter,
+        ));
+        pairIndex++;
+      }
+    }
+    return AiArenaEvaluationSummary.fromMatches(matches);
+  }
+
+  /// Runs every selected framework config against every other selected config
+  /// exactly once and returns aggregate evaluation output.
+  AiArenaEvaluationSummary runFrameworkEvaluation({
+    required List<AiAlgorithmConfig> configs,
+    required int matchSeed,
+    required int openingSeed,
+  }) {
+    if (configs.length < 2) {
+      throw ArgumentError.value(
+        configs.length,
+        'configs.length',
+        'At least two configs are required for pairwise evaluation.',
+      );
+    }
+
+    final matches = <AiMatchResult>[];
+    var pairIndex = 0;
+    for (var i = 0; i < configs.length - 1; i++) {
+      for (var j = i + 1; j < configs.length; j++) {
+        matches.add(runFrameworkMatch(
+          configA: configs[i],
+          configB: configs[j],
+          matchSeed: matchSeed + pairIndex * 7919,
+          openingSeed: openingSeed + pairIndex * 1337,
+        ));
+        pairIndex++;
+      }
+    }
+    return AiArenaEvaluationSummary.fromMatches(matches);
+  }
+
   _AiArenaOpening _openingForGame(int gameIndex, int openingSeed) {
     if (openingPolicy == 'empty_v1') return _AiArenaOpening.empty;
+    if (openingPolicy == 'cross_v1') return _AiArenaOpening.cross;
     if (openingPolicy == 'twist_cross_v1' ||
         openingPolicy == 'fixed_twist_cross_v1') {
       return _AiArenaOpening.twistCross;
@@ -196,10 +513,25 @@ class AiArenaExecutor {
         board.cells[board.idx(row, col)] = SimBoard.white;
       }
       board.currentPlayer = SimBoard.black;
+    } else if (opening == _AiArenaOpening.cross) {
+      _applyCrossOpening(board);
     } else if (opening == _AiArenaOpening.random) {
       _applyRandomOpening(board, pairSeed);
     }
     return board;
+  }
+
+  void _applyCrossOpening(SimBoard board) {
+    final center = boardSize ~/ 2;
+    if (boardSize < 3) {
+      board.currentPlayer = SimBoard.black;
+      return;
+    }
+    board.cells[board.idx(center - 1, center)] = SimBoard.black;
+    board.cells[board.idx(center + 1, center)] = SimBoard.black;
+    board.cells[board.idx(center, center - 1)] = SimBoard.white;
+    board.cells[board.idx(center, center + 1)] = SimBoard.white;
+    board.currentPlayer = SimBoard.black;
   }
 
   void _applyRandomOpening(SimBoard board, int pairSeed) {
@@ -254,8 +586,227 @@ class AiArenaExecutor {
 
 enum _AiArenaOpening {
   empty,
+  cross,
   twistCross,
   random,
 }
 
 const int _openingSeedSalt = 0x5eed;
+
+AiBattleConfig _legacyBattleConfig(AiAlgorithmConfig config) {
+  return AiBattleConfig(
+    id: config.id,
+    style: config.frameworkId.name,
+    difficulty: config.strengthTier.name,
+    profileVersion: 'ai_algorithm_framework_v1',
+    parameters: config.toJson(),
+  );
+}
+
+String? _failureReason(CaptureAiMatchEndReason endReason) {
+  return switch (endReason) {
+    CaptureAiMatchEndReason.captureTargetReached => null,
+    CaptureAiMatchEndReason.noLegalMove => 'agent_returned_no_legal_move',
+    CaptureAiMatchEndReason.invalidMove => 'agent_returned_invalid_move',
+    CaptureAiMatchEndReason.maxMovesReached => 'max_moves_reached',
+    CaptureAiMatchEndReason.decisionTimeout => 'decision_timeout',
+  };
+}
+
+Duration _decisionTimeoutForConfig(
+  AiAlgorithmConfig config, {
+  required Duration defaultTimeout,
+}) {
+  if (config.frameworkId != AiAlgorithmFrameworkId.katago) {
+    return defaultTimeout;
+  }
+  return switch (config.parameters['timeBudgetMillis']) {
+    final int value => Duration(milliseconds: value),
+    _ => const Duration(seconds: 10),
+  };
+}
+
+AsyncKatagoModelAdapter _resolveAsyncKatagoAdapter(
+  List<AiAlgorithmConfig> configs,
+  AsyncKatagoModelAdapter? adapter,
+) {
+  final requiresKatago = configs.any(
+    (config) => config.frameworkId == AiAlgorithmFrameworkId.katago,
+  );
+  if (requiresKatago && adapter == null) {
+    throw StateError(
+      'asyncKatagoModelAdapter is required for KataGo ONNX configs.',
+    );
+  }
+  return adapter ?? const UnavailableAsyncKatagoOnnxModelAdapter();
+}
+
+List<KatagoModelRequest> _katagoRequestsFor(
+  List<AiAlgorithmConfig> configs, {
+  required int boardSize,
+  required int captureTarget,
+}) {
+  final requests = <KatagoModelRequest>[];
+  for (final config in configs) {
+    if (config.frameworkId != AiAlgorithmFrameworkId.katago) continue;
+    requests.add(KatagoModelRequest(
+      board: SimBoard(boardSize, captureTarget: captureTarget),
+      modelAsset: _configStringParameter(config, 'modelAsset'),
+      visits: _configIntParameter(config, 'visits'),
+      timeBudgetMillis: _configIntParameter(config, 'timeBudgetMillis'),
+      policyTemperature: _configDoubleParameter(config, 'policyTemperature'),
+      candidateLimit: _configIntParameter(config, 'candidateLimit'),
+    ));
+  }
+  return requests;
+}
+
+Future<CaptureAiArenaResult> _playAsyncMatch({
+  required AsyncCaptureAiAgent blackAgent,
+  required AsyncCaptureAiAgent whiteAgent,
+  required SimBoard initialBoard,
+  required Duration blackDecisionTimeout,
+  required Duration whiteDecisionTimeout,
+  required int maxMoves,
+}) async {
+  final board = SimBoard.copy(initialBoard);
+  var totalMoves = 0;
+  var endReason = CaptureAiMatchEndReason.maxMovesReached;
+  var maxDecisionMillis = 0;
+  String? failureReason;
+
+  while (!board.isTerminal && totalMoves < maxMoves) {
+    if (!_hasLegalMove(board)) {
+      endReason = CaptureAiMatchEndReason.noLegalMove;
+      break;
+    }
+    final agent =
+        board.currentPlayer == SimBoard.black ? blackAgent : whiteAgent;
+    final timeout = board.currentPlayer == SimBoard.black
+        ? blackDecisionTimeout
+        : whiteDecisionTimeout;
+    final stopwatch = Stopwatch()..start();
+    CaptureAiMove? move;
+    try {
+      move = await agent.chooseMove(board);
+    } catch (error) {
+      stopwatch.stop();
+      maxDecisionMillis = math.max(
+        maxDecisionMillis,
+        stopwatch.elapsedMilliseconds,
+      );
+      endReason = CaptureAiMatchEndReason.noLegalMove;
+      final color = board.currentPlayer == SimBoard.black ? 'black' : 'white';
+      failureReason = '$color:$error';
+      break;
+    }
+    stopwatch.stop();
+    maxDecisionMillis = math.max(
+      maxDecisionMillis,
+      stopwatch.elapsedMilliseconds,
+    );
+    if (stopwatch.elapsed > timeout) {
+      endReason = CaptureAiMatchEndReason.decisionTimeout;
+      break;
+    }
+    if (move == null) {
+      endReason = CaptureAiMatchEndReason.noLegalMove;
+      final color = board.currentPlayer == SimBoard.black ? 'black' : 'white';
+      failureReason = '$color:agent_returned_no_legal_move';
+      break;
+    }
+    if (!board.applyMove(move.position.row, move.position.col)) {
+      endReason = CaptureAiMatchEndReason.invalidMove;
+      break;
+    }
+    totalMoves++;
+  }
+
+  if (board.isTerminal) {
+    endReason = CaptureAiMatchEndReason.captureTargetReached;
+  } else if (totalMoves >= maxMoves &&
+      endReason == CaptureAiMatchEndReason.maxMovesReached) {
+    endReason = CaptureAiMatchEndReason.maxMovesReached;
+  }
+
+  final winner = switch (board.winner) {
+    SimBoard.black => StoneColor.black,
+    SimBoard.white => StoneColor.white,
+    _ => StoneColor.empty,
+  };
+
+  return CaptureAiArenaResult(
+    winner: winner,
+    totalMoves: totalMoves,
+    blackCaptures: board.capturedByBlack,
+    whiteCaptures: board.capturedByWhite,
+    endReason: endReason,
+    maxDecisionMillis: maxDecisionMillis,
+    failureReason: failureReason,
+  );
+}
+
+bool _hasLegalMove(SimBoard board) {
+  for (final moveIndex in board.getLegalMoves()) {
+    if (board
+        .analyzeMove(moveIndex ~/ board.size, moveIndex % board.size)
+        .isLegal) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool _isTimeout(CaptureAiMatchEndReason endReason) {
+  return endReason == CaptureAiMatchEndReason.maxMovesReached ||
+      endReason == CaptureAiMatchEndReason.decisionTimeout;
+}
+
+String? _frameworkFailureReason(
+  CaptureAiMatchEndReason endReason,
+  AiAlgorithmConfig configA,
+  AiAlgorithmConfig configB, {
+  String? configAFailureMode,
+  String? configBFailureMode,
+}) {
+  final base = _failureReason(endReason);
+  if (base == null) return null;
+  final fallbackReasons = [
+    if ((configAFailureMode ?? configA.failureMode) != null)
+      'a:${configAFailureMode ?? configA.failureMode}',
+    if ((configBFailureMode ?? configB.failureMode) != null)
+      'b:${configBFailureMode ?? configB.failureMode}',
+  ];
+  return [
+    base,
+    ...fallbackReasons,
+  ].join(';');
+}
+
+String? _katagoUnavailableFailureMode(AiAlgorithmConfig config) {
+  if (config.frameworkId != AiAlgorithmFrameworkId.katago) return null;
+  if (_configStringParameter(config, 'backend') != 'onnx') return null;
+  return 'katago_onnx_model_unavailable';
+}
+
+String _configStringParameter(AiAlgorithmConfig config, String key) {
+  return switch (config.parameters[key]) {
+    final String value => value,
+    _ => '',
+  };
+}
+
+int _configIntParameter(AiAlgorithmConfig config, String key) {
+  return switch (config.parameters[key]) {
+    final int value => value,
+    _ => 0,
+  };
+}
+
+double _configDoubleParameter(AiAlgorithmConfig config, String key) {
+  return switch (config.parameters[key]) {
+    final int value => value.toDouble(),
+    final double value => value,
+    _ => 0,
+  };
+}

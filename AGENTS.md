@@ -15,6 +15,15 @@
   3. `python3 -m http.server 8081 --bind 127.0.0.1 --directory build/web`
 - Verify the worker is served as JavaScript before debugging AI move behavior: `curl -I http://127.0.0.1:8081/ai_search_worker.dart.js` should return `200 OK` with a JavaScript content type such as `text/javascript`.
 
+## AI arena evaluation naming
+- The evaluation hierarchy is: **Evaluation Run -> Pair -> Cell -> Game repeats**.
+- **Evaluation Run**: One complete arena execution over the configured set of AI config comparisons.
+- **Pair**: One unordered comparison between two AI configs within an Evaluation Run.
+- **Cell**: One fixed condition combination for a Pair: the two configs, the opening, and the `firstConfig` / first-player direction. Repeats inside a Cell vary by game seed only, not by these fixed conditions.
+- **Game**: One played repeat inside a Cell, using one game seed under the Cell's fixed conditions.
+- **Opening**: The predefined initial board state or move sequence used as part of a Cell's fixed conditions.
+- **First-player direction**: Which config in the Pair is assigned to move first for the Cell, represented by `firstConfig`.
+
 ## Planning
 - When an implementation plan is requested, write it in English and include these sections in order:
     1. **Background**: Substructured into **Context** (current state), **Problem** (limitations/pain points), and **Motivation** (why this change is valuable).
