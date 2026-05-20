@@ -6,6 +6,7 @@
 //   • A compiled Dart Web Worker on Flutter Web.
 
 import 'capture_ai.dart';
+import 'ai_algorithm_framework.dart';
 import 'difficulty_level.dart';
 import 'game_mode.dart';
 import 'mcts_engine.dart';
@@ -36,6 +37,7 @@ List<int>? runChooseAiMove(Map<String, dynamic> params) {
   final difficulty =
       DifficultyLevel.values.byName(params['difficulty'] as String);
   final gameMode = GameModeExt.fromStorageKey(params['gameMode'] as String?);
+  final algorithmConfigId = params['algorithmConfigId'] as String?;
 
   final sim = SimBoard(
     boardSize,
@@ -51,8 +53,9 @@ List<int>? runChooseAiMove(Map<String, dynamic> params) {
   sim.consecutivePasses = (params['consecutivePasses'] as int?) ?? 0;
 
   final move = switch (gameMode) {
-    GameMode.capture => CaptureAiRegistry.create(
-        style: aiStyle,
+    GameMode.capture => _captureAgent(
+        algorithmConfigId: algorithmConfigId,
+        aiStyle: aiStyle,
         difficulty: difficulty,
       ).chooseMove(sim)?.position,
     GameMode.territory =>
@@ -60,4 +63,19 @@ List<int>? runChooseAiMove(Map<String, dynamic> params) {
   };
   if (move == null) return null;
   return [move.row, move.col];
+}
+
+CaptureAiAgent _captureAgent({
+  required String? algorithmConfigId,
+  required CaptureAiStyle aiStyle,
+  required DifficultyLevel difficulty,
+}) {
+  if (algorithmConfigId != null) {
+    final config = AiAlgorithmRegistry.configById(algorithmConfigId);
+    return AiAlgorithmRegistry.createAgent(config);
+  }
+  return CaptureAiRegistry.create(
+    style: aiStyle,
+    difficulty: difficulty,
+  );
 }

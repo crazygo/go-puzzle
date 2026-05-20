@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../game/ai_algorithm_framework.dart';
 import '../game/ai_search_runner.dart';
 import '../game/capture_ai.dart';
 import '../game/difficulty_level.dart';
 import '../game/game_mode.dart';
 import '../game/go_engine.dart';
+import '../game/katago_flutter_onnx_model_adapter.dart';
+import '../game/katago_model_adapter.dart';
 import '../game/mcts_engine.dart';
 import '../game/territory_ai.dart';
 import '../models/board_position.dart';
@@ -29,6 +32,7 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
   final aiStyle = CaptureAiStyle.values.byName(params['aiStyle'] as String);
   final difficulty =
       DifficultyLevel.values.byName(params['difficulty'] as String);
+  final algorithmConfigId = params['algorithmConfigId'] as String?;
   final count = params['count'] as int;
   final gameMode = GameModeExt.fromStorageKey(params['gameMode'] as String?);
   final consecutivePasses = (params['consecutivePasses'] as int?) ?? 0;
@@ -49,7 +53,11 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
   final suggestions = <List<int>>[];
   final territoryEngine = TerritoryAiEngine(difficulty: difficulty);
   final primaryAgent = gameMode == GameMode.capture
-      ? CaptureAiRegistry.create(style: aiStyle, difficulty: difficulty)
+      ? _captureAgentForProvider(
+          algorithmConfigId: algorithmConfigId,
+          aiStyle: aiStyle,
+          difficulty: difficulty,
+        )
       : null;
   final replyAgent = gameMode == GameMode.capture
       ? CaptureAiRegistry.create(
@@ -80,6 +88,19 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
     }
   }
   return suggestions;
+}
+
+CaptureAiAgent _captureAgentForProvider({
+  required String? algorithmConfigId,
+  required CaptureAiStyle aiStyle,
+  required DifficultyLevel difficulty,
+}) {
+  if (algorithmConfigId != null) {
+    return AiAlgorithmRegistry.createAgent(
+      AiAlgorithmRegistry.configById(algorithmConfigId),
+    );
+  }
+  return CaptureAiRegistry.create(style: aiStyle, difficulty: difficulty);
 }
 
 enum CaptureGameResult { none, blackWins, whiteWins, draw }
@@ -167,10 +188,14 @@ class CaptureGameProvider extends ChangeNotifier {
     this.initialMode = CaptureInitialMode.cross,
     this.initialBoardOverride,
     this.initialPlayerOverride,
+    this.initialMoveLog = const [],
     this.minMoveDelay = _defaultMinMoveDelay,
     this.maxMoveDelay = _defaultMaxMoveDelay,
+    this.aiAlgorithmConfig,
+    AsyncKatagoModelAdapter? katagoModelAdapter,
     AiSearchRunner? runner,
-  })  : assert(
+  })  : _katagoModelAdapterOverride = katagoModelAdapter,
+        assert(
           boardSize == 9 || boardSize == 13 || boardSize == 19,
           'boardSize must be 9, 13, or 19.',
         ),
@@ -215,6 +240,9 @@ class CaptureGameProvider extends ChangeNotifier {
   final CaptureInitialMode initialMode;
   final List<List<StoneColor>>? initialBoardOverride;
   final StoneColor? initialPlayerOverride;
+  final List<List<int>> initialMoveLog;
+  final AiAlgorithmConfig? aiAlgorithmConfig;
+  final AsyncKatagoModelAdapter? _katagoModelAdapterOverride;
 
   /// Minimum time between when the AI starts thinking and when it places its
   /// stone. If the computation finishes before this deadline the provider waits
@@ -236,6 +264,8 @@ class CaptureGameProvider extends ChangeNotifier {
 
   CaptureAiStyle _aiStyle = CaptureAiStyle.adaptive;
   CaptureAiAgent? _cachedAgent;
+  AsyncCaptureAiAgent? _cachedAsyncAgent;
+  FlutterKatagoOnnxModelAdapter? _ownedKatagoModelAdapter;
 
   late final AiSearchRunner _runner;
 
@@ -252,6 +282,7 @@ class CaptureGameProvider extends ChangeNotifier {
   late GameState _gameState;
   CaptureGameResult _result = CaptureGameResult.none;
   bool _isAiThinking = false;
+  String? _aiFailureReason;
   bool _disposed = false;
   Timer? _aiMoveTimer;
 
@@ -268,8 +299,11 @@ class CaptureGameProvider extends ChangeNotifier {
   GameState get gameState => _gameState;
   CaptureGameResult get result => _result;
   bool get isAiThinking => _isAiThinking;
+  String? get aiFailureReason => _aiFailureReason;
   bool get canUndo => _undoStack.isNotEmpty && !_isAiThinking;
-  CaptureAiStyle get aiStyle => _aiStyle;
+  CaptureAiStyle get aiStyle =>
+      aiAlgorithmConfig?.robotConfig.style ?? _aiStyle;
+  AiAlgorithmConfig? get activeAlgorithmConfig => aiAlgorithmConfig;
   GameMode get mode => gameMode;
   bool get isTerritoryMode => gameMode == GameMode.territory;
   bool get isPlacementMode => initialMode == CaptureInitialMode.setup;
@@ -278,8 +312,22 @@ class CaptureGameProvider extends ChangeNotifier {
   List<List<int>> get moveLog => List.unmodifiable(_moveLog);
 
   CaptureAiAgent get _activeAgent {
-    return _cachedAgent ??=
-        CaptureAiRegistry.create(style: _aiStyle, difficulty: difficulty);
+    return _cachedAgent ??= aiAlgorithmConfig == null
+        ? CaptureAiRegistry.create(style: _aiStyle, difficulty: difficulty)
+        : AiAlgorithmRegistry.createAgent(aiAlgorithmConfig!);
+  }
+
+  AsyncCaptureAiAgent get _activeAsyncAgent {
+    return _cachedAsyncAgent ??= AiAlgorithmRegistry.createAsyncAgent(
+      aiAlgorithmConfig!,
+      katagoModelAdapter: _katagoModelAdapter,
+    );
+  }
+
+  AsyncKatagoModelAdapter get _katagoModelAdapter {
+    final injected = _katagoModelAdapterOverride;
+    if (injected != null) return injected;
+    return _ownedKatagoModelAdapter ??= FlutterKatagoOnnxModelAdapter();
   }
 
   TerritoryScore get territoryScore =>
@@ -295,15 +343,21 @@ class CaptureGameProvider extends ChangeNotifier {
       _runner.cancel(_pendingAiRequestId!);
       _pendingAiRequestId = null;
     }
+    final ownedAdapter = _ownedKatagoModelAdapter;
+    if (ownedAdapter != null) {
+      unawaited(ownedAdapter.close());
+    }
     _runner.dispose();
     super.dispose();
   }
 
   void setAiStyle(CaptureAiStyle style) {
     if (isTerritoryMode) return;
+    if (aiAlgorithmConfig != null) return;
     if (_aiStyle == style) return;
     _aiStyle = style;
     _cachedAgent = null;
+    _cachedAsyncAgent = null;
     notifyListeners();
   }
 
@@ -319,6 +373,7 @@ class CaptureGameProvider extends ChangeNotifier {
     _undoStack.add(_gameState);
     _gameState = newState;
     _moveLog.add([row, col]);
+    _aiFailureReason = null;
     _checkWinCondition();
     notifyListeners();
 
@@ -341,6 +396,7 @@ class CaptureGameProvider extends ChangeNotifier {
     _undoStack.add(_gameState);
     _gameState = newState;
     _moveLog.add(const [-1, -1]);
+    _aiFailureReason = null;
     _checkWinCondition();
     notifyListeners();
     if (_result == CaptureGameResult.none) {
@@ -392,6 +448,9 @@ class CaptureGameProvider extends ChangeNotifier {
 
   List<BoardPosition> suggestMoves({int count = 1}) {
     if (count <= 0) return const [];
+    if (_usesAsyncAlgorithmAgent) {
+      throw StateError('katago_requires_async_model_adapter');
+    }
 
     final suggestions = <BoardPosition>[];
     final sim =
@@ -437,6 +496,11 @@ class CaptureGameProvider extends ChangeNotifier {
 
     final sim =
         SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
+    if (_usesAsyncAlgorithmAgent) {
+      final move = await _activeAsyncAgent.chooseMove(sim);
+      final position = move?.position;
+      return position == null ? const [] : [position];
+    }
     final params = <String, dynamic>{
       'cells': sim.cells.toList(),
       'boardSize': sim.size,
@@ -446,6 +510,7 @@ class CaptureGameProvider extends ChangeNotifier {
       'currentPlayer': sim.currentPlayer,
       'aiStyle': _aiStyle.name,
       'difficulty': difficulty.name,
+      if (aiAlgorithmConfig != null) 'algorithmConfigId': aiAlgorithmConfig!.id,
       'gameMode': gameMode.storageKey,
       'consecutivePasses': sim.consecutivePasses,
       'count': count,
@@ -520,11 +585,28 @@ class CaptureGameProvider extends ChangeNotifier {
       currentPlayer: initialPlayer,
       gameMode: gameMode,
     );
-    _result = CaptureGameResult.none;
-    _isAiThinking = false;
-    _gameGeneration++;
     _undoStack.clear();
     _moveLog.clear();
+    for (final move in initialMoveLog) {
+      if (move.length < 2) {
+        throw ArgumentError.value(
+            initialMoveLog, 'initialMoveLog', '棋譜包含無效座標。');
+      }
+      _undoStack.add(_gameState);
+      final nextState = move[0] == -1 && move[1] == -1
+          ? GoEngine.passTurn(_gameState)
+          : GoEngine.placeStone(_gameState, move[0], move[1]);
+      if (nextState == null) {
+        throw ArgumentError.value(
+            initialMoveLog, 'initialMoveLog', '棋譜無法從初始局面重放。');
+      }
+      _gameState = nextState;
+      _moveLog.add(List<int>.from(move));
+    }
+    _result = CaptureGameResult.none;
+    _isAiThinking = false;
+    _aiFailureReason = null;
+    _gameGeneration++;
     notifyListeners();
   }
 
@@ -584,31 +666,44 @@ class CaptureGameProvider extends ChangeNotifier {
               .isLegal)
             moveIndex,
       ];
-      final params = <String, dynamic>{
-        'boardSize': _gameState.boardSize,
-        'captureTarget': captureTarget,
-        'cells':
-            _gameState.board.expand((row) => row.map((s) => s.index)).toList(),
-        'capturedByBlack': _gameState.capturedByBlack.length,
-        'capturedByWhite': _gameState.capturedByWhite.length,
-        'currentPlayer': _gameState.currentPlayer.index,
-        'aiStyle':
-            isTerritoryMode ? CaptureAiStyle.adaptive.name : _aiStyle.name,
-        'difficulty': difficulty.name,
-        'gameMode': gameMode.storageKey,
-        'consecutivePasses': _gameState.consecutivePasses,
-        'legalMoves': legalMoveIndices,
-      };
-      final result = await _runner.search(
-        AiSearchRequest(id: requestId, params: params),
-      );
+      BoardPosition? bestMove;
+      Object? searchError;
+      if (_usesAsyncAlgorithmAgent) {
+        try {
+          bestMove = (await _activeAsyncAgent.chooseMove(simBoard))?.position;
+        } catch (error) {
+          searchError = error;
+        }
+      } else {
+        final params = <String, dynamic>{
+          'boardSize': _gameState.boardSize,
+          'captureTarget': captureTarget,
+          'cells': _gameState.board
+              .expand((row) => row.map((s) => s.index))
+              .toList(),
+          'capturedByBlack': _gameState.capturedByBlack.length,
+          'capturedByWhite': _gameState.capturedByWhite.length,
+          'currentPlayer': _gameState.currentPlayer.index,
+          'aiStyle':
+              isTerritoryMode ? CaptureAiStyle.adaptive.name : _aiStyle.name,
+          'difficulty': difficulty.name,
+          if (aiAlgorithmConfig != null)
+            'algorithmConfigId': aiAlgorithmConfig!.id,
+          'gameMode': gameMode.storageKey,
+          'consecutivePasses': _gameState.consecutivePasses,
+          'legalMoves': legalMoveIndices,
+        };
+        final result = await _runner.search(
+          AiSearchRequest(id: requestId, params: params),
+        );
+        searchError = result.error;
+        final move = result.move;
+        bestMove = move == null ? null : BoardPosition(move[0], move[1]);
+      }
 
       // Clear the pending ID if it still matches (it may have been reset by
       // a cancel in _startNewGame / dispose).
       if (_pendingAiRequestId == requestId) _pendingAiRequestId = null;
-
-      final move = result.move;
-      final bestMove = move == null ? null : BoardPosition(move[0], move[1]);
 
       // Ensure a minimum thinking time so the AI feels human-like. If
       // computation finished faster than minMoveDelay, wait for the remainder.
@@ -626,7 +721,10 @@ class CaptureGameProvider extends ChangeNotifier {
       // were waiting — don't apply a stale move or call notifyListeners().
       if (!_isCurrentGame(generation)) return;
 
-      if (bestMove != null && !result.hasError) {
+      if (searchError != null) {
+        _aiFailureReason = searchError.toString();
+      } else if (bestMove != null) {
+        _aiFailureReason = null;
         _undoStack.add(_gameState);
         final newState = bestMove == territoryPassMove
             ? GoEngine.passTurn(_gameState)
@@ -654,6 +752,9 @@ class CaptureGameProvider extends ChangeNotifier {
   /// generation is still valid to apply.
   bool _isCurrentGame(int generation) =>
       !_disposed && _gameGeneration == generation;
+
+  bool get _usesAsyncAlgorithmAgent =>
+      aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.katago;
 
   void _checkWinCondition() {
     if (isTerritoryMode) {

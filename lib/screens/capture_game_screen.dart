@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../game/board_image_recognizer.dart';
 import '../game/model_board_image_recognizer.dart';
+import '../game/ai_algorithm_framework.dart';
 import '../game/capture_ai.dart';
 import '../game/ai_rank_level.dart';
 import '../game/game_mode.dart';
@@ -438,28 +439,32 @@ enum _ModelLoadDecision {
 /// both the original AND the forked game complete.
 class _ForkRequest {
   const _ForkRequest({
-    required this.forkBoard,
+    required this.initialBoardOverride,
     required this.initialPlayerOverride,
     required this.inheritedMoves,
+    required this.inheritedMarkedMoveNumbers,
     required this.boardSize,
     required this.captureTarget,
     required this.difficulty,
     required this.gameMode,
     required this.humanColor,
     required this.aiStyle,
+    required this.aiAlgorithmConfigId,
     required this.aiRank,
     required this.initialMode,
   });
 
-  final List<List<StoneColor>> forkBoard;
-  final StoneColor initialPlayerOverride;
+  final List<List<StoneColor>>? initialBoardOverride;
+  final StoneColor? initialPlayerOverride;
   final List<List<int>> inheritedMoves;
+  final Set<int> inheritedMarkedMoveNumbers;
   final int boardSize;
   final int captureTarget;
   final DifficultyLevel difficulty;
   final GameMode gameMode;
   final StoneColor humanColor;
   final CaptureAiStyle aiStyle;
+  final String? aiAlgorithmConfigId;
   final int aiRank;
   final CaptureInitialMode initialMode;
 }
@@ -521,7 +526,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   // New difficulty keys.
   static const _difficultyModeKey = 'capture_setup.difficulty_mode';
   static const _manualRankKey = 'capture_setup.manual_rank';
-  static const _aiStyleKey = 'capture_setup.ai_style';
+  static const _aiAlgorithmConfigKey = 'capture_setup.ai_algorithm_config';
   static const _playModeKey = 'capture_setup.play_mode';
   // ─────────────────────────────────────────────────────────────────────────────
   static const _captureTarget = 5;
@@ -529,14 +534,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const _modeCapture = 'capture';
   static const _modeTerritory = 'territory';
 
-  /// 'auto' = system matches rank from history; 'manual' = player picks rank.
+  /// 'auto' = system chooses a comparable opponent from history rank;
+  /// 'manual' = player picks a named real algorithm config.
   String _difficultyMode = 'auto';
 
-  /// Selected rank when [_difficultyMode] == 'manual'.
-  int _manualRank = AiRankLevel.defaultRank;
-
-  /// AI style choice: one of the [CaptureAiStyle.name] values.
-  String _aiStyleChoice = CaptureAiStyle.adaptive.name;
+  /// Selected real algorithm-strength config when [_difficultyMode] == 'manual'.
+  String _aiAlgorithmConfigId = 'mcts_counter_standard_v1';
 
   /// Rank computed from recent history; refreshed on [_restoreSelection].
   int _computedRank = AiRankLevel.defaultRank;
@@ -558,6 +561,20 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardSceneScale = _defaultHomeBoardSceneScale;
   double _homeBoardCameraLift = _defaultHomeBoardCameraLift;
   double _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
+
+  AiAlgorithmConfig? get _selectedAiAlgorithmConfig {
+    if (_isTerritoryMode) return null;
+    if (_difficultyMode == 'manual') {
+      return _playableAiOpponentOptions
+          .map((option) => option.config)
+          .firstWhere(
+            (config) => config.id == _aiAlgorithmConfigId,
+            orElse: () => _playableAiOpponentOptions.first.config,
+          );
+    }
+    return _aiAlgorithmConfigForRank(_computedRank);
+  }
+
   double _homeBoardTargetZOffset = _defaultHomeBoardTargetZOffset;
   double _homeBoardCinematicFov = _defaultHomeBoardCinematicFov;
   double _homeBoardRotationY = _defaultHomeBoardRotationY;
@@ -718,7 +735,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                             ),
                                             _SegmentOption(
                                               value: 'manual',
-                                              label: '指定等級',
+                                              label: '指定棋手',
                                             ),
                                           ],
                                           onChanged: (value) =>
@@ -727,30 +744,25 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                         ),
                                         if (_difficultyMode == 'manual') ...[
                                           const SizedBox(height: 8),
-                                          _RankPicker(
-                                            selectedRank: _manualRank,
-                                            onChanged: (rank) =>
+                                          _AiOpponentTile(
+                                            selectedConfigId:
+                                                _aiAlgorithmConfigId,
+                                            onChanged: (configId) =>
                                                 _updateSelection(
-                                                    manualRank: rank),
+                                                    aiAlgorithmConfigId:
+                                                        configId),
                                           ),
                                         ],
-                                        const SizedBox(height: 20),
-                                        const _SectionLabel(title: 'AI 風格'),
-                                        const SizedBox(height: 8),
-                                        if (_playMode == _modeTerritory)
+                                        if (_playMode == _modeTerritory) ...[
+                                          const SizedBox(height: 20),
+                                          const _SectionLabel(title: 'AI 棋力'),
+                                          const SizedBox(height: 8),
                                           _ModeHintText(
                                             text: kIsWeb
                                                 ? '围空模式在 Web 端不生效；请在 iPhone 或 iPad 上使用。'
                                                 : '围空模式固定使用围空引擎，风格选项不生效；仅难度生效。',
                                           )
-                                        else
-                                          _AiStyleTile(
-                                            selectedStyleName: _aiStyleChoice,
-                                            onChanged: (name) =>
-                                                _updateSelection(
-                                              aiStyleChoice: name,
-                                            ),
-                                          ),
+                                        ],
                                         const SizedBox(height: 20),
                                         const _SectionLabel(title: '初始'),
                                         const SizedBox(height: 8),
@@ -830,9 +842,11 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       ] else ...[
                                         _ConfigPreview(
                                           difficultyMode: _difficultyMode,
-                                          manualRank: _manualRank,
                                           computedRank: _computedRank,
-                                          aiStyleChoice: _aiStyleChoice,
+                                          activeAiConfig:
+                                              _selectedAiAlgorithmConfig,
+                                          aiAlgorithmConfigId:
+                                              _aiAlgorithmConfigId,
                                           isTerritoryMode: _isTerritoryMode,
                                           onTap: () => setState(
                                             () => _isAdjusting = true,
@@ -1164,14 +1178,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         (rawDifficultyMode == 'auto' || rawDifficultyMode == 'manual')
             ? rawDifficultyMode
             : 'auto';
-    int manualRank = prefs.getInt(_manualRankKey) ?? AiRankLevel.defaultRank;
+    int legacyManualRank =
+        prefs.getInt(_manualRankKey) ?? AiRankLevel.defaultRank;
 
     // Migrate from legacy difficulty key if new keys haven't been set yet.
     if (!prefs.containsKey(_difficultyModeKey)) {
       final legacy = prefs.getString(_legacyDifficultyKey);
       if (legacy != null) {
         difficultyMode = 'manual';
-        manualRank = switch (legacy) {
+        legacyManualRank = switch (legacy) {
           'beginner' => 4,
           'advanced' => 20,
           _ => 12, // intermediate
@@ -1179,10 +1194,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       }
     }
 
-    // Clamp manual rank to valid range.
-    manualRank = manualRank.clamp(AiRankLevel.min, AiRankLevel.max).toInt();
+    legacyManualRank =
+        legacyManualRank.clamp(AiRankLevel.min, AiRankLevel.max).toInt();
 
-    final savedAiStyle = prefs.getString(_aiStyleKey);
+    final savedAiAlgorithmConfig = prefs.getString(_aiAlgorithmConfigKey);
     final savedPlayMode = prefs.getString(_playModeKey);
 
     // Compute rank from history for 'auto' mode.
@@ -1192,11 +1207,13 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     if (!mounted) return;
     setState(() {
       _difficultyMode = difficultyMode;
-      _manualRank = manualRank;
       _computedRank = computedRank;
-      if (savedAiStyle != null &&
-          CaptureAiStyle.values.any((s) => s.name == savedAiStyle)) {
-        _aiStyleChoice = savedAiStyle;
+      if (savedAiAlgorithmConfig != null &&
+          _playableAiOpponentOptions
+              .any((option) => option.config.id == savedAiAlgorithmConfig)) {
+        _aiAlgorithmConfigId = savedAiAlgorithmConfig;
+      } else if (difficultyMode == 'manual') {
+        _aiAlgorithmConfigId = _aiAlgorithmConfigForRank(legacyManualRank).id;
       }
       if (savedPlayMode == _modeCapture || savedPlayMode == _modeTerritory) {
         _playMode = savedPlayMode!;
@@ -1213,16 +1230,16 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
   void _updateSelection({
     String? difficultyMode,
-    int? manualRank,
-    String? aiStyleChoice,
+    String? aiAlgorithmConfigId,
     int? boardSize,
     CaptureInitialMode? initialMode,
     String? playMode,
   }) {
     setState(() {
       if (difficultyMode != null) _difficultyMode = difficultyMode;
-      if (manualRank != null) _manualRank = manualRank;
-      if (aiStyleChoice != null) _aiStyleChoice = aiStyleChoice;
+      if (aiAlgorithmConfigId != null) {
+        _aiAlgorithmConfigId = aiAlgorithmConfigId;
+      }
       _boardSize = boardSize ?? _boardSize;
       if (playMode != null) _playMode = playMode;
       _initialMode = initialMode ?? _initialMode;
@@ -1234,8 +1251,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     final prefs = await SharedPreferences.getInstance();
     await Future.wait([
       prefs.setString(_difficultyModeKey, _difficultyMode),
-      prefs.setInt(_manualRankKey, _manualRank),
-      prefs.setString(_aiStyleKey, _aiStyleChoice),
+      prefs.setString(_aiAlgorithmConfigKey, _aiAlgorithmConfigId),
       prefs.setInt(_boardSizeKey, _boardSize),
       prefs.setString(_playModeKey, _playMode),
       prefs.setString(
@@ -1409,8 +1425,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     }
     _saveSelection();
 
-    final effectiveRank =
-        _difficultyMode == 'auto' ? _computedRank : _manualRank;
+    final selectedAiConfig = _selectedAiAlgorithmConfig;
+    final effectiveRank = selectedAiConfig == null
+        ? _computedRank
+        : _rankForAiAlgorithmConfig(selectedAiConfig);
     final effectiveDifficulty = AiRankLevel.difficultyZone(effectiveRank);
 
     Navigator.of(context, rootNavigator: true)
@@ -1420,18 +1438,17 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
               create: (_) => CaptureGameProvider(
                 boardSize: _boardSize,
                 captureTarget: _captureTarget,
-                difficulty: effectiveDifficulty,
+                difficulty: selectedAiConfig?.robotConfig.difficulty ??
+                    effectiveDifficulty,
                 gameMode: _selectedGameMode,
                 humanColor: humanColor,
                 initialMode:
                     forceSetup ? CaptureInitialMode.setup : _initialMode,
                 initialBoardOverride: initialBoard,
-              )..setAiStyle(
-                  CaptureAiStyle.values.firstWhere(
-                    (s) => s.name == _aiStyleChoice,
-                    orElse: () => CaptureAiStyle.adaptive,
-                  ),
-                ),
+                aiAlgorithmConfig: _selectedGameMode == GameMode.capture
+                    ? selectedAiConfig
+                    : null,
+              ),
               child: CaptureGamePlayScreen(
                 aiRank: effectiveRank,
                 captureTarget: _captureTarget,
@@ -1470,8 +1487,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                 gameMode: fork.gameMode,
                 humanColor: fork.humanColor,
                 initialMode: fork.initialMode,
-                initialBoardOverride: fork.forkBoard,
+                initialBoardOverride: fork.initialBoardOverride,
                 initialPlayerOverride: fork.initialPlayerOverride,
+                initialMoveLog: fork.inheritedMoves,
+                aiAlgorithmConfig: fork.aiAlgorithmConfigId == null
+                    ? null
+                    : AiAlgorithmRegistry.configById(fork.aiAlgorithmConfigId!),
               )..setAiStyle(fork.aiStyle),
               child: CaptureGamePlayScreen(
                 aiRank: fork.aiRank,
@@ -1479,9 +1500,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                 gameMode: fork.gameMode,
                 humanColor: fork.humanColor,
                 initialMode: fork.initialMode,
-                initialBoardOverride: fork.forkBoard,
+                initialBoardOverride: fork.initialBoardOverride,
                 initialPlayerOverride: fork.initialPlayerOverride,
-                inheritedMoves: fork.inheritedMoves,
+                inheritedMoves: const [],
+                inheritedMarkedMoveNumbers: fork.inheritedMarkedMoveNumbers,
               ),
             ),
           ),
@@ -2564,7 +2586,7 @@ class _RgbEditor extends StatelessWidget {
 }
 
 class _CaptureCopy {
-  static const pageTitle = 'Baduk Puzzle';
+  static const pageTitle = '围棋谜题';
 
   static const _motivations = [
     '圍棋讓我放鬆',
@@ -3127,38 +3149,143 @@ class _ModeHintText extends StatelessWidget {
   }
 }
 
+class _AiOpponentOption {
+  const _AiOpponentOption({
+    required this.config,
+    required this.name,
+    required this.subtitle,
+    required this.summary,
+  });
+
+  final AiAlgorithmConfig config;
+  final String name;
+  final String subtitle;
+  final String summary;
+}
+
+List<_AiOpponentOption> get _aiOpponentOptions => [
+      _AiOpponentOption(
+        config: AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
+        name: '小石',
+        subtitle: 'Heuristic-1 · 入门启发',
+        summary: '轻量规则判断，适合熟悉吃子节奏。',
+      ),
+      _AiOpponentOption(
+        config: AiAlgorithmRegistry.configById('heuristic_counter_standard_v1'),
+        name: '青竹',
+        subtitle: 'Heuristic-2 · 反击启发',
+        summary: '更偏防守和反击，计算很快。',
+      ),
+      _AiOpponentOption(
+        config: AiAlgorithmRegistry.configById('mcts_counter_weak_v1'),
+        name: '奥斯卡',
+        subtitle: 'MCTS-1 · 快速试探',
+        summary: '少量模拟搜索，有一定随机探索。',
+      ),
+      _AiOpponentOption(
+        config: AiAlgorithmRegistry.configById('mcts_counter_standard_v1'),
+        name: '阿尔法',
+        subtitle: 'MCTS-2 · 战术搜索',
+        summary: '更高搜索预算，带两层吃子风险检查。',
+      ),
+      _AiOpponentOption(
+        config:
+            AiAlgorithmRegistry.configById('hybrid_tactical_counter_weak_v1'),
+        name: '云岚',
+        subtitle: 'Hybrid-1 · 轻量战术',
+        summary: '启发式和搜索混合，偏实战。',
+      ),
+      _AiOpponentOption(
+        config: AiAlgorithmRegistry.configById(
+            'hybrid_tactical_counter_standard_v1'),
+        name: '玄策',
+        subtitle: 'Hybrid-2 · 混合战术',
+        summary: '更完整的混合战术配置。',
+      ),
+      _AiOpponentOption(
+        config: AiAlgorithmRegistry.configById('katago_onnx_weak_v1'),
+        name: '小林',
+        subtitle: 'KataGo-1 · ONNX 策略',
+        summary: '真实 KataGo ONNX 配置；不可用时会明确报错，不会 fallback。',
+      ),
+      _AiOpponentOption(
+        config: AiAlgorithmRegistry.configById('katago_onnx_standard_v1'),
+        name: '星野',
+        subtitle: 'KataGo-2 · ONNX 搜索',
+        summary: '真实 KataGo ONNX 标准配置；不可用时会明确报错，不会 fallback。',
+      ),
+    ];
+
+List<_AiOpponentOption> get _playableAiOpponentOptions => _aiOpponentOptions
+    .where(
+        (option) => option.config.runtimeMode == AiAlgorithmRuntimeMode.native)
+    .toList(growable: false);
+
+_AiOpponentOption _aiOpponentOption(String configId) {
+  return _aiOpponentOptions.firstWhere(
+    (option) => option.config.id == configId,
+    orElse: () => _playableAiOpponentOptions.first,
+  );
+}
+
+int _rankForAiAlgorithmConfig(AiAlgorithmConfig config) {
+  return switch (config.strengthTier) {
+    AiAlgorithmStrengthTier.weak => 8,
+    AiAlgorithmStrengthTier.standard => 16,
+    AiAlgorithmStrengthTier.strong => 24,
+  };
+}
+
+AiAlgorithmConfig _aiAlgorithmConfigForRank(int rank) {
+  if (rank <= 9) {
+    return AiAlgorithmRegistry.configById('mcts_counter_weak_v1');
+  }
+  if (rank <= 19) {
+    return AiAlgorithmRegistry.configById('mcts_counter_standard_v1');
+  }
+  return AiAlgorithmRegistry.configById('katago_onnx_standard_v1');
+}
+
 class _ConfigPreview extends StatelessWidget {
   const _ConfigPreview({
     required this.difficultyMode,
-    required this.manualRank,
     required this.computedRank,
-    required this.aiStyleChoice,
+    required this.activeAiConfig,
+    required this.aiAlgorithmConfigId,
     required this.isTerritoryMode,
     required this.onTap,
   });
 
   final String difficultyMode;
-  final int manualRank;
   final int computedRank;
-  final String aiStyleChoice;
+  final AiAlgorithmConfig? activeAiConfig;
+  final String aiAlgorithmConfigId;
   final bool isTerritoryMode;
   final VoidCallback onTap;
 
   String get _difficultyLabel {
-    if (difficultyMode == 'manual') {
-      return '指定·${AiRankLevel.displayName(manualRank)}';
+    if (isTerritoryMode) {
+      return '圍空引擎';
     }
-    return '不分伯仲·約${AiRankLevel.displayName(computedRank)}';
+    final option = _aiOpponentOption(
+      (difficultyMode == 'manual' ? aiAlgorithmConfigId : activeAiConfig?.id) ??
+          aiAlgorithmConfigId,
+    );
+    return difficultyMode == 'manual'
+        ? '指定·${option.name}'
+        : '不分伯仲·${option.name}';
   }
 
-  String get _aiStyleLabel {
+  String get _algorithmLabel {
     if (isTerritoryMode) return '固定圍空引擎';
-    return CaptureAiStyle.values
-        .firstWhere(
-          (s) => s.name == aiStyleChoice,
-          orElse: () => CaptureAiStyle.adaptive,
-        )
-        .label;
+    final option = _aiOpponentOption(
+      (difficultyMode == 'manual' ? aiAlgorithmConfigId : activeAiConfig?.id) ??
+          aiAlgorithmConfigId,
+    );
+    if (difficultyMode == 'auto') {
+      return '${option.subtitle} · 約${AiRankLevel.displayName(computedRank)}';
+    }
+    return option.subtitle;
   }
 
   @override
@@ -3194,8 +3321,8 @@ class _ConfigPreview extends StatelessWidget {
             Expanded(
               child: _ConfigPreviewItem(
                 icon: CupertinoIcons.star_fill,
-                title: 'AI 風格',
-                value: _aiStyleLabel,
+                title: '算法',
+                value: _algorithmLabel,
               ),
             ),
           ],
@@ -3353,36 +3480,45 @@ class _PillSegmentControl<T> extends StatelessWidget {
   }
 }
 
-class _AiStyleTile extends StatelessWidget {
-  const _AiStyleTile({
-    required this.selectedStyleName,
+class _AiOpponentTile extends StatelessWidget {
+  const _AiOpponentTile({
+    required this.selectedConfigId,
     required this.onChanged,
   });
 
-  final String selectedStyleName;
+  final String selectedConfigId;
   final ValueChanged<String> onChanged;
 
-  CaptureAiStyle get _selectedStyle => CaptureAiStyle.values.firstWhere(
-        (s) => s.name == selectedStyleName,
-        orElse: () => CaptureAiStyle.adaptive,
-      );
+  _AiOpponentOption get _selected => _aiOpponentOption(selectedConfigId);
 
   void _showPicker(BuildContext context) {
-    final style = _selectedStyle;
+    final selected = _selected;
     showCupertinoModalPopup<void>(
       context: context,
       builder: (ctx) => CupertinoActionSheet(
-        title: const Text('選擇 AI 風格'),
-        message: Text('${style.label}：${style.summary}'),
+        title: const Text('選擇 AI 棋手'),
+        message: Text('${selected.name}：${selected.summary}'),
         actions: [
-          for (final s in CaptureAiStyle.values)
+          for (final option in _playableAiOpponentOptions)
             CupertinoActionSheetAction(
               onPressed: () {
-                onChanged(s.name);
+                onChanged(option.config.id);
                 Navigator.of(ctx).pop();
               },
-              child: Text(
-                s == style ? '${s.label} · 目前' : '${s.label}  ${s.summary}',
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    option.config.id == selected.config.id
+                        ? '${option.name} · 目前'
+                        : option.name,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    option.subtitle,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
               ),
             ),
         ],
@@ -3397,7 +3533,7 @@ class _AiStyleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final style = _selectedStyle;
+    final selected = _selected;
     return CupertinoButton(
       padding: EdgeInsets.zero,
       minimumSize: Size.zero,
@@ -3414,15 +3550,16 @@ class _AiStyleTile extends StatelessWidget {
             Container(
               width: 38,
               height: 38,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: palette.setupIconBackground,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: CustomPaint(
-                painter: _LotusPainter(
-                  strokeColor: palette.setupIconForeground,
-                  fillColor:
-                      palette.setupIconForeground.withValues(alpha: 0.12),
+              child: Text(
+                selected.name.substring(0, 1),
+                style: TextStyle(
+                  color: palette.setupIconForeground,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -3432,7 +3569,7 @@ class _AiStyleTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    style.label,
+                    selected.name,
                     style: TextStyle(
                       fontSize: 16.5,
                       height: 1.05,
@@ -3442,7 +3579,7 @@ class _AiStyleTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    style.summary,
+                    selected.subtitle,
                     style: TextStyle(
                       fontSize: 11.5,
                       color: palette.setupLabelText,
@@ -3464,152 +3601,6 @@ class _AiStyleTile extends StatelessWidget {
       ),
     );
   }
-}
-
-/// A compact inline rank picker showing all 28 ranks as a drum-roll picker.
-class _RankPicker extends StatefulWidget {
-  const _RankPicker({
-    required this.selectedRank,
-    required this.onChanged,
-  });
-
-  final int selectedRank;
-  final ValueChanged<int> onChanged;
-
-  @override
-  State<_RankPicker> createState() => _RankPickerState();
-}
-
-class _RankPickerState extends State<_RankPicker> {
-  late final FixedExtentScrollController _scrollController;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = FixedExtentScrollController(
-      initialItem: widget.selectedRank - AiRankLevel.min,
-    );
-  }
-
-  @override
-  void didUpdateWidget(_RankPicker oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Jump to the new rank when the parent drives a programmatic change (e.g.
-    // legacy migration sets an initial value before the picker is touched).
-    if (oldWidget.selectedRank != widget.selectedRank) {
-      final targetItem = widget.selectedRank - AiRankLevel.min;
-      if (_scrollController.hasClients &&
-          _scrollController.selectedItem != targetItem) {
-        _scrollController.jumpToItem(targetItem);
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.appPalette;
-    return Container(
-      height: 120,
-      decoration: BoxDecoration(
-        color: palette.setupPanelBackground,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: palette.setupPanelBorder),
-      ),
-      child: CupertinoPicker(
-        scrollController: _scrollController,
-        itemExtent: 36,
-        onSelectedItemChanged: (index) {
-          widget.onChanged(AiRankLevel.min + index);
-        },
-        children: [
-          for (int rank = AiRankLevel.min; rank <= AiRankLevel.max; rank++)
-            Center(
-              child: Text(
-                AiRankLevel.displayName(rank),
-                style: TextStyle(
-                  fontSize: 17,
-                  color: palette.setupValueText,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LotusPainter extends CustomPainter {
-  const _LotusPainter({
-    required this.strokeColor,
-    required this.fillColor,
-  });
-
-  final Color strokeColor;
-  final Color fillColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final stroke = Paint()
-      ..color = strokeColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final fill = Paint()
-      ..color = fillColor
-      ..style = PaintingStyle.fill;
-    final center = Offset(size.width / 2, size.height / 2 + 2);
-    final petal = Path()
-      ..moveTo(center.dx, center.dy - 12)
-      ..quadraticBezierTo(
-          center.dx - 6, center.dy - 4, center.dx, center.dy + 4)
-      ..quadraticBezierTo(
-          center.dx + 6, center.dy - 4, center.dx, center.dy - 12);
-    final left = Path()
-      ..moveTo(center.dx - 10, center.dy - 6)
-      ..quadraticBezierTo(
-          center.dx - 16, center.dy - 1, center.dx - 10, center.dy + 4)
-      ..quadraticBezierTo(
-          center.dx - 4, center.dy - 1, center.dx - 10, center.dy - 6);
-    final right = Path()
-      ..moveTo(center.dx + 10, center.dy - 6)
-      ..quadraticBezierTo(
-          center.dx + 16, center.dy - 1, center.dx + 10, center.dy + 4)
-      ..quadraticBezierTo(
-          center.dx + 4, center.dy - 1, center.dx + 10, center.dy - 6);
-    final lowerLeft = Path()
-      ..moveTo(center.dx - 4, center.dy - 2)
-      ..quadraticBezierTo(
-          center.dx - 11, center.dy + 4, center.dx - 6, center.dy + 10)
-      ..quadraticBezierTo(
-          center.dx, center.dy + 5, center.dx - 4, center.dy - 2);
-    final lowerRight = Path()
-      ..moveTo(center.dx + 4, center.dy - 2)
-      ..quadraticBezierTo(
-          center.dx + 11, center.dy + 4, center.dx + 6, center.dy + 10)
-      ..quadraticBezierTo(
-          center.dx, center.dy + 5, center.dx + 4, center.dy - 2);
-    for (final path in [petal, left, right, lowerLeft, lowerRight]) {
-      canvas.drawPath(path, fill);
-      canvas.drawPath(path, stroke);
-    }
-    canvas.drawLine(
-      Offset(center.dx - 11, center.dy + 11),
-      Offset(center.dx + 11, center.dy + 11),
-      stroke,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _LotusPainter oldDelegate) =>
-      oldDelegate.strokeColor != strokeColor ||
-      oldDelegate.fillColor != fillColor;
 }
 
 class _ImportScreenshotCard extends StatelessWidget {
@@ -4036,6 +4027,7 @@ class CaptureGamePlayScreen extends StatefulWidget {
     this.initialBoardOverride,
     this.initialPlayerOverride,
     this.inheritedMoves = const [],
+    this.inheritedMarkedMoveNumbers = const {},
   });
 
   final int aiRank;
@@ -4052,6 +4044,7 @@ class CaptureGamePlayScreen extends StatefulWidget {
   /// correct.
   final StoneColor? initialPlayerOverride;
   final List<List<int>> inheritedMoves;
+  final Set<int> inheritedMarkedMoveNumbers;
 
   @override
   State<CaptureGamePlayScreen> createState() => _CaptureGamePlayScreenState();
@@ -4063,6 +4056,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   bool _isLoadingHints = false;
   bool _gameSaved = false;
   bool _resultDialogShown = false;
+  String? _shownAiFailureReason;
   bool _moveLogVisible = false;
   bool _forking = false;
   final Set<int> _markedMoveNumbers = <int>{};
@@ -4078,6 +4072,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   @override
   void initState() {
     super.initState();
+    _markedMoveNumbers.addAll(
+      widget.inheritedMarkedMoveNumbers.where((moveNo) => moveNo > 0),
+    );
     _rippleController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
@@ -4186,6 +4183,16 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
               _startRippleAnimation(context, provider);
             });
           }
+          final aiFailureReason = provider.aiFailureReason;
+          if (aiFailureReason == null) {
+            _shownAiFailureReason = null;
+          } else if (_shownAiFailureReason != aiFailureReason) {
+            _shownAiFailureReason = aiFailureReason;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              _showAiFailureDialog(aiFailureReason);
+            });
+          }
           final settings = context.watch<SettingsProvider?>();
           final showCaptureWarning = settings?.showCaptureWarning ?? true;
           final palette = context.appPalette;
@@ -4210,6 +4217,11 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                   _reviewMoveIndex! < _reviewStates!.length)
               ? _reviewStates![_reviewMoveIndex!]
               : null;
+          final displayedMoves = _displayMoveLog(provider);
+          final displayedReviewMoveNumber = _displayReviewMoveNumber;
+          final selectedMarkMoveNumber = _activeMarkMoveNumber(provider);
+          final selectedMoveMarked = selectedMarkMoveNumber != null &&
+              _markedMoveNumbers.contains(selectedMarkMoveNumber);
 
           return CupertinoPageScaffold(
             backgroundColor: palette.pageBackground,
@@ -4247,119 +4259,83 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
               ),
             ),
             child: SafeArea(
-              child: Stack(
-                fit: StackFit.expand,
+              child: Column(
                 children: [
-                  Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                        child: (_moveLogVisible || inReviewMode)
-                            ? _MoveLogStrip(
-                                moves: provider.moveLog,
-                                boardSize: provider.boardSize,
-                                coordinateSystem:
-                                    settings?.boardCoordinateSystem ??
-                                        BoardCoordinateSystem.chinese,
-                                currentPlayer: provider.gameState.currentPlayer,
-                                markedMoveNumbers: _markedMoveNumbers,
-                                palette: palette,
-                                reviewMoveIndex: _reviewMoveIndex,
-                                onMoveTap: (moveNumber) =>
-                                    _handleMoveTap(moveNumber, provider),
-                                onHide: () => setState(() {
-                                  _moveLogVisible = false;
-                                  _reviewMoveIndex = null;
-                                  _reviewStates = null;
-                                }),
-                              )
-                            : const SizedBox(height: 45),
-                      ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-                          child: _CaptureBoardArea(
-                            gameMode: widget.gameMode,
-                            gameState: reviewGameState ?? provider.gameState,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                    child: (_moveLogVisible || inReviewMode)
+                        ? _MoveLogStrip(
+                            moves: displayedMoves,
+                            boardSize: provider.boardSize,
                             coordinateSystem: settings?.boardCoordinateSystem ??
                                 BoardCoordinateSystem.chinese,
-                            enabled:
-                                !aiThinking && !isFinished && !inReviewMode,
-                            hintMarks: inReviewMode ? const [] : _hintMarks,
-                            showCaptureWarning: showCaptureWarning,
-                            captureTarget: widget.captureTarget,
-                            blackCaptured:
-                                reviewGameState?.capturedByBlack.length ??
-                                    blackCaptured,
-                            whiteCaptured:
-                                reviewGameState?.capturedByWhite.length ??
-                                    whiteCaptured,
-                            territoryScore: territoryScore,
-                            humanColor: widget.humanColor,
-                            rippleMove: _rippleMove,
-                            rippleAnimation: _rippleController,
-                            onTap: (row, col) => _handleBoardTap(
-                              provider: provider,
-                              row: row,
-                              col: col,
-                            ),
-                            onReviewTap:
-                                inReviewMode ? _showReviewModeTip : null,
-                          ),
-                        ),
-                      ),
-                    ],
+                            currentPlayer: provider.gameState.currentPlayer,
+                            markedMoveNumbers: _markedMoveNumbers,
+                            palette: palette,
+                            reviewMoveIndex: displayedReviewMoveNumber,
+                            onMoveTap: (moveNumber) =>
+                                _handleMoveTap(moveNumber, provider),
+                            onHide: () => setState(() {
+                              _moveLogVisible = false;
+                              _reviewMoveIndex = null;
+                              _reviewStates = null;
+                            }),
+                          )
+                        : const SizedBox(height: 45),
                   ),
                   if (inReviewMode)
-                    Positioned(
-                      right: 16,
-                      bottom: 24,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CupertinoButton(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            color: const Color(0xFFF2EBE3),
-                            borderRadius: BorderRadius.circular(14),
-                            onPressed: () => setState(() {
-                              _reviewMoveIndex = null;
-                              _hintMarks = const [];
-                            }),
-                            child: const Text(
-                              '最新',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF8F7359),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          CupertinoButton(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            color: const Color(0xFFC28A56),
-                            borderRadius: BorderRadius.circular(14),
-                            onPressed: _forking
-                                ? null
-                                : () => unawaited(_handleFork(provider)),
-                            child: const Text(
-                              '分叉',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: CupertinoColors.white,
-                              ),
-                            ),
-                          ),
-                        ],
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: _ReviewActionButtons(
+                          isForking: _forking,
+                          currentMoveMarked: selectedMoveMarked,
+                          onLatest: () => setState(() {
+                            _reviewMoveIndex = null;
+                            _hintMarks = const [];
+                          }),
+                          onFork: () => unawaited(_handleFork(provider)),
+                          onToggleMark: () => _toggleMarkedMove(provider),
+                        ),
                       ),
                     ),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        inReviewMode ? 2 : 6,
+                        16,
+                        10,
+                      ),
+                      child: _CaptureBoardArea(
+                        gameMode: widget.gameMode,
+                        gameState: reviewGameState ?? provider.gameState,
+                        coordinateSystem: settings?.boardCoordinateSystem ??
+                            BoardCoordinateSystem.chinese,
+                        enabled: !aiThinking && !isFinished && !inReviewMode,
+                        hintMarks: inReviewMode ? const [] : _hintMarks,
+                        showCaptureWarning: showCaptureWarning,
+                        captureTarget: widget.captureTarget,
+                        blackCaptured:
+                            reviewGameState?.capturedByBlack.length ??
+                                blackCaptured,
+                        whiteCaptured:
+                            reviewGameState?.capturedByWhite.length ??
+                                whiteCaptured,
+                        territoryScore: territoryScore,
+                        humanColor: widget.humanColor,
+                        rippleMove: _rippleMove,
+                        rippleAnimation: _rippleController,
+                        onTap: (row, col) => _handleBoardTap(
+                          provider: provider,
+                          row: row,
+                          col: col,
+                        ),
+                        onReviewTap: inReviewMode ? _showReviewModeTip : null,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -4367,6 +4343,38 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
         },
       ),
     );
+  }
+
+  List<List<int>> _displayMoveLog(CaptureGameProvider provider) {
+    if (widget.inheritedMoves.isEmpty) return provider.moveLog;
+    return [
+      for (final move in widget.inheritedMoves) List<int>.from(move),
+      for (final move in provider.moveLog) List<int>.from(move),
+    ];
+  }
+
+  int? get _displayReviewMoveNumber {
+    final localReviewMove = _reviewMoveIndex;
+    if (localReviewMove == null) return null;
+    return widget.inheritedMoves.length + localReviewMove;
+  }
+
+  int? _activeMarkMoveNumber(CaptureGameProvider provider) {
+    final reviewMove = _displayReviewMoveNumber;
+    if (reviewMove != null) return reviewMove;
+    final displayMoveCount =
+        widget.inheritedMoves.length + provider.moveLog.length;
+    return displayMoveCount == 0 ? null : displayMoveCount;
+  }
+
+  void _toggleMarkedMove(CaptureGameProvider provider) {
+    final moveNo = _activeMarkMoveNumber(provider);
+    if (moveNo == null) return;
+    setState(() {
+      if (!_markedMoveNumbers.add(moveNo)) {
+        _markedMoveNumbers.remove(moveNo);
+      }
+    });
   }
 
   void _showOperationMenu({
@@ -4377,7 +4385,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   }) {
     final canUndo = provider.canUndo;
     final canHint = !_isLoadingHints;
-    final canMarkMove = provider.moveLog.isNotEmpty;
+    final markMoveNumber = _activeMarkMoveNumber(provider);
+    final canMarkMove = markMoveNumber != null;
     final canCopyMoveLog = provider.moveLog.isNotEmpty ||
         widget.inheritedMoves.isNotEmpty ||
         _initialPositionMoves(provider).isNotEmpty;
@@ -4386,7 +4395,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
         provider.result == CaptureGameResult.none &&
         provider.gameState.currentPlayer == widget.humanColor;
     final currentMoveMarked =
-        _markedMoveNumbers.contains(provider.moveLog.length);
+        markMoveNumber != null && _markedMoveNumbers.contains(markMoveNumber);
     final showCaptureWarning = settings?.showCaptureWarning ?? true;
     final coordinateSystem =
         settings?.boardCoordinateSystem ?? BoardCoordinateSystem.chinese;
@@ -4437,10 +4446,12 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
               top: top,
               width: menuWidth,
               child: _OperationContextMenu(
-                aiStyleLabel: provider.isTerritoryMode
+                aiConfigLabel: provider.isTerritoryMode
                     ? '固定圍空引擎'
-                    : provider.aiStyle.label,
-                canChangeAiStyle: !provider.isTerritoryMode,
+                    : _aiOpponentOption(
+                        provider.activeAlgorithmConfig?.id ??
+                            _aiAlgorithmConfigForRank(widget.aiRank).id,
+                      ).subtitle,
                 captureWarningEnabled: showCaptureWarning,
                 moveLogVisible: _moveLogVisible,
                 currentMoveMarked: currentMoveMarked,
@@ -4450,12 +4461,6 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                 canCopyMoveLog: canCopyMoveLog,
                 canPass: canPass,
                 canToggleCaptureWarning: settings != null,
-                onAiStyle: () {
-                  Navigator.of(menuContext).pop();
-                  if (!provider.isTerritoryMode) {
-                    _showStylePicker(context, provider);
-                  }
-                },
                 onToggleCaptureWarning: () {
                   Navigator.of(menuContext).pop();
                   settings?.setShowCaptureWarning(!showCaptureWarning);
@@ -4475,12 +4480,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                 onToggleMarkMove: () {
                   Navigator.of(menuContext).pop();
                   if (!canMarkMove) return;
-                  setState(() {
-                    final moveNo = provider.moveLog.length;
-                    if (!_markedMoveNumbers.add(moveNo)) {
-                      _markedMoveNumbers.remove(moveNo);
-                    }
-                  });
+                  _toggleMarkedMove(provider);
                 },
                 onUndo: () {
                   Navigator.of(menuContext).pop();
@@ -4640,30 +4640,18 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     );
   }
 
-  void _showStylePicker(BuildContext context, CaptureGameProvider provider) {
-    showCupertinoModalPopup<void>(
+  Future<void> _showAiFailureDialog(String reason) async {
+    await showCupertinoDialog<void>(
       context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: const Text('切換 AI 風格'),
-        message: Text('${provider.aiStyle.label}：${provider.aiStyle.summary}'),
+      builder: (ctx) => CupertinoAlertDialog(
+        title: const Text('AI 無法落子'),
+        content: Text(reason),
         actions: [
-          for (final style in CaptureAiStyle.values)
-            CupertinoActionSheetAction(
-              onPressed: () {
-                provider.setAiStyle(style);
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                style == provider.aiStyle
-                    ? '${style.label} · 目前'
-                    : '${style.label} · ${style.summary}',
-              ),
-            ),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('知道了'),
+          ),
         ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
-        ),
       ),
     );
   }
@@ -4819,12 +4807,15 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     var state = GameState(
       boardSize: provider.boardSize,
       board: emptyBoard,
-      currentPlayer: StoneColor.black,
+      currentPlayer: provider.initialPlayerOverride ?? StoneColor.black,
+      gameMode: provider.gameMode,
     );
     final states = <GameState>[state];
     for (final move in provider.moveLog) {
       if (move.length < 2) break;
-      final next = GoEngine.placeStone(state, move[0], move[1]);
+      final next = move[0] == -1 && move[1] == -1
+          ? GoEngine.passTurn(state)
+          : GoEngine.placeStone(state, move[0], move[1]);
       if (next == null) break;
       state = next;
       states.add(state);
@@ -4854,29 +4845,36 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     // Set guard synchronously before the first await to prevent double-tap.
     _forking = true;
     try {
-      final forkState = _reviewStates![_reviewMoveIndex!];
-      final forkBoard =
-          forkState.board.map((row) => List<StoneColor>.from(row)).toList();
-      final nextPlayer = forkState.currentPlayer;
       await _saveGame(provider);
       if (!mounted) return;
       // Pop this game screen with a _ForkRequest result so the home screen can
       // push the forked game via _startForkedGame — this ensures _loadHistory()
       // is called when BOTH the original and forked games complete.
+      final forkMoveCount = _reviewMoveIndex!;
+      final forkInheritedMoves = [
+        for (final move in provider.moveLog.take(_reviewMoveIndex!))
+          List<int>.from(move),
+      ];
+      final forkMarkedMoveNumbers = _markedMoveNumbers
+          .where((moveNo) => moveNo > 0 && moveNo <= forkMoveCount)
+          .toSet();
       Navigator.of(context, rootNavigator: true).pop(
         _ForkRequest(
-          forkBoard: forkBoard,
-          initialPlayerOverride: nextPlayer,
-          inheritedMoves: provider.moveLog
-              .take(_reviewMoveIndex!)
-              .map((move) => List<int>.from(move))
-              .toList(),
+          initialBoardOverride: widget.initialBoardOverride == null
+              ? null
+              : widget.initialBoardOverride!
+                  .map((row) => List<StoneColor>.from(row))
+                  .toList(),
+          initialPlayerOverride: widget.initialPlayerOverride,
+          inheritedMoves: forkInheritedMoves,
+          inheritedMarkedMoveNumbers: forkMarkedMoveNumbers,
           boardSize: provider.boardSize,
           captureTarget: provider.captureTarget,
           difficulty: provider.difficulty,
           gameMode: provider.gameMode,
           humanColor: provider.humanColor,
           aiStyle: provider.aiStyle,
+          aiAlgorithmConfigId: provider.activeAlgorithmConfig?.id,
           aiRank: widget.aiRank,
           initialMode: widget.initialMode,
         ),
@@ -5510,14 +5508,24 @@ class _MoveLogStripState extends State<_MoveLogStrip> {
   final ScrollController _scrollController = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+    _scrollToLatestMove();
+  }
+
+  @override
   void didUpdateWidget(covariant _MoveLogStrip oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.moves.length > oldWidget.moves.length) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_scrollController.hasClients) return;
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      });
+      _scrollToLatestMove();
     }
+  }
+
+  void _scrollToLatestMove() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    });
   }
 
   @override
@@ -5585,6 +5593,8 @@ class _MoveLogStripState extends State<_MoveLogStrip> {
                           widget.boardSize,
                           widget.coordinateSystem,
                         ),
+                        stoneColor:
+                            index.isEven ? StoneColor.black : StoneColor.white,
                         marked: widget.markedMoveNumbers.contains(index + 1),
                         palette: widget.palette,
                         isReviewing: widget.reviewMoveIndex == index + 1,
@@ -5609,6 +5619,7 @@ class _MoveLogChip extends StatelessWidget {
   const _MoveLogChip({
     required this.moveNumber,
     required this.coordinate,
+    required this.stoneColor,
     required this.marked,
     required this.palette,
     this.isReviewing = false,
@@ -5617,6 +5628,7 @@ class _MoveLogChip extends StatelessWidget {
 
   final int moveNumber;
   final String coordinate;
+  final StoneColor stoneColor;
   final bool marked;
   final AppThemePalette palette;
   final bool isReviewing;
@@ -5630,24 +5642,66 @@ class _MoveLogChip extends StatelessWidget {
     final borderColor =
         isReviewing ? palette.primary : palette.primary.withValues(alpha: 0.16);
     final textColor = isReviewing ? CupertinoColors.white : palette.segmentText;
+    final isBlackMove = stoneColor == StoneColor.black;
+    final badgeBackground = isBlackMove
+        ? const Color(0xFF2C2925)
+        : CupertinoColors.white.withValues(alpha: 0.96);
+    final badgeBorder = isBlackMove
+        ? const Color(0xFF2C2925)
+        : const Color(0xFF8F7359).withValues(alpha: 0.62);
+    final badgeTextColor =
+        isBlackMove ? CupertinoColors.white : const Color(0xFF4C4035);
 
     final chip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      padding: EdgeInsets.fromLTRB(4, 3, marked ? 14 : 7, 3),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(7),
         border: Border.all(color: borderColor, width: isReviewing ? 1.1 : 0.7),
       ),
-      child: Text(
-        '$moveNumber $coordinate',
-        maxLines: 1,
-        overflow: TextOverflow.visible,
-        style: TextStyle(
-          fontSize: 12,
-          height: 1,
-          color: textColor,
-          fontWeight: isReviewing ? FontWeight.w700 : FontWeight.w500,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            constraints: const BoxConstraints(minWidth: 18),
+            height: 18,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: badgeBackground,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: badgeBorder, width: 0.8),
+            ),
+            child: Text(
+              '$moveNumber',
+              maxLines: 1,
+              overflow: TextOverflow.visible,
+              style: TextStyle(
+                fontSize: 10,
+                height: 1,
+                color: badgeTextColor,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Padding(
+            padding: EdgeInsets.only(right: marked ? 1 : 0),
+            child: Text(
+              coordinate,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1,
+                color: textColor,
+                fontWeight: isReviewing ? FontWeight.w700 : FontWeight.w500,
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+        ],
       ),
     );
 
@@ -5658,18 +5712,87 @@ class _MoveLogChip extends StatelessWidget {
     if (!marked) return result;
 
     return Stack(
-      clipBehavior: Clip.none,
+      clipBehavior: Clip.hardEdge,
       children: [
         result,
         Positioned(
-          top: -5,
-          right: -5,
+          top: 2,
+          right: 2,
           child: Semantics(
             label: '已打标',
             excludeSemantics: true,
             child: const Text(
               '⭐',
-              style: TextStyle(fontSize: 9, height: 1),
+              style: TextStyle(fontSize: 11, height: 1),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReviewActionButtons extends StatelessWidget {
+  const _ReviewActionButtons({
+    required this.isForking,
+    required this.currentMoveMarked,
+    required this.onLatest,
+    required this.onFork,
+    required this.onToggleMark,
+  });
+
+  final bool isForking;
+  final bool currentMoveMarked;
+  final VoidCallback onLatest;
+  final VoidCallback onFork;
+  final VoidCallback onToggleMark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: const Color(0xFFF2EBE3),
+          borderRadius: BorderRadius.circular(14),
+          onPressed: onLatest,
+          child: const Text(
+            '最新',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF8F7359),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: const Color(0xFFC28A56),
+          borderRadius: BorderRadius.circular(14),
+          onPressed: isForking ? null : onFork,
+          child: const Text(
+            '分叉',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: CupertinoColors.white,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: const Color(0xFFF2EBE3),
+          borderRadius: BorderRadius.circular(14),
+          onPressed: onToggleMark,
+          child: Text(
+            currentMoveMarked ? '取消標記' : '標記',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF8F7359),
             ),
           ),
         ),
@@ -5680,8 +5803,7 @@ class _MoveLogChip extends StatelessWidget {
 
 class _OperationContextMenu extends StatelessWidget {
   const _OperationContextMenu({
-    required this.aiStyleLabel,
-    required this.canChangeAiStyle,
+    required this.aiConfigLabel,
     required this.captureWarningEnabled,
     required this.moveLogVisible,
     required this.currentMoveMarked,
@@ -5691,7 +5813,6 @@ class _OperationContextMenu extends StatelessWidget {
     required this.canCopyMoveLog,
     required this.canPass,
     required this.canToggleCaptureWarning,
-    required this.onAiStyle,
     required this.onToggleCaptureWarning,
     required this.onToggleMoveLog,
     required this.onToggleMarkMove,
@@ -5702,8 +5823,7 @@ class _OperationContextMenu extends StatelessWidget {
     required this.onCopySgf,
   });
 
-  final String aiStyleLabel;
-  final bool canChangeAiStyle;
+  final String aiConfigLabel;
   final bool captureWarningEnabled;
   final bool moveLogVisible;
   final bool currentMoveMarked;
@@ -5713,7 +5833,6 @@ class _OperationContextMenu extends StatelessWidget {
   final bool canCopyMoveLog;
   final bool canPass;
   final bool canToggleCaptureWarning;
-  final VoidCallback onAiStyle;
   final VoidCallback onToggleCaptureWarning;
   final VoidCallback onToggleMoveLog;
   final VoidCallback onToggleMarkMove;
@@ -5751,9 +5870,9 @@ class _OperationContextMenu extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _OperationMenuItem(
-              text: 'AI 風格：$aiStyleLabel',
-              enabled: canChangeAiStyle,
-              onPressed: onAiStyle,
+              text: 'AI 棋力：$aiConfigLabel',
+              enabled: false,
+              onPressed: () {},
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
@@ -6615,7 +6734,7 @@ class _FullHistoryScreen extends StatelessWidget {
       backgroundColor: kPageBackgroundColor,
       navigationBar: const CupertinoNavigationBar(
         middle: Text('歷史對局'),
-        previousPageTitle: 'Baduk Puzzle',
+        previousPageTitle: '围棋谜题',
       ),
       child: SafeArea(
         child: ListView.separated(

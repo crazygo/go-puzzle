@@ -56,7 +56,7 @@ class GoPuzzleApp extends StatelessWidget {
           }
 
           return CupertinoApp(
-            title: 'Baduk Puzzle',
+            title: '围棋谜题',
             theme: CupertinoThemeData(
               primaryColor: palette.primary,
               brightness:

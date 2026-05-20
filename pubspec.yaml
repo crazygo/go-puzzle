@@ -1,5 +1,5 @@
 name: go_puzzle
-description: Baduk Puzzle - 放鬆動腦的圍棋小挑戰。
+description: 围棋谜题 - 放鬆動腦的圍棋小挑戰。
 publish_to: "none"
 
 version: 1.2.0+3
