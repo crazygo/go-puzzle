@@ -42,3 +42,4 @@ Developer setup, validation, build, deployment, and puzzle-data notes live in [D
 
 - Puzzle design reference: [online-go.com/learn-to-play-go](https://online-go.com/learn-to-play-go)
 - Go rules reference: [International Go Federation](https://www.igofederation.org)
+- Thanks to [Kaya](https://github.com/kaya-go/kaya) — a free and open-source Go app for play, study, AI analysis, and board recognition from photos.

@@ -6,6 +6,24 @@
 - After dependency or environment changes, run checks from the repo root: `flutter pub get`, `flutter analyze --no-fatal-infos --no-fatal-warnings`, and `flutter test`.
 - If `dart`/`flutter` is missing in shell PATH (`command not found`), run `bash scripts/init-dev.sh` first, then use the repo-local SDK path for the current session: `export PATH="$PWD/.local/flutter/bin:$PATH"`.
 
+## Local web testing
+- The capture-game AI search worker is authored at `web/ai_search_worker.dart` and must be compiled to `web/ai_search_worker.dart.js` before browser testing or web release builds: `bash scripts/compile-web-worker.sh`.
+- Do not use `flutter run -d web-server` to validate the AI search worker. In this project it may serve missing `web/` assets as HTML or 404, causing browser errors such as `Refused to execute script ... ai_search_worker.dart.js ... MIME type ('text/html')`.
+- To test web behavior locally in a way that matches static/cloud hosting, run:
+  1. `bash scripts/compile-web-worker.sh`
+  2. `flutter build web`
+  3. `python3 -m http.server 8081 --bind 127.0.0.1 --directory build/web`
+- Verify the worker is served as JavaScript before debugging AI move behavior: `curl -I http://127.0.0.1:8081/ai_search_worker.dart.js` should return `200 OK` with a JavaScript content type such as `text/javascript`.
+
+## AI arena evaluation naming
+- The evaluation hierarchy is: **Evaluation Run -> Pair -> Cell -> Game repeats**.
+- **Evaluation Run**: One complete arena execution over the configured set of AI config comparisons.
+- **Pair**: One unordered comparison between two AI configs within an Evaluation Run.
+- **Cell**: One fixed condition combination for a Pair: the two configs, the opening, and the `firstConfig` / first-player direction. Repeats inside a Cell vary by game seed only, not by these fixed conditions.
+- **Game**: One played repeat inside a Cell, using one game seed under the Cell's fixed conditions.
+- **Opening**: The predefined initial board state or move sequence used as part of a Cell's fixed conditions.
+- **First-player direction**: Which config in the Pair is assigned to move first for the Cell, represented by `firstConfig`.
+
 ## Planning
 - When an implementation plan is requested, write it in English and include these sections in order:
     1. **Background**: Substructured into **Context** (current state), **Problem** (limitations/pain points), and **Motivation** (why this change is valuable).

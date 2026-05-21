@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/ai_search_runner.dart';
 import 'package:go_puzzle/providers/capture_game_provider.dart';
 import 'package:go_puzzle/models/board_position.dart';
 import 'package:go_puzzle/game/capture_ai.dart';
+import 'package:go_puzzle/game/game_mode.dart';
 
 // ---------------------------------------------------------------------------
 // Fake / test-double AiSearchRunner implementations
@@ -104,6 +106,7 @@ class _BlockingAiSearchRunner implements AiSearchRunner {
 Map<String, dynamic> _minimalParams({
   int boardSize = 9,
   int captureTarget = 5,
+  GameMode gameMode = GameMode.capture,
 }) {
   final cells = List<int>.filled(boardSize * boardSize, 0);
   return {
@@ -115,6 +118,8 @@ Map<String, dynamic> _minimalParams({
     'currentPlayer': StoneColor.black.index,
     'aiStyle': CaptureAiStyle.adaptive.name,
     'difficulty': DifficultyLevel.beginner.name,
+    'gameMode': gameMode.storageKey,
+    'consecutivePasses': 0,
   };
 }
 
@@ -123,6 +128,7 @@ Map<String, dynamic> _minimalParams({
 // ---------------------------------------------------------------------------
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   // ─────────────────────────────────────────────────────────────────────────
   // AiSearchResult
   // ─────────────────────────────────────────────────────────────────────────
@@ -186,6 +192,80 @@ void main() {
       expect(result.hasError, isTrue);
       expect(result.move, isNull);
 
+      runner.dispose();
+    });
+  });
+
+  group('Native territory backend selection', () {
+    const channel = MethodChannel('go_puzzle/territory_onnx');
+
+    tearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    test('uses native territory move when bridge returns one', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'pickMove');
+        return {
+          'usedNative': true,
+          'backend': 'ios_onnx',
+          'move': [4, 4],
+        };
+      });
+
+      final runner = createAiSearchRunner();
+      final result = await runner.search(
+        AiSearchRequest(
+          id: 'territory_native',
+          params: _minimalParams(gameMode: GameMode.territory),
+        ),
+      );
+
+      expect(result.hasError, isFalse);
+      expect(result.move, [4, 4]);
+      runner.dispose();
+    });
+
+    test('falls back to Dart territory search when bridge is unavailable',
+        () async {
+      final runner = createAiSearchRunner();
+      final result = await runner.search(
+        AiSearchRequest(
+          id: 'territory_fallback',
+          params: _minimalParams(gameMode: GameMode.territory),
+        ),
+      );
+
+      expect(result.hasError, isFalse);
+      expect(result.move, isNotNull);
+      runner.dispose();
+    });
+
+    test('falls back to Dart territory search when native move is invalid',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'pickMove');
+        return {
+          'usedNative': true,
+          'backend': 'ios_onnx',
+          'move': [9, 9],
+        };
+      });
+
+      final runner = createAiSearchRunner();
+      final result = await runner.search(
+        AiSearchRequest(
+          id: 'territory_invalid_native',
+          params: _minimalParams(gameMode: GameMode.territory),
+        ),
+      );
+
+      expect(result.hasError, isFalse);
+      expect(result.move, isNotNull);
+      expect(result.move, isNot([9, 9]));
       runner.dispose();
     });
   });

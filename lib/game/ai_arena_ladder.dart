@@ -76,6 +76,11 @@ class AiGameRecord {
     required this.blackCaptures,
     required this.whiteCaptures,
     required this.endReason,
+    this.illegalMove = false,
+    this.timedOut = false,
+    this.fallbackUsed = false,
+    this.maxDecisionMillis = 0,
+    this.failureReason,
   });
 
   final int index;
@@ -95,6 +100,11 @@ class AiGameRecord {
   final int blackCaptures;
   final int whiteCaptures;
   final String endReason;
+  final bool illegalMove;
+  final bool timedOut;
+  final bool fallbackUsed;
+  final int maxDecisionMillis;
+  final String? failureReason;
 
   Map<String, dynamic> toJson() => {
         'index': index,
@@ -107,6 +117,11 @@ class AiGameRecord {
         'blackCaptures': blackCaptures,
         'whiteCaptures': whiteCaptures,
         'endReason': endReason,
+        'illegalMove': illegalMove,
+        'timedOut': timedOut,
+        'fallbackUsed': fallbackUsed,
+        'maxDecisionMillis': maxDecisionMillis,
+        if (failureReason != null) 'failureReason': failureReason,
       };
 
   factory AiGameRecord.fromJson(Map<String, dynamic> json) {
@@ -121,8 +136,243 @@ class AiGameRecord {
       blackCaptures: json['blackCaptures'] as int,
       whiteCaptures: json['whiteCaptures'] as int,
       endReason: json['endReason'] as String,
+      illegalMove: json['illegalMove'] as bool? ?? false,
+      timedOut: json['timedOut'] as bool? ?? false,
+      fallbackUsed: json['fallbackUsed'] as bool? ?? false,
+      maxDecisionMillis: json['maxDecisionMillis'] as int? ?? 0,
+      failureReason: json['failureReason'] as String?,
     );
   }
+}
+
+class AiOpeningPerformance {
+  const AiOpeningPerformance({
+    required this.opening,
+    required this.games,
+    required this.aWins,
+    required this.bWins,
+    required this.draws,
+    required this.illegalMoves,
+    required this.timeouts,
+    required this.fallbackGames,
+  });
+
+  final String opening;
+  final int games;
+  final int aWins;
+  final int bWins;
+  final int draws;
+  final int illegalMoves;
+  final int timeouts;
+  final int fallbackGames;
+
+  double get aWinRate => games == 0 ? 0 : aWins / games;
+  double get bWinRate => games == 0 ? 0 : bWins / games;
+
+  Map<String, dynamic> toJson() => {
+        'opening': opening,
+        'games': games,
+        'aWins': aWins,
+        'bWins': bWins,
+        'draws': draws,
+        'aWinRate': aWinRate,
+        'bWinRate': bWinRate,
+        'illegalMoves': illegalMoves,
+        'timeouts': timeouts,
+        'fallbackGames': fallbackGames,
+      };
+}
+
+class AiPairwiseSummary {
+  const AiPairwiseSummary({
+    required this.configAId,
+    required this.configBId,
+    required this.games,
+    required this.aWins,
+    required this.bWins,
+    required this.draws,
+    required this.illegalMoves,
+    required this.timeouts,
+    required this.fallbackGames,
+    required this.failureReasons,
+  });
+
+  final String configAId;
+  final String configBId;
+  final int games;
+  final int aWins;
+  final int bWins;
+  final int draws;
+  final int illegalMoves;
+  final int timeouts;
+  final int fallbackGames;
+  final List<String> failureReasons;
+
+  double get aWinRate => games == 0 ? 0 : aWins / games;
+  double get bWinRate => games == 0 ? 0 : bWins / games;
+
+  Map<String, dynamic> toJson() => {
+        'configAId': configAId,
+        'configBId': configBId,
+        'games': games,
+        'aWins': aWins,
+        'bWins': bWins,
+        'draws': draws,
+        'aWinRate': aWinRate,
+        'bWinRate': bWinRate,
+        'illegalMoves': illegalMoves,
+        'timeouts': timeouts,
+        'fallbackGames': fallbackGames,
+        'failureReasons': failureReasons,
+      };
+}
+
+class AiRankingEntry {
+  const AiRankingEntry({
+    required this.rank,
+    required this.configId,
+    required this.matchWins,
+    required this.matchLosses,
+    required this.matchDraws,
+    required this.gameWins,
+    required this.gameLosses,
+    required this.draws,
+    required this.games,
+    required this.illegalMoves,
+    required this.timeouts,
+    required this.fallbackGames,
+  });
+
+  final int rank;
+  final String configId;
+  final int matchWins;
+  final int matchLosses;
+  final int matchDraws;
+  final int gameWins;
+  final int gameLosses;
+  final int draws;
+  final int games;
+  final int illegalMoves;
+  final int timeouts;
+  final int fallbackGames;
+
+  double get matchWinRate {
+    final matches = matchWins + matchLosses + matchDraws;
+    return matches == 0 ? 0 : matchWins / matches;
+  }
+
+  double get gameWinRate => games == 0 ? 0 : gameWins / games;
+
+  Map<String, dynamic> toJson() => {
+        'rank': rank,
+        'configId': configId,
+        'matchWins': matchWins,
+        'matchLosses': matchLosses,
+        'matchDraws': matchDraws,
+        'matchWinRate': matchWinRate,
+        'gameWins': gameWins,
+        'gameLosses': gameLosses,
+        'draws': draws,
+        'games': games,
+        'gameWinRate': gameWinRate,
+        'illegalMoves': illegalMoves,
+        'timeouts': timeouts,
+        'fallbackGames': fallbackGames,
+      };
+}
+
+class AiArenaEvaluationSummary {
+  const AiArenaEvaluationSummary({
+    required this.matches,
+    required this.pairwise,
+    required this.rankings,
+    required this.openingPerformance,
+  });
+
+  final List<AiMatchResult> matches;
+  final List<AiPairwiseSummary> pairwise;
+  final List<AiRankingEntry> rankings;
+  final List<AiOpeningPerformance> openingPerformance;
+
+  factory AiArenaEvaluationSummary.fromMatches(List<AiMatchResult> matches) {
+    final pairwise = matches.map(_pairwiseSummaryFor).toList(growable: false);
+    final stats = <String, _RankingStats>{};
+    final openingGames = <String, List<AiGameRecord>>{};
+
+    for (final match in matches) {
+      final aId = match.configA.id;
+      final bId = match.configB.id;
+      final aStats = stats.putIfAbsent(aId, () => _RankingStats(aId));
+      final bStats = stats.putIfAbsent(bId, () => _RankingStats(bId));
+
+      if (match.aWins > match.bWins) {
+        aStats.matchWins++;
+        bStats.matchLosses++;
+      } else if (match.bWins > match.aWins) {
+        bStats.matchWins++;
+        aStats.matchLosses++;
+      } else {
+        aStats.matchDraws++;
+        bStats.matchDraws++;
+      }
+
+      aStats.gameWins += match.aWins;
+      aStats.gameLosses += match.bWins;
+      aStats.draws += match.draws;
+      aStats.games += match.rounds;
+      bStats.gameWins += match.bWins;
+      bStats.gameLosses += match.aWins;
+      bStats.draws += match.draws;
+      bStats.games += match.rounds;
+
+      for (final game in match.games) {
+        openingGames.putIfAbsent(game.opening, () => []).add(game);
+        if (game.illegalMove) {
+          aStats.illegalMoves++;
+          bStats.illegalMoves++;
+        }
+        if (game.timedOut) {
+          aStats.timeouts++;
+          bStats.timeouts++;
+        }
+        if (game.fallbackUsed) {
+          aStats.fallbackGames++;
+          bStats.fallbackGames++;
+        }
+      }
+    }
+
+    final sortedStats = stats.values.toList()
+      ..sort((a, b) {
+        final matchWins = b.matchWins.compareTo(a.matchWins);
+        if (matchWins != 0) return matchWins;
+        final gameRate = b.gameWinRate.compareTo(a.gameWinRate);
+        if (gameRate != 0) return gameRate;
+        final gameWins = b.gameWins.compareTo(a.gameWins);
+        if (gameWins != 0) return gameWins;
+        return a.configId.compareTo(b.configId);
+      });
+
+    final rankings = <AiRankingEntry>[];
+    for (var i = 0; i < sortedStats.length; i++) {
+      rankings.add(sortedStats[i].toEntry(rank: i + 1));
+    }
+
+    return AiArenaEvaluationSummary(
+      matches: List.unmodifiable(matches),
+      pairwise: pairwise,
+      rankings: rankings,
+      openingPerformance: _openingPerformanceFor(openingGames),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'matches': matches.map((match) => match.toJson()).toList(),
+        'pairwise': pairwise.map((entry) => entry.toJson()).toList(),
+        'rankings': rankings.map((entry) => entry.toJson()).toList(),
+        'openingPerformance':
+            openingPerformance.map((entry) => entry.toJson()).toList(),
+      };
 }
 
 /// Raw, reproducible executor output. Contains no promotion or ranking
@@ -161,6 +411,14 @@ class AiMatchResult {
   double get aWinRate => rounds == 0 ? 0 : aWins / rounds;
   double get bWinRate => rounds == 0 ? 0 : bWins / rounds;
 
+  List<AiOpeningPerformance> get openingPerformance {
+    final grouped = <String, List<AiGameRecord>>{};
+    for (final game in games) {
+      grouped.putIfAbsent(game.opening, () => []).add(game);
+    }
+    return _openingPerformanceFor(grouped);
+  }
+
   Map<String, dynamic> toJson() => {
         'matchSeed': matchSeed,
         'openingSeed': openingSeed,
@@ -177,6 +435,8 @@ class AiMatchResult {
         'aWinRate': aWinRate,
         'bWinRate': bWinRate,
         'games': games.map((g) => g.toJson()).toList(),
+        'openingPerformance':
+            openingPerformance.map((entry) => entry.toJson()).toList(),
       };
 
   factory AiMatchResult.fromJson(Map<String, dynamic> json) {
@@ -198,6 +458,104 @@ class AiMatchResult {
           .toList(),
     );
   }
+}
+
+AiPairwiseSummary _pairwiseSummaryFor(AiMatchResult match) {
+  final failureReasons = <String>{};
+  var illegalMoves = 0;
+  var timeouts = 0;
+  var fallbackGames = 0;
+  for (final game in match.games) {
+    if (game.illegalMove) illegalMoves++;
+    if (game.timedOut) timeouts++;
+    if (game.fallbackUsed) fallbackGames++;
+    final failureReason = game.failureReason;
+    if (failureReason != null) failureReasons.add(failureReason);
+  }
+  return AiPairwiseSummary(
+    configAId: match.configA.id,
+    configBId: match.configB.id,
+    games: match.rounds,
+    aWins: match.aWins,
+    bWins: match.bWins,
+    draws: match.draws,
+    illegalMoves: illegalMoves,
+    timeouts: timeouts,
+    fallbackGames: fallbackGames,
+    failureReasons: failureReasons.toList()..sort(),
+  );
+}
+
+List<AiOpeningPerformance> _openingPerformanceFor(
+  Map<String, List<AiGameRecord>> grouped,
+) {
+  final entries = <AiOpeningPerformance>[];
+  for (final entry in grouped.entries) {
+    var aWins = 0;
+    var bWins = 0;
+    var draws = 0;
+    var illegalMoves = 0;
+    var timeouts = 0;
+    var fallbackGames = 0;
+    for (final game in entry.value) {
+      switch (game.winner) {
+        case 'a':
+          aWins++;
+        case 'b':
+          bWins++;
+        default:
+          draws++;
+      }
+      if (game.illegalMove) illegalMoves++;
+      if (game.timedOut) timeouts++;
+      if (game.fallbackUsed) fallbackGames++;
+    }
+    entries.add(AiOpeningPerformance(
+      opening: entry.key,
+      games: entry.value.length,
+      aWins: aWins,
+      bWins: bWins,
+      draws: draws,
+      illegalMoves: illegalMoves,
+      timeouts: timeouts,
+      fallbackGames: fallbackGames,
+    ));
+  }
+  entries.sort((a, b) => a.opening.compareTo(b.opening));
+  return entries;
+}
+
+class _RankingStats {
+  _RankingStats(this.configId);
+
+  final String configId;
+  int matchWins = 0;
+  int matchLosses = 0;
+  int matchDraws = 0;
+  int gameWins = 0;
+  int gameLosses = 0;
+  int draws = 0;
+  int games = 0;
+  int illegalMoves = 0;
+  int timeouts = 0;
+  int fallbackGames = 0;
+
+  double get gameWinRate => games == 0 ? 0 : gameWins / games;
+
+  AiRankingEntry toEntry({required int rank}) => AiRankingEntry(
+        rank: rank,
+        configId: configId,
+        matchWins: matchWins,
+        matchLosses: matchLosses,
+        matchDraws: matchDraws,
+        gameWins: gameWins,
+        gameLosses: gameLosses,
+        draws: draws,
+        games: games,
+        illegalMoves: illegalMoves,
+        timeouts: timeouts,
+        fallbackGames: fallbackGames,
+      );
 }
 
 /// The scheduler's ranking decision after a match.

@@ -1,10 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_puzzle/game/ai_algorithm_framework.dart';
 import 'package:go_puzzle/game/ai_rank_level.dart';
+import 'package:go_puzzle/game/ai_search_runner.dart';
 import 'package:go_puzzle/game/capture_ai.dart';
+import 'package:go_puzzle/game/game_mode.dart';
 import 'package:go_puzzle/game/go_engine.dart';
+import 'package:go_puzzle/game/katago_model_adapter.dart';
 import 'package:go_puzzle/game/mcts_engine.dart';
 import 'package:go_puzzle/models/board_position.dart';
 import 'package:go_puzzle/models/game_state.dart';
@@ -13,6 +18,62 @@ import 'package:go_puzzle/providers/settings_provider.dart';
 import 'package:go_puzzle/screens/capture_game_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _AlwaysPassAiSearchRunner implements AiSearchRunner {
+  @override
+  void cancel(AiSearchRequestId requestId) {}
+
+  @override
+  void dispose() {}
+
+  @override
+  Future<AiSearchResult> search(AiSearchRequest request) async {
+    return AiSearchResult(requestId: request.id, move: const [-1, -1]);
+  }
+}
+
+class _CapturingAiSearchRunner implements AiSearchRunner {
+  final Completer<Map<String, dynamic>> paramsCompleter = Completer();
+
+  @override
+  void cancel(AiSearchRequestId requestId) {}
+
+  @override
+  void dispose() {}
+
+  @override
+  Future<AiSearchResult> search(AiSearchRequest request) async {
+    if (!paramsCompleter.isCompleted) {
+      paramsCompleter.complete(Map<String, dynamic>.from(request.params));
+    }
+    return AiSearchResult(requestId: request.id, move: const [-1, -1]);
+  }
+}
+
+class _FakeKatagoAdapter implements AsyncKatagoModelAdapter {
+  const _FakeKatagoAdapter({this.move, this.failureReason});
+
+  final BoardPosition? move;
+  final String? failureReason;
+
+  @override
+  Future<void> preload(Iterable<KatagoModelRequest> requests) async {}
+
+  @override
+  Future<KatagoModelEvaluation> chooseMove(KatagoModelRequest request) async {
+    final reason = failureReason;
+    if (reason != null) {
+      return KatagoModelEvaluation(
+        status: KatagoBackendStatus.failed,
+        failureReason: reason,
+      );
+    }
+    return KatagoModelEvaluation(
+      status: KatagoBackendStatus.ready,
+      move: move,
+    );
+  }
+}
 
 void main() {
   setUp(() {
@@ -104,6 +165,40 @@ void main() {
       expect(newBoard[center][center + 1], StoneColor.white);
       expect(newBoard[center - 1][center], StoneColor.white);
       expect(newBoard[center - 1][center + 1], StoneColor.black);
+    });
+
+    test('initial move log is replayed into undoable game state', () {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        initialMoveLog: const [
+          [8, 0],
+          [7, 1],
+        ],
+        minMoveDelay: Duration.zero,
+      );
+
+      expect(provider.moveLog, [
+        [8, 0],
+        [7, 1],
+      ]);
+      expect(provider.gameState.colorAt(8, 0), StoneColor.black);
+      expect(provider.gameState.colorAt(7, 1), StoneColor.white);
+
+      provider.undoMove();
+
+      expect(provider.moveLog, [
+        [8, 0],
+      ]);
+      expect(provider.gameState.colorAt(8, 0), StoneColor.black);
+      expect(provider.gameState.colorAt(7, 1), StoneColor.empty);
+
+      provider.undoMove();
+
+      expect(provider.moveLog, isEmpty);
+      expect(provider.gameState.colorAt(8, 0), StoneColor.empty);
     });
 
     test('rejects unsupported board sizes', () {
@@ -288,6 +383,144 @@ void main() {
       expect(provider.moveLog.length, equals(initialMoveCount + 2));
       expect(provider.isAiThinking, isFalse);
     });
+
+    test('territory mode ends after two passes and records area scoring',
+        () async {
+      final board = List.generate(9, (_) => List.filled(9, StoneColor.empty));
+      board[0][0] = StoneColor.black;
+      board[0][1] = StoneColor.black;
+      board[1][0] = StoneColor.black;
+      board[1][1] = StoneColor.black;
+
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        gameMode: GameMode.territory,
+        initialMode: CaptureInitialMode.empty,
+        initialBoardOverride: board,
+        humanColor: StoneColor.black,
+        minMoveDelay: Duration.zero,
+        maxMoveDelay: Duration.zero,
+        runner: _AlwaysPassAiSearchRunner(),
+      );
+
+      expect(await provider.passTurn(), isTrue);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(provider.result, isNot(CaptureGameResult.none));
+      expect(provider.result, CaptureGameResult.blackWins);
+      expect(provider.territoryScore.blackArea,
+          greaterThan(provider.territoryScore.whiteArea));
+    });
+
+    test('territory mode ignores AI style switches', () {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        gameMode: GameMode.territory,
+        minMoveDelay: Duration.zero,
+      );
+
+      expect(provider.aiStyle, CaptureAiStyle.adaptive);
+      provider.setAiStyle(CaptureAiStyle.counter);
+      expect(provider.aiStyle, CaptureAiStyle.adaptive);
+    });
+
+    test('territory mode sends only fully legal moves to AI runner', () async {
+      final board = List.generate(9, (_) => List.filled(9, StoneColor.empty));
+      board[0][1] = StoneColor.white;
+      board[1][0] = StoneColor.white;
+      final runner = _CapturingAiSearchRunner();
+
+      CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        gameMode: GameMode.territory,
+        initialMode: CaptureInitialMode.empty,
+        initialBoardOverride: board,
+        humanColor: StoneColor.white,
+        minMoveDelay: Duration.zero,
+        maxMoveDelay: Duration.zero,
+        runner: runner,
+      );
+
+      final params = await runner.paramsCompleter.future
+          .timeout(const Duration(seconds: 5));
+      final legalMoves = (params['legalMoves'] as List).cast<int>();
+      expect(legalMoves, isNot(contains(0)));
+    });
+
+    test('algorithm config id is sent to AI runner when configured', () async {
+      final runner = _CapturingAiSearchRunner();
+
+      CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.intermediate,
+        initialMode: CaptureInitialMode.empty,
+        humanColor: StoneColor.white,
+        minMoveDelay: Duration.zero,
+        maxMoveDelay: Duration.zero,
+        aiAlgorithmConfig:
+            AiAlgorithmRegistry.configById('mcts_counter_standard_v1'),
+        runner: runner,
+      );
+
+      final params = await runner.paramsCompleter.future
+          .timeout(const Duration(seconds: 5));
+      expect(params['algorithmConfigId'], 'mcts_counter_standard_v1');
+    });
+
+    test('KataGo config uses async ONNX adapter instead of AI runner',
+        () async {
+      final runner = _CapturingAiSearchRunner();
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.intermediate,
+        initialMode: CaptureInitialMode.empty,
+        humanColor: StoneColor.white,
+        minMoveDelay: Duration.zero,
+        maxMoveDelay: Duration.zero,
+        aiAlgorithmConfig:
+            AiAlgorithmRegistry.configById('katago_onnx_weak_v1'),
+        katagoModelAdapter: const _FakeKatagoAdapter(
+          move: BoardPosition(0, 0),
+        ),
+        runner: runner,
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(provider.moveLog, [
+        [0, 0],
+      ]);
+      expect(provider.aiFailureReason, isNull);
+      expect(runner.paramsCompleter.isCompleted, isFalse);
+    });
+
+    test('KataGo adapter failure is reported without fallback', () async {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.intermediate,
+        initialMode: CaptureInitialMode.empty,
+        humanColor: StoneColor.white,
+        minMoveDelay: Duration.zero,
+        maxMoveDelay: Duration.zero,
+        aiAlgorithmConfig:
+            AiAlgorithmRegistry.configById('katago_onnx_standard_v1'),
+        katagoModelAdapter: const _FakeKatagoAdapter(
+          failureReason: 'katago_test_model_unavailable',
+        ),
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(provider.moveLog, isEmpty);
+      expect(
+          provider.aiFailureReason, contains('katago_test_model_unavailable'));
+    });
   });
 
   group('SimBoard', () {
@@ -330,11 +563,14 @@ void main() {
   });
 
   group('CaptureGamePlayScreen', () {
-    testWidgets('switches AI style from the navigation bar', (tester) async {
+    testWidgets('operation menu reports selected AI algorithm config',
+        (tester) async {
       final provider = CaptureGameProvider(
         boardSize: 9,
         captureTarget: 5,
         difficulty: DifficultyLevel.beginner,
+        aiAlgorithmConfig:
+            AiAlgorithmRegistry.configById('mcts_counter_weak_v1'),
         minMoveDelay: Duration.zero,
       );
       final settings = SettingsProvider();
@@ -349,6 +585,7 @@ void main() {
             child: const CaptureGamePlayScreen(
               aiRank: AiRankLevel.min,
               captureTarget: 5,
+              gameMode: GameMode.capture,
             ),
           ),
         ),
@@ -361,16 +598,9 @@ void main() {
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      expect(find.text('AI 風格：${CaptureAiStyle.adaptive.label}'), findsOneWidget);
+      expect(find.text('AI 棋力：MCTS-1 · 快速试探'), findsOneWidget);
       expect(find.text('吃子預警：開'), findsOneWidget);
-
-      await tester.tap(find.text('AI 風格：${CaptureAiStyle.adaptive.label}'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('穩守 · 先補強自己，再等反擊'));
-      await tester.pumpAndSettle();
-
-      expect(provider.aiStyle, CaptureAiStyle.counter);
+      expect(find.text('切換 AI 風格'), findsNothing);
     });
 
     testWidgets('shows move coordinates above the board and highlights marks',
@@ -394,6 +624,7 @@ void main() {
             child: const CaptureGamePlayScreen(
               aiRank: AiRankLevel.min,
               captureTarget: 5,
+              gameMode: GameMode.capture,
               initialMode: CaptureInitialMode.setup,
             ),
           ),
@@ -402,7 +633,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('輪到你（黑棋）落子'), findsOneWidget);
-      expect(find.text('等待黑棋落子'), findsNothing);
+      expect(find.text('等待黑棋落子'), findsOneWidget);
       expect(find.text('落子紀錄：'), findsNothing);
       expect(find.text('操作'), findsOneWidget);
       expect(find.text('後退一手'), findsNothing);
@@ -413,34 +644,30 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('等待黑棋落子'), findsNothing);
-      expect(find.text('1 A1'), findsNothing);
-      expect(find.text('2 B2'), findsNothing);
+      expect(find.text('1九'), findsOneWidget);
+      expect(find.text('2八'), findsOneWidget);
       expect(find.text('紀錄'), findsNothing);
 
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      expect(find.text('顯示棋譜'), findsOneWidget);
+      expect(find.text('隱藏棋譜'), findsOneWidget);
 
-      await tester.tap(find.text('顯示棋譜'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('1 A1'), findsOneWidget);
-      expect(find.text('2 B2'), findsOneWidget);
+      expect(find.text('1九'), findsOneWidget);
+      expect(find.text('2八'), findsOneWidget);
       expect(
-        tester.widget<Text>(find.text('2 B2')).style?.fontWeight,
+        tester.widget<Text>(find.text('2八')).style?.fontWeight,
         FontWeight.w500,
       );
-
-      await tester.tap(find.text('操作'));
-      await tester.pumpAndSettle();
 
       await tester.tap(find.text('標記此手'));
       await tester.pumpAndSettle();
 
+      // 1.2.0: marking a move shows a ⭐ overlay instead of changing fontWeight.
+      expect(find.text('⭐'), findsOneWidget);
       expect(
-        tester.widget<Text>(find.text('2 B2')).style?.fontWeight,
-        FontWeight.w700,
+        tester.widget<Text>(find.text('2八')).style?.fontWeight,
+        FontWeight.w500,
       );
 
       await tester.tap(find.text('操作'));
@@ -450,11 +677,538 @@ void main() {
       expect(find.text('後退一手'), findsOneWidget);
       expect(find.text('提示一手'), findsOneWidget);
 
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('1九'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('最新'), findsOneWidget);
+      expect(find.text('分叉'), findsOneWidget);
+      expect(find.text('標記'), findsOneWidget);
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('標記此手'), findsOneWidget);
+      expect(find.text('取消標記此手'), findsNothing);
+
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('標記'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('⭐'), findsNWidgets(2));
+      expect(find.text('取消標記'), findsOneWidget);
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('取消標記此手'), findsOneWidget);
+
       await tester.tap(find.text('後退一手'));
       await tester.pumpAndSettle();
 
-      expect(find.text('1 A1'), findsOneWidget);
-      expect(find.text('2 B2'), findsNothing);
+      expect(find.text('1九'), findsOneWidget);
+      expect(find.text('2八'), findsNothing);
+    });
+
+    testWidgets('copies move log as text and SGF from operation menu',
+        (tester) async {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        minMoveDelay: Duration.zero,
+      );
+      final settings = SettingsProvider();
+      await settings.setBoardCoordinateSystem(
+        BoardCoordinateSystem.international,
+      );
+
+      final clipboardWrites = <String>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform,
+          (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          final payload = Map<String, dynamic>.from(call.arguments as Map);
+          clipboardWrites.add(payload['text'] as String? ?? '');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: const CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              gameMode: GameMode.capture,
+              initialMode: CaptureInitialMode.setup,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await provider.placeStone(8, 0);
+      await provider.placeStone(7, 1);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      expect(find.text('A1'), findsOneWidget);
+      expect(find.text('B2'), findsOneWidget);
+
+      expect(find.text('複製文字棋譜'), findsNothing);
+      expect(find.text('複製 SGF'), findsNothing);
+      expect(find.text('複製棋譜為文字'), findsOneWidget);
+      expect(find.text('複製棋譜為 SGF'), findsOneWidget);
+      await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(clipboardWrites.last, '01 B[A1]\n02 W[B2]\n');
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為 SGF'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(
+        clipboardWrites.last,
+        '(;FF[4]GM[1]SZ[9];B[ai];W[bh])',
+      );
+    });
+
+    testWidgets('copies initial position checkpoint before opening moves',
+        (tester) async {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.cross,
+        minMoveDelay: const Duration(seconds: 30),
+        maxMoveDelay: const Duration(seconds: 30),
+      );
+      final settings = SettingsProvider();
+
+      final clipboardWrites = <String>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform,
+          (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          final payload = Map<String, dynamic>.from(call.arguments as Map);
+          clipboardWrites.add(payload['text'] as String? ?? '');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: const CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              gameMode: GameMode.capture,
+              initialMode: CaptureInitialMode.cross,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(
+        clipboardWrites.last,
+        '01 B[5四]\n02 W[4五]\n03 B[5六]\n04 W[6五]\n---\n',
+      );
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為 SGF'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(
+        clipboardWrites.last,
+        '(;FF[4]GM[1]SZ[9]AB[ed][ef]AW[de][fe])',
+      );
+
+      await provider.placeStone(4, 4);
+      await tester.pump();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(
+        clipboardWrites.last,
+        '01 B[5四]\n02 W[4五]\n03 B[5六]\n04 W[6五]\n---\n05 B[5五]\n',
+      );
+    });
+
+    testWidgets('copies each opening type with the right initial move count',
+        (tester) async {
+      final clipboardWrites = <String>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform,
+          (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          final payload = Map<String, dynamic>.from(call.arguments as Map);
+          clipboardWrites.add(payload['text'] as String? ?? '');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      Future<void> pumpGame({
+        required CaptureGameProvider provider,
+        required CaptureInitialMode initialMode,
+        List<List<StoneColor>>? initialBoardOverride,
+      }) async {
+        final settings = SettingsProvider();
+        await tester.pumpWidget(
+          CupertinoApp(
+            home: MultiProvider(
+              providers: [
+                ChangeNotifierProvider.value(value: settings),
+                ChangeNotifierProvider.value(value: provider),
+              ],
+              child: CaptureGamePlayScreen(
+                aiRank: AiRankLevel.min,
+                captureTarget: 5,
+                gameMode: GameMode.capture,
+                initialMode: initialMode,
+                initialBoardOverride: initialBoardOverride,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> copyText() async {
+        await tester.tap(find.text('操作'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('複製棋譜為文字'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 1500));
+      }
+
+      final twistProvider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.twistCross,
+        minMoveDelay: const Duration(seconds: 30),
+        maxMoveDelay: const Duration(seconds: 30),
+      );
+      await pumpGame(
+        provider: twistProvider,
+        initialMode: CaptureInitialMode.twistCross,
+      );
+      await copyText();
+      expect(
+        clipboardWrites.last,
+        '01 B[5五]\n02 W[6五]\n03 B[6四]\n04 W[5四]\n---\n',
+      );
+
+      await twistProvider.placeStone(2, 2);
+      await tester.pump();
+      await copyText();
+      expect(
+        clipboardWrites.last,
+        '01 B[5五]\n02 W[6五]\n03 B[6四]\n04 W[5四]\n---\n05 B[3三]\n',
+      );
+
+      final customBoard = List.generate(
+        9,
+        (_) => List<StoneColor>.filled(9, StoneColor.empty),
+      );
+      customBoard[0][0] = StoneColor.black;
+      customBoard[0][1] = StoneColor.white;
+      customBoard[1][1] = StoneColor.black;
+      customBoard[1][2] = StoneColor.white;
+      final customProvider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        initialBoardOverride: customBoard,
+        minMoveDelay: Duration.zero,
+      );
+      await pumpGame(
+        provider: customProvider,
+        initialMode: CaptureInitialMode.setup,
+        initialBoardOverride: customBoard,
+      );
+      await copyText();
+      expect(
+        clipboardWrites.last,
+        '01 B[1一]\n02 W[2一]\n03 B[2二]\n04 W[3二]\n---\n',
+      );
+
+      final emptyProvider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.empty,
+        minMoveDelay: Duration.zero,
+      );
+      await pumpGame(
+        provider: emptyProvider,
+        initialMode: CaptureInitialMode.empty,
+      );
+      final writesBeforeDisabledCopy = clipboardWrites.length;
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pump();
+      expect(clipboardWrites.length, writesBeforeDisabledCopy);
+    });
+
+    testWidgets('copies forked move log with checkpoint and continued numbers',
+        (tester) async {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        minMoveDelay: Duration.zero,
+      );
+      final settings = SettingsProvider();
+
+      final clipboardWrites = <String>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform,
+          (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          final payload = Map<String, dynamic>.from(call.arguments as Map);
+          clipboardWrites.add(payload['text'] as String? ?? '');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: const CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              gameMode: GameMode.capture,
+              initialMode: CaptureInitialMode.setup,
+              inheritedMoves: [
+                [8, 0],
+                [7, 1],
+              ],
+              inheritedMarkedMoveNumbers: {1},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('1九'), findsOneWidget);
+      expect(find.text('2八'), findsOneWidget);
+      expect(find.text('⭐'), findsOneWidget);
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(clipboardWrites.last, '01 B[1九]\n02 W[2八]\n---\n');
+
+      await provider.placeStone(6, 2);
+      await provider.placeStone(5, 3);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為文字'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(
+        clipboardWrites.last,
+        '01 B[1九]\n02 W[2八]\n---\n03 B[3七]\n04 W[4六]\n',
+      );
+    });
+
+    testWidgets('copies SGF immediately after fork when inherited moves exist',
+        (tester) async {
+      final board = List.generate(
+        9,
+        (_) => List<StoneColor>.filled(9, StoneColor.empty),
+      );
+      board[8][0] = StoneColor.black;
+      board[7][1] = StoneColor.white;
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        initialBoardOverride: board,
+        minMoveDelay: Duration.zero,
+      );
+      final settings = SettingsProvider();
+
+      final clipboardWrites = <String>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform,
+          (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          final payload = Map<String, dynamic>.from(call.arguments as Map);
+          clipboardWrites.add(payload['text'] as String? ?? '');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              gameMode: GameMode.capture,
+              initialMode: CaptureInitialMode.setup,
+              initialBoardOverride: board,
+              inheritedMoves: [
+                [8, 0],
+                [7, 1],
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('複製棋譜為 SGF'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(clipboardWrites.last, '(;FF[4]GM[1]SZ[9]AB[ai]AW[bh])');
+    });
+
+    testWidgets('ripple animation runs before result dialog appears on win',
+        (tester) async {
+      // Build a 9×9 board where black can win immediately with captureTarget=1.
+      // White stone at (4,4) has three liberties blocked by black stones; the
+      // only remaining liberty is at (5,4).  Black plays there to capture the
+      // white stone, meeting captureTarget=1 and ending the game.
+      const boardSize = 9;
+      final board = List.generate(
+        boardSize,
+        (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
+      );
+      board[3][4] = StoneColor.black; // blocks north liberty of (4,4)
+      board[4][3] = StoneColor.black; // blocks west liberty of (4,4)
+      board[4][5] = StoneColor.black; // blocks east liberty of (4,4)
+      board[4][4] = StoneColor.white; // white stone with 1 liberty left
+
+      final provider = CaptureGameProvider(
+        boardSize: boardSize,
+        captureTarget: 1,
+        difficulty: DifficultyLevel.beginner,
+        initialBoardOverride: board,
+        minMoveDelay: Duration.zero,
+        maxMoveDelay: Duration.zero,
+      );
+      final settings = SettingsProvider();
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: CaptureGamePlayScreen(
+              aiRank: AiRankLevel.min,
+              captureTarget: 1,
+              gameMode: GameMode.capture,
+              initialBoardOverride: board,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Black places the capturing stone → game ends with blackWins.
+      await provider.placeStone(5, 4);
+
+      // First pump: widget rebuilds with isFinished=true, registering the
+      // post-frame callback that starts the ripple animation.
+      await tester.pump();
+      // Second pump: post-frame callback fires, ripple animation begins and
+      // _rippleMove is set.
+      await tester.pump();
+
+      // Dialog must NOT appear while the animation is in progress.
+      expect(find.text('勝利'), findsNothing);
+      expect(find.text('未獲勝'), findsNothing);
+
+      // Advance to just before the 2 000 ms animation ends – no dialog yet.
+      await tester.pump(const Duration(milliseconds: 1900));
+      expect(find.text('勝利'), findsNothing);
+
+      // Cross the 2 000 ms threshold; the animation completes and the dialog
+      // is shown in the same async continuation.
+      await tester.pump(const Duration(milliseconds: 200));
+      // Let the dialog route build and its entry animation complete.
+      await tester.pumpAndSettle();
+
+      // The result dialog must now be visible.
+      expect(find.text('勝利'), findsOneWidget);
     });
   });
 }
