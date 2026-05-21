@@ -1,6 +1,10 @@
 # Go Puzzle
 
-Go Puzzle is a Flutter app for practicing Go tactics through daily puzzles and focused skill training. It uses an iOS-style Cupertino interface and includes an interactive board for placing stones, undoing moves, viewing hints, and tracking captures.
+Go Puzzle is a Flutter app for practicing Go tactics through daily puzzles,
+focused skill training, and capture-go games against configurable AI opponents.
+It uses an iOS-style Cupertino interface and includes an interactive board for
+placing stones, undoing moves, viewing hints, reviewing game records, and
+tracking captures.
 
 ## Features
 
@@ -27,12 +31,42 @@ The training library groups puzzles by tactical pattern:
 - Optional hints and move numbers.
 - Sound and haptic feedback controls.
 
+### AI Play
+- Capture-go games against named AI opponents.
+- Multiple AI families and strength tiers exposed through stable algorithm
+  config IDs.
+- Preset openings such as empty, cross, and twist-cross for repeatable practice
+  and evaluation.
+- Move-log copy and SGF/text export for reviewing positions and reproducing
+  tactical failures.
+
+### Evaluation Tools
+- Headless AI arena for repeatable pairwise matches and full strength matrices.
+- Board-size-specific runs for 9x9, 13x13, and 19x19 capture-go experiments.
+- Validation gates for illegal moves, decision timeouts, fallback use, failed
+  inference, and malformed repeated-game cells.
+- Tracked AI evaluation artifacts under `docs/ai_eval/` and compact ladder
+  snapshots under `docs/ai_arena/`.
+
 ## Technical Overview
 
 - **Flutter** with Cupertino widgets for an iOS-oriented experience.
 - **Provider** for app and game state.
 - **CustomPainter** for board rendering, including wood texture, stone styling, and atari markers.
 - Go rule handling for liberties, captures, ko, suicide checks, and undo.
+- Capture-go AI configs for heuristic, MCTS, hybrid tactical, and KataGo ONNX
+  opponents.
+- Native/headless evaluation tooling for reproducible AI strength runs.
+
+## Project Guide
+
+- Product features and app behavior are summarized in this README.
+- Capture-go AI algorithm details live in
+  [Capture AI Algorithms](docs/kb/capture-ai-algorithms.md).
+- Arena run terms and ladder workflow live in
+  [AI Arena Runner](docs/kb/ai-arena-runner.md).
+- Detailed tuning history and evaluation artifacts live in
+  [Capture AI Framework Tuning Notes](docs/ai_eval/capture-ai-framework-tuning-notes.md).
 
 ## Development
 
