@@ -111,5 +111,36 @@ void main() {
         reason: 'Chosen move must be legal on the board',
       );
     });
+
+    test('advanced hunter blocks a multi-stone immediate target capture', () {
+      final board = SimBoard(9, captureTarget: 5);
+      board.capturedByWhite = 1;
+      for (final stone in const [
+        (1, 1, SimBoard.black),
+        (1, 2, SimBoard.black),
+        (2, 1, SimBoard.black),
+        (2, 2, SimBoard.black),
+        (0, 1, SimBoard.white),
+        (0, 2, SimBoard.white),
+        (1, 0, SimBoard.white),
+        (1, 3, SimBoard.white),
+        (2, 0, SimBoard.white),
+        (2, 3, SimBoard.white),
+        (3, 1, SimBoard.white),
+      ]) {
+        board.cells[board.idx(stone.$1, stone.$2)] = stone.$3;
+      }
+      board.currentPlayer = SimBoard.black;
+
+      final agent = CaptureAiRegistry.create(
+        style: CaptureAiStyle.hunter,
+        difficulty: DifficultyLevel.advanced,
+      );
+      final move = agent.chooseMove(board);
+
+      expect(move, isNotNull);
+      expect(move!.position.row, 3);
+      expect(move.position.col, 2);
+    });
   });
 }
