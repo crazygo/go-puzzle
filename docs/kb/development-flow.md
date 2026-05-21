@@ -52,16 +52,24 @@ Enable web support and build a release artifact:
 
 ```bash
 flutter config --enable-web
+bash scripts/compile-web-worker.sh
 flutter build web --release --no-wasm-dry-run
 ```
 
 For GitHub Pages, the workflow builds with:
 
 ```bash
+bash scripts/compile-web-worker.sh
 flutter build web --release --no-wasm-dry-run --base-href /go-puzzle/
 ```
 
 The output is written to `build/web/`.
+
+`scripts/compile-web-worker.sh` is required for local web builds that use AI
+opponents. The main Flutter build does not compile `web/ai_search_worker.dart`
+by itself; it only copies the generated `web/ai_search_worker.dart.js` into
+`build/web/`. If that file is missing, MCTS/heuristic AI turns fail in the
+browser as `Web Worker error`.
 
 ## iOS Build
 

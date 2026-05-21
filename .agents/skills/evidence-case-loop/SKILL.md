@@ -102,9 +102,15 @@ other concrete evidence.
 For Flutter Web evidence in this repo, prefer release static output:
 
 ```sh
+bash scripts/compile-web-worker.sh
 flutter build web --release
 python3 -m http.server 8080 --bind 0.0.0.0 --directory build/web
 ```
+
+The AI search worker is a separate Dart entrypoint. If
+`build/web/ai_search_worker.dart.js` is missing, MCTS/heuristic web AI turns
+will fail as a browser `Web Worker error` even when the main Flutter app renders
+correctly.
 
 Avoid using `flutter run -d web-server` as the default browser proof path. It
 can serve a debug/DWDS page that ordinary Chrome or a phone opens as a blank
