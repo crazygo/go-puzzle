@@ -35,6 +35,9 @@ Future<void> main(List<String> args) async {
   final endCellOpt = int.tryParse(opts['end-cell'] ?? '');
   final outPath = opts['out'] ??
       'docs/ai_eval/runs/2026-05-19-headless-full-matrix-arena-probe.json';
+  final progressIntervalSeconds =
+      int.tryParse(opts['progress-interval-seconds'] ?? '30') ?? 30;
+  final scheduling = opts['scheduling'] ?? 'dynamic';
   final policyPlane = int.tryParse(opts['policy-plane'] ?? '0') ?? 0;
   final configIds = (opts['configs'] ?? '')
       .split(',')
@@ -51,6 +54,11 @@ Future<void> main(List<String> args) async {
   }
   if (boardSizes.isEmpty) {
     stderr.writeln('ERROR: --board-size/--board-sizes must include a value.');
+    exitCode = 2;
+    return;
+  }
+  if (scheduling != 'dynamic' && scheduling != 'fixed') {
+    stderr.writeln('ERROR: --scheduling must be dynamic or fixed.');
     exitCode = 2;
     return;
   }
@@ -74,9 +82,55 @@ Future<void> main(List<String> args) async {
     return;
   }
 
+  final runStartedAt = DateTime.now();
+  final progressDir = Directory(
+    '.cache/ai_eval_progress/${_progressRunId(outPath)}',
+  );
+  if (progressDir.existsSync()) progressDir.deleteSync(recursive: true);
+  progressDir.createSync(recursive: true);
+  final queueCursorPath = '${progressDir.path}/queue-cursor.txt';
+  final queueLockPath = '${progressDir.path}/queue.lock';
+  if (scheduling == 'dynamic') {
+    File(queueCursorPath).writeAsStringSync('0');
+  }
+
   final buckets = List.generate(workers, (_) => <_CellPlan>[]);
-  for (var i = 0; i < selected.length; i++) {
-    buckets[i % workers].add(selected[i]);
+  if (scheduling == 'fixed') {
+    for (var i = 0; i < selected.length; i++) {
+      buckets[i % workers].add(selected[i]);
+    }
+  } else {
+    for (var workerIndex = 0; workerIndex < workers; workerIndex++) {
+      buckets[workerIndex] = selected;
+    }
+  }
+  for (var workerIndex = 0; workerIndex < buckets.length; workerIndex++) {
+    final assigned =
+        scheduling == 'dynamic' ? selected.length : buckets[workerIndex].length;
+    _writeWorkerProgress(
+      progressDir: progressDir.path,
+      workerIndex: workerIndex,
+      completed: 0,
+      assigned: assigned,
+      status: assigned == 0 ? 'idle' : 'queued',
+    );
+  }
+  Timer? progressTimer;
+  if (progressIntervalSeconds > 0) {
+    _printProgress(
+      progressDir: progressDir,
+      totalCells: selected.length,
+      startedAt: runStartedAt,
+      force: true,
+    );
+    progressTimer = Timer.periodic(
+      Duration(seconds: progressIntervalSeconds),
+      (_) => _printProgress(
+        progressDir: progressDir,
+        totalCells: selected.length,
+        startedAt: runStartedAt,
+      ),
+    );
   }
 
   final futures = <Future<List<Map<String, Object?>>>>[];
@@ -88,11 +142,28 @@ Future<void> main(List<String> args) async {
         workerIndex: workerIndex,
         policyPlane: policyPlane,
         cells: bucket,
+        progressDir: progressDir.path,
+        scheduling: scheduling,
+        queueCursorPath: scheduling == 'dynamic' ? queueCursorPath : null,
+        queueLockPath: scheduling == 'dynamic' ? queueLockPath : null,
+        assignedCells:
+            scheduling == 'dynamic' ? selected.length : bucket.length,
       )),
     ));
   }
 
-  final workerResults = await Future.wait(futures);
+  late final List<List<Map<String, Object?>>> workerResults;
+  try {
+    workerResults = await Future.wait(futures);
+  } finally {
+    progressTimer?.cancel();
+    _printProgress(
+      progressDir: progressDir,
+      totalCells: selected.length,
+      startedAt: runStartedAt,
+      force: true,
+    );
+  }
   final matrixCells = workerResults.expand((cells) => cells).toList()
     ..sort((a, b) => (a['index']! as int).compareTo(b['index']! as int));
   final output = _mergedOutput(
@@ -109,20 +180,51 @@ Future<void> main(List<String> args) async {
     totalCells: cells.length,
     selectedCells: matrixCells,
     workers: workers,
+    scheduling: scheduling,
     policyPlane: policyPlane,
   );
-  _validateMerged(output);
   final file = File(outPath);
   await file.parent.create(recursive: true);
   await file.writeAsString(const JsonEncoder.withIndent('  ').convert(output));
+  try {
+    _validateMerged(output);
+  } catch (_) {
+    print('WROTE FAILED ARTIFACT $outPath');
+    rethrow;
+  }
   print('WROTE $outPath');
 }
 
 Future<List<Map<String, Object?>>> _runWorker(_WorkerRequest request) async {
   final adapter = NodeKatagoOnnxModelAdapter(policyPlane: request.policyPlane);
+  var completed = 0;
   try {
     final cells = <Map<String, Object?>>[];
-    for (final cell in request.cells) {
+    _writeWorkerProgress(
+      progressDir: request.progressDir,
+      workerIndex: request.workerIndex,
+      completed: completed,
+      assigned: request.assignedCells,
+      status: 'running',
+    );
+    var fixedIndex = 0;
+    while (true) {
+      final cell = request.scheduling == 'dynamic'
+          ? _takeNextQueuedCell(request)
+          : fixedIndex < request.cells.length
+              ? request.cells[fixedIndex++]
+              : null;
+      if (cell == null) break;
+      final cellStartedAt = DateTime.now();
+      final cellStopwatch = Stopwatch()..start();
+      _writeWorkerProgress(
+        progressDir: request.progressDir,
+        workerIndex: request.workerIndex,
+        completed: completed,
+        assigned: request.assignedCells,
+        status: 'running',
+        currentCell: cell,
+      );
       final executor = AiArenaExecutor(
         boardSize: cell.boardSize,
         captureTarget: cell.captureTarget,
@@ -138,16 +240,166 @@ Future<List<Map<String, Object?>>> _runWorker(_WorkerRequest request) async {
         alternateColors: false,
         asyncKatagoModelAdapter: adapter,
       );
+      cellStopwatch.stop();
       cells.add(_cellJson(
         plan: cell,
         match: match,
         workerIndex: request.workerIndex,
+        startedAt: cellStartedAt,
+        elapsed: cellStopwatch.elapsed,
       ));
+      completed++;
+      _writeWorkerProgress(
+        progressDir: request.progressDir,
+        workerIndex: request.workerIndex,
+        completed: completed,
+        assigned: request.assignedCells,
+        status: 'running',
+        currentCell: cell,
+      );
     }
+    _writeWorkerProgress(
+      progressDir: request.progressDir,
+      workerIndex: request.workerIndex,
+      completed: completed,
+      assigned: request.assignedCells,
+      status: 'done',
+    );
     return cells;
+  } catch (error) {
+    _writeWorkerProgress(
+      progressDir: request.progressDir,
+      workerIndex: request.workerIndex,
+      completed: completed,
+      assigned: request.assignedCells,
+      status: 'error',
+      error: '$error',
+    );
+    rethrow;
   } finally {
     await adapter.close();
   }
+}
+
+_CellPlan? _takeNextQueuedCell(_WorkerRequest request) {
+  final cursorPath = request.queueCursorPath;
+  final lockPath = request.queueLockPath;
+  if (cursorPath == null || lockPath == null) return null;
+  final lock = File(lockPath);
+  while (true) {
+    try {
+      lock.createSync(exclusive: true);
+      break;
+    } on FileSystemException {
+      sleep(const Duration(milliseconds: 10));
+    }
+  }
+  try {
+    final cursorFile = File(cursorPath);
+    final raw = cursorFile.existsSync() ? cursorFile.readAsStringSync() : '0';
+    final next = int.tryParse(raw.trim()) ?? 0;
+    if (next >= request.cells.length) return null;
+    cursorFile.writeAsStringSync('${next + 1}');
+    return request.cells[next];
+  } finally {
+    try {
+      lock.deleteSync();
+    } on FileSystemException {
+      // The next worker will retry if the lock is still present.
+    }
+  }
+}
+
+String _progressRunId(String outPath) {
+  final basename = outPath.split(Platform.pathSeparator).last;
+  return basename.replaceAll(RegExp(r'[^A-Za-z0-9_.-]'), '_');
+}
+
+void _writeWorkerProgress({
+  required String progressDir,
+  required int workerIndex,
+  required int completed,
+  required int assigned,
+  required String status,
+  _CellPlan? currentCell,
+  String? error,
+}) {
+  final file = File('$progressDir/worker-$workerIndex.json');
+  file.writeAsStringSync(jsonEncode({
+    'workerIndex': workerIndex,
+    'completed': completed,
+    'assigned': assigned,
+    'status': status,
+    'updatedAt': DateTime.now().toIso8601String(),
+    if (currentCell != null) ...{
+      'currentCell': currentCell.index,
+      'boardSize': currentCell.boardSize,
+      'opening': currentCell.openingName,
+      'firstConfigId': currentCell.firstConfigId,
+      'secondConfigId': currentCell.secondConfigId,
+    },
+    if (error != null) 'error': error,
+  }));
+}
+
+void _printProgress({
+  required Directory progressDir,
+  required int totalCells,
+  required DateTime startedAt,
+  bool force = false,
+}) {
+  if (!progressDir.existsSync()) return;
+  final statuses = progressDir
+      .listSync()
+      .whereType<File>()
+      .where((file) => file.path.endsWith('.json'))
+      .map((file) {
+        try {
+          return jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+        } catch (_) {
+          return <String, dynamic>{};
+        }
+      })
+      .where((json) => json.isNotEmpty)
+      .toList()
+    ..sort(
+        (a, b) => (a['workerIndex'] as int).compareTo(b['workerIndex'] as int));
+  if (statuses.isEmpty) return;
+
+  final completed = statuses.fold<int>(
+    0,
+    (sum, status) => sum + (status['completed'] as int? ?? 0),
+  );
+  final percent = totalCells == 0 ? 100.0 : completed * 100.0 / totalCells;
+  final elapsed = DateTime.now().difference(startedAt);
+  final workerText = statuses.map((status) {
+    final worker = status['workerIndex'];
+    final done = status['completed'];
+    final assigned = status['assigned'];
+    final state = status['status'];
+    final cell = status['currentCell'];
+    final opening = status['opening'];
+    final first = status['firstConfigId'];
+    final second = status['secondConfigId'];
+    final current = cell == null ? '' : ' cell=$cell $opening $first>$second';
+    return 'w$worker $done/$assigned $state$current';
+  }).join(' | ');
+
+  final label = completed >= totalCells ? 'PROGRESS done' : 'PROGRESS';
+  if (force || completed < totalCells) {
+    print(
+      '$label total=$completed/$totalCells '
+      '(${percent.toStringAsFixed(1)}%) '
+      'elapsed=${_formatElapsed(elapsed)} :: $workerText',
+    );
+  }
+}
+
+String _formatElapsed(Duration duration) {
+  final hours = duration.inHours;
+  final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
 }
 
 class NodeKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
@@ -345,6 +597,8 @@ Map<String, Object?> _cellJson({
   required _CellPlan plan,
   required AiMatchResult match,
   required int workerIndex,
+  required DateTime startedAt,
+  required Duration elapsed,
 }) {
   final failureReasons = match.games
       .map((game) => game.failureReason)
@@ -355,6 +609,9 @@ Map<String, Object?> _cellJson({
   return {
     'index': plan.index,
     'workerIndex': workerIndex,
+    'startedAt': startedAt.toIso8601String(),
+    'finishedAt': startedAt.add(elapsed).toIso8601String(),
+    'elapsedMillis': elapsed.inMilliseconds,
     'boardSize': plan.boardSize,
     'pairId': _pairId(plan.firstConfigId, plan.secondConfigId),
     'opening': plan.openingName,
@@ -388,6 +645,7 @@ Map<String, Object?> _mergedOutput({
   required int totalCells,
   required List<Map<String, Object?>> selectedCells,
   required int workers,
+  required String scheduling,
   required int policyPlane,
 }) {
   final metadata = {
@@ -412,6 +670,7 @@ Map<String, Object?> _mergedOutput({
     'captureTarget': captureTarget,
     'maxMoves': maxMoves,
     'workers': workers,
+    'scheduling': scheduling,
     'katagoBackend': 'node_onnxruntime',
     'policyPlane': policyPlane,
   };
@@ -748,11 +1007,21 @@ class _WorkerRequest {
     required this.workerIndex,
     required this.policyPlane,
     required this.cells,
+    required this.progressDir,
+    required this.scheduling,
+    required this.queueCursorPath,
+    required this.queueLockPath,
+    required this.assignedCells,
   });
 
   final int workerIndex;
   final int policyPlane;
   final List<_CellPlan> cells;
+  final String progressDir;
+  final String scheduling;
+  final String? queueCursorPath;
+  final String? queueLockPath;
+  final int assignedCells;
 }
 
 class _CellPlan {

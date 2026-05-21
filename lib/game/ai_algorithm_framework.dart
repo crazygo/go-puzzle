@@ -372,13 +372,21 @@ class AiAlgorithmRegistry {
       'style': 'counter',
       'difficulty': 'intermediate',
       'heuristicPlayouts': 12,
-      'mctsPlayouts': 24,
-      'mctsRolloutDepth': 14,
+      'mctsPlayouts': 4,
+      'mctsRolloutDepth': 4,
+      'mctsCandidateLimit': 4,
+      'rolloutTemperature': 8.0,
       'randomLegalMoveRate': 0.20,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,
       difficulty: DifficultyLevel.intermediate,
+    ).copyWith(
+      heuristicPlayouts: 12,
+      mctsPlayouts: 4,
+      mctsRolloutDepth: 4,
+      mctsCandidateLimit: 4,
+      rolloutTemperature: 8.0,
     ),
   );
 
@@ -753,7 +761,8 @@ double _captureSearchScore(
   var score = ownCaptureDelta * 1200.0 +
       analysis.opponentAtariStones * 80.0 +
       analysis.ownRescuedStones * 35.0 +
-      scoreCriticalOwnGroupDefense(board, moveIndex, analysis) +
+      scoreCriticalOwnGroupDefense(board, moveIndex, analysis) -
+      scoreDoomedAtariExtensionPenalty(board, moveIndex, analysis) +
       analysis.adjacentOpponentStones * 12.0 +
       analysis.libertiesAfterMove * 4.0 +
       analysis.centerProximityScore.toDouble();

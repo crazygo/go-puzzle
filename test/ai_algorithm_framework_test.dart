@@ -192,6 +192,66 @@ void main() {
         );
       }
     });
+
+    test('doomed rescue scorer flags the twist ladder entry move', () {
+      final board = _twistLadderCaseAfterBlackI5();
+      final moveIndex = _sgfIndex(board.size, 'jf'); // J6
+      final analysis = board.analyzeMove(
+        moveIndex ~/ board.size,
+        moveIndex % board.size,
+      );
+
+      expect(analysis.isLegal, isTrue);
+      expect(
+        scoreDoomedAtariExtensionPenalty(board, moveIndex, analysis),
+        greaterThan(0),
+        reason: 'J6 saves the I6 stone, but Black can keep the group in atari '
+            'until M3 captures a seven-stone chain.',
+      );
+    });
+
+    test('doomed rescue scorer does not penalize the required lower defense',
+        () {
+      final board = _sadakoLadderCaseAfterBlackG12();
+      for (final point in const ['fk', 'hk']) {
+        final moveIndex = _sgfIndex(board.size, point);
+        final analysis = board.analyzeMove(
+          moveIndex ~/ board.size,
+          moveIndex % board.size,
+        );
+
+        expect(analysis.isLegal, isTrue, reason: point);
+        expect(
+          scoreDoomedAtariExtensionPenalty(board, moveIndex, analysis),
+          0,
+          reason: '$point is a required defense, not a doomed rescue.',
+        );
+        expect(
+          scoreCriticalOwnGroupDefense(board, moveIndex, analysis),
+          greaterThan(0),
+          reason: '$point should still receive the positive defense signal.',
+        );
+      }
+    });
+
+    test('mcts standard avoids extending a doomed twist ladder chain', () {
+      final board = _twistLadderCaseAfterBlackI5();
+      final config = AiAlgorithmRegistry.configById('mcts_counter_standard_v1');
+      final agent = AiAlgorithmRegistry.createAgent(config);
+
+      final move = agent.chooseMove(board);
+
+      expect(move, isNotNull);
+      final moveIndex = board.idx(move!.position.row, move.position.col);
+      expect(
+        moveIndex,
+        isNot(_sgfIndex(board.size, 'jf')), // J6
+        reason:
+            'White J6 starts saving the atari stone at I6, which lets Black '
+            'force K6, J5, J4, K3, L4, M4, L3, L2 and eventually M3 to '
+            'capture a seven-stone chain.',
+      );
+    });
   });
 }
 
@@ -233,6 +293,48 @@ SimBoard _sadakoLadderCaseAfterBlackG12() {
     (SimBoard.black, 'fj'),
     (SimBoard.white, 'gk'),
     (SimBoard.black, 'gl'),
+  ];
+
+  for (final move in moves) {
+    final moveIndex = _sgfIndex(board.size, move.$2);
+    expect(board.currentPlayer, move.$1, reason: 'before ${move.$2}');
+    expect(
+      board.applyMove(moveIndex ~/ board.size, moveIndex % board.size),
+      isTrue,
+      reason: move.$2,
+    );
+  }
+  return board;
+}
+
+SimBoard _twistLadderCaseAfterBlackI5() {
+  final board = SimBoard(13, captureTarget: 5);
+  for (final point in ['gf', 'gh']) {
+    board.cells[_sgfIndex(board.size, point)] = SimBoard.black;
+  }
+  for (final point in ['fg', 'hg']) {
+    board.cells[_sgfIndex(board.size, point)] = SimBoard.white;
+  }
+  board.currentPlayer = SimBoard.black;
+
+  final moves = <(int, String)>[
+    (SimBoard.black, 'hf'),
+    (SimBoard.white, 'gg'),
+    (SimBoard.black, 'ig'),
+    (SimBoard.white, 'ff'),
+    (SimBoard.black, 'fe'),
+    (SimBoard.white, 'fh'),
+    (SimBoard.black, 'ef'),
+    (SimBoard.white, 'hh'),
+    (SimBoard.black, 'gi'),
+    (SimBoard.white, 'ih'),
+    (SimBoard.black, 'jh'),
+    (SimBoard.white, 'if'),
+    (SimBoard.black, 'jg'),
+    (SimBoard.white, 'ge'),
+    (SimBoard.black, 'he'),
+    (SimBoard.white, 'gd'),
+    (SimBoard.black, 'ie'),
   ];
 
   for (final move in moves) {

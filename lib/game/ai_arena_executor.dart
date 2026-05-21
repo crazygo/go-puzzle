@@ -608,7 +608,7 @@ String? _failureReason(CaptureAiMatchEndReason endReason) {
     CaptureAiMatchEndReason.captureTargetReached => null,
     CaptureAiMatchEndReason.noLegalMove => 'agent_returned_no_legal_move',
     CaptureAiMatchEndReason.invalidMove => 'agent_returned_invalid_move',
-    CaptureAiMatchEndReason.maxMovesReached => 'max_moves_reached',
+    CaptureAiMatchEndReason.maxMovesReached => null,
     CaptureAiMatchEndReason.decisionTimeout => 'decision_timeout',
   };
 }
@@ -758,8 +758,7 @@ bool _hasLegalMove(SimBoard board) {
 }
 
 bool _isTimeout(CaptureAiMatchEndReason endReason) {
-  return endReason == CaptureAiMatchEndReason.maxMovesReached ||
-      endReason == CaptureAiMatchEndReason.decisionTimeout;
+  return endReason == CaptureAiMatchEndReason.decisionTimeout;
 }
 
 String? _frameworkFailureReason(

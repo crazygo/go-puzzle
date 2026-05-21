@@ -27,6 +27,11 @@
 - **Opening**: The predefined initial board state or move sequence used as part of a Cell's fixed conditions.
 - **First-player direction**: Which config in the Pair is assigned to move first for the Cell, represented by `firstConfig`.
 
+## Long-running validation
+- Use subagents for long-running tests and evaluations such as full AI arena matrices, large Flutter test suites, browser evidence loops, and other validation runs that can block the main agent for minutes.
+- Keep the main agent available for coordination, code review, artifact inspection, and next-step decisions while subagents run the heavy commands.
+- The main agent may run short focused checks directly, but should avoid occupying itself with long full-suite or full-matrix commands when a subagent can execute them independently.
+
 ## Planning
 - When an implementation plan is requested, write it in English and include these sections in order:
     1. **Background**: Substructured into **Context** (current state), **Problem** (limitations/pain points), and **Motivation** (why this change is valuable).

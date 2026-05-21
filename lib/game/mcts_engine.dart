@@ -98,6 +98,216 @@ double scoreCriticalOwnGroupDefense(
   return score;
 }
 
+double scoreDoomedAtariExtensionPenalty(
+  SimBoard board,
+  int moveIndex,
+  SimMoveAnalysis analysis,
+) {
+  if (!analysis.isLegal) return 0;
+  final player = board.currentPlayer;
+  final ownCaptureDelta = player == SimBoard.black
+      ? analysis.blackCaptureDelta
+      : analysis.whiteCaptureDelta;
+  if (ownCaptureDelta > 0) return 0;
+
+  var largestSavedGroupSize = 0;
+  var anchor = -1;
+  for (final group in board.groupsForPlayer(player)) {
+    if (group.libertyCount != 1 || !group.liberties.contains(moveIndex)) {
+      continue;
+    }
+    if (group.size > largestSavedGroupSize) {
+      largestSavedGroupSize = group.size;
+      anchor = group.stones.first;
+    }
+  }
+  if (anchor < 0) return 0;
+
+  final probe = SimBoard.copy(board);
+  if (!probe.applyMove(moveIndex ~/ board.size, moveIndex % board.size)) {
+    return 0;
+  }
+  if (probe.cells[anchor] != player) return 0;
+  var targetGroup = probe.groupAtIndex(anchor);
+  var targetLiberties = probe.libertiesForGroup(targetGroup);
+  if (targetLiberties.length > 2) return 0;
+
+  final outcome = _simulateAtariChase(
+    probe,
+    anchor: anchor,
+    targetPlayer: player,
+    depth: math.min(board.size + 4, 18),
+  );
+
+  final dangerousSize = math.max(
+    outcome.capturedTargetSize,
+    math.max(outcome.maxGroupSize, largestSavedGroupSize),
+  );
+  if (outcome.capturedTargetSize >= board.captureTarget) {
+    return 3600.0 + outcome.capturedTargetSize * 420.0;
+  }
+  if (outcome.forcedRescues >= 2 &&
+      dangerousSize >= board.captureTarget &&
+      outcome.finalLiberties <= 2) {
+    return 2200.0 + dangerousSize * 260.0 + outcome.forcedRescues * 180.0;
+  }
+  return 0;
+}
+
+_AtariChaseOutcome _simulateAtariChase(
+  SimBoard board, {
+  required int anchor,
+  required int targetPlayer,
+  required int depth,
+  int forcedRescues = 0,
+}) {
+  if (board.cells[anchor] != targetPlayer) {
+    return _AtariChaseOutcome(
+      capturedTargetSize: 0,
+      maxGroupSize: 0,
+      forcedRescues: forcedRescues,
+      finalLiberties: 0,
+    );
+  }
+  final targetGroup = board.groupAtIndex(anchor);
+  final targetLiberties = board.libertiesForGroup(targetGroup);
+  if (depth <= 0 || targetLiberties.length > 2) {
+    return _AtariChaseOutcome(
+      capturedTargetSize: 0,
+      maxGroupSize: targetGroup.length,
+      forcedRescues: forcedRescues,
+      finalLiberties: targetLiberties.length,
+    );
+  }
+
+  if (board.currentPlayer == targetPlayer) {
+    if (targetLiberties.length != 1) {
+      return _AtariChaseOutcome(
+        capturedTargetSize: 0,
+        maxGroupSize: targetGroup.length,
+        forcedRescues: forcedRescues,
+        finalLiberties: targetLiberties.length,
+      );
+    }
+    final move = targetLiberties.first;
+    final beforeCaptures = targetPlayer == SimBoard.black
+        ? board.capturedByBlack
+        : board.capturedByWhite;
+    final rescue = SimBoard.copy(board);
+    if (!rescue.applyMove(move ~/ rescue.size, move % rescue.size)) {
+      return _AtariChaseOutcome(
+        capturedTargetSize: targetGroup.length,
+        maxGroupSize: targetGroup.length,
+        forcedRescues: forcedRescues,
+        finalLiberties: 0,
+      );
+    }
+    final afterCaptures = targetPlayer == SimBoard.black
+        ? rescue.capturedByBlack
+        : rescue.capturedByWhite;
+    if (afterCaptures - beforeCaptures >= rescue.captureTarget) {
+      return _AtariChaseOutcome(
+        capturedTargetSize: 0,
+        maxGroupSize: targetGroup.length,
+        forcedRescues: forcedRescues,
+        finalLiberties: 99,
+      );
+    }
+    final outcome = _simulateAtariChase(
+      rescue,
+      anchor: anchor,
+      targetPlayer: targetPlayer,
+      depth: depth - 1,
+      forcedRescues: forcedRescues + 1,
+    );
+    return outcome.copyWith(
+      maxGroupSize: math.max(outcome.maxGroupSize, targetGroup.length),
+    );
+  }
+
+  _AtariChaseOutcome? best;
+  for (final liberty in targetLiberties) {
+    final probe = SimBoard.copy(board);
+    if (!probe.applyMove(liberty ~/ board.size, liberty % board.size)) {
+      continue;
+    }
+    final capturedSize =
+        probe.cells[anchor] == targetPlayer ? 0 : targetGroup.length;
+    final libertiesAfter = capturedSize > 0
+        ? 0
+        : probe.libertiesForGroup(probe.groupAtIndex(anchor)).length;
+    if (capturedSize == 0 && libertiesAfter > 1) continue;
+    final result = capturedSize > 0
+        ? _AtariChaseOutcome(
+            capturedTargetSize: capturedSize,
+            maxGroupSize: targetGroup.length,
+            forcedRescues: forcedRescues,
+            finalLiberties: 0,
+          )
+        : _simulateAtariChase(
+            probe,
+            anchor: anchor,
+            targetPlayer: targetPlayer,
+            depth: depth - 1,
+            forcedRescues: forcedRescues,
+          );
+    final normalized = result.copyWith(
+      maxGroupSize: math.max(result.maxGroupSize, targetGroup.length),
+    );
+    if (best == null || normalized.isWorseThan(best)) {
+      best = normalized;
+    }
+  }
+  return best ??
+      _AtariChaseOutcome(
+        capturedTargetSize: 0,
+        maxGroupSize: targetGroup.length,
+        forcedRescues: forcedRescues,
+        finalLiberties: targetLiberties.length,
+      );
+}
+
+class _AtariChaseOutcome {
+  const _AtariChaseOutcome({
+    required this.capturedTargetSize,
+    required this.maxGroupSize,
+    required this.forcedRescues,
+    required this.finalLiberties,
+  });
+
+  final int capturedTargetSize;
+  final int maxGroupSize;
+  final int forcedRescues;
+  final int finalLiberties;
+
+  _AtariChaseOutcome copyWith({
+    int? capturedTargetSize,
+    int? maxGroupSize,
+    int? forcedRescues,
+    int? finalLiberties,
+  }) {
+    return _AtariChaseOutcome(
+      capturedTargetSize: capturedTargetSize ?? this.capturedTargetSize,
+      maxGroupSize: maxGroupSize ?? this.maxGroupSize,
+      forcedRescues: forcedRescues ?? this.forcedRescues,
+      finalLiberties: finalLiberties ?? this.finalLiberties,
+    );
+  }
+
+  bool isWorseThan(_AtariChaseOutcome other) {
+    if (capturedTargetSize != other.capturedTargetSize) {
+      return capturedTargetSize > other.capturedTargetSize;
+    }
+    if (maxGroupSize != other.maxGroupSize) {
+      return maxGroupSize > other.maxGroupSize;
+    }
+    if (forcedRescues != other.forcedRescues) {
+      return forcedRescues > other.forcedRescues;
+    }
+    return finalLiberties < other.finalLiberties;
+  }
+}
+
 /// Lightweight flat-array board for MCTS simulations.
 /// Uses integers instead of enums for speed.
 class SimBoard {
