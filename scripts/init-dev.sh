@@ -26,8 +26,41 @@ TOOLS_DIR="${HOME}/.local/tools"
 BIN_DIR="${HOME}/.local/bin"
 CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/init-dev"
 FLUTTER_VERSION="${FLUTTER_VERSION:-3.41.7}"
-FLUTTER_ARCHIVE="flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
-DEFAULT_DIST_URL="https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/${FLUTTER_ARCHIVE}"
+HOST_OS="$(uname -s)"
+HOST_ARCH="$(uname -m)"
+
+case "${HOST_OS}:${HOST_ARCH}" in
+  Darwin:arm64)
+    FLUTTER_PLATFORM_DIR="macos"
+    FLUTTER_ARCHIVE="flutter_macos_arm64_${FLUTTER_VERSION}-stable.zip"
+    FLUTTER_EXTRACT_MODE="zip"
+    FLUTTER_PRECACHE_PLATFORM="macos"
+    ;;
+  Darwin:x86_64)
+    FLUTTER_PLATFORM_DIR="macos"
+    FLUTTER_ARCHIVE="flutter_macos_${FLUTTER_VERSION}-stable.zip"
+    FLUTTER_EXTRACT_MODE="zip"
+    FLUTTER_PRECACHE_PLATFORM="macos"
+    ;;
+  Linux:x86_64)
+    FLUTTER_PLATFORM_DIR="linux"
+    FLUTTER_ARCHIVE="flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
+    FLUTTER_EXTRACT_MODE="tar.xz"
+    FLUTTER_PRECACHE_PLATFORM="linux"
+    ;;
+  Linux:aarch64|Linux:arm64)
+    FLUTTER_PLATFORM_DIR="linux"
+    FLUTTER_ARCHIVE="flutter_linux_arm64_${FLUTTER_VERSION}-stable.tar.xz"
+    FLUTTER_EXTRACT_MODE="tar.xz"
+    FLUTTER_PRECACHE_PLATFORM="linux"
+    ;;
+  *)
+    echo "[init-dev] Unsupported Flutter bootstrap host: ${HOST_OS} ${HOST_ARCH}"
+    exit 1
+    ;;
+esac
+
+DEFAULT_DIST_URL="https://storage.googleapis.com/flutter_infra_release/releases/stable/${FLUTTER_PLATFORM_DIR}/${FLUTTER_ARCHIVE}"
 FLUTTER_DIST_URL="${FLUTTER_DIST_URL:-${DEFAULT_DIST_URL}}"
 FLUTTER_ARCHIVE_LOCAL="${FLUTTER_ARCHIVE_LOCAL:-${CACHE_DIR}/${FLUTTER_ARCHIVE}}"
 FLUTTER_DIR="${TOOLS_DIR}/flutter"
@@ -89,17 +122,66 @@ ensure_path() {
 
 download_archive_if_needed() {
   if [[ -f "${FLUTTER_ARCHIVE_LOCAL}" ]]; then
-    log "Using local Flutter archive: ${FLUTTER_ARCHIVE_LOCAL}"
-    return 0
+    if archive_is_valid "${FLUTTER_ARCHIVE_LOCAL}"; then
+      log "Using local Flutter archive: ${FLUTTER_ARCHIVE_LOCAL}"
+      return 0
+    fi
+
+    if archive_is_cache_owned "${FLUTTER_ARCHIVE_LOCAL}"; then
+      log "Removing incomplete or invalid cached Flutter archive: ${FLUTTER_ARCHIVE_LOCAL}"
+      rm -f "${FLUTTER_ARCHIVE_LOCAL}"
+    else
+      log "Flutter archive is invalid: ${FLUTTER_ARCHIVE_LOCAL}"
+      log "Replace the archive or unset FLUTTER_ARCHIVE_LOCAL to let init-dev download a fresh copy."
+      return 1
+    fi
   fi
 
   log "Downloading Flutter archive from: ${FLUTTER_DIST_URL}"
-  if ! curl -fL --retry 3 --connect-timeout 20 "${FLUTTER_DIST_URL}" -o "${FLUTTER_ARCHIVE_LOCAL}"; then
+  local partial_archive="${FLUTTER_ARCHIVE_LOCAL}.partial"
+  local curl_resume_args=()
+
+  if [[ -f "${partial_archive}" ]]; then
+    curl_resume_args=(-C -)
+  fi
+
+  if ! curl --http1.1 -fL ${curl_resume_args+"${curl_resume_args[@]}"} --retry 20 --retry-all-errors --retry-delay 1 --connect-timeout 20 --speed-limit 1024 --speed-time 60 "${FLUTTER_DIST_URL}" -o "${partial_archive}"; then
     log "Download failed."
     log "If your environment blocks outbound network, pre-download archive and set:"
     log "  FLUTTER_ARCHIVE_LOCAL=/abs/path/to/${FLUTTER_ARCHIVE}"
     return 1
   fi
+
+  mv "${partial_archive}" "${FLUTTER_ARCHIVE_LOCAL}"
+  if ! archive_is_valid "${FLUTTER_ARCHIVE_LOCAL}"; then
+    log "Downloaded Flutter archive is invalid: ${FLUTTER_ARCHIVE_LOCAL}"
+    if archive_is_cache_owned "${FLUTTER_ARCHIVE_LOCAL}"; then
+      rm -f "${FLUTTER_ARCHIVE_LOCAL}"
+    fi
+    return 1
+  fi
+}
+
+archive_is_valid() {
+  local archive="$1"
+
+  case "${FLUTTER_EXTRACT_MODE}" in
+    zip)
+      unzip -tq "${archive}" >/dev/null
+      ;;
+    tar.xz)
+      tar -tJf "${archive}" >/dev/null
+      ;;
+  esac
+}
+
+archive_is_cache_owned() {
+  local archive="$1"
+
+  case "${archive}" in
+    "${CACHE_DIR}"/*) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 ensure_flutter_git_safe() {
@@ -141,7 +223,15 @@ install_flutter() {
   if [[ ! -x "${FLUTTER_DIR}/bin/flutter" ]]; then
     download_archive_if_needed
     log "Extracting Flutter SDK ..."
-    tar --no-same-owner -xJf "${FLUTTER_ARCHIVE_LOCAL}" -C "${TOOLS_DIR}"
+    rm -rf "${FLUTTER_DIR}"
+    case "${FLUTTER_EXTRACT_MODE}" in
+      zip)
+        unzip -oq "${FLUTTER_ARCHIVE_LOCAL}" -d "${TOOLS_DIR}"
+        ;;
+      tar.xz)
+        tar --no-same-owner -xJf "${FLUTTER_ARCHIVE_LOCAL}" -C "${TOOLS_DIR}"
+        ;;
+    esac
     ensure_flutter_git_safe
   fi
 
@@ -230,7 +320,7 @@ download_katago_models() {
 warmup() {
   flutter config --no-analytics >/dev/null 2>&1 || true
   dart --disable-analytics >/dev/null 2>&1 || true
-  flutter precache --linux
+  flutter precache "--${FLUTTER_PRECACHE_PLATFORM}"
 }
 
 ensure_recognition_models() {
