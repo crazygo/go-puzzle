@@ -34,6 +34,70 @@ class SimMoveAnalysis {
   final int centerProximityScore;
 }
 
+class SimGroupInfo {
+  const SimGroupInfo({
+    required this.color,
+    required this.stones,
+    required this.liberties,
+  });
+
+  final int color;
+  final Set<int> stones;
+  final Set<int> liberties;
+
+  int get size => stones.length;
+  int get libertyCount => liberties.length;
+}
+
+double scoreCriticalOwnGroupDefense(
+  SimBoard board,
+  int moveIndex,
+  SimMoveAnalysis analysis,
+) {
+  if (!analysis.isLegal) return 0;
+  final player = board.currentPlayer;
+  final ownCaptureDelta = player == SimBoard.black
+      ? analysis.blackCaptureDelta
+      : analysis.whiteCaptureDelta;
+  final ownCaptures =
+      player == SimBoard.black ? board.capturedByBlack : board.capturedByWhite;
+  if (ownCaptures + ownCaptureDelta >= board.captureTarget) {
+    return 0;
+  }
+
+  var score = 0.0;
+  final opponent = player == SimBoard.black ? SimBoard.white : SimBoard.black;
+  for (final group in board.groupsForPlayer(player)) {
+    if (group.size < 2 || group.libertyCount > 2) continue;
+    if (!group.liberties.contains(moveIndex)) continue;
+
+    final probe = SimBoard.copy(board);
+    if (!probe.applyMove(moveIndex ~/ board.size, moveIndex % board.size)) {
+      continue;
+    }
+    final anchor = group.stones.first;
+    if (probe.cells[anchor] != player) continue;
+    final afterGroup = probe.groupAtIndex(anchor);
+    final libertiesAfter = probe.libertiesForGroup(afterGroup).length;
+    final libertyGain = libertiesAfter - group.libertyCount;
+    if (libertyGain <= 0) continue;
+
+    var libertyPressure = 0;
+    for (final liberty in group.liberties) {
+      for (final adjacent in board.adjacentIndices(liberty)) {
+        if (board.cells[adjacent] == opponent) libertyPressure++;
+      }
+    }
+    final urgentBonus = group.libertyCount == 1 ? 700.0 : 420.0;
+    score += urgentBonus +
+        group.size * 80.0 +
+        libertyGain * 260.0 +
+        libertyPressure * 140.0 +
+        math.min(group.libertyCount, 2) * 40.0;
+  }
+  return score;
+}
+
 /// Lightweight flat-array board for MCTS simulations.
 /// Uses integers instead of enums for speed.
 class SimBoard {
@@ -113,6 +177,28 @@ class SimBoard {
 
   int colorAt(int r, int c) => cells[idx(r, c)];
 
+  List<int> adjacentIndices(int i) => _adjacent(i);
+
+  Set<int> groupAtIndex(int i) => _findGroup(i);
+
+  Set<int> libertiesForGroup(Set<int> group) => _libertiesForGroup(group);
+
+  List<SimGroupInfo> groupsForPlayer(int playerColor) {
+    final groups = <SimGroupInfo>[];
+    final visited = <int>{};
+    for (var i = 0; i < cells.length; i++) {
+      if (cells[i] != playerColor || visited.contains(i)) continue;
+      final group = _findGroup(i);
+      visited.addAll(group);
+      groups.add(SimGroupInfo(
+        color: playerColor,
+        stones: group,
+        liberties: _libertiesForGroup(group),
+      ));
+    }
+    return groups;
+  }
+
   List<int> _adjacent(int i) {
     final r = i ~/ size;
     final c = i % size;
@@ -142,13 +228,17 @@ class SimBoard {
   }
 
   int _countLiberties(Set<int> group) {
+    return _libertiesForGroup(group).length;
+  }
+
+  Set<int> _libertiesForGroup(Set<int> group) {
     final libs = <int>{};
     for (final pos in group) {
       for (final adj in _adjacent(pos)) {
         if (cells[adj] == empty) libs.add(adj);
       }
     }
-    return libs.length;
+    return libs;
   }
 
   /// Applies a move at (r, c). Returns true when valid and applied.

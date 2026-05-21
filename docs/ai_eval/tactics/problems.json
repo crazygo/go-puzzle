@@ -4002,6 +4002,64 @@
         "packTitle": "Named Tactical Supplement Pack",
         "tactic": "self_atari_punishment"
       }
+    },
+    {
+      "id": "nt-ladder-13-005",
+      "category": "trap",
+      "boardSize": 13,
+      "captureTarget": 5,
+      "currentPlayer": "white",
+      "capturedByBlack": 0,
+      "capturedByWhite": 2,
+      "diagram": [
+        ".............",
+        ".............",
+        ".............",
+        ".............",
+        ".....BBB.....",
+        "....BWBWWW...",
+        ".....WBW..W..",
+        ".....WBWWW...",
+        ".....BWBW....",
+        "....BBWBB....",
+        "......W......",
+        "......B......",
+        "............."
+      ],
+      "objective": {
+        "type": "maximizeOracleScore",
+        "horizon": 10
+      },
+      "notes": "After Black pushes the lower chase to G12, White must answer the short-liberty lower chain. The recorded losing line is 28 W[ie], which tenukis to the upper group; Black then plays H11 and forces White through F11, E11, F12, E12, F13, G13, H12 until Black E13 captures six stones and reaches the five-capture target.",
+      "metadata": {
+        "pack": "named_tactical_supplement_v1",
+        "packTitle": "Named Tactical Supplement Pack",
+        "tactic": "ladder",
+        "caseName": "twist-ladder-sadako-lower-chain-v1",
+        "sourceSgf": "(;FF[4]GM[1]SZ[13]AB[gf][gh]AW[fg][hg];B[gg];W[ff];B[ig];W[hf];B[he];W[hh];B[fe];W[fh];B[ef];W[gi];B[ge];W[if];B[hi];W[ih];B[jg];W[ii];B[hj];W[gj];B[ij];W[jf];B[fi];W[jh];B[ej];W[kg];B[fj];W[gk];B[gl];W[ie];B[hk];W[fk];B[ek];W[fl];B[el];W[fm];B[gm];W[hl];B[em])",
+        "positionAfterPly": 27,
+        "blunderPly": 28,
+        "blunderMove": "W[ie]",
+        "blunderReason": "White tenukis while the lower G9-G10-G11 chain has only F11 and H11 as liberties. Black H11 leaves one liberty and the chase becomes forced, ending with Black E13 capturing six stones.",
+        "losingContinuation": [
+          "W[ie]",
+          "B[hk]",
+          "W[fk]",
+          "B[ek]",
+          "W[fl]",
+          "B[el]",
+          "W[fm]",
+          "B[gm]",
+          "W[hl]",
+          "B[em]"
+        ],
+        "finalCaptureMove": "B[em]",
+        "finalCaptureDelta": 6,
+        "expectedSafeFocus": [
+          "W[fk]",
+          "W[hk]"
+        ]
+      }
     }
   ]
 }

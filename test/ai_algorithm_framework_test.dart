@@ -164,7 +164,93 @@ void main() {
       expect(analyzedMove.row, baselineMove.row);
       expect(analyzedMove.col, baselineMove.col);
     });
+
+    test('standard configs defend a two-liberty ladder chain instead of tenuki',
+        () {
+      for (final id in const [
+        'mcts_counter_standard_v1',
+        'hybrid_tactical_counter_standard_v1',
+        'heuristic_counter_standard_v1',
+      ]) {
+        final board = _sadakoLadderCaseAfterBlackG12();
+        final config = AiAlgorithmRegistry.configById(id);
+        final agent = AiAlgorithmRegistry.createAgent(config);
+
+        final move = agent.chooseMove(board);
+
+        expect(move, isNotNull, reason: id);
+        final moveIndex = board.idx(move!.position.row, move.position.col);
+        expect(
+          moveIndex,
+          isIn({
+            _sgfIndex(board.size, 'fk'), // F11
+            _sgfIndex(board.size, 'hk'), // H11
+          }),
+          reason:
+              '$id must address the lower G9-G10-G11 chain before Black H11 '
+              'starts a forced capture race.',
+        );
+      }
+    });
   });
+}
+
+SimBoard _sadakoLadderCaseAfterBlackG12() {
+  final board = SimBoard(13, captureTarget: 5);
+  for (final point in ['gf', 'gh']) {
+    board.cells[_sgfIndex(board.size, point)] = SimBoard.black;
+  }
+  for (final point in ['fg', 'hg']) {
+    board.cells[_sgfIndex(board.size, point)] = SimBoard.white;
+  }
+  board.currentPlayer = SimBoard.black;
+
+  final moves = <(int, String)>[
+    (SimBoard.black, 'gg'),
+    (SimBoard.white, 'ff'),
+    (SimBoard.black, 'ig'),
+    (SimBoard.white, 'hf'),
+    (SimBoard.black, 'he'),
+    (SimBoard.white, 'hh'),
+    (SimBoard.black, 'fe'),
+    (SimBoard.white, 'fh'),
+    (SimBoard.black, 'ef'),
+    (SimBoard.white, 'gi'),
+    (SimBoard.black, 'ge'),
+    (SimBoard.white, 'if'),
+    (SimBoard.black, 'hi'),
+    (SimBoard.white, 'ih'),
+    (SimBoard.black, 'jg'),
+    (SimBoard.white, 'ii'),
+    (SimBoard.black, 'hj'),
+    (SimBoard.white, 'gj'),
+    (SimBoard.black, 'ij'),
+    (SimBoard.white, 'jf'),
+    (SimBoard.black, 'fi'),
+    (SimBoard.white, 'jh'),
+    (SimBoard.black, 'ej'),
+    (SimBoard.white, 'kg'),
+    (SimBoard.black, 'fj'),
+    (SimBoard.white, 'gk'),
+    (SimBoard.black, 'gl'),
+  ];
+
+  for (final move in moves) {
+    final moveIndex = _sgfIndex(board.size, move.$2);
+    expect(board.currentPlayer, move.$1, reason: 'before ${move.$2}');
+    expect(
+      board.applyMove(moveIndex ~/ board.size, moveIndex % board.size),
+      isTrue,
+      reason: move.$2,
+    );
+  }
+  return board;
+}
+
+int _sgfIndex(int size, String sgfPoint) {
+  final col = sgfPoint.codeUnitAt(0) - 'a'.codeUnitAt(0);
+  final row = sgfPoint.codeUnitAt(1) - 'a'.codeUnitAt(0);
+  return row * size + col;
 }
 
 class _FixedKatagoModelAdapter implements KatagoModelAdapter {

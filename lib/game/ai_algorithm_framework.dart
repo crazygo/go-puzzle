@@ -753,6 +753,7 @@ double _captureSearchScore(
   var score = ownCaptureDelta * 1200.0 +
       analysis.opponentAtariStones * 80.0 +
       analysis.ownRescuedStones * 35.0 +
+      scoreCriticalOwnGroupDefense(board, moveIndex, analysis) +
       analysis.adjacentOpponentStones * 12.0 +
       analysis.libertiesAfterMove * 4.0 +
       analysis.centerProximityScore.toDouble();
