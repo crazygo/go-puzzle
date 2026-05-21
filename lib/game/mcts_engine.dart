@@ -67,15 +67,24 @@ double scoreCriticalOwnGroupDefense(
 
   var score = 0.0;
   final opponent = player == SimBoard.black ? SimBoard.white : SimBoard.black;
-  for (final group in board.groupsForPlayer(player)) {
+  final candidateGroups = _ownGroupsAdjacentToMove(
+    board,
+    player: player,
+    moveIndex: moveIndex,
+    minGroupSize: 2,
+    maxLiberties: 2,
+  );
+  if (candidateGroups.isEmpty) return 0;
+
+  final probe = SimBoard.copy(board);
+  if (!probe.applyMove(moveIndex ~/ board.size, moveIndex % board.size)) {
+    return 0;
+  }
+  for (final candidate in candidateGroups) {
+    final group = candidate.info;
+    final anchor = candidate.anchor;
     if (group.size < 2 || group.libertyCount > 2) continue;
     if (!group.liberties.contains(moveIndex)) continue;
-
-    final probe = SimBoard.copy(board);
-    if (!probe.applyMove(moveIndex ~/ board.size, moveIndex % board.size)) {
-      continue;
-    }
-    final anchor = group.stones.first;
     if (probe.cells[anchor] != player) continue;
     final afterGroup = probe.groupAtIndex(anchor);
     final libertiesAfter = probe.libertiesForGroup(afterGroup).length;
@@ -112,13 +121,19 @@ double scoreDoomedAtariExtensionPenalty(
 
   var largestSavedGroupSize = 0;
   var anchor = -1;
-  for (final group in board.groupsForPlayer(player)) {
+  for (final candidate in _ownGroupsAdjacentToMove(
+    board,
+    player: player,
+    moveIndex: moveIndex,
+    maxLiberties: 1,
+  )) {
+    final group = candidate.info;
     if (group.libertyCount != 1 || !group.liberties.contains(moveIndex)) {
       continue;
     }
     if (group.size > largestSavedGroupSize) {
       largestSavedGroupSize = group.size;
-      anchor = group.stones.first;
+      anchor = candidate.anchor;
     }
   }
   if (anchor < 0) return 0;
@@ -152,6 +167,33 @@ double scoreDoomedAtariExtensionPenalty(
     return 2200.0 + dangerousSize * 260.0 + outcome.forcedRescues * 180.0;
   }
   return 0;
+}
+
+List<({int anchor, SimGroupInfo info})> _ownGroupsAdjacentToMove(
+  SimBoard board, {
+  required int player,
+  required int moveIndex,
+  int minGroupSize = 1,
+  int maxLiberties = 99,
+}) {
+  final groups = <({int anchor, SimGroupInfo info})>[];
+  final visited = <int>{};
+  for (final adjacent in board.adjacentIndices(moveIndex)) {
+    if (board.cells[adjacent] != player || visited.contains(adjacent)) continue;
+    final stones = board.groupAtIndex(adjacent);
+    visited.addAll(stones);
+    final liberties = board.libertiesForGroup(stones);
+    if (!liberties.contains(moveIndex) ||
+        stones.length < minGroupSize ||
+        liberties.length > maxLiberties) {
+      continue;
+    }
+    groups.add((
+      anchor: stones.reduce(math.min),
+      info: SimGroupInfo(color: player, stones: stones, liberties: liberties),
+    ));
+  }
+  return groups;
 }
 
 _AtariChaseOutcome _simulateAtariChase(

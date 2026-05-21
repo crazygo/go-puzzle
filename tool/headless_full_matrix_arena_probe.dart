@@ -285,16 +285,9 @@ _CellPlan? _takeNextQueuedCell(_WorkerRequest request) {
   final cursorPath = request.queueCursorPath;
   final lockPath = request.queueLockPath;
   if (cursorPath == null || lockPath == null) return null;
-  final lock = File(lockPath);
-  while (true) {
-    try {
-      lock.createSync(exclusive: true);
-      break;
-    } on FileSystemException {
-      sleep(const Duration(milliseconds: 10));
-    }
-  }
+  final lock = File(lockPath).openSync(mode: FileMode.write);
   try {
+    lock.lockSync(FileLock.blockingExclusive);
     final cursorFile = File(cursorPath);
     final raw = cursorFile.existsSync() ? cursorFile.readAsStringSync() : '0';
     final next = int.tryParse(raw.trim()) ?? 0;
@@ -303,10 +296,11 @@ _CellPlan? _takeNextQueuedCell(_WorkerRequest request) {
     return request.cells[next];
   } finally {
     try {
-      lock.deleteSync();
+      lock.unlockSync();
     } on FileSystemException {
-      // The next worker will retry if the lock is still present.
+      // Closing the file releases the OS-level lock even if unlock fails.
     }
+    lock.closeSync();
   }
 }
 

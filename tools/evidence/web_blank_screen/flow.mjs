@@ -3,8 +3,7 @@ import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { PNG } from 'pngjs';
 
-const [url, outDir, runId] = process.argv.slice(2);
-const chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const [url, outDir, runId, requestedBrowserPath] = process.argv.slice(2);
 const screenshotPath = path.join(outDir, `${runId}-page.png`);
 const eventsPath = path.join(outDir, 'browser-events.json');
 const summaryPath = path.join(outDir, 'summary.json');
@@ -18,6 +17,44 @@ function record(type, payload) {
 
 function setCheckpoint(name, pass, details = {}) {
   checkpoints[name] = { pass, ...details };
+}
+
+function browserPathCandidates() {
+  switch (process.platform) {
+    case 'darwin':
+      return [
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/Applications/Chromium.app/Contents/MacOS/Chromium',
+      ];
+    case 'linux':
+      return [
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+      ];
+    case 'win32':
+      return [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files\\Chromium\\Application\\chrome.exe',
+      ];
+    default:
+      return [];
+  }
+}
+
+function resolveExecutablePath() {
+  const overrides = [
+    requestedBrowserPath,
+    process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+    process.env.CHROME_PATH,
+    process.env.CHROMIUM_PATH,
+  ].filter(Boolean);
+  for (const candidate of [...overrides, ...browserPathCandidates()]) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
 }
 
 function countNonBackgroundPixels(png, bg = [249, 244, 236]) {
@@ -35,8 +72,13 @@ function countNonBackgroundPixels(png, bg = [249, 244, 236]) {
 
 fs.mkdirSync(outDir, { recursive: true });
 
+const executablePath = resolveExecutablePath();
+if (!executablePath && requestedBrowserPath) {
+  record('browserExecutableMissing', { requestedBrowserPath });
+}
+
 const browser = await chromium.launch({
-  executablePath: chromePath,
+  ...(executablePath ? { executablePath } : {}),
   headless: true,
   args: ['--disable-gpu'],
 });
@@ -138,6 +180,8 @@ fs.writeFileSync(summaryPath, JSON.stringify({
   runId,
   caseName: 'web_blank_screen',
   url,
+  browserExecutablePath: executablePath,
+  browserLaunchMode: executablePath ? 'explicit' : 'playwright-default',
   evidenceDir: outDir,
   screenshotPath,
   eventsPath,
