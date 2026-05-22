@@ -42,13 +42,14 @@
     4. **Acceptance Criteria**: Testable and user-observable criteria, including validation commands (e.g., `flutter analyze`, `flutter test`).
 - If a plan should be persisted, save it under `docs/plans/` with a `YYYY-MM-DD-HH-mm` prefix using 24-hour time.
 
-## Product specs map
-- Product behavior and UX contracts live under `docs/specs_map/`.
+## Specs map
+- Product behavior specs and cross-cutting technical contracts live under `docs/specs_map/`.
 - Read `docs/specs_map/AGENTS.md` before creating or changing specs.
 - The main gameplay flow specs currently live at `docs/specs_map/main_game_flow.yaml`.
-- Specs are the source of truth for expected product behavior. Tests should be derived from specs, not reverse-engineered from the current implementation.
-- If a feature behavior changes, update the relevant specs map entry first, then align production code and tests.
-- If code changes without intended behavior changes, review the relevant specs map entries and verify the new logic still satisfies the specs definition.
+- Cross-cutting technical contracts currently live at `docs/specs_map/technical_contracts.yaml`.
+- Specs are the source of truth for expected product behavior and technical contracts. Tests should be derived from specs, not reverse-engineered from the current implementation.
+- If a feature behavior or technical contract changes, update the relevant specs map entry first, then align production code and tests.
+- If code changes without intended behavior or contract changes, review the relevant specs map entries and verify the new logic still satisfies the specs definition.
 - If tests conflict with specs, treat the specs as the starting point: either update the specs because the product requirement changed, or fix the tests. Do not rewrite tests merely to match the latest code behavior.
 - Production code and tests may reference specs with short comments such as `Spec: docs/specs_map/main_game_flow.yaml#move_log_visibility`.
 

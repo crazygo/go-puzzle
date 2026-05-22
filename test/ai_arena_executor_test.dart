@@ -289,8 +289,7 @@ void main() {
       asyncKatagoModelAdapter: adapter,
     );
 
-    expect(adapter.preloadedAssets,
-        contains('assets/models/katago_capture_standard.onnx'));
+    expect(adapter.preloadedAssets, contains(kKatagoDefaultModelAsset));
     expect(adapter.requests, isNotEmpty);
     expect(
         adapter.requests.every((request) => request.timeBudgetMillis == 10000),

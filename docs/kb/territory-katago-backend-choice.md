@@ -24,9 +24,7 @@ This change evaluates the mobile KataGo integration paths and selects **native i
 
 ## Current runtime behavior
 
-- **iOS + packaged board-size model**
-  - `assets/models/katago_territory_9x9.onnx`
-  - `assets/models/katago_territory_13x13.onnx`
-  - `assets/models/katago_territory_19x19.onnx`
-  - the app will attempt native ONNX inference first for the matching board size.
+- **iOS + packaged KataGo ONNX model**
+  - `assets/models/katago-kata1-b18c384nbt-batched-fp16.onnx`
+  - the app will attempt native ONNX inference first. Board size is request data; the current shared model supports dynamic board height and width axes.
 - **No packaged matching model / non-iOS / native error**: the app safely falls back to the Dart territory search engine.

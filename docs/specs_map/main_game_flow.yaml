@@ -20,8 +20,13 @@ specs:
       - The setup flow lets the player adjust AI opponent mode, selected opponent, initial position, play mode, and board size before starting.
       - Automatic opponent mode chooses an opponent from the player's history rank.
       - Manual opponent mode uses the named opponent selected by the player.
+      - Capture-five mode exposes all capture-capable AI players.
+      - Territory mode exposes only KataGo-backed AI players.
       - Starting a capture game passes the selected capture AI config to the game provider.
-      - Starting a territory game does not pass a capture AI config to the game provider; the play screen labels the AI as the fixed territory engine.
+      - Starting a territory game passes the selected KataGo AI config to the game provider.
+      - Starting a Web game with a KataGo ONNX opponent keeps the start button in a preparing state and shows a cancellable model-preparation dialog before entering the game.
+      - Closing the KataGo preparation dialog leaves the player on the setup screen, equivalent to not starting the game, so they can choose another opponent.
+      - The KataGo preparation dialog explains that the first model load is about 70M and may take about 30 seconds depending on network conditions.
     references:
       - docs/plans/2026-04-29-17-38-ai-level-calibration-adaptive-opponent.md
       - docs/kb/territory-katago-backend-choice.md
@@ -66,6 +71,22 @@ specs:
       - Local tactical search must not override KataGo ONNX output.
       - Current ONNX configs expose modelAsset, timeBudgetMillis, policyTemperature, and candidateLimit.
       - Current ONNX configs do not expose visits or captureSearchDepth.
+    references:
+      - docs/ai_eval/capture-ai-framework-tuning-notes.md
+
+  - spec_id: training_coach_katago
+    expected_behavior:
+      - In territory games, training partner suggestions are led by the fixed KataGo ONNX standard coach regardless of the opponent AI algorithm.
+      - KataGo-led training suggestions use policy top candidates for board marks.
+      - KataGo-led training suggestions use model value and score-belief signals to supplement the displayed estimate and explanation.
+      - Unavailable or failed KataGo coach evaluations keep the existing training suggestion behavior as fallback.
+      - Training mode is available only in territory mode while the current KataGo coach is trained for territory play.
+      - In capture-five mode, the operation menu keeps the training-mode entry disabled and explains that capture-five mode is unavailable.
+      - Training mode exposes a strategy-view control for the available KataGo policy planes.
+      - Changing the strategy view refreshes the training suggestions for the current board.
+      - Training mode can show an explanation panel for the suggested moves without presenting uncertain model signals as guaranteed outcomes.
+      - Training suggestions refresh once when entering training mode, after a legal move, or after changing the strategy view.
+      - Training mode must not expose internal suggestion refresh rounds as user-visible game progress.
     references:
       - docs/ai_eval/capture-ai-framework-tuning-notes.md
 

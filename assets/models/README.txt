@@ -1,14 +1,13 @@
-Place the local territory ONNX model files here as:
+Place the local KataGo ONNX model file here as:
 
-katago_territory_9x9.onnx
-katago_territory_13x13.onnx
-katago_territory_19x19.onnx
+katago-kata1-b18c384nbt-batched-fp16.onnx
 
-These files are downloaded by:
+This file is downloaded by:
 
 bash /home/runner/work/go-puzzle/go-puzzle/scripts/init-dev.sh
 
-They are intentionally git-ignored and should not be committed to the repo.
+It is intentionally git-ignored and should not be committed to the repo.
 
-The iOS native territory bridge looks for the board-size-specific asset first
-and falls back to the Dart territory engine when the matching model is absent.
+The current Kaya/KataGo ONNX model uses dynamic board height and width axes, so
+the same model asset is used for supported board sizes instead of maintaining
+separate 9x9, 13x13, and 19x19 aliases.

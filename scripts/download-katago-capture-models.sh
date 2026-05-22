@@ -4,8 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODEL_DIR="${ROOT_DIR}/assets/models"
 CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/go-puzzle-katago"
-MODEL_URL="${KATAGO_CAPTURE_MODEL_URL:-https://huggingface.co/kaya-go/kaya/resolve/main/kata1-b28c512nbt-adam-s11165M-d5387M/kata1-b28c512nbt-adam-s11165M-d5387M.uint8.onnx}"
-MODEL_CACHE="${CACHE_DIR}/kata1-b28c512nbt-adam-s11165M-d5387M.uint8.onnx"
+MODEL_FILENAME="katago-kata1-b18c384nbt-batched-fp16.onnx"
+MODEL_URL="${KATAGO_ONNX_MODEL_URL:-https://huggingface.co/kaya-go/kaya/resolve/main/katago_small_b18c384nbt-onnx-batched-fp16.onnx}"
+MODEL_CACHE="${CACHE_DIR}/${MODEL_FILENAME}"
 
 mkdir -p "${MODEL_DIR}" "${CACHE_DIR}"
 
@@ -28,10 +29,7 @@ else
   log "Using cached model: ${MODEL_CACHE}"
 fi
 
-cp -f "${MODEL_CACHE}" "${MODEL_DIR}/katago_capture_weak.onnx"
-cp -f "${MODEL_CACHE}" "${MODEL_DIR}/katago_capture_standard.onnx"
+cp -f "${MODEL_CACHE}" "${MODEL_DIR}/${MODEL_FILENAME}"
 
 log "Installed:"
-ls -lh \
-  "${MODEL_DIR}/katago_capture_weak.onnx" \
-  "${MODEL_DIR}/katago_capture_standard.onnx"
+ls -lh "${MODEL_DIR}/${MODEL_FILENAME}"

@@ -13,32 +13,37 @@ TrainingSuggestionRunner createPlatformTrainingSuggestionRunner() =>
     _WebWorkerTrainingSuggestionRunner();
 
 class _WebWorkerTrainingSuggestionRunner implements TrainingSuggestionRunner {
-  html.Worker? _worker;
-  StreamSubscription<html.MessageEvent>? _messageSub;
-  StreamSubscription<html.Event>? _errorSub;
+  final Map<String, _TrainingSuggestionWorkerHandle> _workers = {};
 
   final Map<TrainingSuggestionRequestId,
       Completer<TrainingSuggestionSearchResult>> _pending = {};
+  final Map<TrainingSuggestionRequestId, String> _requestScripts = {};
 
   bool _disposed = false;
 
-  html.Worker _getOrCreateWorker() {
-    if (_worker != null) return _worker!;
+  _TrainingSuggestionWorkerHandle _getOrCreateWorker(String scriptUrl) {
+    final existing = _workers[scriptUrl];
+    if (existing != null) return existing;
 
-    final worker = html.Worker('training_suggestion_worker.dart.js');
-    _messageSub = worker.onMessage.listen(_handleMessage);
-    _errorSub = worker.onError.listen(_handleWorkerError);
-    _worker = worker;
-    return worker;
+    final worker = html.Worker(scriptUrl);
+    final handle = _TrainingSuggestionWorkerHandle(
+      worker: worker,
+      messageSub: worker.onMessage.listen(_handleMessage),
+      errorSub: worker.onError.listen((_) => _handleWorkerError(scriptUrl)),
+    );
+    _workers[scriptUrl] = handle;
+    return handle;
   }
 
-  void _tearDownWorker() {
-    _messageSub?.cancel();
-    _messageSub = null;
-    _errorSub?.cancel();
-    _errorSub = null;
-    _worker?.terminate();
-    _worker = null;
+  void _tearDownWorker(String scriptUrl) {
+    _workers.remove(scriptUrl)?.dispose();
+  }
+
+  void _tearDownWorkers() {
+    for (final worker in _workers.values) {
+      worker.dispose();
+    }
+    _workers.clear();
   }
 
   void _handleMessage(html.MessageEvent event) {
@@ -54,6 +59,7 @@ class _WebWorkerTrainingSuggestionRunner implements TrainingSuggestionRunner {
       if (requestId == null) return;
 
       final completer = _pending.remove(requestId);
+      _requestScripts.remove(requestId);
       if (completer == null || completer.isCompleted) return;
 
       final error = data['error'];
@@ -66,21 +72,29 @@ class _WebWorkerTrainingSuggestionRunner implements TrainingSuggestionRunner {
         );
       } else {
         final rawSuggestions = data['suggestions'];
+        final rawStructuredSuggestions = data['structuredSuggestions'];
         final suggestions = rawSuggestions == null
             ? const <List<num>>[]
             : (rawSuggestions as Iterable)
                 .map((entry) => List<num>.from(entry as Iterable))
                 .toList(growable: false);
+        final structuredSuggestions = rawStructuredSuggestions == null
+            ? null
+            : (rawStructuredSuggestions as Iterable)
+                .map((entry) => Map<String, dynamic>.from(entry as Map))
+                .toList(growable: false);
         completer.complete(
           TrainingSuggestionSearchResult(
             requestId: requestId,
             suggestions: suggestions,
+            structuredSuggestions: structuredSuggestions,
           ),
         );
       }
     } catch (e) {
       for (final entry in Map.of(_pending).entries) {
         _pending.remove(entry.key);
+        _requestScripts.remove(entry.key);
         if (!entry.value.isCompleted) {
           entry.value.complete(
             TrainingSuggestionSearchResult(
@@ -93,11 +107,16 @@ class _WebWorkerTrainingSuggestionRunner implements TrainingSuggestionRunner {
     }
   }
 
-  void _handleWorkerError(html.Event _) {
-    final entries = Map<TrainingSuggestionRequestId,
-        Completer<TrainingSuggestionSearchResult>>.from(_pending);
-    _pending.clear();
-    _tearDownWorker();
+  void _handleWorkerError(String scriptUrl) {
+    final entries = <TrainingSuggestionRequestId,
+        Completer<TrainingSuggestionSearchResult>>{};
+    for (final entry in Map.of(_requestScripts).entries) {
+      if (entry.value != scriptUrl) continue;
+      final completer = _pending.remove(entry.key);
+      _requestScripts.remove(entry.key);
+      if (completer != null) entries[entry.key] = completer;
+    }
+    _tearDownWorker(scriptUrl);
 
     for (final entry in entries.entries) {
       if (!entry.value.isCompleted) {
@@ -126,14 +145,17 @@ class _WebWorkerTrainingSuggestionRunner implements TrainingSuggestionRunner {
 
     final completer = Completer<TrainingSuggestionSearchResult>();
     _pending[request.id] = completer;
+    final scriptUrl = _workerScriptFor(request);
+    _requestScripts[request.id] = scriptUrl;
 
     try {
-      _getOrCreateWorker().postMessage({
+      _getOrCreateWorker(scriptUrl).worker.postMessage({
         'requestId': request.id,
         'params': request.params,
       });
     } catch (e) {
       _pending.remove(request.id);
+      _requestScripts.remove(request.id);
       if (!completer.isCompleted) {
         completer.complete(
           TrainingSuggestionSearchResult(requestId: request.id, error: e),
@@ -147,9 +169,10 @@ class _WebWorkerTrainingSuggestionRunner implements TrainingSuggestionRunner {
   @override
   void cancel(TrainingSuggestionRequestId requestId) {
     final completer = _pending.remove(requestId);
+    _requestScripts.remove(requestId);
     if (completer == null) return;
 
-    _tearDownWorker();
+    _tearDownWorkers();
 
     if (!completer.isCompleted) {
       completer.complete(TrainingSuggestionSearchResult(requestId: requestId));
@@ -157,6 +180,7 @@ class _WebWorkerTrainingSuggestionRunner implements TrainingSuggestionRunner {
 
     for (final entry in Map.of(_pending).entries) {
       _pending.remove(entry.key);
+      _requestScripts.remove(entry.key);
       if (!entry.value.isCompleted) {
         entry.value.complete(
           TrainingSuggestionSearchResult(requestId: entry.key),
@@ -180,6 +204,32 @@ class _WebWorkerTrainingSuggestionRunner implements TrainingSuggestionRunner {
       }
     }
     _pending.clear();
-    _tearDownWorker();
+    _requestScripts.clear();
+    _tearDownWorkers();
+  }
+
+  String _workerScriptFor(TrainingSuggestionRequest request) {
+    // Spec: docs/specs_map/technical_contracts.yaml#ai_background_execution
+    return request.params['coachBackend'] == 'katago_onnx'
+        ? 'katago_training_suggestion_worker.js'
+        : 'training_suggestion_worker.dart.js';
+  }
+}
+
+class _TrainingSuggestionWorkerHandle {
+  const _TrainingSuggestionWorkerHandle({
+    required this.worker,
+    required this.messageSub,
+    required this.errorSub,
+  });
+
+  final html.Worker worker;
+  final StreamSubscription<html.MessageEvent> messageSub;
+  final StreamSubscription<html.Event> errorSub;
+
+  void dispose() {
+    messageSub.cancel();
+    errorSub.cancel();
+    worker.terminate();
   }
 }

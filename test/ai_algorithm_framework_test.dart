@@ -87,7 +87,7 @@ void main() {
         expect(config.usesFallback, isFalse);
         expect(config.runtimeMode, AiAlgorithmRuntimeMode.native);
         expect(config.failureMode, isNull);
-        expect(config.parameters['modelAsset'], isA<String>());
+        expect(config.parameters['modelAsset'], kKatagoDefaultModelAsset);
         expect(config.parameters.containsKey('visits'), isFalse);
         expect(config.parameters.containsKey('captureSearchDepth'), isFalse);
         expect(config.parameters['timeBudgetMillis'], 10000);

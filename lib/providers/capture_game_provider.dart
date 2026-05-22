@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
@@ -18,6 +19,10 @@ import '../models/game_state.dart';
 
 export '../game/ai_search_runner.dart' show AiSearchRunner;
 export '../game/difficulty_level.dart';
+export '../game/katago_model_adapter.dart'
+    show KatagoPolicyPlane, KatagoPolicyPlaneLabel;
+
+const String _katagoCoachConfigId = 'katago_onnx_standard_v1';
 
 // ---------------------------------------------------------------------------
 // Top-level function required by compute() for hint suggestions.
@@ -91,6 +96,38 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
   return suggestions;
 }
 
+String _stringParameter(Map<String, Object?> params, String key) {
+  return switch (params[key]) {
+    final String value => value,
+    _ => '',
+  };
+}
+
+int _intParameter(Map<String, Object?> params, String key, int fallback) {
+  return switch (params[key]) {
+    final int value => value,
+    final num value => value.toInt(),
+    _ => fallback,
+  };
+}
+
+double _fallbackTrainingWinRate(
+  SimBoard board,
+  int originalPlayer,
+  int captureTarget,
+) {
+  const floor = 0.05;
+  const ceiling = 0.95;
+  final myCaps = originalPlayer == SimBoard.black
+      ? board.capturedByBlack
+      : board.capturedByWhite;
+  final oppCaps = originalPlayer == SimBoard.black
+      ? board.capturedByWhite
+      : board.capturedByBlack;
+  final progress = (myCaps - oppCaps) / captureTarget;
+  return (0.5 + progress * 0.35).clamp(floor, ceiling).toDouble();
+}
+
 CaptureAiAgent _captureAgentForProvider({
   required String? algorithmConfigId,
   required CaptureAiStyle aiStyle,
@@ -110,12 +147,29 @@ class TrainingSuggestion {
   const TrainingSuggestion({
     required this.position,
     required this.winRate,
+    this.policyScore,
+    this.policyProbability,
+    this.valueDelta,
+    this.scoreLead,
+    this.scoreUncertainty,
+    this.strategyLabel,
+    this.explanationSignals = const [],
+    this.source = 'fallback',
   });
 
   final BoardPosition position;
 
   /// Win-rate in the range [0.05, 0.95] for the player to move.
   final double winRate;
+
+  final double? policyScore;
+  final double? policyProbability;
+  final double? valueDelta;
+  final double? scoreLead;
+  final double? scoreUncertainty;
+  final String? strategyLabel;
+  final List<String> explanationSignals;
+  final String source;
 }
 
 enum CaptureGameResult { none, blackWins, whiteWins, draw }
@@ -485,11 +539,22 @@ class CaptureGameProvider extends ChangeNotifier {
   /// isolate and returns them with per-position win-rate estimates.
   Future<List<TrainingSuggestion>> suggestMovesWithWinRateAsync({
     int count = 3,
+    KatagoPolicyPlane policyPlane = KatagoPolicyPlane.normal,
   }) async {
+    // Spec: docs/specs_map/main_game_flow.yaml#training_coach_katago
+    // Spec: docs/specs_map/technical_contracts.yaml#ai_background_execution
     if (count <= 0) return const [];
     if (_result != CaptureGameResult.none) return const [];
     final sim =
         SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
+    if (_shouldTryNativeKatagoCoach) {
+      final suggestions = await _trySuggestMovesWithKatagoCoach(
+        sim: sim,
+        count: count,
+        policyPlane: policyPlane,
+      );
+      if (suggestions.isNotEmpty) return suggestions;
+    }
     final params = <String, dynamic>{
       'cells': sim.cells.toList(),
       'boardSize': sim.size,
@@ -503,6 +568,12 @@ class CaptureGameProvider extends ChangeNotifier {
       'gameMode': gameMode.storageKey,
       'consecutivePasses': sim.consecutivePasses,
       'count': count,
+      if (_usesKatagoTrainingCoach)
+        ..._katagoCoachRunnerParams(
+          sim: sim,
+          count: count,
+          policyPlane: policyPlane,
+        ),
     };
     final requestId = 'training_hint_${_gameGeneration}_${++_requestCounter}';
     _pendingTrainingSuggestionRequestId = requestId;
@@ -513,6 +584,10 @@ class CaptureGameProvider extends ChangeNotifier {
       _pendingTrainingSuggestionRequestId = null;
     }
     if (result.hasError) return const [];
+    final structured = result.structuredSuggestions;
+    if (structured != null) {
+      return structured.map(_trainingSuggestionFromStructured).toList();
+    }
     final raw = result.suggestions ?? const <List<num>>[];
     return raw
         .map(
@@ -522,6 +597,178 @@ class CaptureGameProvider extends ChangeNotifier {
           ),
         )
         .toList();
+  }
+
+  List<int> _legalMoveIndices(SimBoard board) {
+    return [
+      for (final moveIndex in board.getLegalMoves())
+        if (board
+            .analyzeMove(
+              moveIndex ~/ board.size,
+              moveIndex % board.size,
+            )
+            .isLegal)
+          moveIndex,
+    ];
+  }
+
+  Map<String, dynamic> _katagoCoachRunnerParams({
+    required SimBoard sim,
+    required int count,
+    required KatagoPolicyPlane policyPlane,
+  }) {
+    final params = _katagoCoachConfig.parameters;
+    return {
+      'coachBackend': 'katago_onnx',
+      'modelAsset': _stringParameter(params, 'modelAsset'),
+      'timeBudgetMillis': _intParameter(params, 'timeBudgetMillis', 10000),
+      'policyTemperature': 0.0,
+      'candidateLimit': count,
+      'policyPlane': policyPlane.index,
+      'legalMoves': _legalMoveIndices(sim),
+    };
+  }
+
+  TrainingSuggestion _trainingSuggestionFromStructured(
+    Map<String, dynamic> entry,
+  ) {
+    return TrainingSuggestion(
+      position: BoardPosition(
+        (entry['row'] as num).toInt(),
+        (entry['col'] as num).toInt(),
+      ),
+      winRate: ((entry['winRate'] as num?)?.toDouble() ?? 0.5)
+          .clamp(0.05, 0.95)
+          .toDouble(),
+      policyScore: (entry['policyScore'] as num?)?.toDouble(),
+      policyProbability: (entry['policyProbability'] as num?)?.toDouble(),
+      valueDelta: (entry['valueDelta'] as num?)?.toDouble(),
+      scoreLead: (entry['scoreLead'] as num?)?.toDouble(),
+      scoreUncertainty: (entry['scoreUncertainty'] as num?)?.toDouble(),
+      strategyLabel: entry['strategyLabel'] as String?,
+      explanationSignals: (entry['explanationSignals'] as List?)
+              ?.map((value) => value.toString())
+              .toList(growable: false) ??
+          const [],
+      source: entry['source'] as String? ?? 'worker',
+    );
+  }
+
+  Future<List<TrainingSuggestion>> _suggestMovesWithKatagoCoach({
+    required SimBoard sim,
+    required int count,
+    required KatagoPolicyPlane policyPlane,
+  }) async {
+    final before = await _katagoModelAdapter.chooseMove(
+      _katagoCoachRequest(
+        board: SimBoard.copy(sim),
+        candidateLimit: count,
+        policyPlane: policyPlane,
+      ),
+    );
+    if (before.status != KatagoBackendStatus.ready ||
+        before.policyCandidates.isEmpty) {
+      return const [];
+    }
+
+    final suggestions = <TrainingSuggestion>[];
+    final beforeWin = before.value?.win;
+    for (final candidate in before.policyCandidates.take(count)) {
+      final after = SimBoard.copy(sim);
+      if (!after.applyMove(candidate.position.row, candidate.position.col)) {
+        continue;
+      }
+      final afterEval = await _katagoModelAdapter.chooseMove(
+        _katagoCoachRequest(
+          board: after,
+          candidateLimit: math.max(1, count),
+          policyPlane: policyPlane,
+        ),
+      );
+      final afterWin = afterEval.value?.loss ?? beforeWin;
+      final displayWinRate = (afterWin ??
+              beforeWin ??
+              _fallbackTrainingWinRate(
+                after,
+                sim.currentPlayer,
+                captureTarget,
+              ))
+          .clamp(0.05, 0.95)
+          .toDouble();
+      final valueDelta =
+          beforeWin == null || afterWin == null ? null : afterWin - beforeWin;
+      suggestions.add(
+        TrainingSuggestion(
+          position: candidate.position,
+          winRate: displayWinRate,
+          policyScore: candidate.score,
+          policyProbability: candidate.probability,
+          valueDelta: valueDelta,
+          scoreLead: afterEval.scoreBelief?.mean ?? before.scoreBelief?.mean,
+          scoreUncertainty:
+              afterEval.scoreBelief?.stdev ?? before.scoreBelief?.stdev,
+          strategyLabel: policyPlane.explanationLabel,
+          explanationSignals: _katagoCoachSignals(
+            candidate: candidate,
+            valueDelta: valueDelta,
+            scoreBelief: afterEval.scoreBelief ?? before.scoreBelief,
+            policyPlane: policyPlane,
+          ),
+          source: 'katago',
+        ),
+      );
+    }
+    return suggestions;
+  }
+
+  Future<List<TrainingSuggestion>> _trySuggestMovesWithKatagoCoach({
+    required SimBoard sim,
+    required int count,
+    required KatagoPolicyPlane policyPlane,
+  }) async {
+    try {
+      return await _suggestMovesWithKatagoCoach(
+        sim: sim,
+        count: count,
+        policyPlane: policyPlane,
+      );
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  KatagoModelRequest _katagoCoachRequest({
+    required SimBoard board,
+    required int candidateLimit,
+    required KatagoPolicyPlane policyPlane,
+  }) {
+    final params = _katagoCoachConfig.parameters;
+    return KatagoModelRequest(
+      board: board,
+      modelAsset: _stringParameter(params, 'modelAsset'),
+      timeBudgetMillis: _intParameter(params, 'timeBudgetMillis', 10000),
+      policyTemperature: 0,
+      candidateLimit: math.max(1, candidateLimit),
+      policyPlane: policyPlane.index,
+    );
+  }
+
+  List<String> _katagoCoachSignals({
+    required KatagoPolicyCandidate candidate,
+    required double? valueDelta,
+    required KatagoScoreBeliefSummary? scoreBelief,
+    required KatagoPolicyPlane policyPlane,
+  }) {
+    final signals = <String>[
+      '${policyPlane.explanationLabel}第 ${candidate.rank} 選',
+      '策略偏好 ${(candidate.probability * 100).round()}%',
+    ];
+    if (scoreBelief != null) {
+      final lead = scoreBelief.mean;
+      final sign = lead >= 0 ? '+' : '';
+      signals.add('模型目差 $sign${lead.toStringAsFixed(1)}');
+    }
+    return signals;
   }
 
   void cancelTrainingSuggestions() {
@@ -928,6 +1175,17 @@ class CaptureGameProvider extends ChangeNotifier {
 
   bool get _usesAsyncAlgorithmAgent =>
       aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.katago;
+
+  AiAlgorithmConfig get _katagoCoachConfig =>
+      AiAlgorithmRegistry.configById(_katagoCoachConfigId);
+
+  bool get _usesKatagoTrainingCoach =>
+      gameMode == GameMode.territory && isTerritoryMode;
+
+  bool get _shouldTryNativeKatagoCoach =>
+      _usesKatagoTrainingCoach &&
+      !kIsWeb &&
+      (aiAlgorithmConfig != null || _katagoModelAdapterOverride != null);
 
   void _checkWinCondition() {
     if (isTerritoryMode) {

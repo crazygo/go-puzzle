@@ -15,10 +15,7 @@ set -euo pipefail
 #   FLUTTER_DIST_URL=https://.../flutter_linux_3.41.7-stable.tar.xz
 #   FLUTTER_ARCHIVE_LOCAL=/path/to/flutter_linux_*.tar.xz
 #   INIT_DEV_SKIP_KATAGO_MODELS=1
-#   KATAGO_TERRITORY_SHARED_URL=https://.../katago.onnx
-#   KATAGO_TERRITORY_MODEL_9_URL=https://...
-#   KATAGO_TERRITORY_MODEL_13_URL=https://...
-#   KATAGO_TERRITORY_MODEL_19_URL=https://...
+#   KATAGO_ONNX_MODEL_URL=https://.../katago.onnx
 #   INIT_DEV_SKIP_RECOGNITION_MODELS=1
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -66,11 +63,9 @@ FLUTTER_ARCHIVE_LOCAL="${FLUTTER_ARCHIVE_LOCAL:-${CACHE_DIR}/${FLUTTER_ARCHIVE}}
 FLUTTER_DIR="${TOOLS_DIR}/flutter"
 FLUTTER_VERSION_STAMP="${FLUTTER_DIR}/.installed-version"
 MODEL_DIR="${ROOT_DIR}/assets/models"
-DEFAULT_KATAGO_TERRITORY_SHARED_URL="${DEFAULT_KATAGO_TERRITORY_SHARED_URL:-https://huggingface.co/kaya-go/kaya/resolve/main/katago_small_b18c384nbt-onnx-batched-fp16.onnx}"
-KATAGO_TERRITORY_SHARED_URL="${KATAGO_TERRITORY_SHARED_URL:-${DEFAULT_KATAGO_TERRITORY_SHARED_URL}}"
-KATAGO_TERRITORY_MODEL_9_URL="${KATAGO_TERRITORY_MODEL_9_URL:-${KATAGO_TERRITORY_SHARED_URL}}"
-KATAGO_TERRITORY_MODEL_13_URL="${KATAGO_TERRITORY_MODEL_13_URL:-${KATAGO_TERRITORY_SHARED_URL}}"
-KATAGO_TERRITORY_MODEL_19_URL="${KATAGO_TERRITORY_MODEL_19_URL:-${KATAGO_TERRITORY_SHARED_URL}}"
+KATAGO_ONNX_MODEL_FILENAME="katago-kata1-b18c384nbt-batched-fp16.onnx"
+DEFAULT_KATAGO_ONNX_MODEL_URL="${DEFAULT_KATAGO_ONNX_MODEL_URL:-https://huggingface.co/kaya-go/kaya/resolve/main/katago_small_b18c384nbt-onnx-batched-fp16.onnx}"
+KATAGO_ONNX_MODEL_URL="${KATAGO_ONNX_MODEL_URL:-${DEFAULT_KATAGO_ONNX_MODEL_URL}}"
 RUN_ANALYZE=0
 
 mkdir -p "${TOOLS_DIR}" "${BIN_DIR}" "${CACHE_DIR}" "${MODEL_DIR}"
@@ -278,42 +273,11 @@ download_katago_models() {
     return 0
   fi
 
-  local shared_cache="${CACHE_DIR}/katago_territory_shared.onnx"
-  local shared_download_attempted=0
-  local shared_download_ok=0
-  local failed=0
-  local specs=(
-    "9|katago_territory_9x9.onnx|${KATAGO_TERRITORY_MODEL_9_URL}"
-    "13|katago_territory_13x13.onnx|${KATAGO_TERRITORY_MODEL_13_URL}"
-    "19|katago_territory_19x19.onnx|${KATAGO_TERRITORY_MODEL_19_URL}"
-  )
-
-  for spec in "${specs[@]}"; do
-    IFS="|" read -r board_size filename url <<< "${spec}"
-    local target="${MODEL_DIR}/${filename}"
-    local cache_file="${CACHE_DIR}/${filename}"
-    if [[ "${url}" == "${KATAGO_TERRITORY_SHARED_URL}" ]]; then
-      cache_file="${shared_cache}"
-      if [[ "${shared_download_attempted}" == "0" ]]; then
-        shared_download_attempted=1
-        if download_file_if_needed "${url}" "${target}" "${cache_file}"; then
-          shared_download_ok=1
-          continue
-        fi
-      elif [[ "${shared_download_ok}" == "1" ]]; then
-        cp -f "${cache_file}" "${target}"
-        log "Copied shared model into ${target}"
-        continue
-      fi
-    elif download_file_if_needed "${url}" "${target}" "${cache_file}"; then
-      continue
-    fi
-    failed=1
-    log "Missing ${board_size}x${board_size} model. Re-run init-dev after restoring network access or set KATAGO_TERRITORY_MODEL_${board_size}_URL."
-  done
-
-  if [[ "${failed}" == "1" ]]; then
-    log "Continuing without some ONNX models; the app will fall back to Dart territory search."
+  local target="${MODEL_DIR}/${KATAGO_ONNX_MODEL_FILENAME}"
+  local cache_file="${CACHE_DIR}/${KATAGO_ONNX_MODEL_FILENAME}"
+  if ! download_file_if_needed "${KATAGO_ONNX_MODEL_URL}" "${target}" "${cache_file}"; then
+    log "Missing KataGo ONNX model. Re-run init-dev after restoring network access or set KATAGO_ONNX_MODEL_URL."
+    log "Continuing without the ONNX model; supported paths will surface model readiness or fallback according to product rules."
   fi
 }
 

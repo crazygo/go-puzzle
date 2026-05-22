@@ -659,6 +659,7 @@ List<KatagoModelRequest> _katagoRequestsFor(
       timeBudgetMillis: _configIntParameter(config, 'timeBudgetMillis'),
       policyTemperature: _configDoubleParameter(config, 'policyTemperature'),
       candidateLimit: _configIntParameter(config, 'candidateLimit'),
+      policyPlane: _configIntParameter(config, 'policyPlane'),
     ));
   }
   return requests;

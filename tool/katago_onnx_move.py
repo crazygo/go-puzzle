@@ -6,7 +6,7 @@ use a real model without linking ONNX Runtime into every Flutter target.
 Input is JSON on argv[1] or stdin:
 
   {
-    "model": "assets/models/katago_capture_standard.onnx",
+    "model": "assets/models/katago-kata1-b18c384nbt-batched-fp16.onnx",
     "size": 9,
     "currentPlayer": 1,
     "cells": [0, 0, ...],

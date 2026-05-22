@@ -8,12 +8,14 @@ import 'package:go_puzzle/models/board_position.dart';
 
 class NodeKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
   NodeKatagoOnnxModelAdapter({
-    this.policyPlane = 0,
+    // Kept for older probes; per-request policyPlane is authoritative.
+    int policyPlane = 0,
     this.workerScript = 'tool/katago_onnx_worker.js',
     this.encoder = const KatagoOnnxFeatureEncoder(),
-  });
+  }) : _legacyPolicyPlane = policyPlane;
 
-  final int policyPlane;
+  // ignore: unused_field
+  final int _legacyPolicyPlane;
   final String workerScript;
   final KatagoOnnxFeatureEncoder encoder;
   Process? _process;
@@ -63,7 +65,7 @@ class NodeKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
         'globalShape': features.globalShape,
         'legalMoves': legalMoves,
         'boardPointCount': request.board.size * request.board.size,
-        'policyPlane': policyPlane,
+        'policyPlane': request.policyPlane,
         'policyTemperature': request.policyTemperature,
         'candidateLimit': request.candidateLimit,
       }).timeout(Duration(milliseconds: request.timeBudgetMillis));
@@ -86,6 +88,12 @@ class NodeKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
           move ~/ request.board.size,
           move % request.board.size,
         ),
+        policyCandidates: _policyCandidates(
+          response['policyCandidates'],
+          boardSize: request.board.size,
+        ),
+        value: _valueEstimate(response['value']),
+        scoreBelief: _scoreBelief(response['scoreBelief']),
       );
     } catch (error) {
       return KatagoModelEvaluation(
@@ -156,5 +164,56 @@ class NodeKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
     final process = _process;
     _process = null;
     process?.kill();
+  }
+
+  List<KatagoPolicyCandidate> _policyCandidates(
+    Object? raw, {
+    required int boardSize,
+  }) {
+    if (raw is! List) return const [];
+    return [
+      for (final entry in raw)
+        if (entry is Map)
+          _policyCandidate(
+            Map<String, dynamic>.from(entry),
+            boardSize: boardSize,
+          ),
+    ];
+  }
+
+  KatagoPolicyCandidate _policyCandidate(
+    Map<String, dynamic> entry, {
+    required int boardSize,
+  }) {
+    final move = (entry['move'] as num).toInt();
+    return KatagoPolicyCandidate(
+      position: BoardPosition(move ~/ boardSize, move % boardSize),
+      score: (entry['score'] as num).toDouble(),
+      probability: (entry['probability'] as num).toDouble(),
+      rank: (entry['rank'] as num).toInt(),
+      policyPlane: (entry['policyPlane'] as num).toInt(),
+    );
+  }
+
+  KatagoValueEstimate? _valueEstimate(Object? raw) {
+    if (raw is! Map) return null;
+    return KatagoValueEstimate(
+      win: (raw['win'] as num).toDouble(),
+      loss: (raw['loss'] as num).toDouble(),
+      noResult: (raw['noResult'] as num).toDouble(),
+    );
+  }
+
+  KatagoScoreBeliefSummary? _scoreBelief(Object? raw) {
+    if (raw is! Map) return null;
+    return KatagoScoreBeliefSummary(
+      mean: (raw['mean'] as num).toDouble(),
+      stdev: (raw['stdev'] as num).toDouble(),
+      distribution: (raw['distribution'] as List?)
+              ?.whereType<num>()
+              .map((value) => value.toDouble())
+              .toList(growable: false) ??
+          const [],
+    );
   }
 }

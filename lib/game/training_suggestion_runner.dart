@@ -19,11 +19,13 @@ class TrainingSuggestionSearchResult {
   const TrainingSuggestionSearchResult({
     required this.requestId,
     this.suggestions,
+    this.structuredSuggestions,
     this.error,
   });
 
   final TrainingSuggestionRequestId requestId;
   final List<List<num>>? suggestions;
+  final List<Map<String, dynamic>>? structuredSuggestions;
   final Object? error;
 
   bool get hasError => error != null;

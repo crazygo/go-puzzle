@@ -11,6 +11,7 @@ import 'package:go_puzzle/game/game_mode.dart';
 import 'package:go_puzzle/game/go_engine.dart';
 import 'package:go_puzzle/game/katago_model_adapter.dart';
 import 'package:go_puzzle/game/mcts_engine.dart';
+import 'package:go_puzzle/game/training_suggestion_runner.dart';
 import 'package:go_puzzle/models/board_position.dart';
 import 'package:go_puzzle/models/game_state.dart';
 import 'package:go_puzzle/providers/capture_game_provider.dart';
@@ -74,6 +75,30 @@ class _FakeKatagoAdapter implements AsyncKatagoModelAdapter {
       move: move,
     );
   }
+}
+
+class _FakeTrainingSuggestionRunner implements TrainingSuggestionRunner {
+  int searchCount = 0;
+
+  @override
+  Future<TrainingSuggestionSearchResult> search(
+    TrainingSuggestionRequest request,
+  ) async {
+    searchCount++;
+    return TrainingSuggestionSearchResult(
+      requestId: request.id,
+      suggestions: const [
+        [1, 2, 570],
+        [3, 4, 625],
+      ],
+    );
+  }
+
+  @override
+  void cancel(TrainingSuggestionRequestId requestId) {}
+
+  @override
+  void dispose() {}
 }
 
 void main() {
@@ -655,6 +680,124 @@ void main() {
       expect(find.text('AI 棋力：MCTS-1 · 快速试探'), findsOneWidget);
       expect(find.text('吃子預警：開'), findsOneWidget);
       expect(find.text('切換 AI 風格'), findsNothing);
+    });
+
+    testWidgets('training mode exposes strategy switch and explanation panel',
+        (tester) async {
+      // Spec: docs/specs_map/main_game_flow.yaml#training_coach_katago
+      tester.view.physicalSize = const Size(900, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final runner = _FakeTrainingSuggestionRunner();
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        gameMode: GameMode.territory,
+        initialMode: CaptureInitialMode.empty,
+        minMoveDelay: Duration.zero,
+        trainingSuggestionRunner: runner,
+      );
+      final settings = SettingsProvider();
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: CaptureGamePlayScreen(
+              key: UniqueKey(),
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              gameMode: GameMode.territory,
+              initialMode: CaptureInitialMode.empty,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('進入陪練模式'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('離開陪練'), findsOneWidget);
+      expect(find.text('AI 陪練模式'), findsWidgets);
+      expect(find.textContaining('/ 5 輪'), findsNothing);
+      expect(find.text('穩定'), findsOneWidget);
+      expect(find.textContaining('57%'), findsWidgets);
+      expect(runner.searchCount, 1);
+
+      await tester.pump(const Duration(seconds: 4));
+      expect(runner.searchCount, 1);
+
+      await tester.tap(find.text('穩定'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('策略視角'), findsOneWidget);
+      expect(find.text('短期樂觀'), findsOneWidget);
+
+      await tester.tap(find.text('短期樂觀'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('短期'), findsOneWidget);
+      expect(runner.searchCount, 2);
+
+      provider.dispose();
+    });
+
+    testWidgets('training mode entry explains capture-five unavailability',
+        (tester) async {
+      // Spec: docs/specs_map/main_game_flow.yaml#training_coach_katago
+      final runner = _FakeTrainingSuggestionRunner();
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        gameMode: GameMode.capture,
+        initialMode: CaptureInitialMode.empty,
+        minMoveDelay: Duration.zero,
+        trainingSuggestionRunner: runner,
+      );
+      final settings = SettingsProvider();
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: CaptureGamePlayScreen(
+              key: UniqueKey(),
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              gameMode: GameMode.capture,
+              initialMode: CaptureInitialMode.empty,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('進入陪練模式'), findsOneWidget);
+      expect(find.text('吃 5 子模式不可用'), findsOneWidget);
+
+      await tester.tap(find.text('進入陪練模式'));
+      await tester.pumpAndSettle();
+
+      expect(provider.trainingMode, isFalse);
+      expect(runner.searchCount, 0);
+
+      provider.dispose();
     });
 
     testWidgets('shows move coordinates above the board and highlights marks',

@@ -114,8 +114,9 @@ void main() {
     expect(find.text('吃 5 子取勝 · 9 路 · 十字'), findsNothing);
   });
 
-  testWidgets('territory mode disables AI style selection in setup',
+  testWidgets('territory mode exposes only KataGo AI players in setup',
       (tester) async {
+    // Spec: docs/specs_map/main_game_flow.yaml#configuration_controls
     SharedPreferences.setMockInitialValues({
       'capture_setup.play_mode': 'territory',
     });
@@ -128,8 +129,18 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('围空模式固定使用围空引擎，风格选项不生效；仅难度生效。'), findsOneWidget);
-    expect(find.text('选择 AI 风格'), findsNothing);
+    expect(find.text('圍空模式只使用 KataGo 棋手；不同棋力由同一模型的策略參數控制。'), findsOneWidget);
+    expect(find.text('星野'), findsOneWidget);
+
+    await tester.tap(find.text('星野'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('選擇 AI 棋手'), findsOneWidget);
+    expect(find.text('小林'), findsOneWidget);
+    expect(find.text('星野 · 目前'), findsOneWidget);
+    expect(find.text('阿尔法'), findsNothing);
+    expect(find.text('玄策'), findsNothing);
   });
   testWidgets('difficulty mode segment control updates on tap', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());

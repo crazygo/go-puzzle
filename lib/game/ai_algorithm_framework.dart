@@ -421,7 +421,7 @@ class AiAlgorithmRegistry {
     runtimeMode: AiAlgorithmRuntimeMode.native,
     parameters: const {
       'backend': 'onnx',
-      'modelAsset': 'assets/models/katago_capture_weak.onnx',
+      'modelAsset': kKatagoDefaultModelAsset,
       'timeBudgetMillis': 10000,
       'policyTemperature': 1.35,
       'candidateLimit': 12,
@@ -440,7 +440,7 @@ class AiAlgorithmRegistry {
     runtimeMode: AiAlgorithmRuntimeMode.native,
     parameters: const {
       'backend': 'onnx',
-      'modelAsset': 'assets/models/katago_capture_standard.onnx',
+      'modelAsset': kKatagoDefaultModelAsset,
       'timeBudgetMillis': 10000,
       'policyTemperature': 0.0,
       'candidateLimit': 1,
@@ -644,6 +644,7 @@ class _KatagoOnnxAgent implements CaptureAiAgent {
         timeBudgetMillis: _intParameter(config, 'timeBudgetMillis'),
         policyTemperature: _doubleParameter(config, 'policyTemperature'),
         candidateLimit: _intParameter(config, 'candidateLimit'),
+        policyPlane: _intParameter(config, 'policyPlane'),
       ),
     );
     final move = evaluation.move;
@@ -678,6 +679,7 @@ class _AsyncKatagoOnnxAgent implements AsyncCaptureAiAgent {
         timeBudgetMillis: _intParameter(config, 'timeBudgetMillis'),
         policyTemperature: _doubleParameter(config, 'policyTemperature'),
         candidateLimit: _intParameter(config, 'candidateLimit'),
+        policyPlane: _intParameter(config, 'policyPlane'),
       ),
     );
     final move = evaluation.move;

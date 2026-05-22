@@ -1,0 +1,29 @@
+purpose: >
+  Define cross-cutting technical contracts for runtime correctness, platform
+  behavior, build requirements, and lifecycle safety. These specs are the
+  source for implementation comments and tests at fragile technical boundaries.
+
+specs:
+  - spec_id: ai_background_execution
+    expected_behavior:
+      - Long-running AI search, MCTS rollout, KataGo inference, training suggestion generation, and repeated arena evaluation must not run directly on the Flutter UI isolate.
+      - UI and provider code coordinates AI requests and renders results, while long-running AI work is routed through runner or adapter abstractions.
+      - Heavy AI work completes asynchronously without blocking board taps, animations, navigation, or hint overlay rendering.
+      - Native platforms use Dart isolates, compute, platform channels, or native async adapters for long-running AI work.
+      - Web uses explicit Web Workers or equivalent off-main-thread execution for long-running AI work instead of relying on native isolate behavior.
+    references: []
+
+  - spec_id: web_worker_builds
+    expected_behavior:
+      - Web builds include the worker bundles required by AI move search and training suggestion generation.
+      - Local web testing and release web builds ensure required worker bundles are available before debugging AI behavior.
+      - Missing worker bundles fail visibly during development instead of causing silent AI move, training suggestion, or coach failures.
+      - Web-served worker bundles are reachable as JavaScript assets from the same built application version as the Flutter app.
+    references: []
+
+  - spec_id: stale_async_results
+    expected_behavior:
+      - Long-running AI requests support explicit cancellation or stale-result rejection.
+      - Results from an older board state are not applied after the user changes the board, leaves the screen, exits training mode, or starts a new game.
+      - Disposing a provider or screen cancels pending timers, worker subscriptions, and request handles owned by that lifecycle.
+    references: []
