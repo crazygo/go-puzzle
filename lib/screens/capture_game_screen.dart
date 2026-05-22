@@ -126,7 +126,8 @@ GameRecord? buildSharedGameRecordFromSgf(
       board.map((row) => row.map((stone) => stone.index).toList()).toList();
 
   final time = playedAt ?? DateTime.now();
-  final mode = hasSetupStones ? CaptureInitialMode.setup : CaptureInitialMode.empty;
+  final mode =
+      hasSetupStones ? CaptureInitialMode.setup : CaptureInitialMode.empty;
   return GameRecord(
     id: time.toIso8601String(),
     playedAt: time,

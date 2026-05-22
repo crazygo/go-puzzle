@@ -10,7 +10,8 @@ void main() {
         isWebOverride: false,
       );
 
-      expect(uri.toString().startsWith('https://go-puzzle.vercel.app/'), isTrue);
+      expect(
+          uri.toString().startsWith('https://go-puzzle.vercel.app/'), isTrue);
       expect(uri.queryParameters['utm_source'], 'google_firebase');
       expect(uri.queryParameters['utm_medium'], 'app_share');
       expect(uri.queryParameters['shared_via'], 'app');
@@ -23,7 +24,8 @@ void main() {
         webBaseUri: Uri.parse('https://dev.go-puzzle.local/playground?foo=bar'),
       );
 
-      expect('${uri.scheme}://${uri.host}${uri.path}', 'https://dev.go-puzzle.local/playground');
+      expect('${uri.scheme}://${uri.host}${uri.path}',
+          'https://dev.go-puzzle.local/playground');
       expect(uri.queryParameters['utm_source'], 'google_firebase');
       expect(uri.queryParameters['utm_medium'], 'web_share');
       expect(uri.queryParameters['shared_via'], 'web');
