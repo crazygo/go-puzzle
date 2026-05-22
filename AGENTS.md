@@ -8,12 +8,15 @@
 
 ## Local web testing
 - The capture-game AI search worker is authored at `web/ai_search_worker.dart` and must be compiled to `web/ai_search_worker.dart.js` before browser testing or web release builds: `bash scripts/compile-web-worker.sh`.
-- Do not use `flutter run -d web-server` to validate the AI search worker. In this project it may serve missing `web/` assets as HTML or 404, causing browser errors such as `Refused to execute script ... ai_search_worker.dart.js ... MIME type ('text/html')`.
-- To test web behavior locally in a way that matches static/cloud hosting, run:
+- Treat this as an AI-blocking prerequisite: if `build/web/ai_search_worker.dart.js` is missing, MCTS/heuristic AI turns fail in the browser as `Web Worker error` even when the Flutter UI itself renders correctly.
+- Do not use `flutter run -d web-server` as the default validation path for ordinary Chrome, phone browsers, AI move behavior, or screenshot evidence. In this project it can serve a debug/DWDS page that stays on the background color because Dart main is not triggered without the debug workflow, and it can also hide the missing-worker problem behind generic browser errors.
+- To test web behavior locally in a way that matches static/cloud hosting, always run:
   1. `bash scripts/compile-web-worker.sh`
-  2. `flutter build web`
-  3. `python3 -m http.server 8081 --bind 127.0.0.1 --directory build/web`
-- Verify the worker is served as JavaScript before debugging AI move behavior: `curl -I http://127.0.0.1:8081/ai_search_worker.dart.js` should return `200 OK` with a JavaScript content type such as `text/javascript`.
+  2. `flutter build web --release`
+  3. `python3 -m http.server 8080 --bind 0.0.0.0 --directory build/web`
+- Verify the static server, not a stale Flutter debug server, owns the port: `curl -I http://127.0.0.1:8080/` should report `SimpleHTTP` (or the chosen static server), not Dart `shelf`.
+- Verify the worker is served as JavaScript before debugging AI move behavior: `curl -I http://127.0.0.1:8080/ai_search_worker.dart.js` should return `200 OK` with a JavaScript content type such as `text/javascript`.
+- For phone testing, use the LAN URL from the same static server, e.g. `http://<local-lan-ip>:8080`, and refresh/reopen the tab after rebuilding because stale tabs can keep the old missing-worker failure.
 
 ## AI arena evaluation naming
 - The evaluation hierarchy is: **Evaluation Run -> Pair -> Cell -> Game repeats**.
@@ -23,6 +26,11 @@
 - **Game**: One played repeat inside a Cell, using one game seed under the Cell's fixed conditions.
 - **Opening**: The predefined initial board state or move sequence used as part of a Cell's fixed conditions.
 - **First-player direction**: Which config in the Pair is assigned to move first for the Cell, represented by `firstConfig`.
+
+## Long-running validation
+- Use subagents for long-running tests and evaluations such as full AI arena matrices, large Flutter test suites, browser evidence loops, and other validation runs that can block the main agent for minutes.
+- Keep the main agent available for coordination, code review, artifact inspection, and next-step decisions while subagents run the heavy commands.
+- The main agent may run short focused checks directly, but should avoid occupying itself with long full-suite or full-matrix commands when a subagent can execute them independently.
 
 ## Planning
 - When an implementation plan is requested, write it in English and include these sections in order:

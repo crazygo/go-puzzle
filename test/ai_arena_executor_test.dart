@@ -152,7 +152,7 @@ void main() {
     );
   });
 
-  test('framework match output reports per-opening failure and timeout status',
+  test('framework match output treats max-move games as draws, not timeouts',
       () {
     const executor = AiArenaExecutor(
       boardSize: 9,
@@ -169,22 +169,17 @@ void main() {
     );
 
     expect(result.games, hasLength(4));
-    expect(result.games.every((game) => game.timedOut), isTrue);
+    expect(result.games.every((game) => game.endReason == 'maxMovesReached'),
+        isTrue);
+    expect(result.games.every((game) => !game.timedOut), isTrue);
     expect(result.games.every((game) => !game.illegalMove), isTrue);
     expect(result.games.every((game) => !game.fallbackUsed), isTrue);
-    expect(
-      result.games.every(
-        (game) => game.failureReason == null
-            ? false
-            : game.failureReason!.contains('max_moves_reached'),
-      ),
-      isTrue,
-    );
+    expect(result.games.every((game) => game.failureReason == null), isTrue);
 
     final performance = result.openingPerformance.single;
     expect(performance.opening, 'empty');
     expect(performance.games, 4);
-    expect(performance.timeouts, 4);
+    expect(performance.timeouts, 0);
     expect(performance.illegalMoves, 0);
     expect(performance.fallbackGames, 0);
     expect(result.toJson()['openingPerformance'], isNotEmpty);

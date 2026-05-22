@@ -1318,6 +1318,9 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     SimMoveAnalysis analysis,
   ) {
     return _scoreWithProfile(board, analysis, _profile) +
+        scoreCriticalOwnGroupDefense(board, moveIndex, analysis) -
+        scoreDoomedAtariExtensionPenalty(board, moveIndex, analysis) -
+        scoreImmediateOpponentCapturePenalty(board, moveIndex, analysis) +
         _targetPlyScore(board, analysis) +
         _sparseBoardInitiativeScore(board, analysis);
   }
@@ -1328,6 +1331,9 @@ class _MctsCaptureAiAgent implements CaptureAiAgent {
     SimMoveAnalysis analysis,
   ) {
     final score = _scoreWithProfile(board, analysis, _profile) +
+        scoreCriticalOwnGroupDefense(board, moveIndex, analysis) -
+        scoreDoomedAtariExtensionPenalty(board, moveIndex, analysis) -
+        scoreImmediateOpponentCapturePenalty(board, moveIndex, analysis) +
         _targetRolloutPlyScore(board, analysis) +
         _sparseBoardInitiativeScore(board, analysis);
     return score.clamp(-1800.0, 1800.0);
@@ -2006,7 +2012,7 @@ class _WeightedCaptureAiAgent implements CaptureAiAgent {
       if (!analysis.isLegal) continue;
       scoredMoves.add(CaptureAiMove(
         position: BoardPosition(row, col),
-        score: _score(board, analysis),
+        score: _score(board, moveIndex, analysis),
       ));
     }
 
@@ -2043,13 +2049,27 @@ class _WeightedCaptureAiAgent implements CaptureAiAgent {
     return refinedBest ?? bestMove;
   }
 
-  double _score(SimBoard board, SimMoveAnalysis analysis) {
+  double _score(
+    SimBoard board,
+    int moveIndex,
+    SimMoveAnalysis analysis,
+  ) {
     return _scoreWithProfile(board, analysis, _profile) +
+        scoreCriticalOwnGroupDefense(board, moveIndex, analysis) -
+        scoreDoomedAtariExtensionPenalty(board, moveIndex, analysis) -
+        scoreImmediateOpponentCapturePenalty(board, moveIndex, analysis) +
         _targetPlyScore(board, analysis);
   }
 
-  double _rolloutScore(SimBoard board, SimMoveAnalysis analysis) {
-    return _scoreWithProfile(board, analysis, _profile);
+  double _rolloutScore(
+    SimBoard board,
+    int moveIndex,
+    SimMoveAnalysis analysis,
+  ) {
+    return _scoreWithProfile(board, analysis, _profile) +
+        scoreCriticalOwnGroupDefense(board, moveIndex, analysis) -
+        scoreDoomedAtariExtensionPenalty(board, moveIndex, analysis) -
+        scoreImmediateOpponentCapturePenalty(board, moveIndex, analysis);
   }
 
   int _rolloutWithStyle(SimBoard board, int maxSteps) {
@@ -2079,7 +2099,7 @@ class _WeightedCaptureAiAgent implements CaptureAiAgent {
       final col = moveIndex % board.size;
       final analysis = board.analyzeMove(row, col);
       if (!analysis.isLegal) continue;
-      final score = _rolloutScore(board, analysis);
+      final score = _rolloutScore(board, moveIndex, analysis);
       if (bestMove == null || score > bestMove.score) {
         bestMove = CaptureAiMove(
           position: BoardPosition(row, col),
