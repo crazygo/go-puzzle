@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
   issues: write
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   ios-testflight:
@@ -181,5 +181,8 @@ jobs:
             exit 0
           fi
 
-          gh pr edit "$PR_NUMBER" --add-label "$LABEL_NAME"
-          echo "Added ${LABEL_NAME} to PR #${PR_NUMBER}."
+          if gh pr edit "$PR_NUMBER" --add-label "$LABEL_NAME"; then
+            echo "Added ${LABEL_NAME} to PR #${PR_NUMBER}."
+          else
+            echo "::warning::Uploaded to TestFlight, but failed to label PR #${PR_NUMBER}."
+          fi
