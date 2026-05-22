@@ -86,11 +86,7 @@ class AiArenaExecutor {
         ),
       );
 
-      final winnerLabel = switch (result.winner) {
-        final w when w == StoneColor.black => aIsBlack ? 'a' : 'b',
-        final w when w == StoneColor.white => aIsBlack ? 'b' : 'a',
-        _ => 'draw',
-      };
+      final winnerLabel = _winnerLabelForResult(result, aIsBlack);
 
       if (winnerLabel == 'a') {
         aWins++;
@@ -193,11 +189,7 @@ class AiArenaExecutor {
         ),
       );
 
-      final winnerLabel = switch (result.winner) {
-        final w when w == StoneColor.black => aIsBlack ? 'a' : 'b',
-        final w when w == StoneColor.white => aIsBlack ? 'b' : 'a',
-        _ => 'draw',
-      };
+      final winnerLabel = _winnerLabelForResult(result, aIsBlack);
 
       if (winnerLabel == 'a') {
         aWins++;
@@ -316,11 +308,7 @@ class AiArenaExecutor {
         ),
       );
 
-      final winnerLabel = switch (result.winner) {
-        final w when w == StoneColor.black => aIsBlack ? 'a' : 'b',
-        final w when w == StoneColor.white => aIsBlack ? 'b' : 'a',
-        _ => 'draw',
-      };
+      final winnerLabel = _winnerLabelForResult(result, aIsBlack);
       if (winnerLabel == 'a') {
         aWins++;
       } else if (winnerLabel == 'b') {
@@ -606,11 +594,27 @@ AiBattleConfig _legacyBattleConfig(AiAlgorithmConfig config) {
 String? _failureReason(CaptureAiMatchEndReason endReason) {
   return switch (endReason) {
     CaptureAiMatchEndReason.captureTargetReached => null,
-    CaptureAiMatchEndReason.noLegalMove => 'agent_returned_no_legal_move',
+    CaptureAiMatchEndReason.noLegalMove => null,
     CaptureAiMatchEndReason.invalidMove => 'agent_returned_invalid_move',
     CaptureAiMatchEndReason.maxMovesReached => null,
     CaptureAiMatchEndReason.decisionTimeout => 'decision_timeout',
   };
+}
+
+String _winnerLabelForResult(CaptureAiArenaResult result, bool aIsBlack) {
+  final winner = result.winner;
+  if (winner == StoneColor.black) return aIsBlack ? 'a' : 'b';
+  if (winner == StoneColor.white) return aIsBlack ? 'b' : 'a';
+  if (result.endReason == CaptureAiMatchEndReason.noLegalMove &&
+      result.blackCaptures != result.whiteCaptures) {
+    final captureLeader = result.blackCaptures > result.whiteCaptures
+        ? StoneColor.black
+        : StoneColor.white;
+    return captureLeader == StoneColor.black
+        ? (aIsBlack ? 'a' : 'b')
+        : (aIsBlack ? 'b' : 'a');
+  }
+  return 'draw';
 }
 
 Duration _decisionTimeoutForConfig(
@@ -652,7 +656,6 @@ List<KatagoModelRequest> _katagoRequestsFor(
     requests.add(KatagoModelRequest(
       board: SimBoard(boardSize, captureTarget: captureTarget),
       modelAsset: _configStringParameter(config, 'modelAsset'),
-      visits: _configIntParameter(config, 'visits'),
       timeBudgetMillis: _configIntParameter(config, 'timeBudgetMillis'),
       policyTemperature: _configDoubleParameter(config, 'policyTemperature'),
       candidateLimit: _configIntParameter(config, 'candidateLimit'),
@@ -768,14 +771,16 @@ String? _frameworkFailureReason(
   String? configAFailureMode,
   String? configBFailureMode,
 }) {
-  final base = _failureReason(endReason);
-  if (base == null) return null;
   final fallbackReasons = [
     if ((configAFailureMode ?? configA.failureMode) != null)
       'a:${configAFailureMode ?? configA.failureMode}',
     if ((configBFailureMode ?? configB.failureMode) != null)
       'b:${configBFailureMode ?? configB.failureMode}',
   ];
+  final base = _failureReason(endReason);
+  if (base == null) {
+    return fallbackReasons.isEmpty ? null : fallbackReasons.join(';');
+  }
   return [
     base,
     ...fallbackReasons,

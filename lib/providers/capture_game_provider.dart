@@ -165,6 +165,64 @@ void applyCaptureInitialLayout(
   }
 }
 
+List<List<int>> orderedCaptureInitialMoves({
+  required int boardSize,
+  required CaptureInitialMode initialMode,
+  List<List<StoneColor>>? initialBoardOverride,
+  StoneColor initialPlayer = StoneColor.black,
+}) {
+  if (initialBoardOverride == null) {
+    final center = boardSize ~/ 2;
+    if (center <= 0 || center >= boardSize - 1) return const [];
+    return switch (initialMode) {
+      CaptureInitialMode.cross => [
+          [center + 1, center],
+          [center, center - 1],
+          [center - 1, center],
+          [center, center + 1],
+        ],
+      CaptureInitialMode.twistCross => [
+          [center, center],
+          [center, center + 1],
+          [center + 1, center + 1],
+          [center + 1, center],
+        ],
+      CaptureInitialMode.empty || CaptureInitialMode.setup => const [],
+    };
+  }
+
+  final blackMoves = <List<int>>[];
+  final whiteMoves = <List<int>>[];
+  for (var row = 0; row < boardSize; row++) {
+    for (var col = 0; col < boardSize; col++) {
+      final stone = initialBoardOverride[row][col];
+      if (stone == StoneColor.black) {
+        blackMoves.add([row, col]);
+      } else if (stone == StoneColor.white) {
+        whiteMoves.add([row, col]);
+      }
+    }
+  }
+
+  final moves = <List<int>>[];
+  final blackQueue = List<List<int>>.from(blackMoves);
+  final whiteQueue = List<List<int>>.from(whiteMoves);
+  var nextColor = initialPlayer;
+  while (blackQueue.isNotEmpty || whiteQueue.isNotEmpty) {
+    final queue = nextColor == StoneColor.black ? blackQueue : whiteQueue;
+    final fallbackQueue =
+        nextColor == StoneColor.black ? whiteQueue : blackQueue;
+    if (queue.isNotEmpty) {
+      moves.add(queue.removeAt(0));
+    } else if (fallbackQueue.isNotEmpty) {
+      moves.add(fallbackQueue.removeAt(0));
+    }
+    nextColor =
+        nextColor == StoneColor.black ? StoneColor.white : StoneColor.black;
+  }
+  return moves;
+}
+
 class CaptureGameProvider extends ChangeNotifier {
   static const Duration _defaultMinMoveDelay = Duration(milliseconds: 1280);
   static const Duration _defaultMaxMoveDelay = Duration(milliseconds: 2500);

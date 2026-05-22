@@ -40,6 +40,16 @@
     4. **Acceptance Criteria**: Testable and user-observable criteria, including validation commands (e.g., `flutter analyze`, `flutter test`).
 - If a plan should be persisted, save it under `docs/plans/` with a `YYYY-MM-DD-HH-mm` prefix using 24-hour time.
 
+## Product specs map
+- Product behavior and UX contracts live under `docs/specs_map/`.
+- Read `docs/specs_map/AGENTS.md` before creating or changing specs.
+- The main gameplay flow specs currently live at `docs/specs_map/main_game_flow.yaml`.
+- Specs are the source of truth for expected product behavior. Tests should be derived from specs, not reverse-engineered from the current implementation.
+- If a feature behavior changes, update the relevant specs map entry first, then align production code and tests.
+- If code changes without intended behavior changes, review the relevant specs map entries and verify the new logic still satisfies the specs definition.
+- If tests conflict with specs, treat the specs as the starting point: either update the specs because the product requirement changed, or fix the tests. Do not rewrite tests merely to match the latest code behavior.
+- Production code and tests may reference specs with short comments such as `Spec: docs/specs_map/main_game_flow.yaml#move_log_visibility`.
+
 ## iOS and signing
 - On macOS/iOS, CocoaPods 1.8.4 is too old for Xcode 16.1 project formats; use Homebrew CocoaPods 1.16.2+ before running `pod install`.
 - For local iPhone testing from the home screen, install a Release or Profile build. A Debug iOS build requires Flutter tooling/Xcode attached and will exit when launched directly from the device.
@@ -51,7 +61,8 @@
 - The `.worktree/` directory is git-ignored; never commit files from within a worktree to the main tree.
 
 ## Unit test requirement alignment
-- Unit tests must be validated against the **current product/feature requirements** (acceptance criteria, PR description, issue context), not merely adjusted to pass the latest implementation.
+- Unit tests must be validated against the **current product/feature requirements** (specs map entries, acceptance criteria, PR description, issue context), not merely adjusted to pass the latest implementation.
+- Treat specs map entries as the constitution for tests when an applicable spec exists.
 - When requirements change, update both production code and tests together; explicitly verify each changed requirement still has a corresponding test assertion.
 - Before finalizing, perform a “requirements-to-tests” check: list the key requirements and map each to concrete test cases. If a requirement has no test, add or revise tests.
 - Do not treat “tests pass” as sufficient proof. Prioritize tests that reflect real expected behavior, even if that means failing fast until implementation catches up.

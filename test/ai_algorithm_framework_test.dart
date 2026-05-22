@@ -88,7 +88,8 @@ void main() {
         expect(config.runtimeMode, AiAlgorithmRuntimeMode.native);
         expect(config.failureMode, isNull);
         expect(config.parameters['modelAsset'], isA<String>());
-        expect(config.parameters['visits'], isA<int>());
+        expect(config.parameters.containsKey('visits'), isFalse);
+        expect(config.parameters.containsKey('captureSearchDepth'), isFalse);
         expect(config.parameters['timeBudgetMillis'], 10000);
         expect(config.parameters['policyTemperature'], isA<num>());
         expect(config.parameters['candidateLimit'], isA<int>());
@@ -116,6 +117,53 @@ void main() {
         ),
       );
       final move = agent.chooseMove(SimBoard(9, captureTarget: 5));
+
+      expect(move, isNotNull);
+      expect(move!.position.row, 4);
+      expect(move.position.col, 4);
+    });
+
+    test('KataGo ONNX adapter move ignores tactical analyzer override', () {
+      final config = AiAlgorithmRegistry.configById('katago_onnx_standard_v1');
+      final agent = AiAlgorithmRegistry.createAgent(
+        config,
+        katagoModelAdapter: const _FixedKatagoModelAdapter(
+          BoardPosition(4, 4),
+        ),
+        tacticalAnalyzer: const _FixedTacticalAnalyzer(
+          TacticalAnalysis(
+            signal: TacticalSignal.ladderRisk,
+            confidence: 1,
+            recommendedMove: BoardPosition(0, 0),
+            reason: 'force a different move',
+          ),
+        ),
+      );
+      final move = agent.chooseMove(SimBoard(9, captureTarget: 5));
+
+      expect(move, isNotNull);
+      expect(move!.position.row, 4);
+      expect(move.position.col, 4);
+    });
+
+    test('async KataGo ONNX adapter move ignores tactical analyzer override',
+        () async {
+      final config = AiAlgorithmRegistry.configById('katago_onnx_standard_v1');
+      final agent = AiAlgorithmRegistry.createAsyncAgent(
+        config,
+        katagoModelAdapter: const _FixedAsyncKatagoModelAdapter(
+          BoardPosition(4, 4),
+        ),
+        tacticalAnalyzer: const _FixedTacticalAnalyzer(
+          TacticalAnalysis(
+            signal: TacticalSignal.ladderRisk,
+            confidence: 1,
+            recommendedMove: BoardPosition(0, 0),
+            reason: 'force a different move',
+          ),
+        ),
+      );
+      final move = await agent.chooseMove(SimBoard(9, captureTarget: 5));
 
       expect(move, isNotNull);
       expect(move!.position.row, 4);
@@ -523,6 +571,23 @@ class _FixedKatagoModelAdapter implements KatagoModelAdapter {
 
   @override
   KatagoModelEvaluation chooseMove(KatagoModelRequest request) {
+    return KatagoModelEvaluation(
+      status: KatagoBackendStatus.ready,
+      move: move,
+    );
+  }
+}
+
+class _FixedAsyncKatagoModelAdapter implements AsyncKatagoModelAdapter {
+  const _FixedAsyncKatagoModelAdapter(this.move);
+
+  final BoardPosition move;
+
+  @override
+  Future<void> preload(Iterable<KatagoModelRequest> requests) async {}
+
+  @override
+  Future<KatagoModelEvaluation> chooseMove(KatagoModelRequest request) async {
     return KatagoModelEvaluation(
       status: KatagoBackendStatus.ready,
       move: move,

@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/main.dart';
+import 'package:go_puzzle/providers/capture_game_provider.dart';
 import 'package:go_puzzle/widgets/page_hero_banner.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -21,12 +23,19 @@ void main() {
     expect(find.byType(PageHeroBanner), findsOneWidget);
     expect(find.text('下一盤'), findsOneWidget);
     expect(find.text('吃 5 子取勝 · 9 路 · 十字'), findsOneWidget);
-    expect(find.text('不分伯仲·奥斯卡'), findsOneWidget);
-    expect(find.textContaining('MCTS-1 · 快速试探'), findsOneWidget);
     expect(find.text('中級 · 9 路 · 吃5子'), findsNothing);
 
     final startButton = find.widgetWithText(CupertinoButton, '執黑先行');
     expect(startButton, findsOneWidget);
+    await tester.tap(startButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final providerContext =
+        tester.element(find.byType(CupertinoPageScaffold).last);
+    final provider =
+        Provider.of<CaptureGameProvider>(providerContext, listen: false);
+    expect(provider.activeAlgorithmConfig?.id, 'mcts_counter_standard_v1');
   });
 
   testWidgets('capture setup restores board size from saved selection',
@@ -131,15 +140,15 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Default is '不分伯仲'; tap '指定棋手' to change it.
-    final manualOption = find.text('指定棋手');
+    // Default is '指定棋手'; tap '不分伯仲' to change it.
+    final autoOption = find.text('不分伯仲');
     await tester.dragUntilVisible(
-      manualOption,
+      autoOption,
       find.byType(Scrollable),
       const Offset(0, -120),
     );
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(manualOption);
+    await tester.tap(autoOption);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -147,10 +156,10 @@ void main() {
       return tester.widget<Text>(find.text(label));
     }
 
-    expect(textWidget('指定棋手').style?.color, const Color(0xFF8A5A2B));
-    expect(textWidget('不分伯仲').style?.color, const Color(0xFF5A4B3F));
-    expect(find.text('阿尔法'), findsOneWidget);
-    expect(find.text('MCTS-2 · 战术搜索'), findsOneWidget);
+    expect(textWidget('不分伯仲').style?.color, const Color(0xFF8A5A2B));
+    expect(textWidget('指定棋手').style?.color, const Color(0xFF5A4B3F));
+    expect(find.text('阿尔法'), findsNothing);
+    expect(find.text('MCTS-2 · 战术搜索'), findsNothing);
     expect(find.text('指定棋手已绑定真实算法配置；小字显示开发可追踪的算法短码。'), findsNothing);
     expect(find.text('不分伯仲会按你的历史表现自动选择一位真实棋手。'), findsNothing);
   });

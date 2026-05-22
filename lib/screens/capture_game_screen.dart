@@ -533,13 +533,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
   static const _modeCapture = 'capture';
   static const _modeTerritory = 'territory';
+  static const _defaultDifficultyMode = 'manual';
+  static const _defaultAiAlgorithmConfigId = 'mcts_counter_standard_v1';
 
   /// 'auto' = system chooses a comparable opponent from history rank;
   /// 'manual' = player picks a named real algorithm config.
-  String _difficultyMode = 'auto';
+  String _difficultyMode = _defaultDifficultyMode;
 
   /// Selected real algorithm-strength config when [_difficultyMode] == 'manual'.
-  String _aiAlgorithmConfigId = 'mcts_counter_standard_v1';
+  String _aiAlgorithmConfigId = _defaultAiAlgorithmConfigId;
 
   /// Rank computed from recent history; refreshed on [_restoreSelection].
   int _computedRank = AiRankLevel.defaultRank;
@@ -1173,11 +1175,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     final savedInitialMode = prefs.getString(_initialModeKey);
 
     // Read new difficulty keys; normalize unknown stored values to 'auto'.
-    final rawDifficultyMode = prefs.getString(_difficultyModeKey) ?? 'auto';
+    final rawDifficultyMode =
+        prefs.getString(_difficultyModeKey) ?? _defaultDifficultyMode;
     String difficultyMode =
         (rawDifficultyMode == 'auto' || rawDifficultyMode == 'manual')
             ? rawDifficultyMode
             : 'auto';
+    final hasLegacyManualRank = prefs.containsKey(_manualRankKey);
+    var migratedLegacyDifficulty = false;
     int legacyManualRank =
         prefs.getInt(_manualRankKey) ?? AiRankLevel.defaultRank;
 
@@ -1186,6 +1191,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       final legacy = prefs.getString(_legacyDifficultyKey);
       if (legacy != null) {
         difficultyMode = 'manual';
+        migratedLegacyDifficulty = true;
         legacyManualRank = switch (legacy) {
           'beginner' => 4,
           'advanced' => 20,
@@ -1212,7 +1218,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
           _playableAiOpponentOptions
               .any((option) => option.config.id == savedAiAlgorithmConfig)) {
         _aiAlgorithmConfigId = savedAiAlgorithmConfig;
-      } else if (difficultyMode == 'manual') {
+      } else if (difficultyMode == 'manual' &&
+          (hasLegacyManualRank || migratedLegacyDifficulty)) {
         _aiAlgorithmConfigId = _aiAlgorithmConfigForRank(legacyManualRank).id;
       }
       if (savedPlayMode == _modeCapture || savedPlayMode == _modeTerritory) {
@@ -4058,6 +4065,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   bool _resultDialogShown = false;
   String? _shownAiFailureReason;
   bool _moveLogVisible = false;
+  bool _showMoveNumbers = false;
+  bool _initializedScreenSettings = false;
   bool _forking = false;
   final Set<int> _markedMoveNumbers = <int>{};
   int? _reviewMoveIndex;
@@ -4079,16 +4088,16 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final settings = context.read<SettingsProvider?>();
-      final initialValue = settings?.showMoveLog ?? false;
-      if (initialValue != _moveLogVisible) {
-        setState(() {
-          _moveLogVisible = initialValue;
-        });
-      }
-    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initializedScreenSettings) return;
+    _initializedScreenSettings = true;
+    final settings = context.read<SettingsProvider?>();
+    _moveLogVisible = settings?.showMoveLog ?? false;
+    _showMoveNumbers = settings?.showMoveNumbers ?? false;
   }
 
   @override
@@ -4219,6 +4228,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
               : null;
           final displayedMoves = _displayMoveLog(provider);
           final displayedReviewMoveNumber = _displayReviewMoveNumber;
+          final boardMoveNumberMoves = inReviewMode
+              ? displayedMoves.take(displayedReviewMoveNumber ?? 0).toList()
+              : displayedMoves;
           final selectedMarkMoveNumber = _activeMarkMoveNumber(provider);
           final selectedMoveMarked = selectedMarkMoveNumber != null &&
               _markedMoveNumbers.contains(selectedMarkMoveNumber);
@@ -4315,6 +4327,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                             BoardCoordinateSystem.chinese,
                         enabled: !aiThinking && !isFinished && !inReviewMode,
                         hintMarks: inReviewMode ? const [] : _hintMarks,
+                        showMoveNumbers: _showMoveNumbers,
+                        moveNumberMoves: boardMoveNumberMoves,
                         showCaptureWarning: showCaptureWarning,
                         captureTarget: widget.captureTarget,
                         blackCaptured:
@@ -4389,7 +4403,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     final canMarkMove = markMoveNumber != null;
     final canCopyMoveLog = provider.moveLog.isNotEmpty ||
         widget.inheritedMoves.isNotEmpty ||
-        _initialPositionMoves(provider).isNotEmpty;
+        _orderedInitialMoves(provider).isNotEmpty;
     final canPass = provider.isTerritoryMode &&
         !provider.isAiThinking &&
         provider.result == CaptureGameResult.none &&
@@ -4410,10 +4424,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     );
     final buttonRect = buttonTopLeft & buttonBox.size;
     const menuWidth = 178.0;
-    // 9 items x 48 px each + 8 dividers x 0.6 px each
+    // 10 items x 48 px each + 9 dividers x 0.6 px each
     const menuItemHeight = 48.0;
     const menuDividerHeight = 0.6;
-    const menuItemCount = 9;
+    const menuItemCount = 10;
     const menuHeight = menuItemCount * menuItemHeight +
         (menuItemCount - 1) * menuDividerHeight;
     const edgePadding = 12.0;
@@ -4454,6 +4468,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                       ).subtitle,
                 captureWarningEnabled: showCaptureWarning,
                 moveLogVisible: _moveLogVisible,
+                showMoveNumbers: _showMoveNumbers,
                 currentMoveMarked: currentMoveMarked,
                 canUndo: canUndo,
                 canHint: canHint,
@@ -4466,7 +4481,6 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                   settings?.setShowCaptureWarning(!showCaptureWarning);
                 },
                 onToggleMoveLog: () {
-                  Navigator.of(menuContext).pop();
                   setState(() {
                     _moveLogVisible = !_moveLogVisible;
                     // Hiding the log also exits review mode so the user is
@@ -4476,6 +4490,13 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                       _reviewStates = null;
                     }
                   });
+                  Navigator.of(menuContext).pop();
+                },
+                onToggleMoveNumbers: () {
+                  setState(() {
+                    _showMoveNumbers = !_showMoveNumbers;
+                  });
+                  Navigator.of(menuContext).pop();
                 },
                 onToggleMarkMove: () {
                   Navigator.of(menuContext).pop();
@@ -4719,14 +4740,23 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     final board = _buildInitialBoard(provider);
     final blackSetup = <String>[];
     final whiteSetup = <String>[];
-    for (var row = 0; row < provider.boardSize; row++) {
-      for (var col = 0; col < provider.boardSize; col++) {
-        final stone = board[row][col];
-        if (stone == StoneColor.black) {
-          blackSetup.add(_toSgfPoint(row, col));
-        } else if (stone == StoneColor.white) {
-          whiteSetup.add(_toSgfPoint(row, col));
-        }
+    final orderedInitialMoves = _orderedInitialMoves(provider);
+    for (var i = 0; i < orderedInitialMoves.length; i++) {
+      final move = orderedInitialMoves[i];
+      if (move.length < 2) continue;
+      final row = move[0];
+      final col = move[1];
+      if (row < 0 ||
+          row >= provider.boardSize ||
+          col < 0 ||
+          col >= provider.boardSize) {
+        continue;
+      }
+      final stone = _orderedInitialMoveColor(provider, board, row, col, i);
+      if (stone == StoneColor.black) {
+        blackSetup.add(_toSgfPoint(row, col));
+      } else if (stone == StoneColor.white) {
+        whiteSetup.add(_toSgfPoint(row, col));
       }
     }
     if (blackSetup.isNotEmpty) {
@@ -4918,7 +4948,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   ) async {
     final inheritedMoves = widget.inheritedMoves.isNotEmpty
         ? widget.inheritedMoves
-        : _initialPositionMoves(provider);
+        : _orderedInitialMoves(provider);
     final moves = provider.moveLog;
     if (inheritedMoves.isEmpty && moves.isEmpty) return;
     final boardSize = provider.boardSize;
@@ -4981,58 +5011,28 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     return '$numStr $color[$coordinate]';
   }
 
-  List<List<int>> _initialPositionMoves(CaptureGameProvider provider) {
-    if (provider.initialBoardOverride == null) {
-      final center = provider.boardSize ~/ 2;
-      if (center <= 0 || center >= provider.boardSize - 1) return const [];
-      return switch (provider.initialMode) {
-        CaptureInitialMode.cross => [
-            [center - 1, center],
-            [center, center - 1],
-            [center + 1, center],
-            [center, center + 1],
-          ],
-        CaptureInitialMode.twistCross => [
-            [center, center],
-            [center, center + 1],
-            [center - 1, center + 1],
-            [center - 1, center],
-          ],
-        CaptureInitialMode.empty || CaptureInitialMode.setup => const [],
-      };
-    }
+  List<List<int>> _orderedInitialMoves(CaptureGameProvider provider) {
+    return orderedCaptureInitialMoves(
+      boardSize: provider.boardSize,
+      initialMode: provider.initialMode,
+      initialBoardOverride: provider.initialBoardOverride,
+      initialPlayer: provider.initialPlayerOverride ?? StoneColor.black,
+    );
+  }
 
-    final board = _buildInitialBoard(provider);
-    final blackMoves = <List<int>>[];
-    final whiteMoves = <List<int>>[];
-    for (var row = 0; row < provider.boardSize; row++) {
-      for (var col = 0; col < provider.boardSize; col++) {
-        final stone = board[row][col];
-        if (stone == StoneColor.black) {
-          blackMoves.add([row, col]);
-        } else if (stone == StoneColor.white) {
-          whiteMoves.add([row, col]);
-        }
-      }
+  StoneColor _orderedInitialMoveColor(
+    CaptureGameProvider provider,
+    List<List<StoneColor>> initialBoard,
+    int row,
+    int col,
+    int index,
+  ) {
+    if (provider.initialBoardOverride == null &&
+        (provider.initialMode == CaptureInitialMode.cross ||
+            provider.initialMode == CaptureInitialMode.twistCross)) {
+      return index.isEven ? StoneColor.black : StoneColor.white;
     }
-
-    final moves = <List<int>>[];
-    final blackQueue = List<List<int>>.from(blackMoves);
-    final whiteQueue = List<List<int>>.from(whiteMoves);
-    var nextColor = provider.initialPlayerOverride ?? StoneColor.black;
-    while (blackQueue.isNotEmpty || whiteQueue.isNotEmpty) {
-      final queue = nextColor == StoneColor.black ? blackQueue : whiteQueue;
-      final fallbackQueue =
-          nextColor == StoneColor.black ? whiteQueue : blackQueue;
-      if (queue.isNotEmpty) {
-        moves.add(queue.removeAt(0));
-      } else if (fallbackQueue.isNotEmpty) {
-        moves.add(fallbackQueue.removeAt(0));
-      }
-      nextColor =
-          nextColor == StoneColor.black ? StoneColor.white : StoneColor.black;
-    }
-    return moves;
+    return initialBoard[row][col];
   }
 
   Future<void> _copyMovesAsSgf(CaptureGameProvider provider) async {
@@ -5059,14 +5059,21 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     // Collect initial stones for AB / AW root properties.
     final abCoords = <String>[];
     final awCoords = <String>[];
-    for (int r = 0; r < boardSize; r++) {
-      for (int c = 0; c < boardSize; c++) {
-        final stone = initialBoard[r][c];
-        if (stone == StoneColor.black) {
-          abCoords.add(_toSgfCoord(c, r));
-        } else if (stone == StoneColor.white) {
-          awCoords.add(_toSgfCoord(c, r));
-        }
+    final orderedInitialMoves = _orderedInitialMoves(provider);
+    for (var i = 0; i < orderedInitialMoves.length; i++) {
+      final move = orderedInitialMoves[i];
+      if (move.length < 2) continue;
+      final row = move[0];
+      final col = move[1];
+      if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) {
+        continue;
+      }
+      final stone =
+          _orderedInitialMoveColor(provider, initialBoard, row, col, i);
+      if (stone == StoneColor.black) {
+        abCoords.add(_toSgfCoord(col, row));
+      } else if (stone == StoneColor.white) {
+        awCoords.add(_toSgfCoord(col, row));
       }
     }
 
@@ -5103,6 +5110,8 @@ class _CaptureBoardArea extends StatelessWidget {
     required this.coordinateSystem,
     required this.enabled,
     required this.hintMarks,
+    required this.showMoveNumbers,
+    required this.moveNumberMoves,
     required this.showCaptureWarning,
     required this.captureTarget,
     required this.blackCaptured,
@@ -5120,6 +5129,8 @@ class _CaptureBoardArea extends StatelessWidget {
   final BoardCoordinateSystem coordinateSystem;
   final bool enabled;
   final List<_HintMark> hintMarks;
+  final bool showMoveNumbers;
+  final List<List<int>> moveNumberMoves;
   final bool showCaptureWarning;
   final int captureTarget;
   final int blackCaptured;
@@ -5205,6 +5216,8 @@ class _CaptureBoardArea extends StatelessWidget {
                         coordinateSystem: coordinateSystem,
                         enabled: enabled,
                         hintMarks: hintMarks,
+                        showMoveNumbers: showMoveNumbers,
+                        moveNumberMoves: moveNumberMoves,
                         showCaptureWarning: showCaptureWarning,
                         onTap: onTap,
                         onDisabledTap: onReviewTap,
@@ -5806,6 +5819,7 @@ class _OperationContextMenu extends StatelessWidget {
     required this.aiConfigLabel,
     required this.captureWarningEnabled,
     required this.moveLogVisible,
+    required this.showMoveNumbers,
     required this.currentMoveMarked,
     required this.canUndo,
     required this.canHint,
@@ -5815,6 +5829,7 @@ class _OperationContextMenu extends StatelessWidget {
     required this.canToggleCaptureWarning,
     required this.onToggleCaptureWarning,
     required this.onToggleMoveLog,
+    required this.onToggleMoveNumbers,
     required this.onToggleMarkMove,
     required this.onUndo,
     required this.onHint,
@@ -5826,6 +5841,7 @@ class _OperationContextMenu extends StatelessWidget {
   final String aiConfigLabel;
   final bool captureWarningEnabled;
   final bool moveLogVisible;
+  final bool showMoveNumbers;
   final bool currentMoveMarked;
   final bool canUndo;
   final bool canHint;
@@ -5835,6 +5851,7 @@ class _OperationContextMenu extends StatelessWidget {
   final bool canToggleCaptureWarning;
   final VoidCallback onToggleCaptureWarning;
   final VoidCallback onToggleMoveLog;
+  final VoidCallback onToggleMoveNumbers;
   final VoidCallback onToggleMarkMove;
   final VoidCallback onUndo;
   final VoidCallback onHint;
@@ -5885,6 +5902,12 @@ class _OperationContextMenu extends StatelessWidget {
               text: moveLogVisible ? '隱藏棋譜' : '顯示棋譜',
               enabled: true,
               onPressed: onToggleMoveLog,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: showMoveNumbers ? '隱藏手數' : '顯示手數',
+              enabled: true,
+              onPressed: onToggleMoveNumbers,
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
@@ -6092,6 +6115,8 @@ class _TapBoard extends StatelessWidget {
     required this.coordinateSystem,
     required this.enabled,
     required this.hintMarks,
+    required this.showMoveNumbers,
+    required this.moveNumberMoves,
     required this.showCaptureWarning,
     required this.onTap,
     this.onDisabledTap,
@@ -6103,6 +6128,8 @@ class _TapBoard extends StatelessWidget {
   final BoardCoordinateSystem coordinateSystem;
   final bool enabled;
   final List<_HintMark> hintMarks;
+  final bool showMoveNumbers;
+  final List<List<int>> moveNumberMoves;
   final bool showCaptureWarning;
   final Future<bool> Function(int row, int col) onTap;
   final VoidCallback? onDisabledTap;
@@ -6130,6 +6157,8 @@ class _TapBoard extends StatelessWidget {
                     gameState: gameState,
                     palette: context.appPalette,
                     coordinateSystem: coordinateSystem,
+                    showMoveNumbers: showMoveNumbers,
+                    moveNumberMoves: moveNumberMoves,
                     showCaptureWarning: showCaptureWarning,
                   ),
                 ),

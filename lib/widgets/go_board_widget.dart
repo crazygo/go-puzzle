@@ -18,6 +18,7 @@ class GoBoardPainter extends CustomPainter {
   final GameState gameState;
   final BoardPosition? hintPosition;
   final bool showMoveNumbers;
+  final List<List<int>> moveNumberMoves;
   final bool showCaptureWarning;
   final AppThemePalette palette;
   final BoardCoordinateSystem coordinateSystem;
@@ -31,6 +32,7 @@ class GoBoardPainter extends CustomPainter {
     this.coordinateSystem = BoardCoordinateSystem.chinese,
     this.hintPosition,
     this.showMoveNumbers = false,
+    this.moveNumberMoves = const [],
     this.showCaptureWarning = true,
   });
 
@@ -47,6 +49,9 @@ class GoBoardPainter extends CustomPainter {
     _drawCoordinateLabels(canvas, size, origin, n, cellSize);
     _drawStones(canvas, origin, n, cellSize);
     _drawLastMoveMark(canvas, origin, cellSize);
+    if (showMoveNumbers) {
+      _drawMoveNumbers(canvas, origin, n, cellSize);
+    }
     _drawHintMark(canvas, origin, cellSize);
     if (showCaptureWarning) {
       _drawAtariMarks(canvas, origin, cellSize);
@@ -334,6 +339,51 @@ class GoBoardPainter extends CustomPainter {
     canvas.drawCircle(Offset(cx, cy), cellSize * 0.12, markPaint);
   }
 
+  void _drawMoveNumbers(Canvas canvas, double origin, int n, double cellSize) {
+    if (moveNumberMoves.isEmpty) return;
+
+    final numbersByPoint = <int, int>{};
+    for (var index = 0; index < moveNumberMoves.length; index++) {
+      final move = moveNumberMoves[index];
+      if (move.length < 2) continue;
+      final row = move[0];
+      final col = move[1];
+      if (row < 0 || row >= n || col < 0 || col >= n) continue;
+      if (gameState.board[row][col] == StoneColor.empty) continue;
+      numbersByPoint[row * n + col] = index + 1;
+    }
+
+    final fontSize = (cellSize * 0.38).clamp(9.0, 16.0);
+    for (final entry in numbersByPoint.entries) {
+      final row = entry.key ~/ n;
+      final col = entry.key % n;
+      final stone = gameState.board[row][col];
+      if (stone == StoneColor.empty) continue;
+
+      final cx = origin + col * cellSize;
+      final cy = origin + row * cellSize;
+      final isBlack = stone == StoneColor.black;
+      final painter = TextPainter(
+        text: TextSpan(
+          text: '${entry.value}',
+          style: TextStyle(
+            color: isBlack
+                ? Colors.white.withOpacity(0.92)
+                : Colors.black.withOpacity(0.68),
+            fontSize: fontSize,
+            fontWeight: FontWeight.w700,
+            height: 1,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      painter.paint(
+        canvas,
+        Offset(cx - painter.width / 2, cy - painter.height / 2),
+      );
+    }
+  }
+
   void _drawHintMark(Canvas canvas, double origin, double cellSize) {
     if (hintPosition == null) return;
 
@@ -375,6 +425,7 @@ class GoBoardPainter extends CustomPainter {
     return oldDelegate.gameState != gameState ||
         oldDelegate.hintPosition != hintPosition ||
         oldDelegate.showMoveNumbers != showMoveNumbers ||
+        oldDelegate.moveNumberMoves != moveNumberMoves ||
         oldDelegate.showCaptureWarning != showCaptureWarning ||
         oldDelegate.coordinateSystem != coordinateSystem ||
         oldDelegate.palette != palette;
@@ -387,6 +438,7 @@ class GoBoardWidget extends StatelessWidget {
   final void Function(int row, int col)? onTap;
   final BoardPosition? hintPosition;
   final bool showMoveNumbers;
+  final List<List<int>> moveNumberMoves;
   final bool showCaptureWarning;
   final double? size;
   final BoardCoordinateSystem coordinateSystem;
@@ -397,6 +449,7 @@ class GoBoardWidget extends StatelessWidget {
     this.onTap,
     this.hintPosition,
     this.showMoveNumbers = false,
+    this.moveNumberMoves = const [],
     this.showCaptureWarning = true,
     this.coordinateSystem = BoardCoordinateSystem.chinese,
     this.size,
@@ -421,6 +474,7 @@ class GoBoardWidget extends StatelessWidget {
                 gameState: gameState,
                 hintPosition: hintPosition,
                 showMoveNumbers: showMoveNumbers,
+                moveNumberMoves: moveNumberMoves,
                 showCaptureWarning: showCaptureWarning,
                 palette: palette,
                 coordinateSystem: coordinateSystem,

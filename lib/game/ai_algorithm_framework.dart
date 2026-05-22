@@ -201,7 +201,7 @@ class AiAlgorithmRegistry {
         : config.robotConfig.copyWith(seed: seedOverride);
     CaptureAiAgent agent;
     if (_katagoBackend(config) == 'onnx') {
-      agent = _KatagoOnnxAgent(
+      return _KatagoOnnxAgent(
         config: config,
         style: robotConfig.style,
         modelAdapter: katagoModelAdapter,
@@ -240,14 +240,10 @@ class AiAlgorithmRegistry {
         ? config.robotConfig
         : config.robotConfig.copyWith(seed: seedOverride);
     if (_katagoBackend(config) == 'onnx') {
-      return _AsyncTacticalAnalyzerAgent(
+      return _AsyncKatagoOnnxAgent(
         config: config,
-        inner: _AsyncKatagoOnnxAgent(
-          config: config,
-          style: robotConfig.style,
-          modelAdapter: katagoModelAdapter,
-        ),
-        tacticalAnalyzer: tacticalAnalyzer,
+        style: robotConfig.style,
+        modelAdapter: katagoModelAdapter,
       );
     }
     CaptureAiAgent agent = CaptureAiRegistry.createFromConfig(robotConfig);
@@ -426,11 +422,9 @@ class AiAlgorithmRegistry {
     parameters: const {
       'backend': 'onnx',
       'modelAsset': 'assets/models/katago_capture_weak.onnx',
-      'visits': 4,
       'timeBudgetMillis': 10000,
       'policyTemperature': 1.35,
       'candidateLimit': 12,
-      'captureSearchDepth': 1,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.adaptive,
@@ -447,11 +441,9 @@ class AiAlgorithmRegistry {
     parameters: const {
       'backend': 'onnx',
       'modelAsset': 'assets/models/katago_capture_standard.onnx',
-      'visits': 32,
       'timeBudgetMillis': 10000,
       'policyTemperature': 0.0,
       'candidateLimit': 1,
-      'captureSearchDepth': 2,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,
@@ -649,7 +641,6 @@ class _KatagoOnnxAgent implements CaptureAiAgent {
       KatagoModelRequest(
         board: SimBoard.copy(board),
         modelAsset: _stringParameter(config, 'modelAsset'),
-        visits: _intParameter(config, 'visits'),
         timeBudgetMillis: _intParameter(config, 'timeBudgetMillis'),
         policyTemperature: _doubleParameter(config, 'policyTemperature'),
         candidateLimit: _intParameter(config, 'candidateLimit'),
@@ -657,12 +648,7 @@ class _KatagoOnnxAgent implements CaptureAiAgent {
     );
     final move = evaluation.move;
     if (move != null && board.analyzeMove(move.row, move.col).isLegal) {
-      final tacticalMove = _captureSearchMove(
-        board,
-        depth: _intParameter(config, 'captureSearchDepth'),
-        baseMove: move,
-      );
-      return CaptureAiMove(position: tacticalMove ?? move, score: 100000);
+      return CaptureAiMove(position: move, score: 100000);
     }
     return null;
   }
@@ -689,7 +675,6 @@ class _AsyncKatagoOnnxAgent implements AsyncCaptureAiAgent {
       KatagoModelRequest(
         board: SimBoard.copy(board),
         modelAsset: _stringParameter(config, 'modelAsset'),
-        visits: _intParameter(config, 'visits'),
         timeBudgetMillis: _intParameter(config, 'timeBudgetMillis'),
         policyTemperature: _doubleParameter(config, 'policyTemperature'),
         candidateLimit: _intParameter(config, 'candidateLimit'),
@@ -697,12 +682,7 @@ class _AsyncKatagoOnnxAgent implements AsyncCaptureAiAgent {
     );
     final move = evaluation.move;
     if (move != null && board.analyzeMove(move.row, move.col).isLegal) {
-      final tacticalMove = _captureSearchMove(
-        board,
-        depth: _intParameter(config, 'captureSearchDepth'),
-        baseMove: move,
-      );
-      return CaptureAiMove(position: tacticalMove ?? move, score: 100000);
+      return CaptureAiMove(position: move, score: 100000);
     }
     throw KatagoModelException(
       evaluation.failureReason ?? 'katago_onnx_returned_no_legal_move',

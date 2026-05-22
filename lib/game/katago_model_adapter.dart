@@ -11,7 +11,6 @@ class KatagoModelRequest {
   const KatagoModelRequest({
     required this.board,
     required this.modelAsset,
-    required this.visits,
     required this.timeBudgetMillis,
     required this.policyTemperature,
     required this.candidateLimit,
@@ -19,7 +18,6 @@ class KatagoModelRequest {
 
   final SimBoard board;
   final String modelAsset;
-  final int visits;
   final int timeBudgetMillis;
   final double policyTemperature;
   final int candidateLimit;
