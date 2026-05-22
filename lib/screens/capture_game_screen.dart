@@ -796,8 +796,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                           ),
                                         ],
                                         if (_playMode == _modeTerritory) ...[
-                                          const SizedBox(height: 20),
-                                          const _SectionLabel(title: 'AI 棋力'),
                                           const SizedBox(height: 8),
                                           const _ModeHintText(
                                             text:
