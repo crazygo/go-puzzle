@@ -27,3 +27,11 @@ specs:
       - Results from an older board state are not applied after the user changes the board, leaves the screen, exits training mode, or starts a new game.
       - Disposing a provider or screen cancels pending timers, worker subscriptions, and request handles owned by that lifecycle.
     references: []
+
+  - spec_id: release_build_number_parity
+    expected_behavior:
+      - The committed Flutter app version in pubspec.yaml uses an even build number for local developer builds.
+      - TestFlight CI builds derive their uploaded build number from the committed build number plus one, producing an odd build number for CI artifacts.
+      - TestFlight CI fails before building if the committed pubspec.yaml build number is missing, non-numeric, or odd.
+      - Re-uploading a new TestFlight build for the same marketing version requires increasing the committed build number by two so the next CI upload build number also increases.
+    references: []
