@@ -430,7 +430,7 @@ class AiAlgorithmRegistry {
       'timeBudgetMillis': 10000,
       'policyTemperature': 1.35,
       'candidateLimit': 12,
-      'captureSearchDepth': 0,
+      'captureSearchDepth': 1,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.adaptive,
@@ -762,7 +762,8 @@ double _captureSearchScore(
       analysis.opponentAtariStones * 80.0 +
       analysis.ownRescuedStones * 35.0 +
       scoreCriticalOwnGroupDefense(board, moveIndex, analysis) -
-      scoreDoomedAtariExtensionPenalty(board, moveIndex, analysis) +
+      scoreDoomedAtariExtensionPenalty(board, moveIndex, analysis) -
+      scoreImmediateOpponentCapturePenalty(board, moveIndex, analysis) +
       analysis.adjacentOpponentStones * 12.0 +
       analysis.libertiesAfterMove * 4.0 +
       analysis.centerProximityScore.toDouble();

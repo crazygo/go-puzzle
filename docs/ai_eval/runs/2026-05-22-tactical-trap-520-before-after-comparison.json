@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "probe": "tactical_trap_compare_probe_v1",
+  "beforePath": "docs/ai_eval/runs/2026-05-22-tactical-trap-520-ablation-baseline.json",
+  "afterPath": "docs/ai_eval/runs/2026-05-22-tactical-trap-all-native-full.json",
+  "beforeSampleCount": 520,
+  "afterSampleCount": 520,
+  "comparisonMode": "sample_id_intersection",
+  "comparisons": [
+    {
+      "configId": "heuristic_counter_standard_v1",
+      "comparedSamples": 520,
+      "before": {
+        "samples": 520,
+        "legalMoves": 520,
+        "illegalOrNoMove": 0,
+        "blunders": 0,
+        "provenFailures": 0,
+        "accepted": 520,
+        "trapBlunderRate": 0.0,
+        "acceptedMoveRate": 1.0
+      },
+      "after": {
+        "samples": 520,
+        "legalMoves": 520,
+        "illegalOrNoMove": 0,
+        "blunders": 0,
+        "provenFailures": 0,
+        "accepted": 520,
+        "trapBlunderRate": 0.0,
+        "acceptedMoveRate": 1.0
+      },
+      "delta": {
+        "provenFailures": 0,
+        "blunders": 0,
+        "accepted": 0,
+        "trapBlunderRate": 0.0,
+        "acceptedMoveRate": 0.0,
+        "provenFailureReductionRate": null
+      }
+    },
+    {
+      "configId": "mcts_counter_standard_v1",
+      "comparedSamples": 520,
+      "before": {
+        "samples": 520,
+        "legalMoves": 520,
+        "illegalOrNoMove": 0,
+        "blunders": 83,
+        "provenFailures": 83,
+        "accepted": 437,
+        "trapBlunderRate": 0.1596153846153846,
+        "acceptedMoveRate": 0.8403846153846154
+      },
+      "after": {
+        "samples": 520,
+        "legalMoves": 520,
+        "illegalOrNoMove": 0,
+        "blunders": 0,
+        "provenFailures": 0,
+        "accepted": 520,
+        "trapBlunderRate": 0.0,
+        "acceptedMoveRate": 1.0
+      },
+      "delta": {
+        "provenFailures": -83,
+        "blunders": -83,
+        "accepted": 83,
+        "trapBlunderRate": -0.1596153846153846,
+        "acceptedMoveRate": 0.1596153846153846,
+        "provenFailureReductionRate": 1.0
+      }
+    },
+    {
+      "configId": "hybrid_tactical_counter_standard_v1",
+      "comparedSamples": 520,
+      "before": {
+        "samples": 520,
+        "legalMoves": 520,
+        "illegalOrNoMove": 0,
+        "blunders": 0,
+        "provenFailures": 0,
+        "accepted": 520,
+        "trapBlunderRate": 0.0,
+        "acceptedMoveRate": 1.0
+      },
+      "after": {
+        "samples": 520,
+        "legalMoves": 520,
+        "illegalOrNoMove": 0,
+        "blunders": 0,
+        "provenFailures": 0,
+        "accepted": 520,
+        "trapBlunderRate": 0.0,
+        "acceptedMoveRate": 1.0
+      },
+      "delta": {
+        "provenFailures": 0,
+        "blunders": 0,
+        "accepted": 0,
+        "trapBlunderRate": 0.0,
+        "acceptedMoveRate": 0.0,
+        "provenFailureReductionRate": null
+      }
+    }
+  ]
+}

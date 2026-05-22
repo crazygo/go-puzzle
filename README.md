@@ -27,6 +27,8 @@ tracking captures.
 - Capture-go games against named AI opponents.
 - Multiple AI families and strength tiers.
 - Repeatable AI evaluation through arena tools and recorded artifacts.
+- Generated tactical-trap corpora for regression-testing AI decisions around
+  ladders, false connections, edge escapes, nets, and snapbacks.
 
 ### App Settings
 - Board mode and coordinate display options.

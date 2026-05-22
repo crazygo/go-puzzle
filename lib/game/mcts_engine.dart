@@ -136,11 +136,22 @@ double scoreDoomedAtariExtensionPenalty(
       anchor = candidate.anchor;
     }
   }
-  if (anchor < 0) return 0;
 
   final probe = SimBoard.copy(board);
   if (!probe.applyMove(moveIndex ~/ board.size, moveIndex % board.size)) {
     return 0;
+  }
+  if (anchor < 0) {
+    if (analysis.ownRescuedStones <= 0 || probe.cells[moveIndex] != player) {
+      return 0;
+    }
+    final formedGroup = probe.groupAtIndex(moveIndex);
+    final formedLiberties = probe.libertiesForGroup(formedGroup);
+    if (formedLiberties.length > 2) {
+      return 0;
+    }
+    anchor = moveIndex;
+    largestSavedGroupSize = formedGroup.length;
   }
   if (probe.cells[anchor] != player) return 0;
   var targetGroup = probe.groupAtIndex(anchor);
@@ -165,6 +176,57 @@ double scoreDoomedAtariExtensionPenalty(
       dangerousSize >= board.captureTarget &&
       outcome.finalLiberties <= 2) {
     return 2200.0 + dangerousSize * 260.0 + outcome.forcedRescues * 180.0;
+  }
+  if (analysis.ownRescuedStones > 0 &&
+      targetGroup.length >= 2 &&
+      targetLiberties.length == 2) {
+    return 1700.0 + targetGroup.length * 220.0;
+  }
+  return 0;
+}
+
+double scoreImmediateOpponentCapturePenalty(
+  SimBoard board,
+  int moveIndex,
+  SimMoveAnalysis analysis,
+) {
+  if (!analysis.isLegal) return 0;
+  final player = board.currentPlayer;
+  final ownCaptureDelta = player == SimBoard.black
+      ? analysis.blackCaptureDelta
+      : analysis.whiteCaptureDelta;
+  if (ownCaptureDelta <= 0) return 0;
+  final ownCaptures =
+      player == SimBoard.black ? board.capturedByBlack : board.capturedByWhite;
+  if (ownCaptures + ownCaptureDelta >= board.captureTarget) return 0;
+
+  final probe = SimBoard.copy(board);
+  if (!probe.applyMove(moveIndex ~/ board.size, moveIndex % board.size)) {
+    return 0;
+  }
+  if (probe.isTerminal) return 0;
+
+  final opponent = probe.currentPlayer;
+  final opponentCaptures = opponent == SimBoard.black
+      ? probe.capturedByBlack
+      : probe.capturedByWhite;
+  var worstReplyDelta = 0;
+  for (final replyIndex in probe.getLegalMoves()) {
+    final reply = probe.analyzeMove(
+      replyIndex ~/ probe.size,
+      replyIndex % probe.size,
+    );
+    if (!reply.isLegal) continue;
+    final replyCaptureDelta = opponent == SimBoard.black
+        ? reply.blackCaptureDelta
+        : reply.whiteCaptureDelta;
+    worstReplyDelta = math.max(worstReplyDelta, replyCaptureDelta);
+    if (opponentCaptures + replyCaptureDelta >= probe.captureTarget) {
+      return 5200.0 + replyCaptureDelta * 520.0;
+    }
+  }
+  if (worstReplyDelta >= board.captureTarget) {
+    return 3600.0 + worstReplyDelta * 360.0;
   }
   return 0;
 }
@@ -499,7 +561,6 @@ class SimBoard {
 
     final i = idx(r, c);
     if (cells[i] != empty) return false;
-    if (i == _koIndex) return false;
 
     final color = currentPlayer;
     final opponent = color == black ? white : black;
@@ -523,6 +584,11 @@ class SimBoard {
         }
         if (libs.isEmpty) captured.addAll(group);
       }
+    }
+
+    if (i == _koIndex && captured.length == 1) {
+      cells[i] = empty;
+      return false;
     }
 
     // Remove captured stones.
@@ -738,7 +804,7 @@ class SimBoard {
             final nc = c + dc;
             if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
               final ni = idx(nr, nc);
-              if (cells[ni] == empty && ni != _koIndex) {
+              if (cells[ni] == empty) {
                 candidates.add(ni);
               }
             }
@@ -759,7 +825,15 @@ class SimBoard {
       }
     }
 
-    return candidates.toList();
+    if (_koIndex < 0 || !candidates.contains(_koIndex)) {
+      return candidates.toList();
+    }
+    return [
+      for (final index in candidates)
+        if (index != _koIndex ||
+            analyzeMove(index ~/ size, index % size).isLegal)
+          index,
+    ];
   }
 
   int _countPlayerAtariStones(int playerColor) {
