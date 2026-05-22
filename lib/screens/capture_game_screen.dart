@@ -737,6 +737,30 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       ),
                                       const SizedBox(height: 18),
                                       if (_isAdjusting) ...[
+                                        const _SectionLabel(title: '模式'),
+                                        const SizedBox(height: 4),
+                                        _PillSegmentControl<String>(
+                                          selectedValue: _playMode,
+                                          options: [
+                                            _SegmentOption(
+                                              value: _modeCapture,
+                                              label: _captureModeSegmentLabel,
+                                            ),
+                                            const _SegmentOption(
+                                              value: _modeTerritory,
+                                              label: '圍空',
+                                            ),
+                                          ],
+                                          onChanged: (value) =>
+                                              _updateSelection(playMode: value),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        _ModeHintText(
+                                          text: _playMode == _modeTerritory
+                                              ? '圍空模式為真實數子對局：雙方連續停一手後按地盤結算。'
+                                              : '吃子模式仍為先吃 $_captureTarget 子取勝。',
+                                        ),
+                                        const SizedBox(height: 20),
                                         const _SectionLabel(title: 'AI 棋力'),
                                         const SizedBox(height: 8),
                                         _PillSegmentControl<String>(
@@ -807,30 +831,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                           onChanged: (value) =>
                                               _updateSelection(
                                                   initialMode: value),
-                                        ),
-                                        const SizedBox(height: 20),
-                                        const _SectionLabel(title: '模式'),
-                                        const SizedBox(height: 4),
-                                        _PillSegmentControl<String>(
-                                          selectedValue: _playMode,
-                                          options: [
-                                            _SegmentOption(
-                                              value: _modeCapture,
-                                              label: _captureModeSegmentLabel,
-                                            ),
-                                            const _SegmentOption(
-                                              value: _modeTerritory,
-                                              label: '圍空',
-                                            ),
-                                          ],
-                                          onChanged: (value) =>
-                                              _updateSelection(playMode: value),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        _ModeHintText(
-                                          text: _playMode == _modeTerritory
-                                              ? '圍空模式為真實數子對局：雙方連續停一手後按地盤結算。'
-                                              : '吃子模式仍為先吃 $_captureTarget 子取勝。',
                                         ),
                                         const SizedBox(height: 20),
                                         const _SectionLabel(title: '棋盤'),
@@ -4327,6 +4327,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   // Training partner mode state.
   _TrainingHintSession? _trainingHintSession;
   KatagoPolicyPlane _trainingPolicyPlane = KatagoPolicyPlane.normal;
+  _TrainingHintUiState _trainingHintState = _TrainingHintUiState.idle;
 
   /// Last-move coordinates shown while the ripple animation plays.
   List<int>? _rippleMove;
@@ -4545,13 +4546,18 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                   // Spec: docs/specs_map/main_game_flow.yaml#training_coach_katago
                   if (provider.trainingMode)
                     _TrainingModeStatusBar(
+                      state: isFinished
+                          ? _TrainingHintUiState.finished
+                          : _trainingHintState,
+                      hintCount: _hintMarks.length,
                       strategy: _trainingPolicyPlane,
                       onStrategyTap: () =>
                           _showTrainingStrategyPicker(context, provider),
+                      onDetailsTap: _hintMarks.isEmpty
+                          ? null
+                          : () => _showTrainingDetails(context),
                       onLeave: () => _leaveTrainingMode(provider),
                     ),
-                  if (provider.trainingMode)
-                    _TrainingExplanationPanel(hints: _hintMarks),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                     child: (_moveLogVisible || inReviewMode)
@@ -4868,16 +4874,28 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
       if (provider.trainingMode && provider.result == CaptureGameResult.none) {
         // Restart hint session for the new board position.
         _trainingHintSession?.cancel();
+        _trainingHintState = _TrainingHintUiState.refreshing;
         _trainingHintSession = _TrainingHintSession(
           provider: provider,
           strategy: _trainingPolicyPlane,
           onUpdate: (marks) {
             if (!mounted) return;
-            setState(() => _hintMarks = marks);
+            setState(() {
+              _hintMarks = marks;
+              _trainingHintState = marks.isEmpty
+                  ? _TrainingHintUiState.empty
+                  : _TrainingHintUiState.ready;
+            });
           },
           onDone: () {
             if (!mounted) return;
-            setState(() {});
+            setState(() {
+              if (_hintMarks.isEmpty &&
+                  (_trainingHintState == _TrainingHintUiState.loading ||
+                      _trainingHintState == _TrainingHintUiState.refreshing)) {
+                _trainingHintState = _TrainingHintUiState.empty;
+              }
+            });
           },
         );
         _trainingHintSession!.start();
@@ -4916,6 +4934,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     provider.enterTrainingMode();
     setState(() {
       _hintMarks = const [];
+      _trainingHintState = _TrainingHintUiState.loading;
     });
     _trainingHintSession?.cancel();
     _trainingHintSession = _TrainingHintSession(
@@ -4923,11 +4942,22 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
       strategy: _trainingPolicyPlane,
       onUpdate: (marks) {
         if (!mounted) return;
-        setState(() => _hintMarks = marks);
+        setState(() {
+          _hintMarks = marks;
+          _trainingHintState = marks.isEmpty
+              ? _TrainingHintUiState.empty
+              : _TrainingHintUiState.ready;
+        });
       },
       onDone: () {
         if (!mounted) return;
-        setState(() {});
+        setState(() {
+          if (_hintMarks.isEmpty &&
+              (_trainingHintState == _TrainingHintUiState.loading ||
+                  _trainingHintState == _TrainingHintUiState.refreshing)) {
+            _trainingHintState = _TrainingHintUiState.empty;
+          }
+        });
       },
     );
     _trainingHintSession!.start();
@@ -4938,6 +4968,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     _trainingHintSession = null;
     setState(() {
       _hintMarks = const [];
+      _trainingHintState = _TrainingHintUiState.idle;
     });
     provider.exitTrainingMode();
   }
@@ -4979,6 +5010,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     setState(() {
       _trainingPolicyPlane = strategy;
       _hintMarks = const [];
+      _trainingHintState = _TrainingHintUiState.refreshing;
     });
     if (!provider.trainingMode || provider.result != CaptureGameResult.none) {
       return;
@@ -4988,14 +5020,40 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
       strategy: _trainingPolicyPlane,
       onUpdate: (marks) {
         if (!mounted) return;
-        setState(() => _hintMarks = marks);
+        setState(() {
+          _hintMarks = marks;
+          _trainingHintState = marks.isEmpty
+              ? _TrainingHintUiState.empty
+              : _TrainingHintUiState.ready;
+        });
       },
       onDone: () {
         if (!mounted) return;
-        setState(() {});
+        setState(() {
+          if (_hintMarks.isEmpty &&
+              (_trainingHintState == _TrainingHintUiState.refreshing ||
+                  _trainingHintState == _TrainingHintUiState.loading)) {
+            _trainingHintState = _TrainingHintUiState.empty;
+          }
+        });
       },
     );
     _trainingHintSession!.start();
+  }
+
+  void _showTrainingDetails(BuildContext context) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: const Text('推薦詳情'),
+        message: _TrainingExplanationPanel(hints: _hintMarks),
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text('完成'),
+        ),
+      ),
+    );
   }
 
   _ResultDialogState _resultDialogState(CaptureGameProvider provider) {
@@ -6759,16 +6817,42 @@ class _TrainingHintSession {
 // Training mode status bar
 // ---------------------------------------------------------------------------
 
+enum _TrainingHintUiState {
+  idle,
+  loading,
+  refreshing,
+  ready,
+  empty,
+  finished,
+}
+
 class _TrainingModeStatusBar extends StatelessWidget {
   const _TrainingModeStatusBar({
+    required this.state,
+    required this.hintCount,
     required this.strategy,
     required this.onStrategyTap,
+    required this.onDetailsTap,
     required this.onLeave,
   });
 
+  final _TrainingHintUiState state;
+  final int hintCount;
   final KatagoPolicyPlane strategy;
   final VoidCallback onStrategyTap;
+  final VoidCallback? onDetailsTap;
   final VoidCallback onLeave;
+
+  String get _statusText {
+    return switch (state) {
+      _TrainingHintUiState.idle => '等待推薦',
+      _TrainingHintUiState.loading => '正在思考',
+      _TrainingHintUiState.refreshing => '正在更新',
+      _TrainingHintUiState.ready => '已推薦 $hintCount 手',
+      _TrainingHintUiState.empty => '暫無推薦',
+      _TrainingHintUiState.finished => '對局已結束',
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -6778,28 +6862,62 @@ class _TrainingModeStatusBar extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              'AI 陪練模式',
-              style: TextStyle(
-                fontSize: 13,
-                color: palette.setupTitleText,
-                fontWeight: FontWeight.w500,
-              ),
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    _statusText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: palette.setupTitleText,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (state == _TrainingHintUiState.ready &&
+                    onDetailsTap != null) ...[
+                  Text(
+                    ' · ',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: palette.setupTitleText,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  CupertinoButton(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                    minimumSize: Size.zero,
+                    onPressed: onDetailsTap,
+                    child: Text(
+                      '詳情',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: palette.setupActionText,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            minimumSize: Size.zero,
-            onPressed: onStrategyTap,
-            child: Text(
-              strategy.shortLabel,
-              style: TextStyle(
-                fontSize: 13,
-                color: palette.setupActionText,
-                fontWeight: FontWeight.w600,
+          if (state != _TrainingHintUiState.finished)
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              onPressed: onStrategyTap,
+              child: Text(
+                strategy.shortLabel,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: palette.setupActionText,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
           CupertinoButton(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             minimumSize: Size.zero,

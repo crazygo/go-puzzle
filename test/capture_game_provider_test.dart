@@ -727,11 +727,24 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('離開陪練'), findsOneWidget);
-      expect(find.text('AI 陪練模式'), findsWidgets);
+      expect(find.text('AI 陪練模式'), findsOneWidget);
       expect(find.textContaining('/ 5 輪'), findsNothing);
       expect(find.text('穩定'), findsOneWidget);
-      expect(find.textContaining('57%'), findsWidgets);
+      expect(find.text('已推薦 2 手'), findsOneWidget);
+      expect(find.text('詳情'), findsOneWidget);
+      expect(find.textContaining('57%'), findsNothing);
       expect(runner.searchCount, 1);
+
+      await tester.tap(find.text('詳情'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('推薦詳情'), findsOneWidget);
+      expect(find.textContaining('57%'), findsWidgets);
+
+      await tester.tap(find.text('完成'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       await tester.pump(const Duration(seconds: 4));
       expect(runner.searchCount, 1);
