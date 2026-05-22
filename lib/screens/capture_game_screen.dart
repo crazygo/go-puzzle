@@ -30,6 +30,121 @@ import '../widgets/go_board_widget.dart';
 import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
 
+const _sharedGameSgfQueryKey = 'sgf';
+const _sharedGameUtmSourceQueryKey = 'utm_source';
+const _sharedGameUtmMediumQueryKey = 'utm_medium';
+const _sharedGameViaQueryKey = 'shared_via';
+const _sharedGameUtmSourceValue = 'google_firebase';
+
+@visibleForTesting
+Uri buildSharedGameUri(
+  String sgf, {
+  bool? isWebOverride,
+  Uri? webBaseUri,
+}) {
+  final isWebPlatform = isWebOverride ?? kIsWeb;
+  final query = <String, String>{
+    _sharedGameSgfQueryKey: sgf,
+    _sharedGameUtmSourceQueryKey: _sharedGameUtmSourceValue,
+    _sharedGameUtmMediumQueryKey: isWebPlatform ? 'web_share' : 'app_share',
+    _sharedGameViaQueryKey: isWebPlatform ? 'web' : 'app',
+  };
+
+  Uri base = Uri.parse('https://go-puzzle.vercel.app/');
+  if (isWebPlatform) {
+    final candidate = webBaseUri ?? Uri.base;
+    if (candidate.host.isNotEmpty) {
+      final portPart = candidate.hasPort ? ':${candidate.port}' : '';
+      final path = candidate.path.isEmpty ? '/' : candidate.path;
+      base = Uri.parse('${candidate.scheme}://${candidate.host}$portPart$path');
+    }
+  }
+  return base.replace(queryParameters: query);
+}
+
+@visibleForTesting
+GameRecord? buildSharedGameRecordFromSgf(
+  String sgf, {
+  DateTime? playedAt,
+}) {
+  final source = sgf.trim();
+  if (source.isEmpty) return null;
+
+  final sizeMatch = RegExp(r'SZ\[(\d+)\]').firstMatch(source);
+  final boardSize = int.tryParse(sizeMatch?.group(1) ?? '');
+  if (boardSize == null || boardSize < 2 || boardSize > 25) return null;
+
+  List<int>? parseCoord(String coord) {
+    if (coord.length != 2) return null;
+    final col = coord.codeUnitAt(0) - 97;
+    final row = coord.codeUnitAt(1) - 97;
+    if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) {
+      return null;
+    }
+    return [row, col];
+  }
+
+  final initialBoard = List.generate(
+    boardSize,
+    (_) => List<StoneColor>.filled(boardSize, StoneColor.empty),
+  );
+  var hasSetupStones = false;
+  for (final setup in RegExp(r'(AB|AW)\[([a-z]{2})\]').allMatches(source)) {
+    final color = setup.group(1);
+    final coord = parseCoord(setup.group(2) ?? '');
+    if (coord == null) continue;
+    hasSetupStones = true;
+    initialBoard[coord[0]][coord[1]] =
+        color == 'AB' ? StoneColor.black : StoneColor.white;
+  }
+
+  final initialPlayer =
+      RegExp(r'PL\[W\]').hasMatch(source) ? StoneColor.white : StoneColor.black;
+  final parsedMoves = <List<int>>[];
+  for (final move in RegExp(r';([BW])\[([a-z]{2})\]').allMatches(source)) {
+    final coord = parseCoord(move.group(2) ?? '');
+    if (coord == null) break;
+    parsedMoves.add(coord);
+  }
+
+  var state = GameState(
+    boardSize: boardSize,
+    board: initialBoard.map((row) => List<StoneColor>.from(row)).toList(),
+    currentPlayer: initialPlayer,
+    gameMode: GameMode.capture,
+  );
+  final legalMoves = <List<int>>[];
+  for (final move in parsedMoves) {
+    final next = GoEngine.placeStone(state, move[0], move[1]);
+    if (next == null) break;
+    legalMoves.add(move);
+    state = next;
+  }
+  if (legalMoves.isEmpty && !hasSetupStones) return null;
+
+  List<List<int>> boardToInts(List<List<StoneColor>> board) =>
+      board.map((row) => row.map((stone) => stone.index).toList()).toList();
+
+  final time = playedAt ?? DateTime.now();
+  final mode = hasSetupStones ? CaptureInitialMode.setup : CaptureInitialMode.empty;
+  return GameRecord(
+    id: time.toIso8601String(),
+    playedAt: time,
+    boardSize: boardSize,
+    captureTarget: 5,
+    difficulty: DifficultyLevel.intermediate.name,
+    gameMode: GameMode.capture,
+    humanColorIndex: StoneColor.black.index,
+    initialMode: captureInitialModeStorageKey(mode),
+    initialBoardCells: hasSetupStones ? boardToInts(initialBoard) : null,
+    initialFirstPlayerIndex:
+        initialPlayer == StoneColor.black ? null : initialPlayer.index,
+    moves: legalMoves.map((move) => List<int>.from(move)).toList(),
+    outcome: GameOutcome.abandoned,
+    finalBoard: boardToInts(state.board),
+  );
+}
+
 class CaptureGameScreen extends StatefulWidget {
   const CaptureGameScreen({
     super.key,
@@ -555,6 +670,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
   final _historyRepo = GameHistoryRepository();
   List<GameRecord> _history = const [];
+  bool _handledSharedGameLink = false;
   double _homeBoardTopFactor = _defaultHomeBoardTopFactor;
   double _homeBoardHeightFactor = _defaultHomeBoardHeightFactor;
   double _homeBoardCanvasYOffset = _defaultHomeBoardCanvasYOffset;
@@ -621,6 +737,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     _homeScrollController.addListener(_syncHeroTapProxy);
     _restoreSelection();
     _loadHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleSharedGameLink();
+    });
   }
 
   @override
@@ -1263,6 +1382,27 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     final records = await _historyRepo.loadAll();
     if (!mounted) return;
     setState(() => _history = records);
+  }
+
+  Future<void> _handleSharedGameLink() async {
+    if (_handledSharedGameLink) return;
+    _handledSharedGameLink = true;
+
+    final sgf = Uri.base.queryParameters[_sharedGameSgfQueryKey];
+    if (sgf == null || sgf.trim().isEmpty) return;
+
+    final sharedRecord = buildSharedGameRecordFromSgf(sgf);
+    if (sharedRecord == null) return;
+
+    await _historyRepo.save(sharedRecord);
+    if (!mounted) return;
+    await _loadHistory();
+    if (!mounted) return;
+
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (_) => _HistoryDetailSheet(record: sharedRecord),
+    );
   }
 
   Future<void> _importBoardFromScreenshot() async {
@@ -4410,10 +4550,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     );
     final buttonRect = buttonTopLeft & buttonBox.size;
     const menuWidth = 178.0;
-    // 9 items x 48 px each + 8 dividers x 0.6 px each
+    // 10 items x 48 px each + 9 dividers x 0.6 px each
     const menuItemHeight = 48.0;
     const menuDividerHeight = 0.6;
-    const menuItemCount = 9;
+    const menuItemCount = 10;
     const menuHeight = menuItemCount * menuItemHeight +
         (menuItemCount - 1) * menuDividerHeight;
     const edgePadding = 12.0;
@@ -4501,6 +4641,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                 onCopySgf: () {
                   Navigator.of(menuContext).pop();
                   _copyMovesAsSgf(provider);
+                },
+                onShareGame: () {
+                  Navigator.of(menuContext).pop();
+                  _shareGame(provider);
                 },
               ),
             ),
@@ -5036,6 +5180,19 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   }
 
   Future<void> _copyMovesAsSgf(CaptureGameProvider provider) async {
+    final sgf = _buildShareableSgf(provider);
+    await Clipboard.setData(ClipboardData(text: sgf));
+    if (mounted) _showCopyBanner('SGF 已複製');
+  }
+
+  Future<void> _shareGame(CaptureGameProvider provider) async {
+    final sgf = _buildShareableSgf(provider);
+    final shareUri = buildSharedGameUri(sgf);
+    await Clipboard.setData(ClipboardData(text: shareUri.toString()));
+    if (mounted) _showCopyBanner('已複製帶棋譜的遊戲連結');
+  }
+
+  String _buildShareableSgf(CaptureGameProvider provider) {
     final moves = provider.moveLog;
     final boardSize = provider.boardSize;
 
@@ -5091,8 +5248,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
           : StoneColor.black;
     }
     buffer.write(')');
-    await Clipboard.setData(ClipboardData(text: buffer.toString()));
-    if (mounted) _showCopyBanner('SGF 已複製');
+    return buffer.toString();
   }
 }
 
@@ -5821,6 +5977,7 @@ class _OperationContextMenu extends StatelessWidget {
     required this.onPass,
     required this.onCopyText,
     required this.onCopySgf,
+    required this.onShareGame,
   });
 
   final String aiConfigLabel;
@@ -5841,6 +5998,7 @@ class _OperationContextMenu extends StatelessWidget {
   final VoidCallback onPass;
   final VoidCallback onCopyText;
   final VoidCallback onCopySgf;
+  final VoidCallback onShareGame;
 
   @override
   Widget build(BuildContext context) {
@@ -5921,6 +6079,12 @@ class _OperationContextMenu extends StatelessWidget {
               text: '複製棋譜為 SGF',
               enabled: canCopyMoveLog,
               onPressed: onCopySgf,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: '分享遊戲',
+              enabled: canCopyMoveLog,
+              onPressed: onShareGame,
             ),
           ],
         ),

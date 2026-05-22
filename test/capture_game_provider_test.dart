@@ -774,6 +774,7 @@ void main() {
       expect(find.text('複製 SGF'), findsNothing);
       expect(find.text('複製棋譜為文字'), findsOneWidget);
       expect(find.text('複製棋譜為 SGF'), findsOneWidget);
+      expect(find.text('分享遊戲'), findsOneWidget);
       await tester.tap(find.text('複製棋譜為文字'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 1500));
@@ -790,6 +791,25 @@ void main() {
         clipboardWrites.last,
         '(;FF[4]GM[1]SZ[9];B[ai];W[bh])',
       );
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('分享遊戲'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      final shareUri = Uri.parse(clipboardWrites.last);
+      expect(
+        '${shareUri.scheme}://${shareUri.host}${shareUri.path}',
+        'https://go-puzzle.vercel.app/',
+      );
+      expect(
+        shareUri.queryParameters['sgf'],
+        '(;FF[4]GM[1]SZ[9];B[ai];W[bh])',
+      );
+      expect(shareUri.queryParameters['utm_source'], 'google_firebase');
+      expect(shareUri.queryParameters['utm_medium'], 'app_share');
+      expect(shareUri.queryParameters['shared_via'], 'app');
     });
 
     testWidgets('copies initial position checkpoint before opening moves',
