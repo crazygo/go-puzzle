@@ -116,6 +116,14 @@ jobs:
 
           BUILD_NUMBER=$((LOCAL_BUILD_NUMBER + 1))
           echo "Building TestFlight IPA as ${BUILD_NAME}+${BUILD_NUMBER} from local ${APP_VERSION}"
+          {
+            echo "## TestFlight Build"
+            echo ""
+            echo "- Local version: \`${APP_VERSION}\`"
+            echo "- Upload version: \`${BUILD_NAME}+${BUILD_NUMBER}\`"
+            echo "- Source branch: \`${GITHUB_REF_NAME}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
           flutter build ipa --release \
             --build-name="$BUILD_NAME" \
