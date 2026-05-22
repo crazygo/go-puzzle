@@ -4190,6 +4190,18 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
           final isFinished = provider.result != CaptureGameResult.none;
           if (!isFinished) {
             _resultDialogShown = false;
+          } else if (_trainingHintSession != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted || provider.result == CaptureGameResult.none) {
+                return;
+              }
+              _trainingHintSession?.cancel();
+              _trainingHintSession = null;
+              setState(() {
+                _hintMarks = const [];
+                _trainingRound = 0;
+              });
+            });
           }
           if (!provider.isPlacementMode && isFinished && !_resultDialogShown) {
             _resultDialogShown = true;
@@ -4590,7 +4602,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
       setState(() {
         _hintMarks = const [];
       });
-      if (provider.trainingMode) {
+      if (provider.trainingMode && provider.result == CaptureGameResult.none) {
         // Restart hint session for the new board position.
         _trainingHintSession?.cancel();
         _trainingHintSession = _TrainingHintSession(
@@ -4610,6 +4622,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
         );
         setState(() => _trainingRound = 0);
         _trainingHintSession!.start();
+      } else {
+        _trainingHintSession?.cancel();
+        _trainingHintSession = null;
+        setState(() => _trainingRound = 0);
       }
     }
     return placed;
@@ -6187,8 +6203,7 @@ class _HintOverlayPainter extends CustomPainter {
         )..layout();
         textPainter.paint(
           canvas,
-          center -
-              Offset(textPainter.width / 2, textPainter.height / 2),
+          center - Offset(textPainter.width / 2, textPainter.height / 2),
         );
       }
     }
@@ -6359,6 +6374,7 @@ class _TrainingHintSession {
 
   void cancel() {
     _cancelled = true;
+    provider.cancelTrainingSuggestions();
     _timer?.cancel();
     _timer = null;
   }
@@ -6369,8 +6385,7 @@ class _TrainingHintSession {
     _round++;
     onRoundChange(_round);
     try {
-      final suggestions =
-          await provider.suggestMovesWithWinRateAsync(count: 3);
+      final suggestions = await provider.suggestMovesWithWinRateAsync(count: 3);
       if (_cancelled) return;
       final color = provider.gameState.currentPlayer;
       final marks = suggestions
@@ -6454,8 +6469,6 @@ class _TrainingModeStatusBar extends StatelessWidget {
     );
   }
 }
-
-
 
 /// Draws a water-ripple animation radiating outward from the last-placed stone.
 ///

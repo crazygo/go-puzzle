@@ -2,11 +2,11 @@
 # ---------------------------------------------------------------------------
 # scripts/compile-web-worker.sh
 #
-# Compiles the AI search Web Worker Dart entrypoint to a standalone JS bundle.
+# Compiles Web Worker Dart entrypoints to standalone JS bundles.
 #
-# The compiled ai_search_worker.dart.js must be present inside the `web/`
-# directory before `flutter build web` runs so that Flutter copies it into
-# the output bundle.
+# The compiled worker JS files must be present inside the `web/` directory
+# before `flutter build web` runs so that Flutter copies them into the output
+# bundle.
 #
 # Usage:
 #   bash scripts/compile-web-worker.sh
@@ -17,11 +17,17 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORKER_SRC="${ROOT_DIR}/web/ai_search_worker.dart"
-WORKER_OUT="${ROOT_DIR}/web/ai_search_worker.dart.js"
+AI_SEARCH_WORKER_SRC="${ROOT_DIR}/web/ai_search_worker.dart"
+AI_SEARCH_WORKER_OUT="${ROOT_DIR}/web/ai_search_worker.dart.js"
+TRAINING_SUGGESTION_WORKER_SRC="${ROOT_DIR}/web/training_suggestion_worker.dart"
+TRAINING_SUGGESTION_WORKER_OUT="${ROOT_DIR}/web/training_suggestion_worker.dart.js"
 
-echo "[compile-web-worker] Compiling ${WORKER_SRC} → ${WORKER_OUT} …"
-dart compile js "${WORKER_SRC}" \
-    -o "${WORKER_OUT}" \
+echo "[compile-web-worker] Compiling ${AI_SEARCH_WORKER_SRC} → ${AI_SEARCH_WORKER_OUT} …"
+dart compile js "${AI_SEARCH_WORKER_SRC}" \
+    -o "${AI_SEARCH_WORKER_OUT}" \
+    --no-source-maps
+echo "[compile-web-worker] Compiling ${TRAINING_SUGGESTION_WORKER_SRC} → ${TRAINING_SUGGESTION_WORKER_OUT} …"
+dart compile js "${TRAINING_SUGGESTION_WORKER_SRC}" \
+    -o "${TRAINING_SUGGESTION_WORKER_OUT}" \
     --no-source-maps
 echo "[compile-web-worker] Done."

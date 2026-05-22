@@ -12,6 +12,7 @@ import '../game/katago_flutter_onnx_model_adapter.dart';
 import '../game/katago_model_adapter.dart';
 import '../game/mcts_engine.dart';
 import '../game/territory_ai.dart';
+import '../game/training_suggestion_runner.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 
@@ -101,102 +102,6 @@ CaptureAiAgent _captureAgentForProvider({
     );
   }
   return CaptureAiRegistry.create(style: aiStyle, difficulty: difficulty);
-}
-
-// ---------------------------------------------------------------------------
-// Training suggestions: returns up to [count] candidate positions with
-// per-position win-rate estimates for the current player.  Each entry is
-// [row, col, winRateMillis] where winRateMillis = winRate × 1000 (int).
-// ---------------------------------------------------------------------------
-
-List<List<num>> _runTrainingSuggestions(Map<String, dynamic> params) {
-  final boardSize = params['boardSize'] as int;
-  final captureTarget = params['captureTarget'] as int;
-  final cells = List<int>.from(params['cells'] as List);
-  final capturedByBlack = params['capturedByBlack'] as int;
-  final capturedByWhite = params['capturedByWhite'] as int;
-  final currentPlayer = params['currentPlayer'] as int;
-  final aiStyle = CaptureAiStyle.values.byName(params['aiStyle'] as String);
-  final difficulty =
-      DifficultyLevel.values.byName(params['difficulty'] as String);
-  final algorithmConfigId = params['algorithmConfigId'] as String?;
-  final gameMode = GameModeExt.fromStorageKey(params['gameMode'] as String?);
-  final consecutivePasses = (params['consecutivePasses'] as int?) ?? 0;
-  final count = (params['count'] as int?) ?? 3;
-
-  // Build a working board that we'll mutate to enumerate distinct candidates.
-  final workBoard = SimBoard(
-    boardSize,
-    captureTarget: captureTarget,
-    gameMode: gameMode,
-  );
-  for (int i = 0; i < cells.length; i++) {
-    workBoard.cells[i] = cells[i];
-  }
-  workBoard.capturedByBlack = capturedByBlack;
-  workBoard.capturedByWhite = capturedByWhite;
-  workBoard.currentPlayer = currentPlayer;
-  workBoard.consecutivePasses = consecutivePasses;
-
-  final primaryAgent = gameMode == GameMode.capture
-      ? _captureAgentForProvider(
-          algorithmConfigId: algorithmConfigId,
-          aiStyle: aiStyle,
-          difficulty: difficulty,
-        )
-      : null;
-  final territoryEngine =
-      gameMode == GameMode.territory ? TerritoryAiEngine(difficulty: difficulty) : null;
-
-  final origPlayer = currentPlayer;
-  final results = <List<num>>[];
-
-  for (int i = 0; i < count; i++) {
-    if (workBoard.isTerminal) break;
-
-    BoardPosition? move;
-    if (gameMode == GameMode.capture) {
-      move = primaryAgent?.chooseMove(workBoard)?.position;
-    } else {
-      final pos = territoryEngine?.chooseMove(workBoard);
-      if (pos == null || pos == territoryPassMove) break;
-      move = pos;
-    }
-    if (move == null) break;
-
-    // Compute win-rate for the original player after this move is played.
-    final afterBoard = SimBoard.copy(workBoard);
-    if (!afterBoard.applyMove(move.row, move.col)) break;
-    final winRate = _trainingWinRate(afterBoard, origPlayer, captureTarget);
-    results.add([move.row, move.col, (winRate * 1000).round()]);
-
-    // Block this cell so the next iteration finds a distinct candidate.
-    // Setting it to an occupied colour makes getLegalMoves() skip it.
-    workBoard.cells[workBoard.idx(move.row, move.col)] =
-        origPlayer == SimBoard.black ? SimBoard.white : SimBoard.black;
-  }
-  return results;
-}
-
-double _trainingWinRate(SimBoard board, int origPlayer, int captureTarget) {
-  const floor = 0.05;
-  const ceiling = 0.95;
-  if (board.gameMode == GameMode.territory) {
-    final myArea = board.areaScore(origPlayer);
-    final oppArea = board.areaScore(
-      origPlayer == SimBoard.black ? SimBoard.white : SimBoard.black,
-    );
-    final diff = myArea - oppArea;
-    final normalized =
-        (diff / (board.size * board.size)).clamp(-ceiling, ceiling);
-    return (0.5 + normalized * 0.45).clamp(floor, ceiling);
-  }
-  final myCaps =
-      origPlayer == SimBoard.black ? board.capturedByBlack : board.capturedByWhite;
-  final oppCaps =
-      origPlayer == SimBoard.black ? board.capturedByWhite : board.capturedByBlack;
-  final progress = (myCaps - oppCaps) / captureTarget;
-  return (0.5 + progress * 0.35).clamp(floor, ceiling);
 }
 
 /// A single training suggestion: a board position paired with the estimated
@@ -362,6 +267,7 @@ class CaptureGameProvider extends ChangeNotifier {
     this.aiAlgorithmConfig,
     AsyncKatagoModelAdapter? katagoModelAdapter,
     AiSearchRunner? runner,
+    TrainingSuggestionRunner? trainingSuggestionRunner,
   })  : _katagoModelAdapterOverride = katagoModelAdapter,
         assert(
           boardSize == 9 || boardSize == 13 || boardSize == 19,
@@ -386,6 +292,8 @@ class CaptureGameProvider extends ChangeNotifier {
           'maxMoveDelay must be >= minMoveDelay.',
         ) {
     _runner = runner ?? createAiSearchRunner();
+    _trainingSuggestionRunner =
+        trainingSuggestionRunner ?? createTrainingSuggestionRunner();
     if (initialBoardOverride != null &&
         !_isValidBoardShape(initialBoardOverride, boardSize)) {
       throw ArgumentError.value(
@@ -436,6 +344,7 @@ class CaptureGameProvider extends ChangeNotifier {
   FlutterKatagoOnnxModelAdapter? _ownedKatagoModelAdapter;
 
   late final AiSearchRunner _runner;
+  late final TrainingSuggestionRunner _trainingSuggestionRunner;
 
   /// Monotonically-increasing counter used to build unique request IDs.
   /// Unlike [_gameGeneration], this is never reset so each [_doAiMove] call
@@ -446,6 +355,7 @@ class CaptureGameProvider extends ChangeNotifier {
 
   /// The request ID for the currently in-flight AI move search, or null.
   AiSearchRequestId? _pendingAiRequestId;
+  TrainingSuggestionRequestId? _pendingTrainingSuggestionRequestId;
 
   late GameState _gameState;
   CaptureGameResult _result = CaptureGameResult.none;
@@ -516,11 +426,16 @@ class CaptureGameProvider extends ChangeNotifier {
       _runner.cancel(_pendingAiRequestId!);
       _pendingAiRequestId = null;
     }
+    if (_pendingTrainingSuggestionRequestId != null) {
+      _trainingSuggestionRunner.cancel(_pendingTrainingSuggestionRequestId!);
+      _pendingTrainingSuggestionRequestId = null;
+    }
     final ownedAdapter = _ownedKatagoModelAdapter;
     if (ownedAdapter != null) {
       unawaited(ownedAdapter.close());
     }
     _runner.dispose();
+    _trainingSuggestionRunner.dispose();
     super.dispose();
   }
 
@@ -547,6 +462,7 @@ class CaptureGameProvider extends ChangeNotifier {
       _runner.cancel(_pendingAiRequestId!);
       _pendingAiRequestId = null;
     }
+    cancelTrainingSuggestions();
     _isAiThinking = false;
     notifyListeners();
   }
@@ -571,6 +487,7 @@ class CaptureGameProvider extends ChangeNotifier {
     int count = 3,
   }) async {
     if (count <= 0) return const [];
+    if (_result != CaptureGameResult.none) return const [];
     final sim =
         SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
     final params = <String, dynamic>{
@@ -587,7 +504,16 @@ class CaptureGameProvider extends ChangeNotifier {
       'consecutivePasses': sim.consecutivePasses,
       'count': count,
     };
-    final raw = await compute(_runTrainingSuggestions, params);
+    final requestId = 'training_hint_${_gameGeneration}_${++_requestCounter}';
+    _pendingTrainingSuggestionRequestId = requestId;
+    final result = await _trainingSuggestionRunner.search(
+      TrainingSuggestionRequest(id: requestId, params: params),
+    );
+    if (_pendingTrainingSuggestionRequestId == requestId) {
+      _pendingTrainingSuggestionRequestId = null;
+    }
+    if (result.hasError) return const [];
+    final raw = result.suggestions ?? const <List<num>>[];
     return raw
         .map(
           (entry) => TrainingSuggestion(
@@ -598,9 +524,17 @@ class CaptureGameProvider extends ChangeNotifier {
         .toList();
   }
 
+  void cancelTrainingSuggestions() {
+    final requestId = _pendingTrainingSuggestionRequestId;
+    if (requestId == null) return;
+    _trainingSuggestionRunner.cancel(requestId);
+    _pendingTrainingSuggestionRequestId = null;
+  }
+
   Future<bool> placeStone(int row, int col) async {
     if (_isAiThinking || _result != CaptureGameResult.none) return false;
-    if (!isPlacementMode && !_trainingMode &&
+    if (!isPlacementMode &&
+        !_trainingMode &&
         _gameState.currentPlayer != humanColor) {
       return false;
     }
