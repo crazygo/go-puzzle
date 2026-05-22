@@ -7,16 +7,18 @@
 - If `dart`/`flutter` is missing in shell PATH (`command not found`), run `bash scripts/init-dev.sh` first, then use the repo-local SDK path for the current session: `export PATH="$PWD/.local/flutter/bin:$PATH"`.
 
 ## Local web testing
-- The capture-game AI search worker is authored at `web/ai_search_worker.dart` and must be compiled to `web/ai_search_worker.dart.js` before browser testing or web release builds: `bash scripts/compile-web-worker.sh`.
-- Treat this as an AI-blocking prerequisite: if `build/web/ai_search_worker.dart.js` is missing, MCTS/heuristic AI turns fail in the browser as `Web Worker error` even when the Flutter UI itself renders correctly.
-- Do not use `flutter run -d web-server` as the default validation path for ordinary Chrome, phone browsers, AI move behavior, or screenshot evidence. In this project it can serve a debug/DWDS page that stays on the background color because Dart main is not triggered without the debug workflow, and it can also hide the missing-worker problem behind generic browser errors.
+- The capture-game AI search worker is authored at `web/ai_search_worker.dart`, and the AI training suggestion worker is authored at `web/training_suggestion_worker.dart`; both must be compiled before browser testing or web release builds: `bash scripts/compile-web-worker.sh` or `npm run compile-web-worker`.
+- Treat this as an AI-blocking prerequisite: if `build/web/ai_search_worker.dart.js` is missing, MCTS/heuristic AI turns fail in the browser as `Web Worker error`; if `build/web/training_suggestion_worker.dart.js` is missing, AI training suggestions fail or stall in the browser.
+- Use the npm wrapper commands instead of raw Flutter web commands so workers are compiled first:
+  - `npm run web` starts local Flutter Web on `127.0.0.1:8090`.
+  - `npm run build:web` compiles the workers and then runs `flutter build web`.
+- Do not use raw `flutter run -d web-server` or raw `flutter build web` as the default validation path for ordinary Chrome, phone browsers, AI move behavior, or screenshot evidence. In this project it can serve a debug/DWDS page that stays on the background color because Dart main is not triggered without the debug workflow, and it can also hide missing-worker problems behind generic browser errors.
 - To test web behavior locally in a way that matches static/cloud hosting, always run:
-  1. `bash scripts/compile-web-worker.sh`
-  2. `flutter build web --release`
-  3. `python3 -m http.server 8080 --bind 0.0.0.0 --directory build/web`
+  1. `npm run build:web`
+  2. `python3 -m http.server 8080 --bind 0.0.0.0 --directory build/web`
 - Verify the static server, not a stale Flutter debug server, owns the port: `curl -I http://127.0.0.1:8080/` should report `SimpleHTTP` (or the chosen static server), not Dart `shelf`.
-- Verify the worker is served as JavaScript before debugging AI move behavior: `curl -I http://127.0.0.1:8080/ai_search_worker.dart.js` should return `200 OK` with a JavaScript content type such as `text/javascript`.
-- For phone testing, use the LAN URL from the same static server, e.g. `http://<local-lan-ip>:8080`, and refresh/reopen the tab after rebuilding because stale tabs can keep the old missing-worker failure.
+- Verify the workers are served as JavaScript before debugging AI behavior: `curl -I http://127.0.0.1:8080/ai_search_worker.dart.js` and `curl -I http://127.0.0.1:8080/training_suggestion_worker.dart.js` should return `200 OK` with a JavaScript content type such as `text/javascript`.
+- For phone testing, use the LAN URL from the same static server, e.g. `http://<local-lan-ip>:8080`, and refresh/reopen the tab after rebuilding because stale tabs can keep old missing-worker failures.
 
 ## AI arena evaluation naming
 - The evaluation hierarchy is: **Evaluation Run -> Pair -> Cell -> Game repeats**.

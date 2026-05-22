@@ -12,6 +12,7 @@ import '../game/katago_flutter_onnx_model_adapter.dart';
 import '../game/katago_model_adapter.dart';
 import '../game/mcts_engine.dart';
 import '../game/territory_ai.dart';
+import '../game/training_suggestion_runner.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 
@@ -101,6 +102,20 @@ CaptureAiAgent _captureAgentForProvider({
     );
   }
   return CaptureAiRegistry.create(style: aiStyle, difficulty: difficulty);
+}
+
+/// A single training suggestion: a board position paired with the estimated
+/// win-rate for the player who would place at that position.
+class TrainingSuggestion {
+  const TrainingSuggestion({
+    required this.position,
+    required this.winRate,
+  });
+
+  final BoardPosition position;
+
+  /// Win-rate in the range [0.05, 0.95] for the player to move.
+  final double winRate;
 }
 
 enum CaptureGameResult { none, blackWins, whiteWins, draw }
@@ -252,6 +267,7 @@ class CaptureGameProvider extends ChangeNotifier {
     this.aiAlgorithmConfig,
     AsyncKatagoModelAdapter? katagoModelAdapter,
     AiSearchRunner? runner,
+    TrainingSuggestionRunner? trainingSuggestionRunner,
   })  : _katagoModelAdapterOverride = katagoModelAdapter,
         assert(
           boardSize == 9 || boardSize == 13 || boardSize == 19,
@@ -276,6 +292,8 @@ class CaptureGameProvider extends ChangeNotifier {
           'maxMoveDelay must be >= minMoveDelay.',
         ) {
     _runner = runner ?? createAiSearchRunner();
+    _trainingSuggestionRunner =
+        trainingSuggestionRunner ?? createTrainingSuggestionRunner();
     if (initialBoardOverride != null &&
         !_isValidBoardShape(initialBoardOverride, boardSize)) {
       throw ArgumentError.value(
@@ -326,6 +344,7 @@ class CaptureGameProvider extends ChangeNotifier {
   FlutterKatagoOnnxModelAdapter? _ownedKatagoModelAdapter;
 
   late final AiSearchRunner _runner;
+  late final TrainingSuggestionRunner _trainingSuggestionRunner;
 
   /// Monotonically-increasing counter used to build unique request IDs.
   /// Unlike [_gameGeneration], this is never reset so each [_doAiMove] call
@@ -336,6 +355,7 @@ class CaptureGameProvider extends ChangeNotifier {
 
   /// The request ID for the currently in-flight AI move search, or null.
   AiSearchRequestId? _pendingAiRequestId;
+  TrainingSuggestionRequestId? _pendingTrainingSuggestionRequestId;
 
   late GameState _gameState;
   CaptureGameResult _result = CaptureGameResult.none;
@@ -354,6 +374,8 @@ class CaptureGameProvider extends ChangeNotifier {
   /// Every move played in the current game, in order: each entry is [row, col].
   final List<List<int>> _moveLog = [];
 
+  bool _trainingMode = false;
+
   GameState get gameState => _gameState;
   CaptureGameResult get result => _result;
   bool get isAiThinking => _isAiThinking;
@@ -365,6 +387,9 @@ class CaptureGameProvider extends ChangeNotifier {
   GameMode get mode => gameMode;
   bool get isTerritoryMode => gameMode == GameMode.territory;
   bool get isPlacementMode => initialMode == CaptureInitialMode.setup;
+
+  /// Whether AI training partner mode is currently active.
+  bool get trainingMode => _trainingMode;
 
   /// An unmodifiable view of the current game's move sequence.
   List<List<int>> get moveLog => List.unmodifiable(_moveLog);
@@ -401,11 +426,16 @@ class CaptureGameProvider extends ChangeNotifier {
       _runner.cancel(_pendingAiRequestId!);
       _pendingAiRequestId = null;
     }
+    if (_pendingTrainingSuggestionRequestId != null) {
+      _trainingSuggestionRunner.cancel(_pendingTrainingSuggestionRequestId!);
+      _pendingTrainingSuggestionRequestId = null;
+    }
     final ownedAdapter = _ownedKatagoModelAdapter;
     if (ownedAdapter != null) {
       unawaited(ownedAdapter.close());
     }
     _runner.dispose();
+    _trainingSuggestionRunner.dispose();
     super.dispose();
   }
 
@@ -419,9 +449,93 @@ class CaptureGameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Enters AI training partner mode. Both colours can be placed by the user;
+  /// the AI will not auto-play its turn.
+  void enterTrainingMode() {
+    if (_trainingMode) return;
+    if (_result != CaptureGameResult.none) return;
+    _trainingMode = true;
+    // Cancel any in-flight or pending AI move.
+    _aiMoveTimer?.cancel();
+    _aiMoveTimer = null;
+    if (_pendingAiRequestId != null) {
+      _runner.cancel(_pendingAiRequestId!);
+      _pendingAiRequestId = null;
+    }
+    cancelTrainingSuggestions();
+    _isAiThinking = false;
+    notifyListeners();
+  }
+
+  /// Exits AI training partner mode. If it is the AI's turn the AI will
+  /// resume play automatically.
+  void exitTrainingMode() {
+    if (!_trainingMode) return;
+    _trainingMode = false;
+    notifyListeners();
+    // Resume normal play if it is now the AI's turn.
+    if (!isPlacementMode &&
+        _result == CaptureGameResult.none &&
+        _gameState.currentPlayer != humanColor) {
+      _scheduleAiMove();
+    }
+  }
+
+  /// Computes up to [count] candidate training suggestions in a background
+  /// isolate and returns them with per-position win-rate estimates.
+  Future<List<TrainingSuggestion>> suggestMovesWithWinRateAsync({
+    int count = 3,
+  }) async {
+    if (count <= 0) return const [];
+    if (_result != CaptureGameResult.none) return const [];
+    final sim =
+        SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
+    final params = <String, dynamic>{
+      'cells': sim.cells.toList(),
+      'boardSize': sim.size,
+      'captureTarget': sim.captureTarget,
+      'capturedByBlack': sim.capturedByBlack,
+      'capturedByWhite': sim.capturedByWhite,
+      'currentPlayer': sim.currentPlayer,
+      'aiStyle': _aiStyle.name,
+      'difficulty': difficulty.name,
+      if (aiAlgorithmConfig != null) 'algorithmConfigId': aiAlgorithmConfig!.id,
+      'gameMode': gameMode.storageKey,
+      'consecutivePasses': sim.consecutivePasses,
+      'count': count,
+    };
+    final requestId = 'training_hint_${_gameGeneration}_${++_requestCounter}';
+    _pendingTrainingSuggestionRequestId = requestId;
+    final result = await _trainingSuggestionRunner.search(
+      TrainingSuggestionRequest(id: requestId, params: params),
+    );
+    if (_pendingTrainingSuggestionRequestId == requestId) {
+      _pendingTrainingSuggestionRequestId = null;
+    }
+    if (result.hasError) return const [];
+    final raw = result.suggestions ?? const <List<num>>[];
+    return raw
+        .map(
+          (entry) => TrainingSuggestion(
+            position: BoardPosition(entry[0].toInt(), entry[1].toInt()),
+            winRate: entry[2].toDouble() / 1000.0,
+          ),
+        )
+        .toList();
+  }
+
+  void cancelTrainingSuggestions() {
+    final requestId = _pendingTrainingSuggestionRequestId;
+    if (requestId == null) return;
+    _trainingSuggestionRunner.cancel(requestId);
+    _pendingTrainingSuggestionRequestId = null;
+  }
+
   Future<bool> placeStone(int row, int col) async {
     if (_isAiThinking || _result != CaptureGameResult.none) return false;
-    if (!isPlacementMode && _gameState.currentPlayer != humanColor) {
+    if (!isPlacementMode &&
+        !_trainingMode &&
+        _gameState.currentPlayer != humanColor) {
       return false;
     }
 
@@ -446,7 +560,7 @@ class CaptureGameProvider extends ChangeNotifier {
         _isAiThinking ||
         _result != CaptureGameResult.none ||
         isPlacementMode ||
-        _gameState.currentPlayer != humanColor) {
+        (!_trainingMode && _gameState.currentPlayer != humanColor)) {
       return false;
     }
     final newState = GoEngine.passTurn(_gameState);
@@ -669,6 +783,7 @@ class CaptureGameProvider extends ChangeNotifier {
   }
 
   void _scheduleAiMove() {
+    if (_trainingMode) return;
     if (_disposed ||
         isPlacementMode ||
         _result != CaptureGameResult.none ||
