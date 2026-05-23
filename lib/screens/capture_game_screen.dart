@@ -863,7 +863,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                           aiAlgorithmConfigId: _isTerritoryMode
                                               ? _territoryAiAlgorithmConfigId
                                               : _aiAlgorithmConfigId,
-                                          isTerritoryMode: _isTerritoryMode,
                                           onTap: () => setState(
                                             () => _isAdjusting = true,
                                           ),
@@ -3431,7 +3430,6 @@ class _ConfigPreview extends StatelessWidget {
     required this.computedRank,
     required this.activeAiConfig,
     required this.aiAlgorithmConfigId,
-    required this.isTerritoryMode,
     required this.onTap,
   });
 
@@ -3439,24 +3437,15 @@ class _ConfigPreview extends StatelessWidget {
   final int computedRank;
   final AiAlgorithmConfig? activeAiConfig;
   final String aiAlgorithmConfigId;
-  final bool isTerritoryMode;
   final VoidCallback onTap;
 
-  String get _difficultyLabel {
-    final option = _aiOpponentOption(
-      (difficultyMode == 'manual' ? aiAlgorithmConfigId : activeAiConfig?.id) ??
-          aiAlgorithmConfigId,
-    );
-    return difficultyMode == 'manual'
-        ? '指定·${option.name}'
-        : '不分伯仲·${option.name}';
-  }
+  _AiOpponentOption get _selectedOption => _aiOpponentOption(
+        (difficultyMode == 'manual' ? aiAlgorithmConfigId : activeAiConfig?.id) ??
+            aiAlgorithmConfigId,
+      );
 
   String get _algorithmLabel {
-    final option = _aiOpponentOption(
-      (difficultyMode == 'manual' ? aiAlgorithmConfigId : activeAiConfig?.id) ??
-          aiAlgorithmConfigId,
-    );
+    final option = _selectedOption;
     if (difficultyMode == 'auto') {
       return '${option.subtitle} · 約${AiRankLevel.displayName(computedRank)}';
     }
@@ -3467,6 +3456,7 @@ class _ConfigPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.appPalette;
     final isClassic = context.isClassicAppTheme;
+    final selected = _selectedOption;
     return CupertinoButton(
       padding: EdgeInsets.zero,
       minimumSize: Size.zero,
@@ -3486,99 +3476,65 @@ class _ConfigPreview extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: _ConfigPreviewItem(
-                icon: CupertinoIcons.triangle_fill,
-                title: 'AI 棋力',
-                value: _difficultyLabel,
-              ),
-            ),
-            const _ConfigPreviewDivider(),
-            Expanded(
-              child: _ConfigPreviewItem(
-                icon: CupertinoIcons.star_fill,
-                title: '算法',
-                value: _algorithmLabel,
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: palette.setupIconBackground,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      selected.name.substring(0, 1),
+                      style: TextStyle(
+                        color: palette.setupIconForeground,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          selected.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16.5,
+                            height: 1.05,
+                            fontWeight: FontWeight.w700,
+                            color: palette.setupValueText,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _algorithmLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: palette.setupLabelText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    CupertinoIcons.chevron_right,
+                    size: 16,
+                    color: palette.setupActionText,
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ConfigPreviewItem extends StatelessWidget {
-  const _ConfigPreviewItem({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.appPalette;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: palette.setupIconBackground,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: palette.setupIconForeground),
-        ),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: palette.setupLabelText,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: palette.setupValueText,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ConfigPreviewDivider extends StatelessWidget {
-  const _ConfigPreviewDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.appPalette;
-    return Container(
-      width: 1,
-      height: 54,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: palette.setupDivider,
     );
   }
 }

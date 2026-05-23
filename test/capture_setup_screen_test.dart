@@ -23,6 +23,8 @@ void main() {
     expect(find.byType(PageHeroBanner), findsOneWidget);
     expect(find.text('下一盤'), findsOneWidget);
     expect(find.text('吃 5 子取勝 · 9 路 · 十字'), findsOneWidget);
+    expect(find.text('阿尔法'), findsOneWidget);
+    expect(find.text('MCTS-2 · 战术搜索'), findsOneWidget);
     expect(find.text('中級 · 9 路 · 吃5子'), findsNothing);
 
     final startButton = find.widgetWithText(CupertinoButton, '執黑先行');
@@ -36,6 +38,20 @@ void main() {
     final provider =
         Provider.of<CaptureGameProvider>(providerContext, listen: false);
     expect(provider.activeAlgorithmConfig?.id, 'mcts_counter_standard_v1');
+  });
+
+  testWidgets('capture setup preview row opens adjust mode on tap',
+      (tester) async {
+    await tester.pumpWidget(const GoPuzzleApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('阿尔法'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('AI 棋力'), findsOneWidget);
+    expect(find.text('指定棋手'), findsOneWidget);
   });
 
   testWidgets('capture setup restores board size from saved selection',
