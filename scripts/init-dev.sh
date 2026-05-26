@@ -66,6 +66,10 @@ MODEL_DIR="${ROOT_DIR}/assets/models"
 KATAGO_ONNX_MODEL_FILENAME="katago-kata1-b18c384nbt-batched-fp16.onnx"
 DEFAULT_KATAGO_ONNX_MODEL_URL="${DEFAULT_KATAGO_ONNX_MODEL_URL:-https://huggingface.co/kaya-go/kaya/resolve/main/katago_small_b18c384nbt-onnx-batched-fp16.onnx}"
 KATAGO_ONNX_MODEL_URL="${KATAGO_ONNX_MODEL_URL:-${DEFAULT_KATAGO_ONNX_MODEL_URL}}"
+CAPTURE5_ONNX_MODEL_FILENAME="capture5_13x13_policy_only_v8.onnx"
+CAPTURE5_ONNX_MODEL_SHA256="98441223424eef68eaeab35c715f56add24ff0207c0d59ab66a85fdaed4f48c6"
+CAPTURE5_ONNX_MODEL_LOCAL="${CAPTURE5_ONNX_MODEL_LOCAL:-/Users/admin/Code/go-puzzle-ml/models/released/${CAPTURE5_ONNX_MODEL_FILENAME}}"
+CAPTURE5_ONNX_MODEL_URL="${CAPTURE5_ONNX_MODEL_URL:-}"
 RUN_ANALYZE=0
 
 mkdir -p "${TOOLS_DIR}" "${BIN_DIR}" "${CACHE_DIR}" "${MODEL_DIR}"
@@ -278,6 +282,30 @@ download_katago_models() {
   if ! download_file_if_needed "${KATAGO_ONNX_MODEL_URL}" "${target}" "${cache_file}"; then
     log "Missing KataGo ONNX model. Re-run init-dev after restoring network access or set KATAGO_ONNX_MODEL_URL."
     log "Continuing without the ONNX model; supported paths will surface model readiness or fallback according to product rules."
+  fi
+
+  local capture_target="${MODEL_DIR}/${CAPTURE5_ONNX_MODEL_FILENAME}"
+  local capture_cache_file="${CACHE_DIR}/${CAPTURE5_ONNX_MODEL_FILENAME}"
+  if [[ -s "${capture_target}" ]]; then
+    log "Using existing Capture5 ONNX model file: ${capture_target}"
+  elif [[ -s "${CAPTURE5_ONNX_MODEL_LOCAL}" ]]; then
+    cp -f "${CAPTURE5_ONNX_MODEL_LOCAL}" "${capture_target}"
+    log "Copied local Capture5 ONNX model file: ${capture_target}"
+  elif [[ -n "${CAPTURE5_ONNX_MODEL_URL}" ]]; then
+    if ! download_file_if_needed "${CAPTURE5_ONNX_MODEL_URL}" "${capture_target}" "${capture_cache_file}"; then
+      log "Missing Capture5 ONNX model. Re-run init-dev after restoring network access or set CAPTURE5_ONNX_MODEL_URL."
+    fi
+  else
+    log "Skipping Capture5 ONNX model download; set CAPTURE5_ONNX_MODEL_URL or CAPTURE5_ONNX_MODEL_LOCAL to enable it."
+  fi
+
+  if [[ -s "${capture_target}" ]]; then
+    local actual_sha
+    actual_sha="$(shasum -a 256 "${capture_target}" | awk '{print $1}')"
+    if [[ "${actual_sha}" != "${CAPTURE5_ONNX_MODEL_SHA256}" ]]; then
+      log "Capture5 ONNX checksum mismatch: expected ${CAPTURE5_ONNX_MODEL_SHA256}, got ${actual_sha}"
+      return 1
+    fi
   fi
 }
 

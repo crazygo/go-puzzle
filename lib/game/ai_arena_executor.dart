@@ -621,7 +621,8 @@ Duration _decisionTimeoutForConfig(
   AiAlgorithmConfig config, {
   required Duration defaultTimeout,
 }) {
-  if (config.frameworkId != AiAlgorithmFrameworkId.katago) {
+  if (config.frameworkId != AiAlgorithmFrameworkId.katago &&
+      config.frameworkId != AiAlgorithmFrameworkId.capture5) {
     return defaultTimeout;
   }
   return switch (config.parameters['timeBudgetMillis']) {
@@ -634,12 +635,14 @@ AsyncKatagoModelAdapter _resolveAsyncKatagoAdapter(
   List<AiAlgorithmConfig> configs,
   AsyncKatagoModelAdapter? adapter,
 ) {
-  final requiresKatago = configs.any(
-    (config) => config.frameworkId == AiAlgorithmFrameworkId.katago,
+  final requiresOnnxAdapter = configs.any(
+    (config) =>
+        config.frameworkId == AiAlgorithmFrameworkId.katago ||
+        config.frameworkId == AiAlgorithmFrameworkId.capture5,
   );
-  if (requiresKatago && adapter == null) {
+  if (requiresOnnxAdapter && adapter == null) {
     throw StateError(
-      'asyncKatagoModelAdapter is required for KataGo ONNX configs.',
+      'asyncKatagoModelAdapter is required for ONNX-backed AI configs.',
     );
   }
   return adapter ?? const UnavailableAsyncKatagoOnnxModelAdapter();
@@ -652,7 +655,10 @@ List<KatagoModelRequest> _katagoRequestsFor(
 }) {
   final requests = <KatagoModelRequest>[];
   for (final config in configs) {
-    if (config.frameworkId != AiAlgorithmFrameworkId.katago) continue;
+    if (config.frameworkId != AiAlgorithmFrameworkId.katago &&
+        config.frameworkId != AiAlgorithmFrameworkId.capture5) {
+      continue;
+    }
     requests.add(KatagoModelRequest(
       board: SimBoard(boardSize, captureTarget: captureTarget),
       modelAsset: _configStringParameter(config, 'modelAsset'),

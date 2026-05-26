@@ -579,6 +579,33 @@ void main() {
       expect(runner.paramsCompleter.isCompleted, isFalse);
     });
 
+    test('Capture5 v8 config uses async ONNX adapter instead of AI runner',
+        () async {
+      final runner = _CapturingAiSearchRunner();
+      final provider = CaptureGameProvider(
+        boardSize: 13,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.advanced,
+        initialMode: CaptureInitialMode.empty,
+        humanColor: StoneColor.white,
+        minMoveDelay: Duration.zero,
+        maxMoveDelay: Duration.zero,
+        aiAlgorithmConfig:
+            AiAlgorithmRegistry.configById('capture5_13x13_policy_only_v8'),
+        katagoModelAdapter: const _FakeKatagoAdapter(
+          move: BoardPosition(6, 6),
+        ),
+        runner: runner,
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(provider.moveLog, [
+        [6, 6],
+      ]);
+      expect(provider.aiFailureReason, isNull);
+      expect(runner.paramsCompleter.isCompleted, isFalse);
+    });
+
     test('KataGo adapter failure is reported without fallback', () async {
       final provider = CaptureGameProvider(
         boardSize: 9,

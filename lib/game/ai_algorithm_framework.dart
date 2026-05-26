@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../models/board_position.dart';
 import 'capture_ai.dart';
+import 'capture5_onnx_features.dart';
 import 'difficulty_level.dart';
 import 'katago_model_adapter.dart';
 import 'mcts_engine.dart';
@@ -11,6 +12,7 @@ enum AiAlgorithmFrameworkId {
   mcts,
   hybridTactical,
   katago,
+  capture5,
 }
 
 enum AiAlgorithmStrengthTier {
@@ -165,6 +167,12 @@ class AiAlgorithmRegistry {
       summary:
           'KataGo framework with ONNX adapter and explicit unavailable status.',
     ),
+    AiAlgorithmFramework(
+      id: AiAlgorithmFrameworkId.capture5,
+      displayName: 'Capture5',
+      summary:
+          '13x13 capture-five policy ONNX model with no outer MCTS fallback.',
+    ),
   ];
 
   static List<AiAlgorithmConfig> get configs => [
@@ -176,6 +184,7 @@ class AiAlgorithmRegistry {
         _hybridStandard,
         _katagoOnnxWeak,
         _katagoOnnxStandard,
+        _capture5V8,
       ];
 
   static List<AiAlgorithmConfig> configsFor(
@@ -200,7 +209,7 @@ class AiAlgorithmRegistry {
         ? config.robotConfig
         : config.robotConfig.copyWith(seed: seedOverride);
     CaptureAiAgent agent;
-    if (_katagoBackend(config) == 'onnx') {
+    if (_isOnnxModelConfig(config)) {
       return _KatagoOnnxAgent(
         config: config,
         style: robotConfig.style,
@@ -239,7 +248,7 @@ class AiAlgorithmRegistry {
     final robotConfig = seedOverride == null
         ? config.robotConfig
         : config.robotConfig.copyWith(seed: seedOverride);
-    if (_katagoBackend(config) == 'onnx') {
+    if (_isOnnxModelConfig(config)) {
       return _AsyncKatagoOnnxAgent(
         config: config,
         style: robotConfig.style,
@@ -450,6 +459,29 @@ class AiAlgorithmRegistry {
       difficulty: DifficultyLevel.intermediate,
     ),
   );
+
+  static final AiAlgorithmConfig _capture5V8 = AiAlgorithmConfig(
+    id: 'capture5_13x13_policy_only_v8',
+    frameworkId: AiAlgorithmFrameworkId.capture5,
+    displayName: 'Capture5 v8',
+    strengthTier: AiAlgorithmStrengthTier.strong,
+    runtimeMode: AiAlgorithmRuntimeMode.native,
+    parameters: const {
+      'backend': 'onnx',
+      'modelAsset': kCapture5V8ModelAsset,
+      'timeBudgetMillis': 3000,
+      'policyTemperature': 0.0,
+      'candidateLimit': 3,
+      'boardSize': 13,
+      'captureTarget': 5,
+      'policySize': Capture5FeatureEncoder.policySize,
+      'passMoveIndex': Capture5FeatureEncoder.passMoveIndex,
+    },
+    robotConfig: CaptureAiRegistry.resolveConfig(
+      style: CaptureAiStyle.counter,
+      difficulty: DifficultyLevel.advanced,
+    ),
+  );
 }
 
 abstract class AsyncCaptureAiAgent {
@@ -463,6 +495,12 @@ String _katagoBackend(AiAlgorithmConfig config) {
     final String value => value,
     _ => '',
   };
+}
+
+bool _isOnnxModelConfig(AiAlgorithmConfig config) {
+  return config.parameters['backend'] == 'onnx' &&
+      (config.frameworkId == AiAlgorithmFrameworkId.katago ||
+          config.frameworkId == AiAlgorithmFrameworkId.capture5);
 }
 
 class _TacticalAnalyzerAgent implements CaptureAiAgent {

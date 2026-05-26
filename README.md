@@ -45,6 +45,9 @@ tracking captures.
 
 ## Documentation
 
+- [Capture5 v8 Integration](docs/kb/capture5-v8-integration.md): step-by-step
+  guide to add the `capture5_13x13_policy_only_v8.onnx` model alongside KataGo
+  with user-selectable AI.
 - [Capture AI Algorithms](docs/kb/capture-ai-algorithms.md): algorithm
   families, tactical safeguards, evaluation model, and code map.
 - [AI Arena Runner](docs/kb/ai-arena-runner.md): arena terms, ladder workflow,

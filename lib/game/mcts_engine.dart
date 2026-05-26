@@ -491,6 +491,8 @@ class SimBoard {
 
   int colorAt(int r, int c) => cells[idx(r, c)];
 
+  int get koIndex => _koIndex;
+
   List<int> adjacentIndices(int i) => _adjacent(i);
 
   Set<int> groupAtIndex(int i) => _findGroup(i);

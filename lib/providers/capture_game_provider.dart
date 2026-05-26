@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../game/ai_algorithm_framework.dart';
 import '../game/ai_search_runner.dart';
 import '../game/capture_ai.dart';
+import '../game/capture5_flutter_onnx_model_adapter.dart';
 import '../game/difficulty_level.dart';
 import '../game/game_mode.dart';
 import '../game/go_engine.dart';
@@ -396,6 +397,7 @@ class CaptureGameProvider extends ChangeNotifier {
   CaptureAiAgent? _cachedAgent;
   AsyncCaptureAiAgent? _cachedAsyncAgent;
   FlutterKatagoOnnxModelAdapter? _ownedKatagoModelAdapter;
+  FlutterCapture5OnnxModelAdapter? _ownedCapture5ModelAdapter;
 
   late final AiSearchRunner _runner;
   late final TrainingSuggestionRunner _trainingSuggestionRunner;
@@ -464,6 +466,9 @@ class CaptureGameProvider extends ChangeNotifier {
   AsyncKatagoModelAdapter get _katagoModelAdapter {
     final injected = _katagoModelAdapterOverride;
     if (injected != null) return injected;
+    if (aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.capture5) {
+      return _ownedCapture5ModelAdapter ??= FlutterCapture5OnnxModelAdapter();
+    }
     return _ownedKatagoModelAdapter ??= FlutterKatagoOnnxModelAdapter();
   }
 
@@ -487,6 +492,10 @@ class CaptureGameProvider extends ChangeNotifier {
     final ownedAdapter = _ownedKatagoModelAdapter;
     if (ownedAdapter != null) {
       unawaited(ownedAdapter.close());
+    }
+    final ownedCapture5Adapter = _ownedCapture5ModelAdapter;
+    if (ownedCapture5Adapter != null) {
+      unawaited(ownedCapture5Adapter.close());
     }
     _runner.dispose();
     _trainingSuggestionRunner.dispose();
@@ -1174,7 +1183,8 @@ class CaptureGameProvider extends ChangeNotifier {
       !_disposed && _gameGeneration == generation;
 
   bool get _usesAsyncAlgorithmAgent =>
-      aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.katago;
+      aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.katago ||
+      aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.capture5;
 
   AiAlgorithmConfig get _katagoCoachConfig =>
       AiAlgorithmRegistry.configById(_katagoCoachConfigId);

@@ -3,13 +3,14 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/ai_algorithm_framework.dart';
+import 'package:go_puzzle/game/capture5_onnx_features.dart';
 import 'package:go_puzzle/game/katago_model_adapter.dart';
 import 'package:go_puzzle/game/mcts_engine.dart';
 import 'package:go_puzzle/models/board_position.dart';
 
 void main() {
   group('AI algorithm framework registry', () {
-    test('registers every required framework with at least two configs', () {
+    test('registers every required framework with runnable configs', () {
       expect(
         AiAlgorithmRegistry.frameworks.map((framework) => framework.id).toSet(),
         AiAlgorithmFrameworkId.values.toSet(),
@@ -17,16 +18,21 @@ void main() {
 
       for (final frameworkId in AiAlgorithmFrameworkId.values) {
         final configs = AiAlgorithmRegistry.configsFor(frameworkId);
-        expect(
-          configs,
-          hasLength(greaterThanOrEqualTo(2)),
-          reason: '${frameworkId.name} must expose at least two configs',
-        );
-        expect(
-          configs.map((config) => config.strengthTier).toSet(),
-          containsAll([AiAlgorithmStrengthTier.weak]),
-          reason: '${frameworkId.name} needs a weak runnable config',
-        );
+        if (frameworkId == AiAlgorithmFrameworkId.capture5) {
+          expect(configs, hasLength(1));
+          expect(configs.single.id, 'capture5_13x13_policy_only_v8');
+        } else {
+          expect(
+            configs,
+            hasLength(greaterThanOrEqualTo(2)),
+            reason: '${frameworkId.name} must expose at least two configs',
+          );
+          expect(
+            configs.map((config) => config.strengthTier).toSet(),
+            containsAll([AiAlgorithmStrengthTier.weak]),
+            reason: '${frameworkId.name} needs a weak runnable config',
+          );
+        }
       }
     });
 
@@ -47,6 +53,7 @@ void main() {
     test('stronger configs differ by real parameters within each framework',
         () {
       for (final frameworkId in AiAlgorithmFrameworkId.values) {
+        if (frameworkId == AiAlgorithmFrameworkId.capture5) continue;
         final configs = AiAlgorithmRegistry.configsFor(frameworkId);
         final parameterSets =
             configs.map((config) => config.parameters.toString()).toSet();
@@ -60,7 +67,10 @@ void main() {
 
     test('native playable configs produce legal opening moves', () {
       for (final config in AiAlgorithmRegistry.configs) {
-        if (config.frameworkId == AiAlgorithmFrameworkId.katago) continue;
+        if (config.frameworkId == AiAlgorithmFrameworkId.katago ||
+            config.frameworkId == AiAlgorithmFrameworkId.capture5) {
+          continue;
+        }
         final board = SimBoard(9, captureTarget: 5);
         final agent = AiAlgorithmRegistry.createAgent(config);
         final move = agent.chooseMove(board);
@@ -94,6 +104,25 @@ void main() {
         expect(config.parameters['policyTemperature'], isA<num>());
         expect(config.parameters['candidateLimit'], isA<int>());
       }
+    });
+
+    test('Capture5 v8 exposes one 13x13 policy-only ONNX config', () {
+      final configs =
+          AiAlgorithmRegistry.configsFor(AiAlgorithmFrameworkId.capture5);
+      final config = configs.single;
+
+      expect(config.id, 'capture5_13x13_policy_only_v8');
+      expect(config.usesFallback, isFalse);
+      expect(config.runtimeMode, AiAlgorithmRuntimeMode.native);
+      expect(config.failureMode, isNull);
+      expect(config.parameters['backend'], 'onnx');
+      expect(config.parameters['modelAsset'], kCapture5V8ModelAsset);
+      expect(config.parameters['boardSize'], 13);
+      expect(config.parameters['captureTarget'], 5);
+      expect(config.parameters['policySize'], 170);
+      expect(config.parameters['passMoveIndex'], 169);
+      expect(config.parameters.containsKey('visits'), isFalse);
+      expect(config.parameters.containsKey('captureSearchDepth'), isFalse);
     });
 
     test('KataGo ONNX config reports unavailable when model is missing', () {
@@ -168,6 +197,31 @@ void main() {
       expect(move, isNotNull);
       expect(move!.position.row, 4);
       expect(move.position.col, 4);
+    });
+
+    test('async Capture5 v8 adapter move is used directly when legal',
+        () async {
+      final config =
+          AiAlgorithmRegistry.configById('capture5_13x13_policy_only_v8');
+      final agent = AiAlgorithmRegistry.createAsyncAgent(
+        config,
+        katagoModelAdapter: const _FixedAsyncKatagoModelAdapter(
+          BoardPosition(6, 6),
+        ),
+        tacticalAnalyzer: const _FixedTacticalAnalyzer(
+          TacticalAnalysis(
+            signal: TacticalSignal.ladderRisk,
+            confidence: 1,
+            recommendedMove: BoardPosition(0, 0),
+            reason: 'force a different move',
+          ),
+        ),
+      );
+      final move = await agent.chooseMove(SimBoard(13, captureTarget: 5));
+
+      expect(move, isNotNull);
+      expect(move!.position.row, 6);
+      expect(move.position.col, 6);
     });
 
     test('neutral tactical analysis does not change selected move', () {

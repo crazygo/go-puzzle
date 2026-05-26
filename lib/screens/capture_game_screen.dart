@@ -12,6 +12,7 @@ import '../game/board_image_recognizer.dart';
 import '../game/model_board_image_recognizer.dart';
 import '../game/ai_algorithm_framework.dart';
 import '../game/capture_ai.dart';
+import '../game/capture5_flutter_onnx_model_adapter.dart';
 import '../game/ai_rank_level.dart';
 import '../game/game_mode.dart';
 import '../game/go_engine.dart';
@@ -572,7 +573,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
 
   AiAlgorithmConfig? get _selectedAiAlgorithmConfig {
-    final options = _playableAiOpponentOptionsForMode(_selectedGameMode);
+    final options = _playableAiOpponentOptionsForMode(
+      _selectedGameMode,
+      boardSize: _boardSize,
+    );
     if (_difficultyMode == 'manual') {
       final selectedId = _isTerritoryMode
           ? _territoryAiAlgorithmConfigId
@@ -788,6 +792,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                             options:
                                                 _playableAiOpponentOptionsForMode(
                                               _selectedGameMode,
+                                              boardSize: _boardSize,
                                             ),
                                             onChanged: (configId) =>
                                                 _updateSelection(
@@ -1233,16 +1238,24 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     setState(() {
       _difficultyMode = difficultyMode;
       _computedRank = computedRank;
+      if (savedBoardSize == 9 || savedBoardSize == 13 || savedBoardSize == 19) {
+        _boardSize = savedBoardSize!;
+      }
       if (savedAiAlgorithmConfig != null &&
-          _playableAiOpponentOptionsForMode(GameMode.capture)
-              .any((option) => option.config.id == savedAiAlgorithmConfig)) {
+          _playableAiOpponentOptionsForMode(
+            GameMode.capture,
+            boardSize: _boardSize,
+          ).any((option) => option.config.id == savedAiAlgorithmConfig)) {
         _aiAlgorithmConfigId = savedAiAlgorithmConfig;
       } else if (difficultyMode == 'manual' &&
           (hasLegacyManualRank || migratedLegacyDifficulty)) {
         _aiAlgorithmConfigId = _aiAlgorithmConfigForRank(legacyManualRank).id;
       }
       if (savedTerritoryAiAlgorithmConfig != null &&
-          _playableAiOpponentOptionsForMode(GameMode.territory).any((option) =>
+          _playableAiOpponentOptionsForMode(
+            GameMode.territory,
+            boardSize: _boardSize,
+          ).any((option) =>
               option.config.id == savedTerritoryAiAlgorithmConfig)) {
         _territoryAiAlgorithmConfigId = savedTerritoryAiAlgorithmConfig;
       }
@@ -1253,9 +1266,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         savedInitialMode,
         fallback: _initialMode,
       );
-      if (savedBoardSize == 9 || savedBoardSize == 13 || savedBoardSize == 19) {
-        _boardSize = savedBoardSize!;
-      }
+      _ensureSelectedOpponentIsPlayable();
     });
   }
 
@@ -1277,9 +1288,29 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       }
       _boardSize = boardSize ?? _boardSize;
       if (playMode != null) _playMode = playMode;
+      _ensureSelectedOpponentIsPlayable();
       _initialMode = initialMode ?? _initialMode;
     });
     _saveSelection();
+  }
+
+  void _ensureSelectedOpponentIsPlayable() {
+    final captureOptions = _playableAiOpponentOptionsForMode(
+      GameMode.capture,
+      boardSize: _boardSize,
+    );
+    if (!captureOptions
+        .any((option) => option.config.id == _aiAlgorithmConfigId)) {
+      _aiAlgorithmConfigId = _defaultAiAlgorithmConfigId;
+    }
+    final territoryOptions = _playableAiOpponentOptionsForMode(
+      GameMode.territory,
+      boardSize: _boardSize,
+    );
+    if (!territoryOptions
+        .any((option) => option.config.id == _territoryAiAlgorithmConfigId)) {
+      _territoryAiAlgorithmConfigId = 'katago_onnx_standard_v1';
+    }
   }
 
   Future<void> _saveSelection() async {
@@ -1445,12 +1476,12 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     List<List<StoneColor>>? initialBoard,
   }) async {
     final selectedAiConfig = _selectedAiAlgorithmConfig;
-    final katagoModelAdapter = await _prepareKatagoForWebStart(
+    final katagoModelAdapter = await _prepareOnnxModelForWebStart(
       selectedAiConfig,
     );
     if (!mounted ||
         (kIsWeb &&
-            _isKatagoOnnxConfig(selectedAiConfig) &&
+            _isOnnxModelConfig(selectedAiConfig) &&
             katagoModelAdapter == null)) {
       return;
     }
@@ -1493,14 +1524,15 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         .then(_onGameScreenResult);
   }
 
-  Future<AsyncKatagoModelAdapter?> _prepareKatagoForWebStart(
+  Future<AsyncKatagoModelAdapter?> _prepareOnnxModelForWebStart(
     AiAlgorithmConfig? config,
   ) async {
     // Spec: docs/specs_map/main_game_flow.yaml#configuration_controls
-    if (!kIsWeb || !_isKatagoOnnxConfig(config)) return null;
+    if (!kIsWeb || !_isOnnxModelConfig(config)) return null;
     if (_isPreparingKatago) return null;
     setState(() => _isPreparingKatago = true);
-    final adapter = FlutterKatagoOnnxModelAdapter();
+    final adapter = _onnxAdapterForConfig(config!);
+    final modelLabel = _onnxModelLabel(config);
     final cancelPreparation = Completer<void>();
     var preparationDialogOpen = true;
     unawaited(
@@ -1508,6 +1540,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => _KatagoPreparationDialog(
+          modelLabel: modelLabel,
+          modelSizeText: _onnxModelSizeText(config),
           onClose: () {
             if (!cancelPreparation.isCompleted) {
               cancelPreparation.complete();
@@ -1544,16 +1578,16 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     }
 
     try {
-      final request = _katagoReadinessRequest(config!);
+      final request = _katagoReadinessRequest(config);
       final preload = adapter.preload([request]);
       if (!await waitForPreparationStep(preload)) {
-        unawaited(preload.whenComplete(adapter.close));
+        unawaited(preload.whenComplete(() => _closeOnnxAdapter(adapter)));
         return null;
       }
       final chooseMove = adapter.chooseMove(request);
       final evaluation = await waitForEvaluation(chooseMove);
       if (evaluation == null) {
-        unawaited(chooseMove.whenComplete(adapter.close));
+        unawaited(chooseMove.whenComplete(() => _closeOnnxAdapter(adapter)));
         return null;
       }
       if (evaluation.status == KatagoBackendStatus.ready &&
@@ -1561,19 +1595,20 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         await closePreparationDialog();
         return adapter;
       }
-      await adapter.close();
+      await _closeOnnxAdapter(adapter);
       await closePreparationDialog();
       if (mounted) {
-        _showKatagoPreparationFailed(
+        _showOnnxPreparationFailed(
+          modelLabel,
           evaluation.failureReason ?? 'katago_onnx_model_not_ready',
         );
       }
       return null;
     } catch (error) {
-      await adapter.close();
+      await _closeOnnxAdapter(adapter);
       await closePreparationDialog();
       if (mounted) {
-        _showKatagoPreparationFailed('$error');
+        _showOnnxPreparationFailed(modelLabel, '$error');
       }
       return null;
     } finally {
@@ -1600,19 +1635,53 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         config?.parameters['backend'] == 'onnx';
   }
 
+  bool _isCapture5OnnxConfig(AiAlgorithmConfig? config) {
+    return config?.frameworkId == AiAlgorithmFrameworkId.capture5 &&
+        config?.parameters['backend'] == 'onnx';
+  }
+
+  bool _isOnnxModelConfig(AiAlgorithmConfig? config) {
+    return _isKatagoOnnxConfig(config) || _isCapture5OnnxConfig(config);
+  }
+
+  AsyncKatagoModelAdapter _onnxAdapterForConfig(AiAlgorithmConfig config) {
+    if (_isCapture5OnnxConfig(config)) {
+      return FlutterCapture5OnnxModelAdapter();
+    }
+    return FlutterKatagoOnnxModelAdapter();
+  }
+
+  Future<void> _closeOnnxAdapter(AsyncKatagoModelAdapter adapter) async {
+    if (adapter is FlutterKatagoOnnxModelAdapter) {
+      await adapter.close();
+    } else if (adapter is FlutterCapture5OnnxModelAdapter) {
+      await adapter.close();
+    }
+  }
+
+  String _onnxModelLabel(AiAlgorithmConfig config) {
+    if (_isCapture5OnnxConfig(config)) return 'Capture5 v8';
+    return 'KataGo';
+  }
+
+  String _onnxModelSizeText(AiAlgorithmConfig config) {
+    if (_isCapture5OnnxConfig(config)) return '約 11M';
+    return '約 70M';
+  }
+
   String _startButtonTitle(String fallback) {
-    return _isPreparingKatago && _isKatagoOnnxConfig(_selectedAiAlgorithmConfig)
-        ? '正在準備 KataGo...'
+    return _isPreparingKatago && _isOnnxModelConfig(_selectedAiAlgorithmConfig)
+        ? '正在準備模型...'
         : fallback;
   }
 
-  void _showKatagoPreparationFailed(String reason) {
+  void _showOnnxPreparationFailed(String modelLabel, String reason) {
     showCupertinoDialog<void>(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('KataGo 尚未就緒'),
+        title: Text('$modelLabel 尚未就緒'),
         content: Text(
-          'Web 端需要先載入 KataGo 模型。請確認模型已打包到 assets/models 後重新構建。\n\n$reason',
+          'Web 端需要先載入模型。請確認模型已打包到 assets/models 後重新構建。\n\n$reason',
         ),
         actions: [
           CupertinoDialogAction(
@@ -3374,6 +3443,12 @@ List<_AiOpponentOption> get _aiOpponentOptions => [
         subtitle: 'KataGo-2 · ONNX 搜索',
         summary: '真实 KataGo ONNX 标准配置；不可用时会明确报错，不会 fallback。',
       ),
+      _AiOpponentOption(
+        config: AiAlgorithmRegistry.configById('capture5_13x13_policy_only_v8'),
+        name: '岚锋',
+        subtitle: 'Capture5 v8 · 13路吃子',
+        summary: '专为 13 路吃 5 子训练的策略模型；不叠加 MCTS 或 fallback。',
+      ),
     ];
 
 List<_AiOpponentOption> get _playableAiOpponentOptions => _aiOpponentOptions
@@ -3381,10 +3456,18 @@ List<_AiOpponentOption> get _playableAiOpponentOptions => _aiOpponentOptions
         (option) => option.config.runtimeMode == AiAlgorithmRuntimeMode.native)
     .toList(growable: false);
 
-List<_AiOpponentOption> _playableAiOpponentOptionsForMode(GameMode mode) {
+List<_AiOpponentOption> _playableAiOpponentOptionsForMode(
+  GameMode mode, {
+  int? boardSize,
+}) {
+  // Spec: docs/specs_map/main_game_flow.yaml#capture5_v8_ai_player
   final nativeOptions = _playableAiOpponentOptions;
   return switch (mode) {
-    GameMode.capture => nativeOptions,
+    GameMode.capture => nativeOptions
+        .where((option) =>
+            option.config.frameworkId != AiAlgorithmFrameworkId.capture5 ||
+            boardSize == 13)
+        .toList(growable: false),
     GameMode.territory => nativeOptions
         .where((option) =>
             option.config.frameworkId == AiAlgorithmFrameworkId.katago)
@@ -3838,9 +3921,13 @@ class _ImportBoardDraft {
 
 class _KatagoPreparationDialog extends StatelessWidget {
   const _KatagoPreparationDialog({
+    required this.modelLabel,
+    required this.modelSizeText,
     required this.onClose,
   });
 
+  final String modelLabel;
+  final String modelSizeText;
   final VoidCallback onClose;
 
   @override
@@ -3879,7 +3966,7 @@ class _KatagoPreparationDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  '正在準備 KataGo',
+                  '正在準備 $modelLabel',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: titleColor,
@@ -3890,7 +3977,7 @@ class _KatagoPreparationDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '首次使用需要下載約 70M 的模型，耗時取決於網路環境，通常約 30 秒。你可以關閉此視窗，切換其他棋手後再開始。',
+                  '首次使用需要下載$modelSizeText 的模型，耗時取決於網路環境，通常約 30 秒。你可以關閉此視窗，切換其他棋手後再開始。',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: subtitleColor,
