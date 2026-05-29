@@ -74,14 +74,15 @@ specs:
     references:
       - docs/ai_eval/capture-ai-framework-tuning-notes.md
 
-  - spec_id: capture5_v8_ai_player
+  - spec_id: capture5_ai_player
     expected_behavior:
-      - Capture5 v8 appears as a selectable manual AI opponent only in capture-five games on a 13x13 board.
-      - Capture5 v8 is hidden in 9x9 capture-five, 19x19 capture-five, and territory setup.
-      - Capture5 v8 uses the 13x13 policy-only ONNX model directly, without outer MCTS, tactical override, or silent fallback to another AI.
+      - Capture5 appears as a selectable manual AI opponent only in capture-five games on a 13x13 board.
+      - Capture5 is hidden in 9x9 capture-five, 19x19 capture-five, and territory setup.
+      - Capture5 uses the accepted 13x13 policy-only ONNX model directly, without outer MCTS, tactical override, or silent fallback to another AI.
+      - The active Capture5 model uses the capture5_features_11p_ladder_v1 feature schema with 11 spatial input planes.
       - The model policy output has 170 entries; indices 0 through 168 are board points, and index 169 is pass.
-      - Current capture-five gameplay does not expose pass as a player action, so Capture5 v8 ignores policy index 169 and selects only legal board points.
-      - Missing or unloadable Capture5 v8 models fail visibly instead of starting a game with a different AI.
+      - Current capture-five gameplay does not expose pass as a player action, so Capture5 ignores policy index 169 and selects only legal board points.
+      - Missing or unloadable Capture5 models fail visibly instead of starting a game with a different AI.
     references:
       - docs/plans/2026-05-25-11-09-+08-capture5-v8-ai-player-integration.md
 

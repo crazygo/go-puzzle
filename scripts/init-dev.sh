@@ -66,9 +66,12 @@ MODEL_DIR="${ROOT_DIR}/assets/models"
 KATAGO_ONNX_MODEL_FILENAME="katago-kata1-b18c384nbt-batched-fp16.onnx"
 DEFAULT_KATAGO_ONNX_MODEL_URL="${DEFAULT_KATAGO_ONNX_MODEL_URL:-https://huggingface.co/kaya-go/kaya/resolve/main/katago_small_b18c384nbt-onnx-batched-fp16.onnx}"
 KATAGO_ONNX_MODEL_URL="${KATAGO_ONNX_MODEL_URL:-${DEFAULT_KATAGO_ONNX_MODEL_URL}}"
-CAPTURE5_ONNX_MODEL_FILENAME="capture5_13x13_policy_only_v8.onnx"
-CAPTURE5_ONNX_MODEL_SHA256="98441223424eef68eaeab35c715f56add24ff0207c0d59ab66a85fdaed4f48c6"
-CAPTURE5_ONNX_MODEL_LOCAL="${CAPTURE5_ONNX_MODEL_LOCAL:-/Users/admin/Code/go-puzzle-ml/models/released/${CAPTURE5_ONNX_MODEL_FILENAME}}"
+CAPTURE5_ONNX_MODEL_ID="capture5_13x13_11p_resnet_phase_g_tactical005_expected"
+CAPTURE5_ONNX_MODEL_FILENAME="${CAPTURE5_ONNX_MODEL_ID}.onnx"
+CAPTURE5_ONNX_METADATA_FILENAME="${CAPTURE5_ONNX_MODEL_ID}.metadata.json"
+CAPTURE5_ONNX_MODEL_SHA256="981dedf63f6b5fae567bbc354c340abafd4b1eec302858a27ec7c9d384343c54"
+CAPTURE5_ONNX_MODEL_LOCAL="${CAPTURE5_ONNX_MODEL_LOCAL:-/Users/admin/Code/go-puzzle-ml/models/generated/${CAPTURE5_ONNX_MODEL_FILENAME}}"
+CAPTURE5_ONNX_METADATA_LOCAL="${CAPTURE5_ONNX_METADATA_LOCAL:-/Users/admin/Code/go-puzzle-ml/models/generated/${CAPTURE5_ONNX_METADATA_FILENAME}}"
 CAPTURE5_ONNX_MODEL_URL="${CAPTURE5_ONNX_MODEL_URL:-}"
 RUN_ANALYZE=0
 
@@ -297,6 +300,14 @@ download_katago_models() {
     fi
   else
     log "Skipping Capture5 ONNX model download; set CAPTURE5_ONNX_MODEL_URL or CAPTURE5_ONNX_MODEL_LOCAL to enable it."
+  fi
+
+  local capture_metadata_target="${MODEL_DIR}/${CAPTURE5_ONNX_METADATA_FILENAME}"
+  if [[ -s "${capture_metadata_target}" ]]; then
+    log "Using existing Capture5 metadata file: ${capture_metadata_target}"
+  elif [[ -s "${CAPTURE5_ONNX_METADATA_LOCAL}" ]]; then
+    cp -f "${CAPTURE5_ONNX_METADATA_LOCAL}" "${capture_metadata_target}"
+    log "Copied local Capture5 metadata file: ${capture_metadata_target}"
   fi
 
   if [[ -s "${capture_target}" ]]; then

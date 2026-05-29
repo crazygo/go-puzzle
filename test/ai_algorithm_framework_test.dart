@@ -20,7 +20,7 @@ void main() {
         final configs = AiAlgorithmRegistry.configsFor(frameworkId);
         if (frameworkId == AiAlgorithmFrameworkId.capture5) {
           expect(configs, hasLength(1));
-          expect(configs.single.id, 'capture5_13x13_policy_only_v8');
+          expect(configs.single.id, kCapture5ModelId);
         } else {
           expect(
             configs,
@@ -106,21 +106,27 @@ void main() {
       }
     });
 
-    test('Capture5 v8 exposes one 13x13 policy-only ONNX config', () {
+    test('Capture5 exposes one 13x13 11-plane policy-only ONNX config', () {
       final configs =
           AiAlgorithmRegistry.configsFor(AiAlgorithmFrameworkId.capture5);
       final config = configs.single;
 
-      expect(config.id, 'capture5_13x13_policy_only_v8');
+      expect(config.id, kCapture5ModelId);
       expect(config.usesFallback, isFalse);
       expect(config.runtimeMode, AiAlgorithmRuntimeMode.native);
       expect(config.failureMode, isNull);
       expect(config.parameters['backend'], 'onnx');
-      expect(config.parameters['modelAsset'], kCapture5V8ModelAsset);
+      expect(config.parameters['modelId'], kCapture5ModelId);
+      expect(config.parameters['modelAsset'], kCapture5ModelAsset);
+      expect(config.parameters['metadataAsset'], kCapture5ModelMetadataAsset);
+      expect(config.parameters['featureSchemaId'], kCapture5FeatureSchemaId);
+      expect(config.parameters['architecture'], 'capture5_resnet_phase1_v1');
       expect(config.parameters['boardSize'], 13);
       expect(config.parameters['captureTarget'], 5);
+      expect(config.parameters['inputPlanes'], 11);
       expect(config.parameters['policySize'], 170);
       expect(config.parameters['passMoveIndex'], 169);
+      expect(config.parameters['onnxSha256'], kCapture5ModelSha256);
       expect(config.parameters.containsKey('visits'), isFalse);
       expect(config.parameters.containsKey('captureSearchDepth'), isFalse);
     });
@@ -199,10 +205,8 @@ void main() {
       expect(move.position.col, 4);
     });
 
-    test('async Capture5 v8 adapter move is used directly when legal',
-        () async {
-      final config =
-          AiAlgorithmRegistry.configById('capture5_13x13_policy_only_v8');
+    test('async Capture5 adapter move is used directly when legal', () async {
+      final config = AiAlgorithmRegistry.configById(kCapture5ModelId);
       final agent = AiAlgorithmRegistry.createAsyncAgent(
         config,
         katagoModelAdapter: const _FixedAsyncKatagoModelAdapter(

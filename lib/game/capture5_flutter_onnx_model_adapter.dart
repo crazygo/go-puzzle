@@ -36,7 +36,7 @@ class FlutterCapture5OnnxModelAdapter implements AsyncKatagoModelAdapter {
 
   @override
   Future<KatagoModelEvaluation> chooseMove(KatagoModelRequest request) async {
-    // Spec: docs/specs_map/main_game_flow.yaml#capture5_v8_ai_player
+    // Spec: docs/specs_map/main_game_flow.yaml#capture5_ai_player
     OrtValue? featuresInput;
     OrtValue? globalsInput;
     Map<String, OrtValue> outputs = const {};
@@ -45,7 +45,7 @@ class FlutterCapture5OnnxModelAdapter implements AsyncKatagoModelAdapter {
           request.board.captureTarget != Capture5FeatureEncoder.captureTarget) {
         return const KatagoModelEvaluation(
           status: KatagoBackendStatus.failed,
-          failureReason: 'capture5_v8_requires_13x13_capture5',
+          failureReason: 'capture5_requires_13x13_capture5',
         );
       }
 
@@ -54,7 +54,7 @@ class FlutterCapture5OnnxModelAdapter implements AsyncKatagoModelAdapter {
       if (legalMoves.isEmpty) {
         return const KatagoModelEvaluation(
           status: KatagoBackendStatus.failed,
-          failureReason: 'capture5_v8_no_legal_board_moves',
+          failureReason: 'capture5_no_legal_board_moves',
         );
       }
 
@@ -78,14 +78,14 @@ class FlutterCapture5OnnxModelAdapter implements AsyncKatagoModelAdapter {
       if (policyOutput == null) {
         return const KatagoModelEvaluation(
           status: KatagoBackendStatus.failed,
-          failureReason: 'capture5_v8_missing_policy_output',
+          failureReason: 'capture5_missing_policy_output',
         );
       }
       final policy = await policyOutput.asFlattenedList();
       if (policy.length < Capture5FeatureEncoder.policySize) {
         return KatagoModelEvaluation(
           status: KatagoBackendStatus.failed,
-          failureReason: 'capture5_v8_policy_output_too_short:${policy.length}',
+          failureReason: 'capture5_policy_output_too_short:${policy.length}',
         );
       }
 
@@ -167,7 +167,7 @@ class FlutterCapture5OnnxModelAdapter implements AsyncKatagoModelAdapter {
       scored.add((score: score, move: move));
     }
     if (scored.isEmpty) {
-      throw StateError('capture5_v8_policy_has_no_finite_legal_scores');
+      throw StateError('capture5_policy_has_no_finite_legal_scores');
     }
 
     scored.sort((a, b) => b.score.compareTo(a.score));
@@ -196,7 +196,7 @@ class FlutterCapture5OnnxModelAdapter implements AsyncKatagoModelAdapter {
     required double temperature,
   }) {
     if (candidates.isEmpty) {
-      throw StateError('capture5_v8_policy_has_no_finite_legal_scores');
+      throw StateError('capture5_policy_has_no_finite_legal_scores');
     }
     if (temperature <= 0) return candidates.first.position;
     final maxScore = candidates.fold(

@@ -13,6 +13,7 @@ import '../game/model_board_image_recognizer.dart';
 import '../game/ai_algorithm_framework.dart';
 import '../game/capture_ai.dart';
 import '../game/capture5_flutter_onnx_model_adapter.dart';
+import '../game/capture5_onnx_features.dart';
 import '../game/ai_rank_level.dart';
 import '../game/game_mode.dart';
 import '../game/go_engine.dart';
@@ -1660,7 +1661,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }
 
   String _onnxModelLabel(AiAlgorithmConfig config) {
-    if (_isCapture5OnnxConfig(config)) return 'Capture5 v8';
+    if (_isCapture5OnnxConfig(config)) return 'Capture5';
     return 'KataGo';
   }
 
@@ -3444,9 +3445,9 @@ List<_AiOpponentOption> get _aiOpponentOptions => [
         summary: '真实 KataGo ONNX 标准配置；不可用时会明确报错，不会 fallback。',
       ),
       _AiOpponentOption(
-        config: AiAlgorithmRegistry.configById('capture5_13x13_policy_only_v8'),
+        config: AiAlgorithmRegistry.configById(kCapture5ModelId),
         name: '岚锋',
-        subtitle: 'Capture5 v8 · 13路吃子',
+        subtitle: 'Capture5 ResNet · 13路吃子',
         summary: '专为 13 路吃 5 子训练的策略模型；不叠加 MCTS 或 fallback。',
       ),
     ];
@@ -3460,7 +3461,7 @@ List<_AiOpponentOption> _playableAiOpponentOptionsForMode(
   GameMode mode, {
   int? boardSize,
 }) {
-  // Spec: docs/specs_map/main_game_flow.yaml#capture5_v8_ai_player
+  // Spec: docs/specs_map/main_game_flow.yaml#capture5_ai_player
   final nativeOptions = _playableAiOpponentOptions;
   return switch (mode) {
     GameMode.capture => nativeOptions
@@ -3523,7 +3524,9 @@ class _ConfigPreview extends StatelessWidget {
   final VoidCallback onTap;
 
   _AiOpponentOption get _selectedOption => _aiOpponentOption(
-        (difficultyMode == 'manual' ? aiAlgorithmConfigId : activeAiConfig?.id) ??
+        (difficultyMode == 'manual'
+                ? aiAlgorithmConfigId
+                : activeAiConfig?.id) ??
             aiAlgorithmConfigId,
       );
 

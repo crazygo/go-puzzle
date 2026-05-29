@@ -184,7 +184,7 @@ class AiAlgorithmRegistry {
         _hybridStandard,
         _katagoOnnxWeak,
         _katagoOnnxStandard,
-        _capture5V8,
+        _capture5,
       ];
 
   static List<AiAlgorithmConfig> configsFor(
@@ -460,22 +460,28 @@ class AiAlgorithmRegistry {
     ),
   );
 
-  static final AiAlgorithmConfig _capture5V8 = AiAlgorithmConfig(
-    id: 'capture5_13x13_policy_only_v8',
+  static final AiAlgorithmConfig _capture5 = AiAlgorithmConfig(
+    id: kCapture5ModelId,
     frameworkId: AiAlgorithmFrameworkId.capture5,
-    displayName: 'Capture5 v8',
+    displayName: 'Capture5 Phase G',
     strengthTier: AiAlgorithmStrengthTier.strong,
     runtimeMode: AiAlgorithmRuntimeMode.native,
     parameters: const {
       'backend': 'onnx',
-      'modelAsset': kCapture5V8ModelAsset,
+      'modelId': kCapture5ModelId,
+      'modelAsset': kCapture5ModelAsset,
+      'metadataAsset': kCapture5ModelMetadataAsset,
+      'featureSchemaId': kCapture5FeatureSchemaId,
+      'architecture': 'capture5_resnet_phase1_v1',
       'timeBudgetMillis': 3000,
       'policyTemperature': 0.0,
       'candidateLimit': 3,
       'boardSize': 13,
       'captureTarget': 5,
+      'inputPlanes': Capture5FeatureEncoder.featurePlanes,
       'policySize': Capture5FeatureEncoder.policySize,
       'passMoveIndex': Capture5FeatureEncoder.passMoveIndex,
+      'onnxSha256': kCapture5ModelSha256,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,

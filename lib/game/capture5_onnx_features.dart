@@ -1,10 +1,18 @@
 import 'mcts_engine.dart';
 
-const String kCapture5V8ModelAsset =
-    'assets/models/capture5_13x13_policy_only_v8.onnx';
+const String kCapture5ModelId =
+    'capture5_13x13_11p_resnet_phase_g_tactical005_expected';
 
-const String kCapture5V8ModelSha256 =
-    '98441223424eef68eaeab35c715f56add24ff0207c0d59ab66a85fdaed4f48c6';
+const String kCapture5FeatureSchemaId = 'capture5_features_11p_ladder_v1';
+
+const String kCapture5ModelAsset =
+    'assets/models/capture5_13x13_11p_resnet_phase_g_tactical005_expected.onnx';
+
+const String kCapture5ModelMetadataAsset =
+    'assets/models/capture5_13x13_11p_resnet_phase_g_tactical005_expected.metadata.json';
+
+const String kCapture5ModelSha256 =
+    '981dedf63f6b5fae567bbc354c340abafd4b1eec302858a27ec7c9d384343c54';
 
 class Capture5EncodedFeatures {
   const Capture5EncodedFeatures({
@@ -28,20 +36,20 @@ class Capture5FeatureEncoder {
   static const int policyPointCount = boardSize * boardSize;
   static const int passMoveIndex = policyPointCount;
   static const int policySize = policyPointCount + 1;
-  static const int _featurePlanes = 9;
+  static const int featurePlanes = 11;
   static const int _globalCount = 6;
 
   Capture5EncodedFeatures encode(SimBoard board) {
-    // Spec: docs/specs_map/main_game_flow.yaml#capture5_v8_ai_player
+    // Spec: docs/specs_map/main_game_flow.yaml#capture5_ai_player
     if (board.size != boardSize || board.captureTarget != captureTarget) {
       throw ArgumentError(
-        'Capture5 v8 supports only 13x13 capture-five boards.',
+        'Capture5 supports only 13x13 capture-five boards.',
       );
     }
 
     // Spec: docs/specs_map/technical_contracts.yaml#model_input_contract
     final total = board.size * board.size;
-    final planes = List<double>.filled(_featurePlanes * total, 0);
+    final planes = List<double>.filled(featurePlanes * total, 0);
     final currentPlayer = board.currentPlayer;
     final playerValue = currentPlayer == SimBoard.black ? 1.0 : -1.0;
 
@@ -64,6 +72,7 @@ class Capture5FeatureEncoder {
     }
 
     _encodeLibertyPlanes(board, planes, total);
+    _encodeLadderPlanes(board, planes, total);
 
     final stonesOnBoard =
         board.cells.where((cell) => cell != SimBoard.empty).length;
@@ -74,7 +83,7 @@ class Capture5FeatureEncoder {
 
     return Capture5EncodedFeatures(
       features: planes,
-      featuresShape: const [1, _featurePlanes, boardSize, boardSize],
+      featuresShape: const [1, featurePlanes, boardSize, boardSize],
       globals: [
         board.size / 19.0,
         board.captureTarget / 10.0,
@@ -119,4 +128,170 @@ class Capture5FeatureEncoder {
       }
     }
   }
+
+  void _encodeLadderPlanes(
+    SimBoard board,
+    List<double> planes,
+    int total,
+  ) {
+    // Spec: docs/specs_map/technical_contracts.yaml#capture5_features_11p_ladder_v1
+    final currentPlayer = board.currentPlayer;
+    final visited = <int>{};
+    for (var index = 0; index < total; index++) {
+      final color = board.cells[index];
+      if (color == SimBoard.empty || visited.contains(index)) continue;
+      final group = board.groupAtIndex(index);
+      visited.addAll(group);
+      final liberties = board.libertiesForGroup(group);
+      if (!_isLadderCapture(board, group, liberties)) continue;
+
+      final planeIndex = color == currentPlayer ? 9 : 10;
+      for (final point in group) {
+        planes[planeIndex * total + point] = 1;
+      }
+    }
+  }
+
+  bool _isLadderCapture(
+    SimBoard board,
+    Set<int> group,
+    Set<int> liberties,
+  ) {
+    if (group.isEmpty || liberties.length != 1) return false;
+
+    final start = group.first;
+    final color = board.cells[start];
+    if (color == SimBoard.empty) return false;
+
+    final currentGroup = board.groupAtIndex(start);
+    final currentLiberties = board.libertiesForGroup(currentGroup);
+    if (!_sameSet(currentGroup, group) ||
+        !_sameSet(currentLiberties, liberties)) {
+      return false;
+    }
+
+    return _defenderToMove(
+      board: SimBoard.copy(board),
+      color: color,
+      group: currentGroup,
+      liberties: currentLiberties,
+      depthRemaining: board.size * 4,
+      visited: <String>{},
+    );
+  }
+
+  bool _defenderToMove({
+    required SimBoard board,
+    required int color,
+    required Set<int> group,
+    required Set<int> liberties,
+    required int depthRemaining,
+    required Set<String> visited,
+  }) {
+    if (group.isEmpty) return true;
+    if (liberties.length != 1) return false;
+    if (depthRemaining <= 0) return false;
+
+    final stateKey = board.cells.join(',');
+    if (visited.contains(stateKey)) return false;
+    visited.add(stateKey);
+
+    final escape = liberties.first;
+    final escapedBoard = _simulateColorPlacement(board, color, escape);
+    if (escapedBoard == null) return true;
+
+    final escapedGroup = escapedBoard.groupAtIndex(escape);
+    final escapedLiberties = escapedBoard.libertiesForGroup(escapedGroup);
+    if (escapedLiberties.isEmpty) return true;
+    if (escapedLiberties.length >= 3) return false;
+    if (escapedLiberties.length == 1) {
+      return _opponentCanCaptureGroup(
+        escapedBoard,
+        color,
+        escapedGroup,
+        escapedLiberties.first,
+      );
+    }
+
+    for (final chase in escapedLiberties.toList()..sort()) {
+      final chasedBoard = _simulateColorPlacement(
+        escapedBoard,
+        _opponentOf(color),
+        chase,
+      );
+      if (chasedBoard == null) continue;
+
+      final remainingGroup = <int>{};
+      for (final point in escapedGroup) {
+        if (chasedBoard.cells[point] == color) remainingGroup.add(point);
+      }
+      if (remainingGroup.length != escapedGroup.length) return true;
+
+      final probe = remainingGroup.first;
+      final chasedGroup = chasedBoard.groupAtIndex(probe);
+      if (!_sameSet(chasedGroup, escapedGroup)) continue;
+      final chasedLiberties = chasedBoard.libertiesForGroup(chasedGroup);
+      if (chasedLiberties.length != 1) continue;
+      if (_defenderToMove(
+        board: chasedBoard,
+        color: color,
+        group: chasedGroup,
+        liberties: chasedLiberties,
+        depthRemaining: depthRemaining - 1,
+        visited: Set<String>.from(visited),
+      )) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  SimBoard? _simulateColorPlacement(SimBoard board, int color, int point) {
+    if (point < 0 || point >= board.size * board.size) return null;
+    if (board.cells[point] != SimBoard.empty) return null;
+
+    final next = SimBoard.copy(board);
+    next.cells[point] = color;
+    final opponent = _opponentOf(color);
+    final captured = <int>{};
+    final checked = <int>{};
+    for (final adjacent in next.adjacentIndices(point)) {
+      if (next.cells[adjacent] != opponent || checked.contains(adjacent)) {
+        continue;
+      }
+      final opponentGroup = next.groupAtIndex(adjacent);
+      checked.addAll(opponentGroup);
+      if (next.libertiesForGroup(opponentGroup).isEmpty) {
+        captured.addAll(opponentGroup);
+      }
+    }
+    for (final capturedPoint in captured) {
+      next.cells[capturedPoint] = SimBoard.empty;
+    }
+    if (captured.isEmpty &&
+        next.libertiesForGroup(next.groupAtIndex(point)).isEmpty) {
+      return null;
+    }
+    return next;
+  }
+
+  bool _opponentCanCaptureGroup(
+    SimBoard board,
+    int color,
+    Set<int> group,
+    int liberty,
+  ) {
+    final next = _simulateColorPlacement(board, _opponentOf(color), liberty);
+    if (next == null) return false;
+    for (final point in group) {
+      if (next.cells[point] == SimBoard.empty) return true;
+    }
+    return false;
+  }
+
+  int _opponentOf(int color) =>
+      color == SimBoard.black ? SimBoard.white : SimBoard.black;
+
+  bool _sameSet(Set<int> a, Set<int> b) =>
+      a.length == b.length && a.containsAll(b);
 }

@@ -7,6 +7,7 @@ import 'package:go_puzzle/game/ai_algorithm_framework.dart';
 import 'package:go_puzzle/game/ai_rank_level.dart';
 import 'package:go_puzzle/game/ai_search_runner.dart';
 import 'package:go_puzzle/game/capture_ai.dart';
+import 'package:go_puzzle/game/capture5_onnx_features.dart';
 import 'package:go_puzzle/game/game_mode.dart';
 import 'package:go_puzzle/game/go_engine.dart';
 import 'package:go_puzzle/game/katago_model_adapter.dart';
@@ -579,7 +580,7 @@ void main() {
       expect(runner.paramsCompleter.isCompleted, isFalse);
     });
 
-    test('Capture5 v8 config uses async ONNX adapter instead of AI runner',
+    test('Capture5 config uses async ONNX adapter instead of AI runner',
         () async {
       final runner = _CapturingAiSearchRunner();
       final provider = CaptureGameProvider(
@@ -590,8 +591,7 @@ void main() {
         humanColor: StoneColor.white,
         minMoveDelay: Duration.zero,
         maxMoveDelay: Duration.zero,
-        aiAlgorithmConfig:
-            AiAlgorithmRegistry.configById('capture5_13x13_policy_only_v8'),
+        aiAlgorithmConfig: AiAlgorithmRegistry.configById(kCapture5ModelId),
         katagoModelAdapter: const _FakeKatagoAdapter(
           move: BoardPosition(6, 6),
         ),
