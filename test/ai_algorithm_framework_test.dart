@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_puzzle/game/ai_algorithm_framework.dart';
+import 'package:go_puzzle/game/capture_ai.dart';
 import 'package:go_puzzle/game/capture5_onnx_features.dart';
 import 'package:go_puzzle/game/katago_model_adapter.dart';
 import 'package:go_puzzle/game/mcts_engine.dart';
@@ -68,7 +69,8 @@ void main() {
     test('native playable configs produce legal opening moves', () {
       for (final config in AiAlgorithmRegistry.configs) {
         if (config.frameworkId == AiAlgorithmFrameworkId.katago ||
-            config.frameworkId == AiAlgorithmFrameworkId.capture5) {
+            config.frameworkId == AiAlgorithmFrameworkId.capture5 ||
+            config.frameworkId == AiAlgorithmFrameworkId.mctsCapture5) {
           continue;
         }
         final board = SimBoard(9, captureTarget: 5);
@@ -129,6 +131,32 @@ void main() {
       expect(config.parameters['onnxSha256'], kCapture5ModelSha256);
       expect(config.parameters.containsKey('visits'), isFalse);
       expect(config.parameters.containsKey('captureSearchDepth'), isFalse);
+    });
+
+    test('MCTS+Capture5 exposes two ONNX-guided MCTS configs', () {
+      final configs =
+          AiAlgorithmRegistry.configsFor(AiAlgorithmFrameworkId.mctsCapture5);
+
+      expect(
+        configs.map((config) => config.id),
+        ['mcts_capture5_weak_v1', 'mcts_capture5_standard_v1'],
+      );
+      for (final config in configs) {
+        expect(config.usesFallback, isFalse);
+        expect(config.runtimeMode, AiAlgorithmRuntimeMode.native);
+        expect(config.parameters['backend'], 'onnx');
+        expect(config.parameters['modelId'], kCapture5ModelId);
+        expect(config.parameters['modelAsset'], kCapture5ModelAsset);
+        expect(config.parameters['featureSchemaId'], kCapture5FeatureSchemaId);
+        expect(config.parameters['inputPlanes'], 11);
+        expect(config.parameters['policySize'], 170);
+        expect(config.parameters['passMoveIndex'], 169);
+        expect(config.parameters['mctsPlayouts'], isA<int>());
+        expect(config.parameters['mctsRolloutDepth'], isA<int>());
+        expect(config.parameters['mctsCandidateLimit'], isA<int>());
+        expect(config.parameters['policyPriorWeight'], isA<num>());
+        expect(config.robotConfig.engine, CaptureAiEngine.mcts);
+      }
     });
 
     test('KataGo ONNX config reports unavailable when model is missing', () {
@@ -226,6 +254,43 @@ void main() {
       expect(move, isNotNull);
       expect(move!.position.row, 6);
       expect(move.position.col, 6);
+    });
+
+    test('async MCTS+Capture5 requests Capture5 policy and returns legal move',
+        () async {
+      final config = AiAlgorithmRegistry.configById('mcts_capture5_weak_v1');
+      final adapter = _PolicyAsyncKatagoModelAdapter([
+        const KatagoPolicyCandidate(
+          position: BoardPosition(6, 6),
+          score: 4,
+          probability: 0.70,
+          rank: 1,
+          policyPlane: 0,
+        ),
+        const KatagoPolicyCandidate(
+          position: BoardPosition(5, 5),
+          score: 3,
+          probability: 0.20,
+          rank: 2,
+          policyPlane: 0,
+        ),
+      ]);
+      final agent = AiAlgorithmRegistry.createAsyncAgent(
+        config,
+        katagoModelAdapter: adapter,
+      );
+      final board = SimBoard(13, captureTarget: 5);
+
+      final move = await agent.chooseMove(board);
+
+      expect(adapter.requests, hasLength(1));
+      expect(adapter.requests.single.modelAsset, kCapture5ModelAsset);
+      expect(adapter.requests.single.candidateLimit, 18);
+      expect(move, isNotNull);
+      expect(
+        board.analyzeMove(move!.position.row, move.position.col).isLegal,
+        isTrue,
+      );
     });
 
     test('neutral tactical analysis does not change selected move', () {
@@ -649,6 +714,26 @@ class _FixedAsyncKatagoModelAdapter implements AsyncKatagoModelAdapter {
     return KatagoModelEvaluation(
       status: KatagoBackendStatus.ready,
       move: move,
+    );
+  }
+}
+
+class _PolicyAsyncKatagoModelAdapter implements AsyncKatagoModelAdapter {
+  _PolicyAsyncKatagoModelAdapter(this.candidates);
+
+  final List<KatagoPolicyCandidate> candidates;
+  final List<KatagoModelRequest> requests = [];
+
+  @override
+  Future<void> preload(Iterable<KatagoModelRequest> requests) async {}
+
+  @override
+  Future<KatagoModelEvaluation> chooseMove(KatagoModelRequest request) async {
+    requests.add(request);
+    return KatagoModelEvaluation(
+      status: KatagoBackendStatus.ready,
+      move: candidates.first.position,
+      policyCandidates: candidates,
     );
   }
 }

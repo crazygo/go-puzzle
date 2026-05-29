@@ -466,7 +466,8 @@ class CaptureGameProvider extends ChangeNotifier {
   AsyncKatagoModelAdapter get _katagoModelAdapter {
     final injected = _katagoModelAdapterOverride;
     if (injected != null) return injected;
-    if (aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.capture5) {
+    if (aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.capture5 ||
+        aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.mctsCapture5) {
       return _ownedCapture5ModelAdapter ??= FlutterCapture5OnnxModelAdapter();
     }
     return _ownedKatagoModelAdapter ??= FlutterKatagoOnnxModelAdapter();
@@ -1184,7 +1185,8 @@ class CaptureGameProvider extends ChangeNotifier {
 
   bool get _usesAsyncAlgorithmAgent =>
       aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.katago ||
-      aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.capture5;
+      aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.capture5 ||
+      aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.mctsCapture5;
 
   AiAlgorithmConfig get _katagoCoachConfig =>
       AiAlgorithmRegistry.configById(_katagoCoachConfigId);

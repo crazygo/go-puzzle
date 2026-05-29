@@ -158,6 +158,46 @@ void main() {
     expect(find.text('阿尔法'), findsNothing);
     expect(find.text('玄策'), findsNothing);
   });
+
+  testWidgets('13x13 capture mode exposes five manual AI opponents',
+      (tester) async {
+    // Spec: docs/specs_map/main_game_flow.yaml#configuration_controls
+    SharedPreferences.setMockInitialValues({
+      'capture_setup.board_size': 13,
+    });
+
+    await tester.pumpWidget(const GoPuzzleApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('調整 ›'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('阿尔法'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('選擇 AI 棋手'), findsOneWidget);
+    expect(find.text('奥斯卡'), findsOneWidget);
+    expect(find.text('阿尔法 · 目前'), findsOneWidget);
+    expect(find.text('岚锋'), findsOneWidget);
+
+    await tester.dragUntilVisible(
+      find.text('玄策'),
+      find.byType(Scrollable),
+      const Offset(0, -120),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('云岚'), findsOneWidget);
+    expect(find.text('玄策'), findsOneWidget);
+    expect(find.text('小石'), findsNothing);
+    expect(find.text('青竹'), findsNothing);
+    expect(find.text('小林'), findsNothing);
+    expect(find.text('星野'), findsNothing);
+  });
+
   testWidgets('difficulty mode segment control updates on tap', (tester) async {
     await tester.pumpWidget(const GoPuzzleApp());
     await tester.pump();

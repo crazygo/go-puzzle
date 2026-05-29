@@ -1637,7 +1637,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }
 
   bool _isCapture5OnnxConfig(AiAlgorithmConfig? config) {
-    return config?.frameworkId == AiAlgorithmFrameworkId.capture5 &&
+    return (config?.frameworkId == AiAlgorithmFrameworkId.capture5 ||
+            config?.frameworkId == AiAlgorithmFrameworkId.mctsCapture5) &&
         config?.parameters['backend'] == 'onnx';
   }
 
@@ -1661,6 +1662,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   }
 
   String _onnxModelLabel(AiAlgorithmConfig config) {
+    if (config.frameworkId == AiAlgorithmFrameworkId.mctsCapture5) {
+      return 'MCTS+Capture5';
+    }
     if (_isCapture5OnnxConfig(config)) return 'Capture5';
     return 'KataGo';
   }
@@ -3395,18 +3399,6 @@ class _AiOpponentOption {
 
 List<_AiOpponentOption> get _aiOpponentOptions => [
       _AiOpponentOption(
-        config: AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
-        name: '小石',
-        subtitle: 'Heuristic-1 · 入门启发',
-        summary: '轻量规则判断，适合熟悉吃子节奏。',
-      ),
-      _AiOpponentOption(
-        config: AiAlgorithmRegistry.configById('heuristic_counter_standard_v1'),
-        name: '青竹',
-        subtitle: 'Heuristic-2 · 反击启发',
-        summary: '更偏防守和反击，计算很快。',
-      ),
-      _AiOpponentOption(
         config: AiAlgorithmRegistry.configById('mcts_counter_weak_v1'),
         name: '奥斯卡',
         subtitle: 'MCTS-1 · 快速试探',
@@ -3417,20 +3409,6 @@ List<_AiOpponentOption> get _aiOpponentOptions => [
         name: '阿尔法',
         subtitle: 'MCTS-2 · 战术搜索',
         summary: '更高搜索预算，带两层吃子风险检查。',
-      ),
-      _AiOpponentOption(
-        config:
-            AiAlgorithmRegistry.configById('hybrid_tactical_counter_weak_v1'),
-        name: '云岚',
-        subtitle: 'Hybrid-1 · 轻量战术',
-        summary: '启发式和搜索混合，偏实战。',
-      ),
-      _AiOpponentOption(
-        config: AiAlgorithmRegistry.configById(
-            'hybrid_tactical_counter_standard_v1'),
-        name: '玄策',
-        subtitle: 'Hybrid-2 · 混合战术',
-        summary: '更完整的混合战术配置。',
       ),
       _AiOpponentOption(
         config: AiAlgorithmRegistry.configById('katago_onnx_weak_v1'),
@@ -3450,6 +3428,18 @@ List<_AiOpponentOption> get _aiOpponentOptions => [
         subtitle: 'Capture5 ResNet · 13路吃子',
         summary: '专为 13 路吃 5 子训练的策略模型；不叠加 MCTS 或 fallback。',
       ),
+      _AiOpponentOption(
+        config: AiAlgorithmRegistry.configById('mcts_capture5_weak_v1'),
+        name: '云岚',
+        subtitle: 'MCTS+Capture5-1 · 模型引导',
+        summary: '少量搜索结合 Capture5 策略先验。',
+      ),
+      _AiOpponentOption(
+        config: AiAlgorithmRegistry.configById('mcts_capture5_standard_v1'),
+        name: '玄策',
+        subtitle: 'MCTS+Capture5-2 · 模型搜索',
+        summary: '标准搜索预算结合 Capture5 策略先验。',
+      ),
     ];
 
 List<_AiOpponentOption> get _playableAiOpponentOptions => _aiOpponentOptions
@@ -3466,14 +3456,23 @@ List<_AiOpponentOption> _playableAiOpponentOptionsForMode(
   return switch (mode) {
     GameMode.capture => nativeOptions
         .where((option) =>
-            option.config.frameworkId != AiAlgorithmFrameworkId.capture5 ||
-            boardSize == 13)
+            _isCaptureModeOpponent(option.config.frameworkId) &&
+            ((option.config.frameworkId != AiAlgorithmFrameworkId.capture5 &&
+                    option.config.frameworkId !=
+                        AiAlgorithmFrameworkId.mctsCapture5) ||
+                boardSize == 13))
         .toList(growable: false),
     GameMode.territory => nativeOptions
         .where((option) =>
             option.config.frameworkId == AiAlgorithmFrameworkId.katago)
         .toList(growable: false),
   };
+}
+
+bool _isCaptureModeOpponent(AiAlgorithmFrameworkId frameworkId) {
+  return frameworkId == AiAlgorithmFrameworkId.mcts ||
+      frameworkId == AiAlgorithmFrameworkId.capture5 ||
+      frameworkId == AiAlgorithmFrameworkId.mctsCapture5;
 }
 
 _AiOpponentOption _aiOpponentOption(String configId) {
@@ -3495,10 +3494,13 @@ AiAlgorithmConfig _aiAlgorithmConfigForRank(int rank) {
   if (rank <= 9) {
     return AiAlgorithmRegistry.configById('mcts_counter_weak_v1');
   }
-  if (rank <= 19) {
+  if (rank <= 16) {
     return AiAlgorithmRegistry.configById('mcts_counter_standard_v1');
   }
-  return AiAlgorithmRegistry.configById('katago_onnx_standard_v1');
+  if (rank <= 22) {
+    return AiAlgorithmRegistry.configById('mcts_capture5_weak_v1');
+  }
+  return AiAlgorithmRegistry.configById('mcts_capture5_standard_v1');
 }
 
 AiAlgorithmConfig _territoryAiAlgorithmConfigForRank(int rank) {

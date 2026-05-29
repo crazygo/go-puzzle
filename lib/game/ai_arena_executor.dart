@@ -622,7 +622,8 @@ Duration _decisionTimeoutForConfig(
   required Duration defaultTimeout,
 }) {
   if (config.frameworkId != AiAlgorithmFrameworkId.katago &&
-      config.frameworkId != AiAlgorithmFrameworkId.capture5) {
+      config.frameworkId != AiAlgorithmFrameworkId.capture5 &&
+      config.frameworkId != AiAlgorithmFrameworkId.mctsCapture5) {
     return defaultTimeout;
   }
   return switch (config.parameters['timeBudgetMillis']) {
@@ -638,7 +639,8 @@ AsyncKatagoModelAdapter _resolveAsyncKatagoAdapter(
   final requiresOnnxAdapter = configs.any(
     (config) =>
         config.frameworkId == AiAlgorithmFrameworkId.katago ||
-        config.frameworkId == AiAlgorithmFrameworkId.capture5,
+        config.frameworkId == AiAlgorithmFrameworkId.capture5 ||
+        config.frameworkId == AiAlgorithmFrameworkId.mctsCapture5,
   );
   if (requiresOnnxAdapter && adapter == null) {
     throw StateError(
@@ -656,7 +658,8 @@ List<KatagoModelRequest> _katagoRequestsFor(
   final requests = <KatagoModelRequest>[];
   for (final config in configs) {
     if (config.frameworkId != AiAlgorithmFrameworkId.katago &&
-        config.frameworkId != AiAlgorithmFrameworkId.capture5) {
+        config.frameworkId != AiAlgorithmFrameworkId.capture5 &&
+        config.frameworkId != AiAlgorithmFrameworkId.mctsCapture5) {
       continue;
     }
     requests.add(KatagoModelRequest(
