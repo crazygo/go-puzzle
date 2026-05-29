@@ -67,6 +67,39 @@ async function handleRequest(request) {
       scoreBelief: scoreBeliefSummary(outputData(outputs, 'scorebelief')),
     };
   }
+  if (request.type === 'eval_capture5') {
+    const session = await sessionFor(request.model);
+    const features = new ort.Tensor(
+      'float32',
+      Float32Array.from(request.features),
+      request.featuresShape,
+    );
+    const globals = new ort.Tensor(
+      'float32',
+      Float32Array.from(request.globals),
+      request.globalsShape,
+    );
+    const outputs = await session.run({
+      features,
+      globals,
+    });
+    const policy = policyOutputFor(outputs, request.boardPointCount + 1);
+    const candidates = rankPolicyCandidates({
+      policy,
+      policyPlane: 0,
+      boardPointCount: request.boardPointCount,
+      legalMoves: request.legalMoves,
+      candidateLimit: request.candidateLimit,
+    });
+    const selected = selectMove({
+      candidates,
+      temperature: request.policyTemperature,
+    });
+    return {
+      move: selected.move,
+      policyCandidates: candidates,
+    };
+  }
   throw new Error(`unknown_request_type:${request.type}`);
 }
 

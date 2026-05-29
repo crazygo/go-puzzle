@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:go_puzzle/game/katago_model_adapter.dart';
+import 'package:go_puzzle/game/capture5_onnx_features.dart';
 import 'package:go_puzzle/game/katago_onnx_features.dart';
 import 'package:go_puzzle/models/board_position.dart';
 
@@ -12,12 +13,14 @@ class NodeKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
     int policyPlane = 0,
     this.workerScript = 'tool/katago_onnx_worker.js',
     this.encoder = const KatagoOnnxFeatureEncoder(),
+    this.capture5Encoder = const Capture5FeatureEncoder(),
   }) : _legacyPolicyPlane = policyPlane;
 
   // ignore: unused_field
   final int _legacyPolicyPlane;
   final String workerScript;
   final KatagoOnnxFeatureEncoder encoder;
+  final Capture5FeatureEncoder capture5Encoder;
   Process? _process;
   StreamSubscription<String>? _stdoutSub;
   StreamSubscription<String>? _stderrSub;
@@ -41,6 +44,9 @@ class NodeKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
   @override
   Future<KatagoModelEvaluation> chooseMove(KatagoModelRequest request) async {
     try {
+      if (request.modelAsset == kCapture5ModelAsset) {
+        return await _chooseCapture5Move(request);
+      }
       final legalMoves = request.board.getLegalMoves().where((moveIndex) {
         return request.board
             .analyzeMove(
@@ -101,6 +107,64 @@ class NodeKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
         failureReason: 'katago_node_onnx_error:$error',
       );
     }
+  }
+
+  Future<KatagoModelEvaluation> _chooseCapture5Move(
+    KatagoModelRequest request,
+  ) async {
+    if (request.board.size != Capture5FeatureEncoder.boardSize ||
+        request.board.captureTarget != Capture5FeatureEncoder.captureTarget) {
+      return const KatagoModelEvaluation(
+        status: KatagoBackendStatus.failed,
+        failureReason: 'capture5_node_requires_13x13_capture5',
+      );
+    }
+    final legalMoves = Capture5FeatureEncoder.legalBoardMoveIndices(
+      request.board,
+    );
+    if (legalMoves.isEmpty) {
+      return const KatagoModelEvaluation(
+        status: KatagoBackendStatus.failed,
+        failureReason: 'capture5_node_no_legal_moves',
+      );
+    }
+    final encoded = capture5Encoder.encode(request.board);
+    final response = await _send({
+      'type': 'eval_capture5',
+      'model': request.modelAsset,
+      'features': encoded.features,
+      'featuresShape': encoded.featuresShape,
+      'globals': encoded.globals,
+      'globalsShape': encoded.globalsShape,
+      'legalMoves': legalMoves,
+      'boardPointCount': Capture5FeatureEncoder.policyPointCount,
+      'policyTemperature': request.policyTemperature,
+      'candidateLimit': request.candidateLimit,
+    }).timeout(Duration(milliseconds: request.timeBudgetMillis));
+    if (response['ok'] != true) {
+      return KatagoModelEvaluation(
+        status: KatagoBackendStatus.failed,
+        failureReason: 'capture5_node_onnx_error:${response['error']}',
+      );
+    }
+    final move = response['move'];
+    if (move is! int) {
+      return const KatagoModelEvaluation(
+        status: KatagoBackendStatus.failed,
+        failureReason: 'capture5_node_bad_move_response',
+      );
+    }
+    return KatagoModelEvaluation(
+      status: KatagoBackendStatus.ready,
+      move: BoardPosition(
+        move ~/ request.board.size,
+        move % request.board.size,
+      ),
+      policyCandidates: _policyCandidates(
+        response['policyCandidates'],
+        boardSize: request.board.size,
+      ),
+    );
   }
 
   Future<Map<String, dynamic>> _send(Map<String, Object?> request) async {
