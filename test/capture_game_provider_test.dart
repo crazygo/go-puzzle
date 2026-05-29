@@ -158,8 +158,8 @@ void main() {
         [
           [4, 4],
           [4, 5],
-          [5, 5],
-          [5, 4],
+          [3, 5],
+          [3, 4],
         ],
       );
     });
@@ -1290,12 +1290,12 @@ void main() {
       await copyText();
       expect(
         clipboardWrites.last,
-        '01 B[5五]\n02 W[6五]\n03 B[6四]\n04 W[5四]\n---\n',
+        '01 B[5五]\n02 W[6五]\n03 B[6六]\n04 W[5六]\n---\n',
       );
       await copySgf();
       expect(
         clipboardWrites.last,
-        '(;FF[4]GM[1]SZ[9]AB[ee][ff]AW[fe][ef])',
+        '(;FF[4]GM[1]SZ[9]AB[ee][fd]AW[fe][ed])',
       );
 
       await twistProvider.placeStone(2, 2);
@@ -1303,7 +1303,7 @@ void main() {
       await copyText();
       expect(
         clipboardWrites.last,
-        '01 B[5五]\n02 W[6五]\n03 B[6四]\n04 W[5四]\n---\n05 B[3七]\n',
+        '01 B[5五]\n02 W[6五]\n03 B[6六]\n04 W[5六]\n---\n05 B[3七]\n',
       );
 
       final customBoard = List.generate(

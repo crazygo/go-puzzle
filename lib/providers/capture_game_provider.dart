@@ -254,8 +254,8 @@ List<List<int>> orderedCaptureInitialMoves({
       CaptureInitialMode.twistCross => [
           [center, center],
           [center, center + 1],
-          [center + 1, center + 1],
-          [center + 1, center],
+          [center - 1, center + 1],
+          [center - 1, center],
         ],
       CaptureInitialMode.empty || CaptureInitialMode.setup => const [],
     };
