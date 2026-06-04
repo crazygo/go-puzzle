@@ -58,6 +58,7 @@
 - For local iPhone testing from the home screen, install a Release or Profile build. A Debug iOS build requires Flutter tooling/Xcode attached and will exit when launched directly from the device.
 - Keep Apple signing details machine-local. Store per-developer bundle IDs and team IDs in ignored local config, not committed project files.
 - Release build-number parity is defined in `docs/specs_map/technical_contracts.yaml#release_build_number_parity`: committed `pubspec.yaml` build numbers are even for local builds, and TestFlight CI uploads use that build number plus one.
+- For local manual App Store/TestFlight uploads from this machine, do **not** apply the CI `+1` build-number rule. Build and upload the exact `pubspec.yaml` version/build unless the user explicitly asks to mimic CI. The `+1` rule belongs to GitHub Actions because CI derives an odd upload build from an even committed local build.
 
 ## Git worktrees
 - Feature branch worktrees live inside the repo at `.worktree/<short-name>/`.
