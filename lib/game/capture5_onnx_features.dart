@@ -1,18 +1,18 @@
 import 'mcts_engine.dart';
 
 const String kCapture5ModelId =
-    'capture5_13x13_11p_resnet_phase_g_tactical005_expected';
+    'capture5_13x13_11p_resnet_phase_h_hard010';
 
 const String kCapture5FeatureSchemaId = 'capture5_features_11p_ladder_v1';
 
 const String kCapture5ModelAsset =
-    'assets/models/capture5_13x13_11p_resnet_phase_g_tactical005_expected.onnx';
+    'assets/models/capture5_13x13_11p_resnet_phase_h_hard010.onnx';
 
 const String kCapture5ModelMetadataAsset =
-    'assets/models/capture5_13x13_11p_resnet_phase_g_tactical005_expected.metadata.json';
+    'assets/models/capture5_13x13_11p_resnet_phase_h_hard010.metadata.json';
 
 const String kCapture5ModelSha256 =
-    '981dedf63f6b5fae567bbc354c340abafd4b1eec302858a27ec7c9d384343c54';
+    '204f39d27b719a307be09bef96adfe61415e53bf26be4d2c87e4560bd0e629de';
 
 class Capture5EncodedFeatures {
   const Capture5EncodedFeatures({

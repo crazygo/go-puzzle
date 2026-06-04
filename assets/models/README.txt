@@ -14,15 +14,19 @@ separate 9x9, 13x13, and 19x19 aliases.
 
 The local Capture5 model files are:
 
-capture5_13x13_11p_resnet_phase_g_tactical005_expected.onnx
-capture5_13x13_11p_resnet_phase_g_tactical005_expected.metadata.json
+capture5_13x13_11p_resnet_phase_h_hard010.onnx
+capture5_13x13_11p_resnet_phase_h_hard010.metadata.json
 
 It is a 13x13 capture-five policy model using feature schema
 capture5_features_11p_ladder_v1 with 11 input planes. Expected ONNX SHA-256:
 
-981dedf63f6b5fae567bbc354c340abafd4b1eec302858a27ec7c9d384343c54
+204f39d27b719a307be09bef96adfe61415e53bf26be4d2c87e4560bd0e629de
 
-This ONNX file is also intentionally git-ignored. Until it is published as a
-release asset, copy it locally from:
+The Capture5 ONNX file is intentionally git-ignored and is provided as a GitHub
+release asset:
 
-/Users/admin/Code/go-puzzle-ml/models/generated/capture5_13x13_11p_resnet_phase_g_tactical005_expected.onnx
+https://github.com/crazygo/go-puzzle/releases/download/capture5-models-v1/capture5_13x13_11p_resnet_phase_h_hard010.onnx
+
+To replace it from a local ML artifact, copy it from:
+
+/Users/admin/Code/go-puzzle-ml/models/generated/capture5_13x13_11p_resnet_phase_h_hard010.onnx

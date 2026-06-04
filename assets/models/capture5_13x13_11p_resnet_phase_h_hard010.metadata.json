@@ -1,0 +1,560 @@
+{
+  "architecture": "capture5_resnet_phase1_v1",
+  "compatible_go_puzzle_app_version": "not_integrated_policy_only_eval",
+  "dataset_id": "capture5_13x13_parallel_baseline_agent_self_play_seed20260580-20260581-20260582-20260583-20260584-20260585-20260586-20260587-20260588-20260589-20260590-20260591-20260592-20260593-20260594-20260595-20260596-20260597-20260598-20260599-20260600-20260601-20260602-20260603-20260604-20260605-20260606-20260607-20260608-20260609-20260610-20260611-20260612-20260613-20260614-20260615-20260616-20260617-20260618-20260619-20260620-20260621-20260622-20260623-20260624-20260625-20260626-20260627-20260628-20260629-20260630-20260631-20260632-20260633-20260634-20260635-20260636-20260637-20260638-20260639-20260640-20260641-20260642-20260643-20260644-20260645-20260646-20260647-20260648-20260649-20260650-20260651-20260652-20260653-20260654-20260655-20260656-20260657-20260658-20260659-20260660-20260661-20260662-20260663-20260664-20260665-20260666-20260667-20260668-20260669-20260670-20260671-20260672-20260673-20260674-20260675-20260676-20260677-20260678-20260679-20260680-20260681-20260682-20260683-20260684-20260685-20260686-20260687-20260688-20260689-20260690-20260691-20260692-20260693-20260694-20260695-20260696-20260697-20260698-20260699-20260700-20260701-20260702-20260703-20260704-20260705-20260706-20260707-20260708-20260709-20260710-20260711-20260712-20260713-20260714-20260715-20260716-20260717-20260718-20260719-20260720-20260721-20260722-20260723-20260724-20260725-20260726-20260727-20260728-20260729-20260730-20260731-20260732-20260733-20260734-20260735-20260736-20260737-20260738-20260739-20260740-20260741-20260742-20260743-20260744-20260745-20260746-20260747-20260748-20260749-20260750-20260751-20260752-20260753-20260754-20260755-20260756-20260757-20260758-20260759-20260760-20260761-20260762-20260763-20260764-20260765-20260766-20260767-20260768-20260769-20260770-20260771-20260772-20260773-20260774-20260775-20260776-20260777-20260778-20260779-20260780-20260781-20260782-20260783-20260784-20260785-20260786-20260787-20260788-20260789-20260790-20260791-20260792-20260793-20260794-20260795-20260796-20260797-20260798-20260799-20260800-20260801-20260802-20260803-20260804-20260805-20260806-20260807-20260808-20260809-20260810-20260811-20260812-20260813-20260814-20260815-20260816-20260817-20260818-20260819-20260820-20260821-20260822-20260823-20260824-20260825-20260826-20260827-20260828-20260829-20260830-20260831-20260832-20260833-20260834-20260835-20260836-20260837-20260838-20260839-20260840-20260841-20260842-20260843-20260844-20260845-20260846-20260847-20260848-20260849-20260850-20260851-20260852-20260853-20260854-20260855-20260856-20260857-20260858-20260859-20260860-20260861-20260862-20260863-20260864-20260865-20260866-20260867-20260868-20260869-20260870-20260871-20260872-20260873-20260874-20260875-20260876-20260877-20260878-20260879-20260880-20260881-20260882-20260883-20260884-20260885-20260886-20260887-20260888-20260889-20260890-20260891-20260892-20260893-20260894-20260895-20260896-20260897-20260898-20260899-20260900-20260901-20260902-20260903-20260904-20260905-20260906-20260907-20260908-20260909-20260910-20260911-20260912-20260913-20260914-20260915-20260916-20260917-20260918-20260919-20260920-20260921-20260922-20260923-20260924-20260925-20260926-20260927-20260928-20260929-20260930-20260931-20260932-20260933-20260934-20260935-20260936-20260937-20260938-20260939-20260940-20260941-20260942-20260943-20260944-20260945-20260946-20260947-20260948-20260949-20260950-20260951-20260952-20260953-20260954-20260955-20260956-20260957-20260958-20260959-20260960-20260961-20260962-20260963-20260964-20260965-20260966-20260967-20260968-20260969-20260970-20260971-20260972-20260973-20260974-20260975-20260976-20260977-20260978-20260979_5fa3119aa932",
+  "dataset_manifest": "data/generated/phase_g_11p_source_p200_depth6_guided_40k.manifest.json",
+  "dataset_sha256": "5fa3119aa9323f1195f36d406201c15f22de95bb2ecb5461a07cfba8caa390dd",
+  "eval_report": "reports/eval/phase_h_11p_resnet_hard010_result.json",
+  "feature_schema": "capture5_features_11p_ladder_v1",
+  "feature_schema_id": "capture5_features_11p_ladder_v1",
+  "heads": [
+    "policy",
+    "value",
+    "capture_delta",
+    "group_risk"
+  ],
+  "input_planes": 11,
+  "model_checkpoint": "checkpoints/capture5_13x13_11p_resnet_phase_h_hard010_epochs/epoch_07.pt",
+  "model_checkpoint_sha256": "e14e527e67c5df542ec7188bc8c346e168d5cc985b5d1039eb027bbb0743535c",
+  "model_id": "capture5_13x13_11p_resnet_phase_h_hard010",
+  "onnx_bytes": 10252152,
+  "onnx_path": "models/generated/capture5_13x13_11p_resnet_phase_h_hard010.onnx",
+  "onnx_sha256": "204f39d27b719a307be09bef96adfe61415e53bf26be4d2c87e4560bd0e629de",
+  "training_commit": "20d06a4bb6324986a45de1a2147d50be581cb01e",
+  "training_config": {
+    "architecture_config": {
+      "batch_norm": true,
+      "channels": 64,
+      "feature_schema": "capture5_features_11p_ladder_v1",
+      "feature_schema_id": "capture5_features_11p_ladder_v1",
+      "global_inputs": 6,
+      "hidden_size": 192,
+      "input_planes": 11,
+      "kernel_size": 3,
+      "padding": 1,
+      "policy_size": 170,
+      "residual_blocks": 6
+    },
+    "batch_size": 512,
+    "device": "mps",
+    "epochs": 12,
+    "frozen_parameters": null,
+    "hard_label_weight": 0.5,
+    "learning_rate": 0.001,
+    "policy_outputs_expected_unchanged": null,
+    "seed": 2026060201,
+    "split_seed": 20260529,
+    "symmetry_augment": true,
+    "tactical_curriculum": {
+      "actual_ratio_before_symmetry": 0.04999064846234002,
+      "base_train_records": 35556,
+      "enabled": true,
+      "fixture_count": 52,
+      "fixtures": [
+        {
+          "curriculum_best_move": 27,
+          "expected_best_move": 27,
+          "family": "forced_capture",
+          "fixture_id": "forced_single_capture_center",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 27
+        },
+        {
+          "curriculum_best_move": 27,
+          "expected_best_move": 27,
+          "family": "immediate_winning_capture",
+          "fixture_id": "winning_single_capture_center",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 27
+        },
+        {
+          "curriculum_best_move": 55,
+          "expected_best_move": 55,
+          "family": "capture_race",
+          "fixture_id": "capture_race_take_fifth_now",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 55
+        },
+        {
+          "curriculum_best_move": 97,
+          "expected_best_move": 97,
+          "family": "prevent_opponent_capture5",
+          "fixture_id": "prevent_opponent_capture5_by_escape",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 97,
+          "expected_best_move": 97,
+          "family": "escape_one_liberty_group",
+          "fixture_id": "escape_one_liberty_group_center",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 97
+        },
+        {
+          "curriculum_best_move": 97,
+          "expected_best_move": 97,
+          "family": "capture_one_liberty_opponent_group",
+          "fixture_id": "capture_one_liberty_opponent_group_center",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 97
+        },
+        {
+          "curriculum_best_move": 54,
+          "expected_best_move": 54,
+          "family": "ladder",
+          "fixture_id": "ladder_final_liberty_two_stones",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 54
+        },
+        {
+          "curriculum_best_move": 13,
+          "expected_best_move": 13,
+          "family": "forced_defense",
+          "fixture_id": "edge_escape_prevent_fifth_capture",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 13
+        },
+        {
+          "curriculum_best_move": 111,
+          "expected_best_move": 111,
+          "family": "multi_step_threat",
+          "fixture_id": "multi_step_threat_forced_net",
+          "label_source": "expected_manual_counterexample",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 2,
+          "expected_best_move": 2,
+          "family": "immediate_winning_capture",
+          "fixture_id": "winning_two_stone_capture_edge",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 2
+        },
+        {
+          "curriculum_best_move": 83,
+          "expected_best_move": 83,
+          "family": "ko_related",
+          "fixture_id": "ko_blocks_recapture_choose_other_capture",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 83
+        },
+        {
+          "curriculum_best_move": 73,
+          "expected_best_move": 73,
+          "family": "escape_one_liberty_group",
+          "fixture_id": "large_group_one_liberty_escape_opp_near_win",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 73
+        },
+        {
+          "curriculum_best_move": 85,
+          "expected_best_move": 85,
+          "family": "immediate_winning_capture",
+          "fixture_id": "winning_capture_crowded_board",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 85
+        },
+        {
+          "curriculum_best_move": 58,
+          "expected_best_move": 58,
+          "family": "double_atari",
+          "fixture_id": "double_atari_shared_liberty",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 58
+        },
+        {
+          "curriculum_best_move": 57,
+          "expected_best_move": 57,
+          "family": "endgame_closing",
+          "fixture_id": "endgame_closing_last_capture_crowded",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 57
+        },
+        {
+          "curriculum_best_move": 111,
+          "expected_best_move": 111,
+          "family": "endgame_closing",
+          "fixture_id": "endgame_closing_two_stone_capture",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 111
+        },
+        {
+          "curriculum_best_move": 83,
+          "expected_best_move": 83,
+          "family": "no_capture_block_opponent_win",
+          "fixture_id": "no_capture_block_opponent_win_escape",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 94,
+          "expected_best_move": 94,
+          "family": "ladder_mid_chase",
+          "fixture_id": "ladder_mid_chase_three_step",
+          "label_source": "expected_manual_counterexample",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 141,
+          "expected_best_move": 141,
+          "family": "ladder_abandon_no_breaker",
+          "fixture_id": "ladder_abandon_no_breaker_take_win",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 141
+        },
+        {
+          "curriculum_best_move": 29,
+          "expected_best_move": 29,
+          "family": "ladder_continue_has_breaker",
+          "fixture_id": "ladder_continue_has_breaker_extend",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 83,
+          "expected_best_move": 83,
+          "family": "tempting_capture_loses",
+          "fixture_id": "tempting_capture_loses_block_first",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 83
+        },
+        {
+          "curriculum_best_move": 58,
+          "expected_best_move": 58,
+          "family": "double_atari_response",
+          "fixture_id": "double_atari_response_connect_shared_liberty",
+          "label_source": "labeler_verified",
+          "labeler_best_move": 58
+        },
+        {
+          "curriculum_best_move": 96,
+          "expected_best_move": 96,
+          "family": "snapback",
+          "fixture_id": "ko_blocks_recapture_choose_other_capture_phase_h_snapback_1",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 84,
+          "expected_best_move": 84,
+          "family": "snapback",
+          "fixture_id": "ko_blocks_recapture_choose_other_capture_phase_h_snapback_2",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 97,
+          "expected_best_move": 97,
+          "family": "snapback",
+          "fixture_id": "ko_blocks_recapture_choose_other_capture_phase_h_snapback_3",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 109,
+          "expected_best_move": 109,
+          "family": "snapback",
+          "fixture_id": "ko_blocks_recapture_choose_other_capture_phase_h_snapback_4",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 85,
+          "expected_best_move": 85,
+          "family": "snapback",
+          "fixture_id": "ko_blocks_recapture_choose_other_capture_phase_h_snapback_5",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 111,
+          "expected_best_move": 111,
+          "family": "snapback",
+          "fixture_id": "ko_blocks_recapture_choose_other_capture_phase_h_snapback_6",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 98,
+          "expected_best_move": 98,
+          "family": "net",
+          "fixture_id": "multi_step_threat_forced_net_phase_h_net_1",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 110,
+          "expected_best_move": 110,
+          "family": "net",
+          "fixture_id": "multi_step_threat_forced_net_phase_h_net_2",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 97,
+          "expected_best_move": 97,
+          "family": "net",
+          "fixture_id": "multi_step_threat_forced_net_phase_h_net_3",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 124,
+          "expected_best_move": 124,
+          "family": "net",
+          "fixture_id": "multi_step_threat_forced_net_phase_h_net_4",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 112,
+          "expected_best_move": 112,
+          "family": "net",
+          "fixture_id": "multi_step_threat_forced_net_phase_h_net_5",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 125,
+          "expected_best_move": 125,
+          "family": "net",
+          "fixture_id": "multi_step_threat_forced_net_phase_h_net_6",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 71,
+          "expected_best_move": 71,
+          "family": "double_atari",
+          "fixture_id": "double_atari_shared_liberty_phase_h_double_atari_1",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 59,
+          "expected_best_move": 59,
+          "family": "double_atari",
+          "fixture_id": "double_atari_shared_liberty_phase_h_double_atari_2",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 72,
+          "expected_best_move": 72,
+          "family": "double_atari",
+          "fixture_id": "double_atari_shared_liberty_phase_h_double_atari_3",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 84,
+          "expected_best_move": 84,
+          "family": "double_atari",
+          "fixture_id": "double_atari_shared_liberty_phase_h_double_atari_4",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 60,
+          "expected_best_move": 60,
+          "family": "double_atari",
+          "fixture_id": "double_atari_shared_liberty_phase_h_double_atari_5",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 86,
+          "expected_best_move": 86,
+          "family": "double_atari",
+          "fixture_id": "double_atari_shared_liberty_phase_h_double_atari_6",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 96,
+          "expected_best_move": 96,
+          "family": "defensive",
+          "fixture_id": "no_capture_block_opponent_win_escape_phase_h_defensive_1",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 84,
+          "expected_best_move": 84,
+          "family": "defensive",
+          "fixture_id": "no_capture_block_opponent_win_escape_phase_h_defensive_2",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 97,
+          "expected_best_move": 97,
+          "family": "defensive",
+          "fixture_id": "no_capture_block_opponent_win_escape_phase_h_defensive_3",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 70,
+          "expected_best_move": 70,
+          "family": "defensive",
+          "fixture_id": "no_capture_block_opponent_win_escape_phase_h_defensive_4",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 82,
+          "expected_best_move": 82,
+          "family": "defensive",
+          "fixture_id": "no_capture_block_opponent_win_escape_phase_h_defensive_5",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 68,
+          "expected_best_move": 68,
+          "family": "mutual_danger",
+          "fixture_id": "capture_race_take_fifth_now_phase_h_mutual_danger_1",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 56,
+          "expected_best_move": 56,
+          "family": "mutual_danger",
+          "fixture_id": "capture_race_take_fifth_now_phase_h_mutual_danger_2",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 69,
+          "expected_best_move": 69,
+          "family": "mutual_danger",
+          "fixture_id": "capture_race_take_fifth_now_phase_h_mutual_danger_3",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 81,
+          "expected_best_move": 81,
+          "family": "mutual_danger",
+          "fixture_id": "capture_race_take_fifth_now_phase_h_mutual_danger_4",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 57,
+          "expected_best_move": 57,
+          "family": "mutual_danger",
+          "fixture_id": "capture_race_take_fifth_now_phase_h_mutual_danger_5",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 83,
+          "expected_best_move": 83,
+          "family": "mutual_danger",
+          "fixture_id": "capture_race_take_fifth_now_phase_h_mutual_danger_6",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        },
+        {
+          "curriculum_best_move": 94,
+          "expected_best_move": 94,
+          "family": "mutual_danger",
+          "fixture_id": "capture_race_take_fifth_now_phase_h_mutual_danger_7",
+          "label_source": "expected_rule_verified",
+          "labeler_best_move": null
+        }
+      ],
+      "label_agent_id": "offline_search_label_13x13_v4",
+      "ratio": 0.05,
+      "sampled_family_counts": {
+        "capture_one_liberty_opponent_group": 33,
+        "capture_race": 47,
+        "defensive": 157,
+        "double_atari": 247,
+        "double_atari_response": 40,
+        "endgame_closing": 82,
+        "escape_one_liberty_group": 72,
+        "forced_capture": 43,
+        "forced_defense": 40,
+        "immediate_winning_capture": 115,
+        "ko_related": 35,
+        "ladder": 48,
+        "ladder_abandon_no_breaker": 36,
+        "ladder_continue_has_breaker": 34,
+        "ladder_mid_chase": 46,
+        "multi_step_threat": 23,
+        "mutual_danger": 253,
+        "net": 209,
+        "no_capture_block_opponent_win": 32,
+        "prevent_opponent_capture5": 35,
+        "snapback": 215,
+        "tempting_capture_loses": 29
+      },
+      "sampled_fixture_counts": {
+        "capture_one_liberty_opponent_group_center": 33,
+        "capture_race_take_fifth_now": 47,
+        "capture_race_take_fifth_now_phase_h_mutual_danger_1": 32,
+        "capture_race_take_fifth_now_phase_h_mutual_danger_2": 38,
+        "capture_race_take_fifth_now_phase_h_mutual_danger_3": 41,
+        "capture_race_take_fifth_now_phase_h_mutual_danger_4": 35,
+        "capture_race_take_fifth_now_phase_h_mutual_danger_5": 37,
+        "capture_race_take_fifth_now_phase_h_mutual_danger_6": 36,
+        "capture_race_take_fifth_now_phase_h_mutual_danger_7": 34,
+        "double_atari_response_connect_shared_liberty": 40,
+        "double_atari_shared_liberty": 42,
+        "double_atari_shared_liberty_phase_h_double_atari_1": 38,
+        "double_atari_shared_liberty_phase_h_double_atari_2": 26,
+        "double_atari_shared_liberty_phase_h_double_atari_3": 39,
+        "double_atari_shared_liberty_phase_h_double_atari_4": 35,
+        "double_atari_shared_liberty_phase_h_double_atari_5": 40,
+        "double_atari_shared_liberty_phase_h_double_atari_6": 27,
+        "edge_escape_prevent_fifth_capture": 40,
+        "endgame_closing_last_capture_crowded": 43,
+        "endgame_closing_two_stone_capture": 39,
+        "escape_one_liberty_group_center": 43,
+        "forced_single_capture_center": 43,
+        "ko_blocks_recapture_choose_other_capture": 35,
+        "ko_blocks_recapture_choose_other_capture_phase_h_snapback_1": 41,
+        "ko_blocks_recapture_choose_other_capture_phase_h_snapback_2": 44,
+        "ko_blocks_recapture_choose_other_capture_phase_h_snapback_3": 30,
+        "ko_blocks_recapture_choose_other_capture_phase_h_snapback_4": 31,
+        "ko_blocks_recapture_choose_other_capture_phase_h_snapback_5": 32,
+        "ko_blocks_recapture_choose_other_capture_phase_h_snapback_6": 37,
+        "ladder_abandon_no_breaker_take_win": 36,
+        "ladder_continue_has_breaker_extend": 34,
+        "ladder_final_liberty_two_stones": 48,
+        "ladder_mid_chase_three_step": 46,
+        "large_group_one_liberty_escape_opp_near_win": 29,
+        "multi_step_threat_forced_net": 23,
+        "multi_step_threat_forced_net_phase_h_net_1": 30,
+        "multi_step_threat_forced_net_phase_h_net_2": 32,
+        "multi_step_threat_forced_net_phase_h_net_3": 38,
+        "multi_step_threat_forced_net_phase_h_net_4": 26,
+        "multi_step_threat_forced_net_phase_h_net_5": 34,
+        "multi_step_threat_forced_net_phase_h_net_6": 49,
+        "no_capture_block_opponent_win_escape": 32,
+        "no_capture_block_opponent_win_escape_phase_h_defensive_1": 28,
+        "no_capture_block_opponent_win_escape_phase_h_defensive_2": 33,
+        "no_capture_block_opponent_win_escape_phase_h_defensive_3": 39,
+        "no_capture_block_opponent_win_escape_phase_h_defensive_4": 30,
+        "no_capture_block_opponent_win_escape_phase_h_defensive_5": 27,
+        "prevent_opponent_capture5_by_escape": 35,
+        "tempting_capture_loses_block_first": 29,
+        "winning_capture_crowded_board": 44,
+        "winning_single_capture_center": 43,
+        "winning_two_stone_capture_edge": 28
+      },
+      "tactical_records_before_symmetry": 1871
+    },
+    "torch_interop_threads": 15,
+    "torch_threads": 12,
+    "training_mode": "policy_supervised",
+    "training_time_seconds": 550.9015035,
+    "validation_fraction": 0.2
+  },
+  "training_run_metadata": "runs/capture5_13x13_11p_resnet_phase_h_hard010/train_metadata.json"
+}
