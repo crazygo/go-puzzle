@@ -573,8 +573,8 @@ class AiAlgorithmRegistry {
       'mctsCandidateLimit': 6,
       'mctsExploration': 1.15,
       'rolloutTemperature': 3.0,
-      'captureSearchDepth': 0,
-      'policyPriorWeight': 60.0,
+      'captureSearchDepth': 2,
+      'policyPriorWeight': 45.0,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,
@@ -852,6 +852,7 @@ class _AsyncMctsCapture5Agent implements AsyncCaptureAiAgent {
     final robotConfig = config.robotConfig;
     final policyPriorWeight = _doubleParameter(config, 'policyPriorWeight');
     final rootFingerprint = _boardFingerprint(board);
+    final captureSearchDepth = _intParameter(config, 'captureSearchDepth');
     final engine = MctsEngine(
       maxPlayouts: robotConfig.mctsPlayouts,
       rolloutDepth: robotConfig.mctsRolloutDepth,
@@ -863,7 +864,7 @@ class _AsyncMctsCapture5Agent implements AsyncCaptureAiAgent {
         return _captureSearchScore(
               scoredBoard,
               moveIndex,
-              depth: _intParameter(config, 'captureSearchDepth'),
+              depth: math.min(captureSearchDepth, 1),
             ) +
             (_boardFingerprint(scoredBoard) == rootFingerprint
                 ? _policyPriorScore(
@@ -873,14 +874,20 @@ class _AsyncMctsCapture5Agent implements AsyncCaptureAiAgent {
                 : 0);
       },
     );
-    final position = engine.getBestMove(board);
-    if (position == null) return null;
+    final mctsPosition = engine.getBestMove(board);
+    if (mctsPosition == null) return null;
+    final position = _captureSearchMove(
+          board,
+          depth: captureSearchDepth,
+          baseMove: mctsPosition,
+        ) ??
+        mctsPosition;
     return CaptureAiMove(
       position: position,
       score: _captureSearchScore(
             board,
             board.idx(position.row, position.col),
-            depth: _intParameter(config, 'captureSearchDepth'),
+            depth: captureSearchDepth,
           ) +
           _policyPriorScore(
             priors[board.idx(position.row, position.col)],

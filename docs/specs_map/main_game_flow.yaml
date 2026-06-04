@@ -20,7 +20,7 @@ specs:
       - The setup flow lets the player adjust AI opponent mode, selected opponent, initial position, play mode, and board size before starting.
       - Automatic opponent mode chooses an opponent from the player's history rank.
       - Manual opponent mode uses the named opponent selected by the player.
-      - Capture-five mode exposes five manual AI opponents: two MCTS opponents, one policy-only Capture5 opponent, and two MCTS+Capture5 opponents.
+      - Capture-five mode exposes three manual AI opponents: two MCTS opponents and one Pilot Bot.
       - Territory mode exposes only KataGo-backed AI players.
       - Starting a capture game passes the selected capture AI config to the game provider.
       - Starting a territory game passes the selected KataGo AI config to the game provider.
@@ -76,11 +76,9 @@ specs:
 
   - spec_id: capture5_ai_player
     expected_behavior:
-      - Capture5 appears as a selectable manual AI opponent only in capture-five games on a 13x13 board.
-      - Capture5 is hidden in 9x9 capture-five, 19x19 capture-five, and territory setup.
-      - Capture5 uses the accepted 13x13 policy-only ONNX model directly, without outer MCTS, tactical override, or silent fallback to another AI.
-      - MCTS+Capture5 appears as two selectable manual AI opponents only in capture-five games on a 13x13 board.
-      - MCTS+Capture5 uses the same Capture5 policy output as MCTS search guidance; the final move is selected by MCTS search rather than direct policy argmax.
+      - Policy-only Capture5 is not exposed as a selectable manual AI opponent.
+      - Pilot Bot appears as one selectable manual AI opponent only in capture-five games on a 13x13 board.
+      - Pilot Bot uses the same Capture5 policy output as MCTS search guidance; the final move is selected by MCTS search rather than direct policy argmax.
       - The active Capture5 model uses the capture5_features_11p_ladder_v1 feature schema with 11 spatial input planes.
       - The model policy output has 170 entries; indices 0 through 168 are board points, and index 169 is pass.
       - Current capture-five gameplay does not expose pass as a player action, so Capture5 ignores policy index 169 and selects only legal board points.

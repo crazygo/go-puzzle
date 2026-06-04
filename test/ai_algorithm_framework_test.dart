@@ -159,6 +159,20 @@ void main() {
       }
     });
 
+    test('MCTS+Capture5 standard keeps bounded tactical search enabled', () {
+      final guidedStandard =
+          AiAlgorithmRegistry.configById('mcts_capture5_standard_v1');
+
+      expect(guidedStandard.parameters['mctsPlayouts'], 4);
+      expect(guidedStandard.parameters['mctsRolloutDepth'], 4);
+      expect(guidedStandard.parameters['mctsCandidateLimit'], 6);
+      expect(guidedStandard.parameters['rolloutTemperature'], 3.0);
+      expect(guidedStandard.parameters['captureSearchDepth'], 2);
+      expect(guidedStandard.robotConfig.mctsPlayouts, 4);
+      expect(guidedStandard.robotConfig.mctsRolloutDepth, 4);
+      expect(guidedStandard.robotConfig.mctsCandidateLimit, 6);
+    });
+
     test('KataGo ONNX config reports unavailable when model is missing', () {
       final config = AiAlgorithmRegistry.configById('katago_onnx_weak_v1');
       final board = SimBoard(9, captureTarget: 5);
@@ -290,6 +304,49 @@ void main() {
       expect(
         board.analyzeMove(move!.position.row, move.position.col).isLegal,
         isTrue,
+      );
+    });
+
+    test('async MCTS+Capture5 standard can override a bad model prior',
+        () async {
+      final board = _twistLadderCaseAfterBlackI5();
+      final blunderIndex = _sgfIndex(board.size, 'jf'); // J6
+      final config =
+          AiAlgorithmRegistry.configById('mcts_capture5_standard_v1');
+      final adapter = _PolicyAsyncKatagoModelAdapter([
+        KatagoPolicyCandidate(
+          position: BoardPosition(
+            blunderIndex ~/ board.size,
+            blunderIndex % board.size,
+          ),
+          score: 10,
+          probability: 0.95,
+          rank: 1,
+          policyPlane: 0,
+        ),
+        const KatagoPolicyCandidate(
+          position: BoardPosition(6, 6),
+          score: 2,
+          probability: 0.03,
+          rank: 2,
+          policyPlane: 0,
+        ),
+      ]);
+      final agent = AiAlgorithmRegistry.createAsyncAgent(
+        config,
+        katagoModelAdapter: adapter,
+      );
+
+      final move = await agent.chooseMove(SimBoard.copy(board));
+
+      expect(move, isNotNull);
+      final moveIndex = board.idx(move!.position.row, move.position.col);
+      expect(
+        moveIndex,
+        isNot(blunderIndex),
+        reason:
+            'Capture-search scoring must be strong enough to reject a model '
+            'prior that prefers the proven doomed J6 ladder extension.',
       );
     });
 

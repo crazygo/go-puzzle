@@ -13,7 +13,6 @@ import '../game/model_board_image_recognizer.dart';
 import '../game/ai_algorithm_framework.dart';
 import '../game/capture_ai.dart';
 import '../game/capture5_flutter_onnx_model_adapter.dart';
-import '../game/capture5_onnx_features.dart';
 import '../game/ai_rank_level.dart';
 import '../game/game_mode.dart';
 import '../game/go_engine.dart';
@@ -3423,21 +3422,9 @@ List<_AiOpponentOption> get _aiOpponentOptions => [
         summary: '真实 KataGo ONNX 标准配置；不可用时会明确报错，不会 fallback。',
       ),
       _AiOpponentOption(
-        config: AiAlgorithmRegistry.configById(kCapture5ModelId),
-        name: '岚锋',
-        subtitle: 'Capture5 ResNet · 13路吃子',
-        summary: '专为 13 路吃 5 子训练的策略模型；不叠加 MCTS 或 fallback。',
-      ),
-      _AiOpponentOption(
-        config: AiAlgorithmRegistry.configById('mcts_capture5_weak_v1'),
-        name: '云岚',
-        subtitle: 'MCTS+Capture5-1 · 模型引导',
-        summary: '少量搜索结合 Capture5 策略先验。',
-      ),
-      _AiOpponentOption(
         config: AiAlgorithmRegistry.configById('mcts_capture5_standard_v1'),
-        name: '玄策',
-        subtitle: 'MCTS+Capture5-2 · 模型搜索',
+        name: '司南',
+        subtitle: 'Pilot Bot · 模型搜索',
         summary: '标准搜索预算结合 Capture5 策略先验。',
       ),
     ];
@@ -3496,9 +3483,6 @@ AiAlgorithmConfig _aiAlgorithmConfigForRank(int rank) {
   }
   if (rank <= 16) {
     return AiAlgorithmRegistry.configById('mcts_counter_standard_v1');
-  }
-  if (rank <= 22) {
-    return AiAlgorithmRegistry.configById('mcts_capture5_weak_v1');
   }
   return AiAlgorithmRegistry.configById('mcts_capture5_standard_v1');
 }

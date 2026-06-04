@@ -156,10 +156,10 @@ void main() {
     expect(find.text('小林'), findsOneWidget);
     expect(find.text('星野 · 目前'), findsOneWidget);
     expect(find.text('阿尔法'), findsNothing);
-    expect(find.text('玄策'), findsNothing);
+    expect(find.text('司南'), findsNothing);
   });
 
-  testWidgets('13x13 capture mode exposes five manual AI opponents',
+  testWidgets('13x13 capture mode exposes three manual AI opponents',
       (tester) async {
     // Spec: docs/specs_map/main_game_flow.yaml#configuration_controls
     SharedPreferences.setMockInitialValues({
@@ -181,17 +181,18 @@ void main() {
     expect(find.text('選擇 AI 棋手'), findsOneWidget);
     expect(find.text('奥斯卡'), findsOneWidget);
     expect(find.text('阿尔法 · 目前'), findsOneWidget);
-    expect(find.text('岚锋'), findsOneWidget);
+    expect(find.text('岚锋'), findsNothing);
 
     await tester.dragUntilVisible(
-      find.text('玄策'),
+      find.text('司南'),
       find.byType(Scrollable),
       const Offset(0, -120),
     );
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('云岚'), findsOneWidget);
-    expect(find.text('玄策'), findsOneWidget);
+    expect(find.text('云岚'), findsNothing);
+    expect(find.text('玄策'), findsNothing);
+    expect(find.text('司南'), findsOneWidget);
     expect(find.text('小石'), findsNothing);
     expect(find.text('青竹'), findsNothing);
     expect(find.text('小林'), findsNothing);
