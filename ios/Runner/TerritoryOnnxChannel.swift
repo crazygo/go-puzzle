@@ -52,7 +52,7 @@ final class TerritoryOnnxChannel: NSObject {
       result([
         "usedNative": false,
         "backend": "ios_onnx",
-        "error": "katago_territory_\(boardSize)x\(boardSize).onnx not found in flutter assets"
+        "error": "katago-kata1-b18c384nbt-batched-fp16.onnx not found in flutter assets"
       ])
       return
     }
@@ -148,7 +148,7 @@ private extension TerritoryOnnxChannel {
       "flutter_assets"
     )
     let modelPath = (flutterAssets as NSString).appendingPathComponent(
-      "assets/models/katago_territory_\(boardSize)x\(boardSize).onnx"
+      "assets/models/katago-kata1-b18c384nbt-batched-fp16.onnx"
     )
     return FileManager.default.fileExists(atPath: modelPath) ? modelPath : nil
   }

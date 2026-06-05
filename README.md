@@ -1,8 +1,12 @@
 # Go Puzzle
 
-Go Puzzle is a Flutter app for practicing Go tactics through daily puzzles and focused skill training. It uses an iOS-style Cupertino interface and includes an interactive board for placing stones, undoing moves, viewing hints, and tracking captures.
+Go Puzzle is a Flutter app for practicing Go tactics through daily puzzles,
+focused skill training, and capture-go games against configurable AI opponents.
+It uses an iOS-style Cupertino interface and includes an interactive board for
+placing stones, undoing moves, viewing hints, reviewing game records, and
+tracking captures.
 
-## Features
+## Core Features
 
 ### Daily Puzzle
 - One puzzle per day with a date timeline.
@@ -10,20 +14,24 @@ Go Puzzle is a Flutter app for practicing Go tactics through daily puzzles and f
 - Progress and capture tracking during play.
 
 ### Skill Training
-The training library groups puzzles by tactical pattern:
+- Tactical puzzle library grouped by pattern and difficulty.
+- Practice categories include rules, cuts, ko, ladders, nets, and double atari.
+- Focused screens for repeated tactical training instead of only daily play.
 
-| Category | Focus |
-| --- | --- |
-| Beginner | Basic captures and edge/corner play |
-| Rules | Suicide, ko basics, and living with two eyes |
-| Cut | Capturing after separating connected stones |
-| Ko | Creating and resolving ko fights |
-| Ladder | Repeated atari sequences |
-| Net | Trapping stones with surrounding shapes |
-| Double Atari | Threatening two captures at once |
+### Capture-Go Play
+- 9x9 and 13x13 capture-go practice.
+- Preset openings such as empty, cross, and twist-cross.
+- Move history, undo, hints, capture tracking, and SGF/text copy.
 
-### Settings
-- Board modes for 9x9 capture, 13x13 capture, and 19x19 territory practice.
+### AI Play
+- Capture-go games against named AI opponents.
+- Multiple AI families and strength tiers.
+- Repeatable AI evaluation through arena tools and recorded artifacts.
+- Generated tactical-trap corpora for regression-testing AI decisions around
+  ladders, false connections, edge escapes, nets, and snapbacks.
+
+### App Settings
+- Board mode and coordinate display options.
 - Optional hints and move numbers.
 - Sound and haptic feedback controls.
 
@@ -31,15 +39,30 @@ The training library groups puzzles by tactical pattern:
 
 - **Flutter** with Cupertino widgets for an iOS-oriented experience.
 - **Provider** for app and game state.
-- **CustomPainter** for board rendering, including wood texture, stone styling, and atari markers.
+- **CustomPainter** for board rendering, stone styling, and atari markers.
 - Go rule handling for liberties, captures, ko, suicide checks, and undo.
+- Capture-go AI opponents and headless arena evaluation tooling.
+
+## Documentation
+
+- [Capture5 Integration](docs/kb/capture5-v8-integration.md): step-by-step
+  guide to add the active Capture5 ONNX model alongside KataGo with
+  user-selectable AI.
+- [Capture AI Algorithms](docs/kb/capture-ai-algorithms.md): algorithm
+  families, tactical safeguards, evaluation model, and code map.
+- [AI Arena Runner](docs/kb/ai-arena-runner.md): arena terms, ladder workflow,
+  local artifacts, and common run commands.
+- [Capture AI Framework Tuning Notes](docs/ai_eval/capture-ai-framework-tuning-notes.md):
+  detailed experiment history and evaluation results.
+- [Development Flow](docs/kb/development-flow.md): setup, validation, build,
+  deployment, and puzzle-data workflow.
 
 ## Development
 
-Developer setup, validation, build, deployment, and puzzle-data notes live in [Development Flow](docs/kb/development-flow.md).
+Run the project checks from the repository root after environment setup:
 
-## References
-
-- Puzzle design reference: [online-go.com/learn-to-play-go](https://online-go.com/learn-to-play-go)
-- Go rules reference: [International Go Federation](https://www.igofederation.org)
-- Thanks to [Kaya](https://github.com/kaya-go/kaya) — a free and open-source Go app for play, study, AI analysis, and board recognition from photos.
+```sh
+flutter pub get
+flutter analyze --no-fatal-infos --no-fatal-warnings
+flutter test
+```

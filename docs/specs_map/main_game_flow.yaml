@@ -1,0 +1,113 @@
+purpose: >
+  Define expected product behavior and UX contracts for the main game flow:
+  entering from the home screen, choosing game configuration, playing a game,
+  and handling the finished-game state. Specs are the source for tests and
+  implementation comments. Specs may link to longer rationale docs, but do not
+  track code paths.
+
+specs:
+  - spec_id: home_default_capture_setup
+    expected_behavior:
+      - The first screen presents the next game card, including the selected mode, board size, and initial position.
+      - On a fresh install, capture setup defaults to manual opponent selection.
+      - The default opponent is 阿尔法, backed by mcts_counter_standard_v1.
+      - Existing saved selections and legacy migrations remain respected.
+    references:
+      - docs/plans/2026-04-25-09-12-capture-config-dialog.md
+
+  - spec_id: configuration_controls
+    expected_behavior:
+      - The setup flow lets the player adjust AI opponent mode, selected opponent, initial position, play mode, and board size before starting.
+      - Automatic opponent mode chooses an opponent from the player's history rank.
+      - Manual opponent mode uses the named opponent selected by the player.
+      - Capture-five mode exposes three manual AI opponents: two MCTS opponents and one Pilot Bot.
+      - Territory mode exposes only KataGo-backed AI players.
+      - Starting a capture game passes the selected capture AI config to the game provider.
+      - Starting a territory game passes the selected KataGo AI config to the game provider.
+      - Starting a Web game with a KataGo ONNX opponent keeps the start button in a preparing state and shows a cancellable model-preparation dialog before entering the game.
+      - Closing the KataGo preparation dialog leaves the player on the setup screen, equivalent to not starting the game, so they can choose another opponent.
+      - The KataGo preparation dialog explains that the first model load is about 70M and may take about 30 seconds depending on network conditions.
+    references:
+      - docs/plans/2026-04-29-17-38-ai-level-calibration-adaptive-opponent.md
+      - docs/kb/territory-katago-backend-choice.md
+
+  - spec_id: opening_move_order
+    expected_behavior:
+      - Built-in opening stones have a canonical historical move order for copied text, SGF setup output, checkpoints, and forked logs.
+      - The canonical cross order is B[5四], W[4五], B[5六], W[6五] on a 9x9 board.
+      - The canonical twist-cross order is B[5五], W[6五], B[6四], W[5四] on a 9x9 board.
+      - Custom setup boards serialize by scanning black and white stones in board order, then interleaving from the initial player with fallback to the other color when needed.
+    references:
+      - docs/plans/2026-05-18-19-45-+08-copied-move-text-format.md
+
+  - spec_id: move_log_visibility
+    expected_behavior:
+      - The move-log strip above the board is controlled by the operation-menu show or hide move-log toggle.
+      - When the move-log strip is hidden, move-log chips such as "1九" and "2八" do not appear.
+      - When the move-log strip is shown, existing move-log chips are visible.
+      - Tapping a move-log chip enters review at that move; review mode shows actions for latest, fork, and mark.
+    references:
+      - docs/plans/2026-05-18-19-45-+08-copied-move-text-format.md
+
+  - spec_id: board_move_numbers
+    expected_behavior:
+      - Stone-internal move numbers are separate from the move-log strip.
+      - The operation-menu toggle for stone-internal move numbers changes only the current play screen state.
+      - A new game initializes stone-internal move number visibility from the global setting.
+    references: []
+
+  - spec_id: move_log_copy
+    expected_behavior:
+      - Copying the move log as text includes the opening checkpoint when the game starts from a built-in opening or setup board.
+      - Copied text continues move numbering after the checkpoint separator.
+      - Copying as SGF writes initial stones as setup properties and played moves as sequential move nodes.
+      - Copy actions are available when there are played moves, inherited moves, or ordered initial moves.
+    references:
+      - docs/plans/2026-05-18-19-45-+08-copied-move-text-format.md
+
+  - spec_id: katago_onnx_final_move
+    expected_behavior:
+      - The KataGo ONNX adapter move is the final move when legal.
+      - Local tactical search must not override KataGo ONNX output.
+      - Current ONNX configs expose modelAsset, timeBudgetMillis, policyTemperature, and candidateLimit.
+      - Current ONNX configs do not expose visits or captureSearchDepth.
+    references:
+      - docs/ai_eval/capture-ai-framework-tuning-notes.md
+
+  - spec_id: capture5_ai_player
+    expected_behavior:
+      - Policy-only Capture5 is not exposed as a selectable manual AI opponent.
+      - Pilot Bot appears as one selectable manual AI opponent only in capture-five games on a 13x13 board.
+      - Pilot Bot uses the same Capture5 policy output as MCTS search guidance; the final move is selected by MCTS search rather than direct policy argmax.
+      - The active Capture5 model uses the capture5_features_11p_ladder_v1 feature schema with 11 spatial input planes.
+      - The model policy output has 170 entries; indices 0 through 168 are board points, and index 169 is pass.
+      - Current capture-five gameplay does not expose pass as a player action, so Capture5 ignores policy index 169 and selects only legal board points.
+      - Missing or unloadable Capture5 models fail visibly instead of starting a game with a different AI.
+    references:
+      - docs/plans/2026-05-25-11-09-+08-capture5-v8-ai-player-integration.md
+
+  - spec_id: training_coach_katago
+    expected_behavior:
+      - In territory games, training partner suggestions are led by the fixed KataGo ONNX standard coach regardless of the opponent AI algorithm.
+      - KataGo-led training suggestions use policy top candidates for board marks.
+      - KataGo-led training suggestions use model value and score-belief signals to supplement the displayed estimate and explanation.
+      - Unavailable or failed KataGo coach evaluations keep the existing training suggestion behavior as fallback.
+      - Training mode is available only in territory mode while the current KataGo coach is trained for territory play.
+      - In capture-five mode, the operation menu keeps the training-mode entry disabled and explains that capture-five mode is unavailable.
+      - Training mode exposes a strategy-view control for the available KataGo policy planes.
+      - Changing the strategy view refreshes the training suggestions for the current board.
+      - Training mode can show an explanation panel for the suggested moves without presenting uncertain model signals as guaranteed outcomes.
+      - Training suggestions refresh once when entering training mode, after a legal move, or after changing the strategy view.
+      - Training mode must not expose internal suggestion refresh rounds as user-visible game progress.
+    references:
+      - docs/ai_eval/capture-ai-framework-tuning-notes.md
+
+  - spec_id: game_completion_actions
+    expected_behavior:
+      - When the game reaches a finished state, the result dialog shows 勝利, 和棋, or 未獲勝 from the human player's perspective.
+      - The result dialog offers 再來一局, 復盤, and 離開.
+      - Choosing 再來一局 starts a new game on the same provider and clears transient hint/result state.
+      - Choosing 復盤 closes the dialog and shows the move-log strip.
+      - Choosing 離開 closes the game screen.
+    references:
+      - docs/plans/2026-04-28-15-46-game-history-recording.md

@@ -2,7 +2,10 @@
   "name": "go-puzzle-tools",
   "private": true,
   "scripts": {
-    "init-dev": "bash scripts/init-dev.sh"
+    "init-dev": "bash scripts/init-dev.sh",
+    "compile-web-worker": "bash scripts/compile-web-worker.sh",
+    "web": "bash scripts/compile-web-worker.sh && flutter run -d web-server --web-hostname 127.0.0.1 --web-port 8090",
+    "build:web": "bash scripts/compile-web-worker.sh && flutter build web"
   },
   "devDependencies": {
     "onnxruntime-node": "^1.26.0",

@@ -12,9 +12,13 @@ import '../game/board_image_recognizer.dart';
 import '../game/model_board_image_recognizer.dart';
 import '../game/ai_algorithm_framework.dart';
 import '../game/capture_ai.dart';
+import '../game/capture5_flutter_onnx_model_adapter.dart';
 import '../game/ai_rank_level.dart';
 import '../game/game_mode.dart';
 import '../game/go_engine.dart';
+import '../game/katago_flutter_onnx_model_adapter.dart';
+import '../game/katago_model_adapter.dart';
+import '../game/mcts_engine.dart';
 import '../models/board_position.dart';
 import '../models/game_record.dart';
 import '../models/game_state.dart';
@@ -527,19 +531,24 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   static const _difficultyModeKey = 'capture_setup.difficulty_mode';
   static const _manualRankKey = 'capture_setup.manual_rank';
   static const _aiAlgorithmConfigKey = 'capture_setup.ai_algorithm_config';
+  static const _territoryAiAlgorithmConfigKey =
+      'capture_setup.territory_ai_algorithm_config';
   static const _playModeKey = 'capture_setup.play_mode';
   // ─────────────────────────────────────────────────────────────────────────────
   static const _captureTarget = 5;
 
   static const _modeCapture = 'capture';
   static const _modeTerritory = 'territory';
+  static const _defaultDifficultyMode = 'manual';
+  static const _defaultAiAlgorithmConfigId = 'mcts_counter_standard_v1';
 
   /// 'auto' = system chooses a comparable opponent from history rank;
   /// 'manual' = player picks a named real algorithm config.
-  String _difficultyMode = 'auto';
+  String _difficultyMode = _defaultDifficultyMode;
 
   /// Selected real algorithm-strength config when [_difficultyMode] == 'manual'.
-  String _aiAlgorithmConfigId = 'mcts_counter_standard_v1';
+  String _aiAlgorithmConfigId = _defaultAiAlgorithmConfigId;
+  String _territoryAiAlgorithmConfigId = 'katago_onnx_standard_v1';
 
   /// Rank computed from recent history; refreshed on [_restoreSelection].
   int _computedRank = AiRankLevel.defaultRank;
@@ -548,6 +557,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   CaptureInitialMode _initialMode = CaptureInitialMode.cross;
   bool _isAdjusting = false;
   bool _isRecognizingScreenshot = false;
+  bool _isPreparingKatago = false;
   bool _homeTuningSheetVisible = false;
   final _homeScrollController = ScrollController();
   final _motivationHeroKey = GlobalKey<_MotivationHeroTitleState>();
@@ -563,14 +573,21 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   double _homeBoardCameraDepth = _defaultHomeBoardCameraDepth;
 
   AiAlgorithmConfig? get _selectedAiAlgorithmConfig {
-    if (_isTerritoryMode) return null;
+    final options = _playableAiOpponentOptionsForMode(
+      _selectedGameMode,
+      boardSize: _boardSize,
+    );
     if (_difficultyMode == 'manual') {
-      return _playableAiOpponentOptions
-          .map((option) => option.config)
-          .firstWhere(
-            (config) => config.id == _aiAlgorithmConfigId,
-            orElse: () => _playableAiOpponentOptions.first.config,
+      final selectedId = _isTerritoryMode
+          ? _territoryAiAlgorithmConfigId
+          : _aiAlgorithmConfigId;
+      return options.map((option) => option.config).firstWhere(
+            (config) => config.id == selectedId,
+            orElse: () => options.first.config,
           );
+    }
+    if (_isTerritoryMode) {
+      return _territoryAiAlgorithmConfigForRank(_computedRank);
     }
     return _aiAlgorithmConfigForRank(_computedRank);
   }
@@ -665,13 +682,13 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
 
             return Stack(
               children: [
-                Positioned(
+                const Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
                   child: PageHeroBanner(
                     title: _CaptureCopy.pageTitle,
-                    titleWidget: const SizedBox.shrink(),
+                    titleWidget: SizedBox.shrink(),
                     showOrbitalArt: false,
                   ),
                 ),
@@ -724,6 +741,30 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       ),
                                       const SizedBox(height: 18),
                                       if (_isAdjusting) ...[
+                                        const _SectionLabel(title: '模式'),
+                                        const SizedBox(height: 4),
+                                        _PillSegmentControl<String>(
+                                          selectedValue: _playMode,
+                                          options: [
+                                            _SegmentOption(
+                                              value: _modeCapture,
+                                              label: _captureModeSegmentLabel,
+                                            ),
+                                            const _SegmentOption(
+                                              value: _modeTerritory,
+                                              label: '圍空',
+                                            ),
+                                          ],
+                                          onChanged: (value) =>
+                                              _updateSelection(playMode: value),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        _ModeHintText(
+                                          text: _playMode == _modeTerritory
+                                              ? '圍空模式為真實數子對局：雙方連續停一手後按地盤結算。'
+                                              : '吃子模式仍為先吃 $_captureTarget 子取勝。',
+                                        ),
+                                        const SizedBox(height: 20),
                                         const _SectionLabel(title: 'AI 棋力'),
                                         const SizedBox(height: 8),
                                         _PillSegmentControl<String>(
@@ -745,8 +786,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                         if (_difficultyMode == 'manual') ...[
                                           const SizedBox(height: 8),
                                           _AiOpponentTile(
-                                            selectedConfigId:
-                                                _aiAlgorithmConfigId,
+                                            selectedConfigId: _isTerritoryMode
+                                                ? _territoryAiAlgorithmConfigId
+                                                : _aiAlgorithmConfigId,
+                                            options:
+                                                _playableAiOpponentOptionsForMode(
+                                              _selectedGameMode,
+                                              boardSize: _boardSize,
+                                            ),
                                             onChanged: (configId) =>
                                                 _updateSelection(
                                                     aiAlgorithmConfigId:
@@ -754,13 +801,10 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                           ),
                                         ],
                                         if (_playMode == _modeTerritory) ...[
-                                          const SizedBox(height: 20),
-                                          const _SectionLabel(title: 'AI 棋力'),
                                           const SizedBox(height: 8),
-                                          _ModeHintText(
-                                            text: kIsWeb
-                                                ? '围空模式在 Web 端不生效；请在 iPhone 或 iPad 上使用。'
-                                                : '围空模式固定使用围空引擎，风格选项不生效；仅难度生效。',
+                                          const _ModeHintText(
+                                            text:
+                                                '圍空模式只使用 KataGo 棋手；不同棋力由同一模型的策略參數控制。',
                                           )
                                         ],
                                         const SizedBox(height: 20),
@@ -792,30 +836,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                                   initialMode: value),
                                         ),
                                         const SizedBox(height: 20),
-                                        const _SectionLabel(title: '模式'),
-                                        const SizedBox(height: 4),
-                                        _PillSegmentControl<String>(
-                                          selectedValue: _playMode,
-                                          options: [
-                                            _SegmentOption(
-                                              value: _modeCapture,
-                                              label: _captureModeSegmentLabel,
-                                            ),
-                                            const _SegmentOption(
-                                              value: _modeTerritory,
-                                              label: '圍空',
-                                            ),
-                                          ],
-                                          onChanged: (value) =>
-                                              _updateSelection(playMode: value),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        _ModeHintText(
-                                          text: _playMode == _modeTerritory
-                                              ? '圍空模式為真實數子對局：雙方連續停一手後按地盤結算。'
-                                              : '吃子模式仍為先吃 $_captureTarget 子取勝。',
-                                        ),
-                                        const SizedBox(height: 20),
                                         const _SectionLabel(title: '棋盤'),
                                         const SizedBox(height: 4),
                                         _PillSegmentControl<int>(
@@ -845,9 +865,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                           computedRank: _computedRank,
                                           activeAiConfig:
                                               _selectedAiAlgorithmConfig,
-                                          aiAlgorithmConfigId:
-                                              _aiAlgorithmConfigId,
-                                          isTerritoryMode: _isTerritoryMode,
+                                          aiAlgorithmConfigId: _isTerritoryMode
+                                              ? _territoryAiAlgorithmConfigId
+                                              : _aiAlgorithmConfigId,
                                           onTap: () => setState(
                                             () => _isAdjusting = true,
                                           ),
@@ -857,21 +877,25 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                       if (_initialMode ==
                                           CaptureInitialMode.setup) ...[
                                         _PrimaryActionButton(
-                                          title: _CaptureCopy.startSetupButton,
+                                          title: _startButtonTitle(
+                                            _CaptureCopy.startSetupButton,
+                                          ),
                                           onPressed: () => _startGame(
                                               humanColor: StoneColor.black),
                                         ),
                                       ] else ...[
                                         _PrimaryActionButton(
-                                          title:
-                                              _CaptureCopy.startAsBlackButton,
+                                          title: _startButtonTitle(
+                                            _CaptureCopy.startAsBlackButton,
+                                          ),
                                           onPressed: () => _startGame(
                                               humanColor: StoneColor.black),
                                         ),
                                         const SizedBox(height: 10),
                                         _SecondaryActionButton(
-                                          title:
-                                              _CaptureCopy.startAsWhiteButton,
+                                          title: _startButtonTitle(
+                                            _CaptureCopy.startAsWhiteButton,
+                                          ),
                                           onPressed: () => _startGame(
                                               humanColor: StoneColor.white),
                                         ),
@@ -1173,11 +1197,14 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     final savedInitialMode = prefs.getString(_initialModeKey);
 
     // Read new difficulty keys; normalize unknown stored values to 'auto'.
-    final rawDifficultyMode = prefs.getString(_difficultyModeKey) ?? 'auto';
+    final rawDifficultyMode =
+        prefs.getString(_difficultyModeKey) ?? _defaultDifficultyMode;
     String difficultyMode =
         (rawDifficultyMode == 'auto' || rawDifficultyMode == 'manual')
             ? rawDifficultyMode
             : 'auto';
+    final hasLegacyManualRank = prefs.containsKey(_manualRankKey);
+    var migratedLegacyDifficulty = false;
     int legacyManualRank =
         prefs.getInt(_manualRankKey) ?? AiRankLevel.defaultRank;
 
@@ -1186,6 +1213,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
       final legacy = prefs.getString(_legacyDifficultyKey);
       if (legacy != null) {
         difficultyMode = 'manual';
+        migratedLegacyDifficulty = true;
         legacyManualRank = switch (legacy) {
           'beginner' => 4,
           'advanced' => 20,
@@ -1198,6 +1226,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         legacyManualRank.clamp(AiRankLevel.min, AiRankLevel.max).toInt();
 
     final savedAiAlgorithmConfig = prefs.getString(_aiAlgorithmConfigKey);
+    final savedTerritoryAiAlgorithmConfig =
+        prefs.getString(_territoryAiAlgorithmConfigKey);
     final savedPlayMode = prefs.getString(_playModeKey);
 
     // Compute rank from history for 'auto' mode.
@@ -1208,12 +1238,26 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     setState(() {
       _difficultyMode = difficultyMode;
       _computedRank = computedRank;
+      if (savedBoardSize == 9 || savedBoardSize == 13 || savedBoardSize == 19) {
+        _boardSize = savedBoardSize!;
+      }
       if (savedAiAlgorithmConfig != null &&
-          _playableAiOpponentOptions
-              .any((option) => option.config.id == savedAiAlgorithmConfig)) {
+          _playableAiOpponentOptionsForMode(
+            GameMode.capture,
+            boardSize: _boardSize,
+          ).any((option) => option.config.id == savedAiAlgorithmConfig)) {
         _aiAlgorithmConfigId = savedAiAlgorithmConfig;
-      } else if (difficultyMode == 'manual') {
+      } else if (difficultyMode == 'manual' &&
+          (hasLegacyManualRank || migratedLegacyDifficulty)) {
         _aiAlgorithmConfigId = _aiAlgorithmConfigForRank(legacyManualRank).id;
+      }
+      if (savedTerritoryAiAlgorithmConfig != null &&
+          _playableAiOpponentOptionsForMode(
+            GameMode.territory,
+            boardSize: _boardSize,
+          ).any((option) =>
+              option.config.id == savedTerritoryAiAlgorithmConfig)) {
+        _territoryAiAlgorithmConfigId = savedTerritoryAiAlgorithmConfig;
       }
       if (savedPlayMode == _modeCapture || savedPlayMode == _modeTerritory) {
         _playMode = savedPlayMode!;
@@ -1222,9 +1266,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
         savedInitialMode,
         fallback: _initialMode,
       );
-      if (savedBoardSize == 9 || savedBoardSize == 13 || savedBoardSize == 19) {
-        _boardSize = savedBoardSize!;
-      }
+      _ensureSelectedOpponentIsPlayable();
     });
   }
 
@@ -1238,13 +1280,37 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     setState(() {
       if (difficultyMode != null) _difficultyMode = difficultyMode;
       if (aiAlgorithmConfigId != null) {
-        _aiAlgorithmConfigId = aiAlgorithmConfigId;
+        if (_isTerritoryMode || playMode == _modeTerritory) {
+          _territoryAiAlgorithmConfigId = aiAlgorithmConfigId;
+        } else {
+          _aiAlgorithmConfigId = aiAlgorithmConfigId;
+        }
       }
       _boardSize = boardSize ?? _boardSize;
       if (playMode != null) _playMode = playMode;
+      _ensureSelectedOpponentIsPlayable();
       _initialMode = initialMode ?? _initialMode;
     });
     _saveSelection();
+  }
+
+  void _ensureSelectedOpponentIsPlayable() {
+    final captureOptions = _playableAiOpponentOptionsForMode(
+      GameMode.capture,
+      boardSize: _boardSize,
+    );
+    if (!captureOptions
+        .any((option) => option.config.id == _aiAlgorithmConfigId)) {
+      _aiAlgorithmConfigId = _defaultAiAlgorithmConfigId;
+    }
+    final territoryOptions = _playableAiOpponentOptionsForMode(
+      GameMode.territory,
+      boardSize: _boardSize,
+    );
+    if (!territoryOptions
+        .any((option) => option.config.id == _territoryAiAlgorithmConfigId)) {
+      _territoryAiAlgorithmConfigId = 'katago_onnx_standard_v1';
+    }
   }
 
   Future<void> _saveSelection() async {
@@ -1252,6 +1318,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     await Future.wait([
       prefs.setString(_difficultyModeKey, _difficultyMode),
       prefs.setString(_aiAlgorithmConfigKey, _aiAlgorithmConfigId),
+      prefs.setString(
+          _territoryAiAlgorithmConfigKey, _territoryAiAlgorithmConfigId),
       prefs.setInt(_boardSizeKey, _boardSize),
       prefs.setString(_playModeKey, _playMode),
       prefs.setString(
@@ -1402,30 +1470,23 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     );
   }
 
-  void _startGame({
+  Future<void> _startGame({
     required StoneColor humanColor,
     bool forceSetup = false,
     List<List<StoneColor>>? initialBoard,
-  }) {
-    if (kIsWeb && _isTerritoryMode) {
-      showCupertinoDialog<void>(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: const Text('Web 暂不支持'),
-          content: const Text('围空模式当前仅支持原生端运行，Web 端此选项不生效。'),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('知道了'),
-            ),
-          ],
-        ),
-      );
+  }) async {
+    final selectedAiConfig = _selectedAiAlgorithmConfig;
+    final katagoModelAdapter = await _prepareOnnxModelForWebStart(
+      selectedAiConfig,
+    );
+    if (!mounted ||
+        (kIsWeb &&
+            _isOnnxModelConfig(selectedAiConfig) &&
+            katagoModelAdapter == null)) {
       return;
     }
     _saveSelection();
 
-    final selectedAiConfig = _selectedAiAlgorithmConfig;
     final effectiveRank = selectedAiConfig == null
         ? _computedRank
         : _rankForAiAlgorithmConfig(selectedAiConfig);
@@ -1445,9 +1506,8 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                 initialMode:
                     forceSetup ? CaptureInitialMode.setup : _initialMode,
                 initialBoardOverride: initialBoard,
-                aiAlgorithmConfig: _selectedGameMode == GameMode.capture
-                    ? selectedAiConfig
-                    : null,
+                aiAlgorithmConfig: selectedAiConfig,
+                katagoModelAdapter: katagoModelAdapter,
               ),
               child: CaptureGamePlayScreen(
                 aiRank: effectiveRank,
@@ -1462,6 +1522,179 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
           ),
         )
         .then(_onGameScreenResult);
+  }
+
+  Future<AsyncKatagoModelAdapter?> _prepareOnnxModelForWebStart(
+    AiAlgorithmConfig? config,
+  ) async {
+    // Spec: docs/specs_map/main_game_flow.yaml#configuration_controls
+    if (!kIsWeb || !_isOnnxModelConfig(config)) return null;
+    if (_isPreparingKatago) return null;
+    setState(() => _isPreparingKatago = true);
+    final adapter = _onnxAdapterForConfig(config!);
+    final modelLabel = _onnxModelLabel(config);
+    final cancelPreparation = Completer<void>();
+    var preparationDialogOpen = true;
+    unawaited(
+      showCupertinoDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => _KatagoPreparationDialog(
+          modelLabel: modelLabel,
+          modelSizeText: _onnxModelSizeText(config),
+          onClose: () {
+            if (!cancelPreparation.isCompleted) {
+              cancelPreparation.complete();
+            }
+            preparationDialogOpen = false;
+            Navigator.of(dialogContext, rootNavigator: true).pop();
+          },
+        ),
+      ).whenComplete(() => preparationDialogOpen = false),
+    );
+
+    Future<void> closePreparationDialog() async {
+      if (!mounted || !preparationDialogOpen) return;
+      preparationDialogOpen = false;
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+
+    Future<bool> waitForPreparationStep(Future<void> step) async {
+      final result = await Future.any<bool>([
+        step.then((_) => true),
+        cancelPreparation.future.then((_) => false),
+      ]);
+      return result;
+    }
+
+    Future<KatagoModelEvaluation?> waitForEvaluation(
+      Future<KatagoModelEvaluation> step,
+    ) async {
+      final result = await Future.any<Object?>([
+        step,
+        cancelPreparation.future.then((_) => null),
+      ]);
+      return result as KatagoModelEvaluation?;
+    }
+
+    try {
+      final request = _katagoReadinessRequest(config);
+      final preload = adapter.preload([request]);
+      if (!await waitForPreparationStep(preload)) {
+        unawaited(preload.whenComplete(() => _closeOnnxAdapter(adapter)));
+        return null;
+      }
+      final chooseMove = adapter.chooseMove(request);
+      final evaluation = await waitForEvaluation(chooseMove);
+      if (evaluation == null) {
+        unawaited(chooseMove.whenComplete(() => _closeOnnxAdapter(adapter)));
+        return null;
+      }
+      if (evaluation.status == KatagoBackendStatus.ready &&
+          evaluation.move != null) {
+        await closePreparationDialog();
+        return adapter;
+      }
+      await _closeOnnxAdapter(adapter);
+      await closePreparationDialog();
+      if (mounted) {
+        _showOnnxPreparationFailed(
+          modelLabel,
+          evaluation.failureReason ?? 'katago_onnx_model_not_ready',
+        );
+      }
+      return null;
+    } catch (error) {
+      await _closeOnnxAdapter(adapter);
+      await closePreparationDialog();
+      if (mounted) {
+        _showOnnxPreparationFailed(modelLabel, '$error');
+      }
+      return null;
+    } finally {
+      await closePreparationDialog();
+      if (mounted) setState(() => _isPreparingKatago = false);
+    }
+  }
+
+  KatagoModelRequest _katagoReadinessRequest(AiAlgorithmConfig config) {
+    final params = config.parameters;
+    return KatagoModelRequest(
+      board: SimBoard(_boardSize, captureTarget: _captureTarget),
+      modelAsset: params['modelAsset'] as String,
+      timeBudgetMillis: (params['timeBudgetMillis'] as num?)?.toInt() ?? 10000,
+      policyTemperature:
+          (params['policyTemperature'] as num?)?.toDouble() ?? 0.0,
+      candidateLimit: (params['candidateLimit'] as num?)?.toInt() ?? 1,
+      policyPlane: (params['policyPlane'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  bool _isKatagoOnnxConfig(AiAlgorithmConfig? config) {
+    return config?.frameworkId == AiAlgorithmFrameworkId.katago &&
+        config?.parameters['backend'] == 'onnx';
+  }
+
+  bool _isCapture5OnnxConfig(AiAlgorithmConfig? config) {
+    return (config?.frameworkId == AiAlgorithmFrameworkId.capture5 ||
+            config?.frameworkId == AiAlgorithmFrameworkId.mctsCapture5) &&
+        config?.parameters['backend'] == 'onnx';
+  }
+
+  bool _isOnnxModelConfig(AiAlgorithmConfig? config) {
+    return _isKatagoOnnxConfig(config) || _isCapture5OnnxConfig(config);
+  }
+
+  AsyncKatagoModelAdapter _onnxAdapterForConfig(AiAlgorithmConfig config) {
+    if (_isCapture5OnnxConfig(config)) {
+      return FlutterCapture5OnnxModelAdapter();
+    }
+    return FlutterKatagoOnnxModelAdapter();
+  }
+
+  Future<void> _closeOnnxAdapter(AsyncKatagoModelAdapter adapter) async {
+    if (adapter is FlutterKatagoOnnxModelAdapter) {
+      await adapter.close();
+    } else if (adapter is FlutterCapture5OnnxModelAdapter) {
+      await adapter.close();
+    }
+  }
+
+  String _onnxModelLabel(AiAlgorithmConfig config) {
+    if (config.frameworkId == AiAlgorithmFrameworkId.mctsCapture5) {
+      return 'MCTS+Capture5';
+    }
+    if (_isCapture5OnnxConfig(config)) return 'Capture5';
+    return 'KataGo';
+  }
+
+  String _onnxModelSizeText(AiAlgorithmConfig config) {
+    if (_isCapture5OnnxConfig(config)) return '約 11M';
+    return '約 70M';
+  }
+
+  String _startButtonTitle(String fallback) {
+    return _isPreparingKatago && _isOnnxModelConfig(_selectedAiAlgorithmConfig)
+        ? '正在準備模型...'
+        : fallback;
+  }
+
+  void _showOnnxPreparationFailed(String modelLabel, String reason) {
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text('$modelLabel 尚未就緒'),
+        content: Text(
+          'Web 端需要先載入模型。請確認模型已打包到 assets/models 後重新構建。\n\n$reason',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Handles the result from a [CaptureGamePlayScreen] pop.
@@ -3165,18 +3398,6 @@ class _AiOpponentOption {
 
 List<_AiOpponentOption> get _aiOpponentOptions => [
       _AiOpponentOption(
-        config: AiAlgorithmRegistry.configById('heuristic_adaptive_weak_v1'),
-        name: '小石',
-        subtitle: 'Heuristic-1 · 入门启发',
-        summary: '轻量规则判断，适合熟悉吃子节奏。',
-      ),
-      _AiOpponentOption(
-        config: AiAlgorithmRegistry.configById('heuristic_counter_standard_v1'),
-        name: '青竹',
-        subtitle: 'Heuristic-2 · 反击启发',
-        summary: '更偏防守和反击，计算很快。',
-      ),
-      _AiOpponentOption(
         config: AiAlgorithmRegistry.configById('mcts_counter_weak_v1'),
         name: '奥斯卡',
         subtitle: 'MCTS-1 · 快速试探',
@@ -3187,20 +3408,6 @@ List<_AiOpponentOption> get _aiOpponentOptions => [
         name: '阿尔法',
         subtitle: 'MCTS-2 · 战术搜索',
         summary: '更高搜索预算，带两层吃子风险检查。',
-      ),
-      _AiOpponentOption(
-        config:
-            AiAlgorithmRegistry.configById('hybrid_tactical_counter_weak_v1'),
-        name: '云岚',
-        subtitle: 'Hybrid-1 · 轻量战术',
-        summary: '启发式和搜索混合，偏实战。',
-      ),
-      _AiOpponentOption(
-        config: AiAlgorithmRegistry.configById(
-            'hybrid_tactical_counter_standard_v1'),
-        name: '玄策',
-        subtitle: 'Hybrid-2 · 混合战术',
-        summary: '更完整的混合战术配置。',
       ),
       _AiOpponentOption(
         config: AiAlgorithmRegistry.configById('katago_onnx_weak_v1'),
@@ -3214,12 +3421,46 @@ List<_AiOpponentOption> get _aiOpponentOptions => [
         subtitle: 'KataGo-2 · ONNX 搜索',
         summary: '真实 KataGo ONNX 标准配置；不可用时会明确报错，不会 fallback。',
       ),
+      _AiOpponentOption(
+        config: AiAlgorithmRegistry.configById('mcts_capture5_standard_v1'),
+        name: '司南',
+        subtitle: 'Pilot Bot · 模型搜索',
+        summary: '标准搜索预算结合 Capture5 策略先验。',
+      ),
     ];
 
 List<_AiOpponentOption> get _playableAiOpponentOptions => _aiOpponentOptions
     .where(
         (option) => option.config.runtimeMode == AiAlgorithmRuntimeMode.native)
     .toList(growable: false);
+
+List<_AiOpponentOption> _playableAiOpponentOptionsForMode(
+  GameMode mode, {
+  int? boardSize,
+}) {
+  // Spec: docs/specs_map/main_game_flow.yaml#capture5_ai_player
+  final nativeOptions = _playableAiOpponentOptions;
+  return switch (mode) {
+    GameMode.capture => nativeOptions
+        .where((option) =>
+            _isCaptureModeOpponent(option.config.frameworkId) &&
+            ((option.config.frameworkId != AiAlgorithmFrameworkId.capture5 &&
+                    option.config.frameworkId !=
+                        AiAlgorithmFrameworkId.mctsCapture5) ||
+                boardSize == 13))
+        .toList(growable: false),
+    GameMode.territory => nativeOptions
+        .where((option) =>
+            option.config.frameworkId == AiAlgorithmFrameworkId.katago)
+        .toList(growable: false),
+  };
+}
+
+bool _isCaptureModeOpponent(AiAlgorithmFrameworkId frameworkId) {
+  return frameworkId == AiAlgorithmFrameworkId.mcts ||
+      frameworkId == AiAlgorithmFrameworkId.capture5 ||
+      frameworkId == AiAlgorithmFrameworkId.mctsCapture5;
+}
 
 _AiOpponentOption _aiOpponentOption(String configId) {
   return _aiOpponentOptions.firstWhere(
@@ -3240,8 +3481,15 @@ AiAlgorithmConfig _aiAlgorithmConfigForRank(int rank) {
   if (rank <= 9) {
     return AiAlgorithmRegistry.configById('mcts_counter_weak_v1');
   }
-  if (rank <= 19) {
+  if (rank <= 16) {
     return AiAlgorithmRegistry.configById('mcts_counter_standard_v1');
+  }
+  return AiAlgorithmRegistry.configById('mcts_capture5_standard_v1');
+}
+
+AiAlgorithmConfig _territoryAiAlgorithmConfigForRank(int rank) {
+  if (rank <= 9) {
+    return AiAlgorithmRegistry.configById('katago_onnx_weak_v1');
   }
   return AiAlgorithmRegistry.configById('katago_onnx_standard_v1');
 }
@@ -3252,7 +3500,6 @@ class _ConfigPreview extends StatelessWidget {
     required this.computedRank,
     required this.activeAiConfig,
     required this.aiAlgorithmConfigId,
-    required this.isTerritoryMode,
     required this.onTap,
   });
 
@@ -3260,28 +3507,17 @@ class _ConfigPreview extends StatelessWidget {
   final int computedRank;
   final AiAlgorithmConfig? activeAiConfig;
   final String aiAlgorithmConfigId;
-  final bool isTerritoryMode;
   final VoidCallback onTap;
 
-  String get _difficultyLabel {
-    if (isTerritoryMode) {
-      return '圍空引擎';
-    }
-    final option = _aiOpponentOption(
-      (difficultyMode == 'manual' ? aiAlgorithmConfigId : activeAiConfig?.id) ??
-          aiAlgorithmConfigId,
-    );
-    return difficultyMode == 'manual'
-        ? '指定·${option.name}'
-        : '不分伯仲·${option.name}';
-  }
+  _AiOpponentOption get _selectedOption => _aiOpponentOption(
+        (difficultyMode == 'manual'
+                ? aiAlgorithmConfigId
+                : activeAiConfig?.id) ??
+            aiAlgorithmConfigId,
+      );
 
   String get _algorithmLabel {
-    if (isTerritoryMode) return '固定圍空引擎';
-    final option = _aiOpponentOption(
-      (difficultyMode == 'manual' ? aiAlgorithmConfigId : activeAiConfig?.id) ??
-          aiAlgorithmConfigId,
-    );
+    final option = _selectedOption;
     if (difficultyMode == 'auto') {
       return '${option.subtitle} · 約${AiRankLevel.displayName(computedRank)}';
     }
@@ -3292,6 +3528,7 @@ class _ConfigPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.appPalette;
     final isClassic = context.isClassicAppTheme;
+    final selected = _selectedOption;
     return CupertinoButton(
       padding: EdgeInsets.zero,
       minimumSize: Size.zero,
@@ -3311,99 +3548,65 @@ class _ConfigPreview extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: _ConfigPreviewItem(
-                icon: CupertinoIcons.triangle_fill,
-                title: 'AI 棋力',
-                value: _difficultyLabel,
-              ),
-            ),
-            const _ConfigPreviewDivider(),
-            Expanded(
-              child: _ConfigPreviewItem(
-                icon: CupertinoIcons.star_fill,
-                title: '算法',
-                value: _algorithmLabel,
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: palette.setupIconBackground,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      selected.name.substring(0, 1),
+                      style: TextStyle(
+                        color: palette.setupIconForeground,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          selected.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16.5,
+                            height: 1.05,
+                            fontWeight: FontWeight.w700,
+                            color: palette.setupValueText,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _algorithmLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: palette.setupLabelText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    CupertinoIcons.chevron_right,
+                    size: 16,
+                    color: palette.setupActionText,
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ConfigPreviewItem extends StatelessWidget {
-  const _ConfigPreviewItem({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.appPalette;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: palette.setupIconBackground,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: palette.setupIconForeground),
-        ),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: palette.setupLabelText,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: palette.setupValueText,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ConfigPreviewDivider extends StatelessWidget {
-  const _ConfigPreviewDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.appPalette;
-    return Container(
-      width: 1,
-      height: 54,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: palette.setupDivider,
     );
   }
 }
@@ -3483,13 +3686,18 @@ class _PillSegmentControl<T> extends StatelessWidget {
 class _AiOpponentTile extends StatelessWidget {
   const _AiOpponentTile({
     required this.selectedConfigId,
+    required this.options,
     required this.onChanged,
   });
 
   final String selectedConfigId;
+  final List<_AiOpponentOption> options;
   final ValueChanged<String> onChanged;
 
-  _AiOpponentOption get _selected => _aiOpponentOption(selectedConfigId);
+  _AiOpponentOption get _selected => options.firstWhere(
+        (option) => option.config.id == selectedConfigId,
+        orElse: () => options.first,
+      );
 
   void _showPicker(BuildContext context) {
     final selected = _selected;
@@ -3499,7 +3707,7 @@ class _AiOpponentTile extends StatelessWidget {
         title: const Text('選擇 AI 棋手'),
         message: Text('${selected.name}：${selected.summary}'),
         actions: [
-          for (final option in _playableAiOpponentOptions)
+          for (final option in options)
             CupertinoActionSheetAction(
               onPressed: () {
                 onChanged(option.config.id);
@@ -3698,6 +3906,87 @@ class _ImportBoardDraft {
 
   final int boardSize;
   final List<List<StoneColor>> board;
+}
+
+class _KatagoPreparationDialog extends StatelessWidget {
+  const _KatagoPreparationDialog({
+    required this.modelLabel,
+    required this.modelSizeText,
+    required this.onClose,
+  });
+
+  final String modelLabel;
+  final String modelSizeText;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleColor = CupertinoColors.label.resolveFrom(context);
+    final subtitleColor = CupertinoColors.secondaryLabel.resolveFrom(context);
+    return Center(
+      child: CupertinoPopupSurface(
+        isSurfacePainted: true,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 340),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: CupertinoButton(
+                    minimumSize: const Size.square(28),
+                    padding: EdgeInsets.zero,
+                    onPressed: onClose,
+                    child: Icon(
+                      CupertinoIcons.xmark_circle_fill,
+                      color: CupertinoColors.tertiaryLabel.resolveFrom(
+                        context,
+                      ),
+                      size: 24,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Center(
+                  child: CupertinoActivityIndicator(radius: 13),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  '正在準備 $modelLabel',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: titleColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '首次使用需要下載$modelSizeText 的模型，耗時取決於網路環境，通常約 30 秒。你可以關閉此視窗，切換其他棋手後再開始。',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: subtitleColor,
+                    fontSize: 13,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                CupertinoButton(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  onPressed: onClose,
+                  child: const Text('關閉'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ModelRecognitionLoadingDialog extends StatefulWidget {
@@ -4058,10 +4347,17 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   bool _resultDialogShown = false;
   String? _shownAiFailureReason;
   bool _moveLogVisible = false;
+  bool _showMoveNumbers = false;
+  bool _initializedScreenSettings = false;
   bool _forking = false;
   final Set<int> _markedMoveNumbers = <int>{};
   int? _reviewMoveIndex;
   List<GameState>? _reviewStates;
+
+  // Training partner mode state.
+  _TrainingHintSession? _trainingHintSession;
+  KatagoPolicyPlane _trainingPolicyPlane = KatagoPolicyPlane.normal;
+  _TrainingHintUiState _trainingHintState = _TrainingHintUiState.idle;
 
   /// Last-move coordinates shown while the ripple animation plays.
   List<int>? _rippleMove;
@@ -4079,20 +4375,22 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final settings = context.read<SettingsProvider?>();
-      final initialValue = settings?.showMoveLog ?? false;
-      if (initialValue != _moveLogVisible) {
-        setState(() {
-          _moveLogVisible = initialValue;
-        });
-      }
-    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initializedScreenSettings) return;
+    _initializedScreenSettings = true;
+    final settings = context.read<SettingsProvider?>();
+    _moveLogVisible = settings?.showMoveLog ?? false;
+    _showMoveNumbers = settings?.showMoveNumbers ?? false;
   }
 
   @override
   void dispose() {
+    _trainingHintSession?.cancel();
+    _trainingHintSession = null;
     _rippleController.dispose();
     super.dispose();
   }
@@ -4175,6 +4473,17 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
           final isFinished = provider.result != CaptureGameResult.none;
           if (!isFinished) {
             _resultDialogShown = false;
+          } else if (_trainingHintSession != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted || provider.result == CaptureGameResult.none) {
+                return;
+              }
+              _trainingHintSession?.cancel();
+              _trainingHintSession = null;
+              setState(() {
+                _hintMarks = const [];
+              });
+            });
           }
           if (!provider.isPlacementMode && isFinished && !_resultDialogShown) {
             _resultDialogShown = true;
@@ -4219,6 +4528,9 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
               : null;
           final displayedMoves = _displayMoveLog(provider);
           final displayedReviewMoveNumber = _displayReviewMoveNumber;
+          final boardMoveNumberMoves = inReviewMode
+              ? displayedMoves.take(displayedReviewMoveNumber ?? 0).toList()
+              : displayedMoves;
           final selectedMarkMoveNumber = _activeMarkMoveNumber(provider);
           final selectedMoveMarked = selectedMarkMoveNumber != null &&
               _markedMoveNumbers.contains(selectedMarkMoveNumber);
@@ -4261,6 +4573,21 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
             child: SafeArea(
               child: Column(
                 children: [
+                  // Spec: docs/specs_map/main_game_flow.yaml#training_coach_katago
+                  if (provider.trainingMode)
+                    _TrainingModeStatusBar(
+                      state: isFinished
+                          ? _TrainingHintUiState.finished
+                          : _trainingHintState,
+                      hintCount: _hintMarks.length,
+                      strategy: _trainingPolicyPlane,
+                      onStrategyTap: () =>
+                          _showTrainingStrategyPicker(context, provider),
+                      onDetailsTap: _hintMarks.isEmpty
+                          ? null
+                          : () => _showTrainingDetails(context),
+                      onLeave: () => _leaveTrainingMode(provider),
+                    ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                     child: (_moveLogVisible || inReviewMode)
@@ -4315,6 +4642,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                             BoardCoordinateSystem.chinese,
                         enabled: !aiThinking && !isFinished && !inReviewMode,
                         hintMarks: inReviewMode ? const [] : _hintMarks,
+                        showMoveNumbers: _showMoveNumbers,
+                        moveNumberMoves: boardMoveNumberMoves,
                         showCaptureWarning: showCaptureWarning,
                         captureTarget: widget.captureTarget,
                         blackCaptured:
@@ -4389,7 +4718,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     final canMarkMove = markMoveNumber != null;
     final canCopyMoveLog = provider.moveLog.isNotEmpty ||
         widget.inheritedMoves.isNotEmpty ||
-        _initialPositionMoves(provider).isNotEmpty;
+        _orderedInitialMoves(provider).isNotEmpty;
     final canPass = provider.isTerritoryMode &&
         !provider.isAiThinking &&
         provider.result == CaptureGameResult.none &&
@@ -4399,6 +4728,12 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     final showCaptureWarning = settings?.showCaptureWarning ?? true;
     final coordinateSystem =
         settings?.boardCoordinateSystem ?? BoardCoordinateSystem.chinese;
+    final canEnterTrainingMode = provider.isTerritoryMode &&
+        !provider.trainingMode &&
+        provider.result == CaptureGameResult.none &&
+        !provider.isPlacementMode;
+    final trainingModeUnavailableReason =
+        provider.isTerritoryMode ? null : '吃 5 子模式不可用';
     final buttonBox = buttonContext.findRenderObject() as RenderBox?;
     final overlayBox =
         Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
@@ -4410,12 +4745,17 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     );
     final buttonRect = buttonTopLeft & buttonBox.size;
     const menuWidth = 178.0;
-    // 9 items x 48 px each + 8 dividers x 0.6 px each
+    // 11 items plus dividers. The training item is taller when it needs a
+    // disabled-state reason.
     const menuItemHeight = 48.0;
+    const disabledTrainingItemHeight = 58.0;
     const menuDividerHeight = 0.6;
-    const menuItemCount = 9;
-    const menuHeight = menuItemCount * menuItemHeight +
-        (menuItemCount - 1) * menuDividerHeight;
+    const menuItemCount = 11;
+    final menuHeight = menuItemCount * menuItemHeight +
+        (menuItemCount - 1) * menuDividerHeight +
+        (trainingModeUnavailableReason == null
+            ? 0
+            : disabledTrainingItemHeight - menuItemHeight);
     const edgePadding = 12.0;
     final media = MediaQuery.of(context);
     final preferredTop = buttonRect.top - menuHeight - 8;
@@ -4446,14 +4786,13 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
               top: top,
               width: menuWidth,
               child: _OperationContextMenu(
-                aiConfigLabel: provider.isTerritoryMode
-                    ? '固定圍空引擎'
-                    : _aiOpponentOption(
-                        provider.activeAlgorithmConfig?.id ??
-                            _aiAlgorithmConfigForRank(widget.aiRank).id,
-                      ).subtitle,
+                aiConfigLabel: _aiOpponentOption(
+                  provider.activeAlgorithmConfig?.id ??
+                      _aiAlgorithmConfigForRank(widget.aiRank).id,
+                ).subtitle,
                 captureWarningEnabled: showCaptureWarning,
                 moveLogVisible: _moveLogVisible,
+                showMoveNumbers: _showMoveNumbers,
                 currentMoveMarked: currentMoveMarked,
                 canUndo: canUndo,
                 canHint: canHint,
@@ -4461,12 +4800,13 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                 canCopyMoveLog: canCopyMoveLog,
                 canPass: canPass,
                 canToggleCaptureWarning: settings != null,
+                canEnterTrainingMode: canEnterTrainingMode,
+                trainingModeUnavailableReason: trainingModeUnavailableReason,
                 onToggleCaptureWarning: () {
                   Navigator.of(menuContext).pop();
                   settings?.setShowCaptureWarning(!showCaptureWarning);
                 },
                 onToggleMoveLog: () {
-                  Navigator.of(menuContext).pop();
                   setState(() {
                     _moveLogVisible = !_moveLogVisible;
                     // Hiding the log also exits review mode so the user is
@@ -4476,6 +4816,13 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                       _reviewStates = null;
                     }
                   });
+                  Navigator.of(menuContext).pop();
+                },
+                onToggleMoveNumbers: () {
+                  setState(() {
+                    _showMoveNumbers = !_showMoveNumbers;
+                  });
+                  Navigator.of(menuContext).pop();
                 },
                 onToggleMarkMove: () {
                   Navigator.of(menuContext).pop();
@@ -4493,6 +4840,10 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
                 onPass: () async {
                   Navigator.of(menuContext).pop();
                   await provider.passTurn();
+                },
+                onEnterTrainingMode: () {
+                  Navigator.of(menuContext).pop();
+                  _enterTrainingMode(provider);
                 },
                 onCopyText: () {
                   Navigator.of(menuContext).pop();
@@ -4529,6 +4880,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     if (provider.result == CaptureGameResult.blackWins) return '對局結束';
     if (provider.result == CaptureGameResult.whiteWins) return '對局結束';
     if (provider.result == CaptureGameResult.draw) return '對局結束';
+    if (provider.trainingMode) return 'AI 陪練模式';
     final colorName =
         provider.gameState.currentPlayer == StoneColor.black ? '黑棋' : '白棋';
     if (provider.isAiThinking ||
@@ -4549,6 +4901,38 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
       setState(() {
         _hintMarks = const [];
       });
+      if (provider.trainingMode && provider.result == CaptureGameResult.none) {
+        // Restart hint session for the new board position.
+        _trainingHintSession?.cancel();
+        _trainingHintState = _TrainingHintUiState.refreshing;
+        _trainingHintSession = _TrainingHintSession(
+          provider: provider,
+          strategy: _trainingPolicyPlane,
+          onUpdate: (marks) {
+            if (!mounted) return;
+            setState(() {
+              _hintMarks = marks;
+              _trainingHintState = marks.isEmpty
+                  ? _TrainingHintUiState.empty
+                  : _TrainingHintUiState.ready;
+            });
+          },
+          onDone: () {
+            if (!mounted) return;
+            setState(() {
+              if (_hintMarks.isEmpty &&
+                  (_trainingHintState == _TrainingHintUiState.loading ||
+                      _trainingHintState == _TrainingHintUiState.refreshing)) {
+                _trainingHintState = _TrainingHintUiState.empty;
+              }
+            });
+          },
+        );
+        _trainingHintSession!.start();
+      } else {
+        _trainingHintSession?.cancel();
+        _trainingHintSession = null;
+      }
     }
     return placed;
   }
@@ -4574,6 +4958,132 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
         });
       }
     }
+  }
+
+  void _enterTrainingMode(CaptureGameProvider provider) {
+    provider.enterTrainingMode();
+    setState(() {
+      _hintMarks = const [];
+      _trainingHintState = _TrainingHintUiState.loading;
+    });
+    _trainingHintSession?.cancel();
+    _trainingHintSession = _TrainingHintSession(
+      provider: provider,
+      strategy: _trainingPolicyPlane,
+      onUpdate: (marks) {
+        if (!mounted) return;
+        setState(() {
+          _hintMarks = marks;
+          _trainingHintState = marks.isEmpty
+              ? _TrainingHintUiState.empty
+              : _TrainingHintUiState.ready;
+        });
+      },
+      onDone: () {
+        if (!mounted) return;
+        setState(() {
+          if (_hintMarks.isEmpty &&
+              (_trainingHintState == _TrainingHintUiState.loading ||
+                  _trainingHintState == _TrainingHintUiState.refreshing)) {
+            _trainingHintState = _TrainingHintUiState.empty;
+          }
+        });
+      },
+    );
+    _trainingHintSession!.start();
+  }
+
+  void _leaveTrainingMode(CaptureGameProvider provider) {
+    _trainingHintSession?.cancel();
+    _trainingHintSession = null;
+    setState(() {
+      _hintMarks = const [];
+      _trainingHintState = _TrainingHintUiState.idle;
+    });
+    provider.exitTrainingMode();
+  }
+
+  void _showTrainingStrategyPicker(
+    BuildContext context,
+    CaptureGameProvider provider,
+  ) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: const Text('策略視角'),
+        actions: [
+          for (final strategy in KatagoPolicyPlane.values)
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                _setTrainingStrategy(provider, strategy);
+              },
+              child: Text(strategy.explanationLabel),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+  }
+
+  void _setTrainingStrategy(
+    CaptureGameProvider provider,
+    KatagoPolicyPlane strategy,
+  ) {
+    if (_trainingPolicyPlane == strategy) return;
+    _trainingHintSession?.cancel();
+    _trainingHintSession = null;
+    setState(() {
+      _trainingPolicyPlane = strategy;
+      _hintMarks = const [];
+      _trainingHintState = _TrainingHintUiState.refreshing;
+    });
+    if (!provider.trainingMode || provider.result != CaptureGameResult.none) {
+      return;
+    }
+    _trainingHintSession = _TrainingHintSession(
+      provider: provider,
+      strategy: _trainingPolicyPlane,
+      onUpdate: (marks) {
+        if (!mounted) return;
+        setState(() {
+          _hintMarks = marks;
+          _trainingHintState = marks.isEmpty
+              ? _TrainingHintUiState.empty
+              : _TrainingHintUiState.ready;
+        });
+      },
+      onDone: () {
+        if (!mounted) return;
+        setState(() {
+          if (_hintMarks.isEmpty &&
+              (_trainingHintState == _TrainingHintUiState.refreshing ||
+                  _trainingHintState == _TrainingHintUiState.loading)) {
+            _trainingHintState = _TrainingHintUiState.empty;
+          }
+        });
+      },
+    );
+    _trainingHintSession!.start();
+  }
+
+  void _showTrainingDetails(BuildContext context) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: const Text('推薦詳情'),
+        message: _TrainingExplanationPanel(hints: _hintMarks),
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text('完成'),
+        ),
+      ),
+    );
   }
 
   _ResultDialogState _resultDialogState(CaptureGameProvider provider) {
@@ -4719,14 +5229,23 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     final board = _buildInitialBoard(provider);
     final blackSetup = <String>[];
     final whiteSetup = <String>[];
-    for (var row = 0; row < provider.boardSize; row++) {
-      for (var col = 0; col < provider.boardSize; col++) {
-        final stone = board[row][col];
-        if (stone == StoneColor.black) {
-          blackSetup.add(_toSgfPoint(row, col));
-        } else if (stone == StoneColor.white) {
-          whiteSetup.add(_toSgfPoint(row, col));
-        }
+    final orderedInitialMoves = _orderedInitialMoves(provider);
+    for (var i = 0; i < orderedInitialMoves.length; i++) {
+      final move = orderedInitialMoves[i];
+      if (move.length < 2) continue;
+      final row = move[0];
+      final col = move[1];
+      if (row < 0 ||
+          row >= provider.boardSize ||
+          col < 0 ||
+          col >= provider.boardSize) {
+        continue;
+      }
+      final stone = _orderedInitialMoveColor(provider, board, row, col, i);
+      if (stone == StoneColor.black) {
+        blackSetup.add(_toSgfPoint(row, col));
+      } else if (stone == StoneColor.white) {
+        whiteSetup.add(_toSgfPoint(row, col));
       }
     }
     if (blackSetup.isNotEmpty) {
@@ -4918,7 +5437,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   ) async {
     final inheritedMoves = widget.inheritedMoves.isNotEmpty
         ? widget.inheritedMoves
-        : _initialPositionMoves(provider);
+        : _orderedInitialMoves(provider);
     final moves = provider.moveLog;
     if (inheritedMoves.isEmpty && moves.isEmpty) return;
     final boardSize = provider.boardSize;
@@ -4981,58 +5500,28 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     return '$numStr $color[$coordinate]';
   }
 
-  List<List<int>> _initialPositionMoves(CaptureGameProvider provider) {
-    if (provider.initialBoardOverride == null) {
-      final center = provider.boardSize ~/ 2;
-      if (center <= 0 || center >= provider.boardSize - 1) return const [];
-      return switch (provider.initialMode) {
-        CaptureInitialMode.cross => [
-            [center - 1, center],
-            [center, center - 1],
-            [center + 1, center],
-            [center, center + 1],
-          ],
-        CaptureInitialMode.twistCross => [
-            [center, center],
-            [center, center + 1],
-            [center - 1, center + 1],
-            [center - 1, center],
-          ],
-        CaptureInitialMode.empty || CaptureInitialMode.setup => const [],
-      };
-    }
+  List<List<int>> _orderedInitialMoves(CaptureGameProvider provider) {
+    return orderedCaptureInitialMoves(
+      boardSize: provider.boardSize,
+      initialMode: provider.initialMode,
+      initialBoardOverride: provider.initialBoardOverride,
+      initialPlayer: provider.initialPlayerOverride ?? StoneColor.black,
+    );
+  }
 
-    final board = _buildInitialBoard(provider);
-    final blackMoves = <List<int>>[];
-    final whiteMoves = <List<int>>[];
-    for (var row = 0; row < provider.boardSize; row++) {
-      for (var col = 0; col < provider.boardSize; col++) {
-        final stone = board[row][col];
-        if (stone == StoneColor.black) {
-          blackMoves.add([row, col]);
-        } else if (stone == StoneColor.white) {
-          whiteMoves.add([row, col]);
-        }
-      }
+  StoneColor _orderedInitialMoveColor(
+    CaptureGameProvider provider,
+    List<List<StoneColor>> initialBoard,
+    int row,
+    int col,
+    int index,
+  ) {
+    if (provider.initialBoardOverride == null &&
+        (provider.initialMode == CaptureInitialMode.cross ||
+            provider.initialMode == CaptureInitialMode.twistCross)) {
+      return index.isEven ? StoneColor.black : StoneColor.white;
     }
-
-    final moves = <List<int>>[];
-    final blackQueue = List<List<int>>.from(blackMoves);
-    final whiteQueue = List<List<int>>.from(whiteMoves);
-    var nextColor = provider.initialPlayerOverride ?? StoneColor.black;
-    while (blackQueue.isNotEmpty || whiteQueue.isNotEmpty) {
-      final queue = nextColor == StoneColor.black ? blackQueue : whiteQueue;
-      final fallbackQueue =
-          nextColor == StoneColor.black ? whiteQueue : blackQueue;
-      if (queue.isNotEmpty) {
-        moves.add(queue.removeAt(0));
-      } else if (fallbackQueue.isNotEmpty) {
-        moves.add(fallbackQueue.removeAt(0));
-      }
-      nextColor =
-          nextColor == StoneColor.black ? StoneColor.white : StoneColor.black;
-    }
-    return moves;
+    return initialBoard[row][col];
   }
 
   Future<void> _copyMovesAsSgf(CaptureGameProvider provider) async {
@@ -5059,14 +5548,21 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     // Collect initial stones for AB / AW root properties.
     final abCoords = <String>[];
     final awCoords = <String>[];
-    for (int r = 0; r < boardSize; r++) {
-      for (int c = 0; c < boardSize; c++) {
-        final stone = initialBoard[r][c];
-        if (stone == StoneColor.black) {
-          abCoords.add(_toSgfCoord(c, r));
-        } else if (stone == StoneColor.white) {
-          awCoords.add(_toSgfCoord(c, r));
-        }
+    final orderedInitialMoves = _orderedInitialMoves(provider);
+    for (var i = 0; i < orderedInitialMoves.length; i++) {
+      final move = orderedInitialMoves[i];
+      if (move.length < 2) continue;
+      final row = move[0];
+      final col = move[1];
+      if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) {
+        continue;
+      }
+      final stone =
+          _orderedInitialMoveColor(provider, initialBoard, row, col, i);
+      if (stone == StoneColor.black) {
+        abCoords.add(_toSgfCoord(col, row));
+      } else if (stone == StoneColor.white) {
+        awCoords.add(_toSgfCoord(col, row));
       }
     }
 
@@ -5103,6 +5599,8 @@ class _CaptureBoardArea extends StatelessWidget {
     required this.coordinateSystem,
     required this.enabled,
     required this.hintMarks,
+    required this.showMoveNumbers,
+    required this.moveNumberMoves,
     required this.showCaptureWarning,
     required this.captureTarget,
     required this.blackCaptured,
@@ -5120,6 +5618,8 @@ class _CaptureBoardArea extends StatelessWidget {
   final BoardCoordinateSystem coordinateSystem;
   final bool enabled;
   final List<_HintMark> hintMarks;
+  final bool showMoveNumbers;
+  final List<List<int>> moveNumberMoves;
   final bool showCaptureWarning;
   final int captureTarget;
   final int blackCaptured;
@@ -5205,6 +5705,8 @@ class _CaptureBoardArea extends StatelessWidget {
                         coordinateSystem: coordinateSystem,
                         enabled: enabled,
                         hintMarks: hintMarks,
+                        showMoveNumbers: showMoveNumbers,
+                        moveNumberMoves: moveNumberMoves,
                         showCaptureWarning: showCaptureWarning,
                         onTap: onTap,
                         onDisabledTap: onReviewTap,
@@ -5806,6 +6308,7 @@ class _OperationContextMenu extends StatelessWidget {
     required this.aiConfigLabel,
     required this.captureWarningEnabled,
     required this.moveLogVisible,
+    required this.showMoveNumbers,
     required this.currentMoveMarked,
     required this.canUndo,
     required this.canHint,
@@ -5813,12 +6316,16 @@ class _OperationContextMenu extends StatelessWidget {
     required this.canCopyMoveLog,
     required this.canPass,
     required this.canToggleCaptureWarning,
+    required this.canEnterTrainingMode,
+    required this.trainingModeUnavailableReason,
     required this.onToggleCaptureWarning,
     required this.onToggleMoveLog,
+    required this.onToggleMoveNumbers,
     required this.onToggleMarkMove,
     required this.onUndo,
     required this.onHint,
     required this.onPass,
+    required this.onEnterTrainingMode,
     required this.onCopyText,
     required this.onCopySgf,
   });
@@ -5826,6 +6333,7 @@ class _OperationContextMenu extends StatelessWidget {
   final String aiConfigLabel;
   final bool captureWarningEnabled;
   final bool moveLogVisible;
+  final bool showMoveNumbers;
   final bool currentMoveMarked;
   final bool canUndo;
   final bool canHint;
@@ -5833,12 +6341,16 @@ class _OperationContextMenu extends StatelessWidget {
   final bool canCopyMoveLog;
   final bool canPass;
   final bool canToggleCaptureWarning;
+  final bool canEnterTrainingMode;
+  final String? trainingModeUnavailableReason;
   final VoidCallback onToggleCaptureWarning;
   final VoidCallback onToggleMoveLog;
+  final VoidCallback onToggleMoveNumbers;
   final VoidCallback onToggleMarkMove;
   final VoidCallback onUndo;
   final VoidCallback onHint;
   final VoidCallback onPass;
+  final VoidCallback onEnterTrainingMode;
   final VoidCallback onCopyText;
   final VoidCallback onCopySgf;
 
@@ -5888,6 +6400,12 @@ class _OperationContextMenu extends StatelessWidget {
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
+              text: showMoveNumbers ? '隱藏手數' : '顯示手數',
+              enabled: true,
+              onPressed: onToggleMoveNumbers,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
               text: currentMoveMarked ? '取消標記此手' : '標記此手',
               enabled: canMarkMove,
               onPressed: onToggleMarkMove,
@@ -5909,6 +6427,13 @@ class _OperationContextMenu extends StatelessWidget {
               text: '提示一手',
               enabled: canHint,
               onPressed: onHint,
+            ),
+            _OperationMenuDivider(),
+            _OperationMenuItem(
+              text: '進入陪練模式',
+              subtitle: trainingModeUnavailableReason,
+              enabled: canEnterTrainingMode,
+              onPressed: onEnterTrainingMode,
             ),
             _OperationMenuDivider(),
             _OperationMenuItem(
@@ -5945,36 +6470,57 @@ class _OperationMenuDivider extends StatelessWidget {
 class _OperationMenuItem extends StatelessWidget {
   const _OperationMenuItem({
     required this.text,
+    this.subtitle,
     required this.enabled,
     required this.onPressed,
   });
 
   final String text;
+  final String? subtitle;
   final bool enabled;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
+    final titleColor = enabled
+        ? CupertinoColors.label.resolveFrom(context)
+        : CupertinoColors.inactiveGray.resolveFrom(context);
+    final subtitle = this.subtitle;
     return CupertinoButton(
       padding: EdgeInsets.zero,
       minimumSize: Size.zero,
       onPressed: enabled ? onPressed : null,
       child: SizedBox(
-        height: 48,
+        height: subtitle == null ? 48 : 58,
         width: double.infinity,
-        child: Align(
-          alignment: Alignment.center,
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: enabled
-                  ? CupertinoColors.label.resolveFrom(context)
-                  : CupertinoColors.inactiveGray.resolveFrom(context),
-            ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: subtitle == null ? 16 : 15,
+                  fontWeight: FontWeight.w500,
+                  color: titleColor,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                    color: CupertinoColors.inactiveGray.resolveFrom(context),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -6020,10 +6566,29 @@ class _HintMark {
   const _HintMark({
     required this.position,
     required this.color,
+    this.winRate,
+    this.policyProbability,
+    this.valueDelta,
+    this.scoreLead,
+    this.scoreUncertainty,
+    this.strategyLabel,
+    this.explanationSignals = const [],
+    this.source = 'fallback',
   });
 
   final BoardPosition position;
   final StoneColor color;
+
+  /// Optional win-rate for the player to move ([0.05, 0.95]). When non-null
+  /// the painter draws a percentage label inside the dashed circle.
+  final double? winRate;
+  final double? policyProbability;
+  final double? valueDelta;
+  final double? scoreLead;
+  final double? scoreUncertainty;
+  final String? strategyLabel;
+  final List<String> explanationSignals;
+  final String source;
 }
 
 class _HintOverlayPainter extends CustomPainter {
@@ -6055,6 +6620,29 @@ class _HintOverlayPainter extends CustomPainter {
         ..strokeWidth = 2
         ..color = hintColor;
       _drawDashedCircle(canvas, center, radius, paint);
+
+      final labelValue =
+          hint.source == 'katago' ? hint.policyProbability : hint.winRate;
+      if (labelValue != null) {
+        final pct = (labelValue * 100).round();
+        final label = '$pct%';
+        final fontSize = (cell * 0.26).clamp(8.0, 18.0);
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: label,
+            style: TextStyle(
+              color: hintColor,
+              fontSize: fontSize,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        textPainter.paint(
+          canvas,
+          center - Offset(textPainter.width / 2, textPainter.height / 2),
+        );
+      }
     }
   }
 
@@ -6092,6 +6680,8 @@ class _TapBoard extends StatelessWidget {
     required this.coordinateSystem,
     required this.enabled,
     required this.hintMarks,
+    required this.showMoveNumbers,
+    required this.moveNumberMoves,
     required this.showCaptureWarning,
     required this.onTap,
     this.onDisabledTap,
@@ -6103,6 +6693,8 @@ class _TapBoard extends StatelessWidget {
   final BoardCoordinateSystem coordinateSystem;
   final bool enabled;
   final List<_HintMark> hintMarks;
+  final bool showMoveNumbers;
+  final List<List<int>> moveNumberMoves;
   final bool showCaptureWarning;
   final Future<bool> Function(int row, int col) onTap;
   final VoidCallback? onDisabledTap;
@@ -6130,6 +6722,8 @@ class _TapBoard extends StatelessWidget {
                     gameState: gameState,
                     palette: context.appPalette,
                     coordinateSystem: coordinateSystem,
+                    showMoveNumbers: showMoveNumbers,
+                    moveNumberMoves: moveNumberMoves,
                     showCaptureWarning: showCaptureWarning,
                   ),
                 ),
@@ -6179,6 +6773,270 @@ class _TapBoard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Stone ripple painter
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// AI training hint session
+// ---------------------------------------------------------------------------
+
+/// Manages the background computation loop for AI training partner hints.
+///
+/// Fires once for the current board position. Entering training mode, playing a
+/// move, or changing strategy creates a new session and cancels the old one.
+class _TrainingHintSession {
+  _TrainingHintSession({
+    required this.provider,
+    required this.strategy,
+    required this.onUpdate,
+    required this.onDone,
+  });
+
+  final CaptureGameProvider provider;
+  final KatagoPolicyPlane strategy;
+  final void Function(List<_HintMark>) onUpdate;
+  final VoidCallback onDone;
+
+  bool _cancelled = false;
+  bool _computing = false;
+
+  void start() {
+    _fire();
+  }
+
+  void cancel() {
+    _cancelled = true;
+    provider.cancelTrainingSuggestions();
+  }
+
+  Future<void> _fire() async {
+    if (_cancelled || _computing) return;
+    _computing = true;
+    try {
+      final suggestions = await provider.suggestMovesWithWinRateAsync(
+        count: 3,
+        policyPlane: strategy,
+      );
+      if (_cancelled) return;
+      final color = provider.gameState.currentPlayer;
+      final marks = suggestions
+          .map(
+            (s) => _HintMark(
+              position: s.position,
+              color: color,
+              winRate: s.winRate,
+              policyProbability: s.policyProbability,
+              valueDelta: s.valueDelta,
+              scoreLead: s.scoreLead,
+              scoreUncertainty: s.scoreUncertainty,
+              strategyLabel: s.strategyLabel,
+              explanationSignals: s.explanationSignals,
+              source: s.source,
+            ),
+          )
+          .toList();
+      onUpdate(marks);
+    } catch (_) {
+      // Silently ignore failures — the board will just show no hints.
+    } finally {
+      _computing = false;
+    }
+    if (!_cancelled) onDone();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Training mode status bar
+// ---------------------------------------------------------------------------
+
+enum _TrainingHintUiState {
+  idle,
+  loading,
+  refreshing,
+  ready,
+  empty,
+  finished,
+}
+
+class _TrainingModeStatusBar extends StatelessWidget {
+  const _TrainingModeStatusBar({
+    required this.state,
+    required this.hintCount,
+    required this.strategy,
+    required this.onStrategyTap,
+    required this.onDetailsTap,
+    required this.onLeave,
+  });
+
+  final _TrainingHintUiState state;
+  final int hintCount;
+  final KatagoPolicyPlane strategy;
+  final VoidCallback onStrategyTap;
+  final VoidCallback? onDetailsTap;
+  final VoidCallback onLeave;
+
+  String get _statusText {
+    return switch (state) {
+      _TrainingHintUiState.idle => '等待推薦',
+      _TrainingHintUiState.loading => '正在思考',
+      _TrainingHintUiState.refreshing => '正在更新',
+      _TrainingHintUiState.ready => '已推薦 $hintCount 手',
+      _TrainingHintUiState.empty => '暫無推薦',
+      _TrainingHintUiState.finished => '對局已結束',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    _statusText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: palette.setupTitleText,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (state == _TrainingHintUiState.ready &&
+                    onDetailsTap != null) ...[
+                  Text(
+                    ' · ',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: palette.setupTitleText,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  CupertinoButton(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                    minimumSize: Size.zero,
+                    onPressed: onDetailsTap,
+                    child: Text(
+                      '詳情',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: palette.setupActionText,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (state != _TrainingHintUiState.finished)
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              onPressed: onStrategyTap,
+              child: Text(
+                strategy.shortLabel,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: palette.setupActionText,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            minimumSize: Size.zero,
+            onPressed: onLeave,
+            child: Text(
+              '離開陪練',
+              style: TextStyle(
+                fontSize: 13,
+                color: palette.setupActionText,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrainingExplanationPanel extends StatelessWidget {
+  const _TrainingExplanationPanel({required this.hints});
+
+  final List<_HintMark> hints;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.appPalette;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemBackground
+            .resolveFrom(context)
+            .withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: CupertinoColors.separator
+              .resolveFrom(context)
+              .withValues(alpha: 0.26),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final line in _visibleLines())
+            SizedBox(
+              height: 20,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  line,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.25,
+                    color: palette.setupTitleText,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  List<String> _visibleLines() {
+    if (hints.isEmpty) {
+      return const ['正在更新推薦', '', ''];
+    }
+    final lines = hints.take(3).map(_explanationLine).toList();
+    while (lines.length < 3) {
+      lines.add('');
+    }
+    return lines;
+  }
+
+  String _explanationLine(_HintMark hint) {
+    final coord = '${hint.position.col + 1},${hint.position.row + 1}';
+    if (hint.explanationSignals.isEmpty) {
+      final pct =
+          hint.winRate == null ? '' : ' ${(hint.winRate! * 100).round()}%';
+      return '$coord$pct';
+    }
+    return '$coord · ${hint.explanationSignals.take(3).join(' · ')}';
+  }
+}
 
 /// Draws a water-ripple animation radiating outward from the last-placed stone.
 ///

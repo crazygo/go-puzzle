@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
 import '../game/ai_algorithm_framework.dart';
 import '../game/ai_search_runner.dart';
 import '../game/capture_ai.dart';
+import '../game/capture5_flutter_onnx_model_adapter.dart';
 import '../game/difficulty_level.dart';
 import '../game/game_mode.dart';
 import '../game/go_engine.dart';
@@ -12,11 +14,16 @@ import '../game/katago_flutter_onnx_model_adapter.dart';
 import '../game/katago_model_adapter.dart';
 import '../game/mcts_engine.dart';
 import '../game/territory_ai.dart';
+import '../game/training_suggestion_runner.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 
 export '../game/ai_search_runner.dart' show AiSearchRunner;
 export '../game/difficulty_level.dart';
+export '../game/katago_model_adapter.dart'
+    show KatagoPolicyPlane, KatagoPolicyPlaneLabel;
+
+const String _katagoCoachConfigId = 'katago_onnx_standard_v1';
 
 // ---------------------------------------------------------------------------
 // Top-level function required by compute() for hint suggestions.
@@ -90,6 +97,38 @@ List<List<int>> _runSuggestMoves(Map<String, dynamic> params) {
   return suggestions;
 }
 
+String _stringParameter(Map<String, Object?> params, String key) {
+  return switch (params[key]) {
+    final String value => value,
+    _ => '',
+  };
+}
+
+int _intParameter(Map<String, Object?> params, String key, int fallback) {
+  return switch (params[key]) {
+    final int value => value,
+    final num value => value.toInt(),
+    _ => fallback,
+  };
+}
+
+double _fallbackTrainingWinRate(
+  SimBoard board,
+  int originalPlayer,
+  int captureTarget,
+) {
+  const floor = 0.05;
+  const ceiling = 0.95;
+  final myCaps = originalPlayer == SimBoard.black
+      ? board.capturedByBlack
+      : board.capturedByWhite;
+  final oppCaps = originalPlayer == SimBoard.black
+      ? board.capturedByWhite
+      : board.capturedByBlack;
+  final progress = (myCaps - oppCaps) / captureTarget;
+  return (0.5 + progress * 0.35).clamp(floor, ceiling).toDouble();
+}
+
 CaptureAiAgent _captureAgentForProvider({
   required String? algorithmConfigId,
   required CaptureAiStyle aiStyle,
@@ -101,6 +140,37 @@ CaptureAiAgent _captureAgentForProvider({
     );
   }
   return CaptureAiRegistry.create(style: aiStyle, difficulty: difficulty);
+}
+
+/// A single training suggestion: a board position paired with the estimated
+/// win-rate for the player who would place at that position.
+class TrainingSuggestion {
+  const TrainingSuggestion({
+    required this.position,
+    required this.winRate,
+    this.policyScore,
+    this.policyProbability,
+    this.valueDelta,
+    this.scoreLead,
+    this.scoreUncertainty,
+    this.strategyLabel,
+    this.explanationSignals = const [],
+    this.source = 'fallback',
+  });
+
+  final BoardPosition position;
+
+  /// Win-rate in the range [0.05, 0.95] for the player to move.
+  final double winRate;
+
+  final double? policyScore;
+  final double? policyProbability;
+  final double? valueDelta;
+  final double? scoreLead;
+  final double? scoreUncertainty;
+  final String? strategyLabel;
+  final List<String> explanationSignals;
+  final String source;
 }
 
 enum CaptureGameResult { none, blackWins, whiteWins, draw }
@@ -165,6 +235,64 @@ void applyCaptureInitialLayout(
   }
 }
 
+List<List<int>> orderedCaptureInitialMoves({
+  required int boardSize,
+  required CaptureInitialMode initialMode,
+  List<List<StoneColor>>? initialBoardOverride,
+  StoneColor initialPlayer = StoneColor.black,
+}) {
+  if (initialBoardOverride == null) {
+    final center = boardSize ~/ 2;
+    if (center <= 0 || center >= boardSize - 1) return const [];
+    return switch (initialMode) {
+      CaptureInitialMode.cross => [
+          [center + 1, center],
+          [center, center - 1],
+          [center - 1, center],
+          [center, center + 1],
+        ],
+      CaptureInitialMode.twistCross => [
+          [center, center],
+          [center, center + 1],
+          [center - 1, center + 1],
+          [center - 1, center],
+        ],
+      CaptureInitialMode.empty || CaptureInitialMode.setup => const [],
+    };
+  }
+
+  final blackMoves = <List<int>>[];
+  final whiteMoves = <List<int>>[];
+  for (var row = 0; row < boardSize; row++) {
+    for (var col = 0; col < boardSize; col++) {
+      final stone = initialBoardOverride[row][col];
+      if (stone == StoneColor.black) {
+        blackMoves.add([row, col]);
+      } else if (stone == StoneColor.white) {
+        whiteMoves.add([row, col]);
+      }
+    }
+  }
+
+  final moves = <List<int>>[];
+  final blackQueue = List<List<int>>.from(blackMoves);
+  final whiteQueue = List<List<int>>.from(whiteMoves);
+  var nextColor = initialPlayer;
+  while (blackQueue.isNotEmpty || whiteQueue.isNotEmpty) {
+    final queue = nextColor == StoneColor.black ? blackQueue : whiteQueue;
+    final fallbackQueue =
+        nextColor == StoneColor.black ? whiteQueue : blackQueue;
+    if (queue.isNotEmpty) {
+      moves.add(queue.removeAt(0));
+    } else if (fallbackQueue.isNotEmpty) {
+      moves.add(fallbackQueue.removeAt(0));
+    }
+    nextColor =
+        nextColor == StoneColor.black ? StoneColor.white : StoneColor.black;
+  }
+  return moves;
+}
+
 class CaptureGameProvider extends ChangeNotifier {
   static const Duration _defaultMinMoveDelay = Duration(milliseconds: 1280);
   static const Duration _defaultMaxMoveDelay = Duration(milliseconds: 2500);
@@ -194,6 +322,7 @@ class CaptureGameProvider extends ChangeNotifier {
     this.aiAlgorithmConfig,
     AsyncKatagoModelAdapter? katagoModelAdapter,
     AiSearchRunner? runner,
+    TrainingSuggestionRunner? trainingSuggestionRunner,
   })  : _katagoModelAdapterOverride = katagoModelAdapter,
         assert(
           boardSize == 9 || boardSize == 13 || boardSize == 19,
@@ -218,6 +347,8 @@ class CaptureGameProvider extends ChangeNotifier {
           'maxMoveDelay must be >= minMoveDelay.',
         ) {
     _runner = runner ?? createAiSearchRunner();
+    _trainingSuggestionRunner =
+        trainingSuggestionRunner ?? createTrainingSuggestionRunner();
     if (initialBoardOverride != null &&
         !_isValidBoardShape(initialBoardOverride, boardSize)) {
       throw ArgumentError.value(
@@ -266,8 +397,10 @@ class CaptureGameProvider extends ChangeNotifier {
   CaptureAiAgent? _cachedAgent;
   AsyncCaptureAiAgent? _cachedAsyncAgent;
   FlutterKatagoOnnxModelAdapter? _ownedKatagoModelAdapter;
+  FlutterCapture5OnnxModelAdapter? _ownedCapture5ModelAdapter;
 
   late final AiSearchRunner _runner;
+  late final TrainingSuggestionRunner _trainingSuggestionRunner;
 
   /// Monotonically-increasing counter used to build unique request IDs.
   /// Unlike [_gameGeneration], this is never reset so each [_doAiMove] call
@@ -278,6 +411,7 @@ class CaptureGameProvider extends ChangeNotifier {
 
   /// The request ID for the currently in-flight AI move search, or null.
   AiSearchRequestId? _pendingAiRequestId;
+  TrainingSuggestionRequestId? _pendingTrainingSuggestionRequestId;
 
   late GameState _gameState;
   CaptureGameResult _result = CaptureGameResult.none;
@@ -296,6 +430,8 @@ class CaptureGameProvider extends ChangeNotifier {
   /// Every move played in the current game, in order: each entry is [row, col].
   final List<List<int>> _moveLog = [];
 
+  bool _trainingMode = false;
+
   GameState get gameState => _gameState;
   CaptureGameResult get result => _result;
   bool get isAiThinking => _isAiThinking;
@@ -307,6 +443,9 @@ class CaptureGameProvider extends ChangeNotifier {
   GameMode get mode => gameMode;
   bool get isTerritoryMode => gameMode == GameMode.territory;
   bool get isPlacementMode => initialMode == CaptureInitialMode.setup;
+
+  /// Whether AI training partner mode is currently active.
+  bool get trainingMode => _trainingMode;
 
   /// An unmodifiable view of the current game's move sequence.
   List<List<int>> get moveLog => List.unmodifiable(_moveLog);
@@ -327,6 +466,10 @@ class CaptureGameProvider extends ChangeNotifier {
   AsyncKatagoModelAdapter get _katagoModelAdapter {
     final injected = _katagoModelAdapterOverride;
     if (injected != null) return injected;
+    if (aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.capture5 ||
+        aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.mctsCapture5) {
+      return _ownedCapture5ModelAdapter ??= FlutterCapture5OnnxModelAdapter();
+    }
     return _ownedKatagoModelAdapter ??= FlutterKatagoOnnxModelAdapter();
   }
 
@@ -343,11 +486,20 @@ class CaptureGameProvider extends ChangeNotifier {
       _runner.cancel(_pendingAiRequestId!);
       _pendingAiRequestId = null;
     }
+    if (_pendingTrainingSuggestionRequestId != null) {
+      _trainingSuggestionRunner.cancel(_pendingTrainingSuggestionRequestId!);
+      _pendingTrainingSuggestionRequestId = null;
+    }
     final ownedAdapter = _ownedKatagoModelAdapter;
     if (ownedAdapter != null) {
       unawaited(ownedAdapter.close());
     }
+    final ownedCapture5Adapter = _ownedCapture5ModelAdapter;
+    if (ownedCapture5Adapter != null) {
+      unawaited(ownedCapture5Adapter.close());
+    }
     _runner.dispose();
+    _trainingSuggestionRunner.dispose();
     super.dispose();
   }
 
@@ -361,9 +513,286 @@ class CaptureGameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Enters AI training partner mode. Both colours can be placed by the user;
+  /// the AI will not auto-play its turn.
+  void enterTrainingMode() {
+    if (_trainingMode) return;
+    if (_result != CaptureGameResult.none) return;
+    _trainingMode = true;
+    // Cancel any in-flight or pending AI move.
+    _aiMoveTimer?.cancel();
+    _aiMoveTimer = null;
+    if (_pendingAiRequestId != null) {
+      _runner.cancel(_pendingAiRequestId!);
+      _pendingAiRequestId = null;
+    }
+    cancelTrainingSuggestions();
+    _isAiThinking = false;
+    notifyListeners();
+  }
+
+  /// Exits AI training partner mode. If it is the AI's turn the AI will
+  /// resume play automatically.
+  void exitTrainingMode() {
+    if (!_trainingMode) return;
+    _trainingMode = false;
+    notifyListeners();
+    // Resume normal play if it is now the AI's turn.
+    if (!isPlacementMode &&
+        _result == CaptureGameResult.none &&
+        _gameState.currentPlayer != humanColor) {
+      _scheduleAiMove();
+    }
+  }
+
+  /// Computes up to [count] candidate training suggestions in a background
+  /// isolate and returns them with per-position win-rate estimates.
+  Future<List<TrainingSuggestion>> suggestMovesWithWinRateAsync({
+    int count = 3,
+    KatagoPolicyPlane policyPlane = KatagoPolicyPlane.normal,
+  }) async {
+    // Spec: docs/specs_map/main_game_flow.yaml#training_coach_katago
+    // Spec: docs/specs_map/technical_contracts.yaml#ai_background_execution
+    if (count <= 0) return const [];
+    if (_result != CaptureGameResult.none) return const [];
+    final sim =
+        SimBoard.fromGameState(_gameState, captureTarget: captureTarget);
+    if (_shouldTryNativeKatagoCoach) {
+      final suggestions = await _trySuggestMovesWithKatagoCoach(
+        sim: sim,
+        count: count,
+        policyPlane: policyPlane,
+      );
+      if (suggestions.isNotEmpty) return suggestions;
+    }
+    final params = <String, dynamic>{
+      'cells': sim.cells.toList(),
+      'boardSize': sim.size,
+      'captureTarget': sim.captureTarget,
+      'capturedByBlack': sim.capturedByBlack,
+      'capturedByWhite': sim.capturedByWhite,
+      'currentPlayer': sim.currentPlayer,
+      'aiStyle': _aiStyle.name,
+      'difficulty': difficulty.name,
+      if (aiAlgorithmConfig != null) 'algorithmConfigId': aiAlgorithmConfig!.id,
+      'gameMode': gameMode.storageKey,
+      'consecutivePasses': sim.consecutivePasses,
+      'count': count,
+      if (_usesKatagoTrainingCoach)
+        ..._katagoCoachRunnerParams(
+          sim: sim,
+          count: count,
+          policyPlane: policyPlane,
+        ),
+    };
+    final requestId = 'training_hint_${_gameGeneration}_${++_requestCounter}';
+    _pendingTrainingSuggestionRequestId = requestId;
+    final result = await _trainingSuggestionRunner.search(
+      TrainingSuggestionRequest(id: requestId, params: params),
+    );
+    if (_pendingTrainingSuggestionRequestId == requestId) {
+      _pendingTrainingSuggestionRequestId = null;
+    }
+    if (result.hasError) return const [];
+    final structured = result.structuredSuggestions;
+    if (structured != null) {
+      return structured.map(_trainingSuggestionFromStructured).toList();
+    }
+    final raw = result.suggestions ?? const <List<num>>[];
+    return raw
+        .map(
+          (entry) => TrainingSuggestion(
+            position: BoardPosition(entry[0].toInt(), entry[1].toInt()),
+            winRate: entry[2].toDouble() / 1000.0,
+          ),
+        )
+        .toList();
+  }
+
+  List<int> _legalMoveIndices(SimBoard board) {
+    return [
+      for (final moveIndex in board.getLegalMoves())
+        if (board
+            .analyzeMove(
+              moveIndex ~/ board.size,
+              moveIndex % board.size,
+            )
+            .isLegal)
+          moveIndex,
+    ];
+  }
+
+  Map<String, dynamic> _katagoCoachRunnerParams({
+    required SimBoard sim,
+    required int count,
+    required KatagoPolicyPlane policyPlane,
+  }) {
+    final params = _katagoCoachConfig.parameters;
+    return {
+      'coachBackend': 'katago_onnx',
+      'modelAsset': _stringParameter(params, 'modelAsset'),
+      'timeBudgetMillis': _intParameter(params, 'timeBudgetMillis', 10000),
+      'policyTemperature': 0.0,
+      'candidateLimit': count,
+      'policyPlane': policyPlane.index,
+      'legalMoves': _legalMoveIndices(sim),
+    };
+  }
+
+  TrainingSuggestion _trainingSuggestionFromStructured(
+    Map<String, dynamic> entry,
+  ) {
+    return TrainingSuggestion(
+      position: BoardPosition(
+        (entry['row'] as num).toInt(),
+        (entry['col'] as num).toInt(),
+      ),
+      winRate: ((entry['winRate'] as num?)?.toDouble() ?? 0.5)
+          .clamp(0.05, 0.95)
+          .toDouble(),
+      policyScore: (entry['policyScore'] as num?)?.toDouble(),
+      policyProbability: (entry['policyProbability'] as num?)?.toDouble(),
+      valueDelta: (entry['valueDelta'] as num?)?.toDouble(),
+      scoreLead: (entry['scoreLead'] as num?)?.toDouble(),
+      scoreUncertainty: (entry['scoreUncertainty'] as num?)?.toDouble(),
+      strategyLabel: entry['strategyLabel'] as String?,
+      explanationSignals: (entry['explanationSignals'] as List?)
+              ?.map((value) => value.toString())
+              .toList(growable: false) ??
+          const [],
+      source: entry['source'] as String? ?? 'worker',
+    );
+  }
+
+  Future<List<TrainingSuggestion>> _suggestMovesWithKatagoCoach({
+    required SimBoard sim,
+    required int count,
+    required KatagoPolicyPlane policyPlane,
+  }) async {
+    final before = await _katagoModelAdapter.chooseMove(
+      _katagoCoachRequest(
+        board: SimBoard.copy(sim),
+        candidateLimit: count,
+        policyPlane: policyPlane,
+      ),
+    );
+    if (before.status != KatagoBackendStatus.ready ||
+        before.policyCandidates.isEmpty) {
+      return const [];
+    }
+
+    final suggestions = <TrainingSuggestion>[];
+    final beforeWin = before.value?.win;
+    for (final candidate in before.policyCandidates.take(count)) {
+      final after = SimBoard.copy(sim);
+      if (!after.applyMove(candidate.position.row, candidate.position.col)) {
+        continue;
+      }
+      final afterEval = await _katagoModelAdapter.chooseMove(
+        _katagoCoachRequest(
+          board: after,
+          candidateLimit: math.max(1, count),
+          policyPlane: policyPlane,
+        ),
+      );
+      final afterWin = afterEval.value?.loss ?? beforeWin;
+      final displayWinRate = (afterWin ??
+              beforeWin ??
+              _fallbackTrainingWinRate(
+                after,
+                sim.currentPlayer,
+                captureTarget,
+              ))
+          .clamp(0.05, 0.95)
+          .toDouble();
+      final valueDelta =
+          beforeWin == null || afterWin == null ? null : afterWin - beforeWin;
+      suggestions.add(
+        TrainingSuggestion(
+          position: candidate.position,
+          winRate: displayWinRate,
+          policyScore: candidate.score,
+          policyProbability: candidate.probability,
+          valueDelta: valueDelta,
+          scoreLead: afterEval.scoreBelief?.mean ?? before.scoreBelief?.mean,
+          scoreUncertainty:
+              afterEval.scoreBelief?.stdev ?? before.scoreBelief?.stdev,
+          strategyLabel: policyPlane.explanationLabel,
+          explanationSignals: _katagoCoachSignals(
+            candidate: candidate,
+            valueDelta: valueDelta,
+            scoreBelief: afterEval.scoreBelief ?? before.scoreBelief,
+            policyPlane: policyPlane,
+          ),
+          source: 'katago',
+        ),
+      );
+    }
+    return suggestions;
+  }
+
+  Future<List<TrainingSuggestion>> _trySuggestMovesWithKatagoCoach({
+    required SimBoard sim,
+    required int count,
+    required KatagoPolicyPlane policyPlane,
+  }) async {
+    try {
+      return await _suggestMovesWithKatagoCoach(
+        sim: sim,
+        count: count,
+        policyPlane: policyPlane,
+      );
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  KatagoModelRequest _katagoCoachRequest({
+    required SimBoard board,
+    required int candidateLimit,
+    required KatagoPolicyPlane policyPlane,
+  }) {
+    final params = _katagoCoachConfig.parameters;
+    return KatagoModelRequest(
+      board: board,
+      modelAsset: _stringParameter(params, 'modelAsset'),
+      timeBudgetMillis: _intParameter(params, 'timeBudgetMillis', 10000),
+      policyTemperature: 0,
+      candidateLimit: math.max(1, candidateLimit),
+      policyPlane: policyPlane.index,
+    );
+  }
+
+  List<String> _katagoCoachSignals({
+    required KatagoPolicyCandidate candidate,
+    required double? valueDelta,
+    required KatagoScoreBeliefSummary? scoreBelief,
+    required KatagoPolicyPlane policyPlane,
+  }) {
+    final signals = <String>[
+      '${policyPlane.explanationLabel}第 ${candidate.rank} 選',
+      '策略偏好 ${(candidate.probability * 100).round()}%',
+    ];
+    if (scoreBelief != null) {
+      final lead = scoreBelief.mean;
+      final sign = lead >= 0 ? '+' : '';
+      signals.add('模型目差 $sign${lead.toStringAsFixed(1)}');
+    }
+    return signals;
+  }
+
+  void cancelTrainingSuggestions() {
+    final requestId = _pendingTrainingSuggestionRequestId;
+    if (requestId == null) return;
+    _trainingSuggestionRunner.cancel(requestId);
+    _pendingTrainingSuggestionRequestId = null;
+  }
+
   Future<bool> placeStone(int row, int col) async {
     if (_isAiThinking || _result != CaptureGameResult.none) return false;
-    if (!isPlacementMode && _gameState.currentPlayer != humanColor) {
+    if (!isPlacementMode &&
+        !_trainingMode &&
+        _gameState.currentPlayer != humanColor) {
       return false;
     }
 
@@ -388,7 +817,7 @@ class CaptureGameProvider extends ChangeNotifier {
         _isAiThinking ||
         _result != CaptureGameResult.none ||
         isPlacementMode ||
-        _gameState.currentPlayer != humanColor) {
+        (!_trainingMode && _gameState.currentPlayer != humanColor)) {
       return false;
     }
     final newState = GoEngine.passTurn(_gameState);
@@ -611,6 +1040,7 @@ class CaptureGameProvider extends ChangeNotifier {
   }
 
   void _scheduleAiMove() {
+    if (_trainingMode) return;
     if (_disposed ||
         isPlacementMode ||
         _result != CaptureGameResult.none ||
@@ -754,7 +1184,20 @@ class CaptureGameProvider extends ChangeNotifier {
       !_disposed && _gameGeneration == generation;
 
   bool get _usesAsyncAlgorithmAgent =>
-      aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.katago;
+      aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.katago ||
+      aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.capture5 ||
+      aiAlgorithmConfig?.frameworkId == AiAlgorithmFrameworkId.mctsCapture5;
+
+  AiAlgorithmConfig get _katagoCoachConfig =>
+      AiAlgorithmRegistry.configById(_katagoCoachConfigId);
+
+  bool get _usesKatagoTrainingCoach =>
+      gameMode == GameMode.territory && isTerritoryMode;
+
+  bool get _shouldTryNativeKatagoCoach =>
+      _usesKatagoTrainingCoach &&
+      !kIsWeb &&
+      (aiAlgorithmConfig != null || _katagoModelAdapterOverride != null);
 
   void _checkWinCondition() {
     if (isTerritoryMode) {

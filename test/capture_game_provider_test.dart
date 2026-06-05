@@ -7,15 +7,18 @@ import 'package:go_puzzle/game/ai_algorithm_framework.dart';
 import 'package:go_puzzle/game/ai_rank_level.dart';
 import 'package:go_puzzle/game/ai_search_runner.dart';
 import 'package:go_puzzle/game/capture_ai.dart';
+import 'package:go_puzzle/game/capture5_onnx_features.dart';
 import 'package:go_puzzle/game/game_mode.dart';
 import 'package:go_puzzle/game/go_engine.dart';
 import 'package:go_puzzle/game/katago_model_adapter.dart';
 import 'package:go_puzzle/game/mcts_engine.dart';
+import 'package:go_puzzle/game/training_suggestion_runner.dart';
 import 'package:go_puzzle/models/board_position.dart';
 import 'package:go_puzzle/models/game_state.dart';
 import 'package:go_puzzle/providers/capture_game_provider.dart';
 import 'package:go_puzzle/providers/settings_provider.dart';
 import 'package:go_puzzle/screens/capture_game_screen.dart';
+import 'package:go_puzzle/widgets/go_board_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -75,6 +78,30 @@ class _FakeKatagoAdapter implements AsyncKatagoModelAdapter {
   }
 }
 
+class _FakeTrainingSuggestionRunner implements TrainingSuggestionRunner {
+  int searchCount = 0;
+
+  @override
+  Future<TrainingSuggestionSearchResult> search(
+    TrainingSuggestionRequest request,
+  ) async {
+    searchCount++;
+    return TrainingSuggestionSearchResult(
+      requestId: request.id,
+      suggestions: const [
+        [1, 2, 570],
+        [3, 4, 625],
+      ],
+    );
+  }
+
+  @override
+  void cancel(TrainingSuggestionRequestId requestId) {}
+
+  @override
+  void dispose() {}
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -108,6 +135,59 @@ void main() {
       expect(board[center][center + 1], StoneColor.white);
       expect(board[center - 1][center], StoneColor.white);
       expect(board[center - 1][center + 1], StoneColor.black);
+    });
+
+    test('ordered initial moves use canonical built-in opening order', () {
+      expect(
+        orderedCaptureInitialMoves(
+          boardSize: 9,
+          initialMode: CaptureInitialMode.cross,
+        ),
+        [
+          [5, 4],
+          [4, 3],
+          [3, 4],
+          [4, 5],
+        ],
+      );
+      expect(
+        orderedCaptureInitialMoves(
+          boardSize: 9,
+          initialMode: CaptureInitialMode.twistCross,
+        ),
+        [
+          [4, 4],
+          [4, 5],
+          [3, 5],
+          [3, 4],
+        ],
+      );
+    });
+
+    test('ordered custom setup moves preserve row-major color interleaving',
+        () {
+      final board = List.generate(
+        9,
+        (_) => List<StoneColor>.filled(9, StoneColor.empty),
+      );
+      board[0][0] = StoneColor.black;
+      board[0][1] = StoneColor.white;
+      board[1][1] = StoneColor.black;
+      board[1][2] = StoneColor.white;
+
+      expect(
+        orderedCaptureInitialMoves(
+          boardSize: 9,
+          initialMode: CaptureInitialMode.setup,
+          initialBoardOverride: board,
+        ),
+        [
+          [0, 0],
+          [0, 1],
+          [1, 1],
+          [1, 2],
+        ],
+      );
     });
 
     test('persisted opening keys keep legacy twistCross compatibility', () {
@@ -500,6 +580,32 @@ void main() {
       expect(runner.paramsCompleter.isCompleted, isFalse);
     });
 
+    test('Capture5 config uses async ONNX adapter instead of AI runner',
+        () async {
+      final runner = _CapturingAiSearchRunner();
+      final provider = CaptureGameProvider(
+        boardSize: 13,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.advanced,
+        initialMode: CaptureInitialMode.empty,
+        humanColor: StoneColor.white,
+        minMoveDelay: Duration.zero,
+        maxMoveDelay: Duration.zero,
+        aiAlgorithmConfig: AiAlgorithmRegistry.configById(kCapture5ModelId),
+        katagoModelAdapter: const _FakeKatagoAdapter(
+          move: BoardPosition(6, 6),
+        ),
+        runner: runner,
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(provider.moveLog, [
+        [6, 6],
+      ]);
+      expect(provider.aiFailureReason, isNull);
+      expect(runner.paramsCompleter.isCompleted, isFalse);
+    });
+
     test('KataGo adapter failure is reported without fallback', () async {
       final provider = CaptureGameProvider(
         boardSize: 9,
@@ -603,14 +709,23 @@ void main() {
       expect(find.text('切換 AI 風格'), findsNothing);
     });
 
-    testWidgets('shows move coordinates above the board and highlights marks',
+    testWidgets('training mode exposes strategy switch and explanation panel',
         (tester) async {
+      // Spec: docs/specs_map/main_game_flow.yaml#training_coach_katago
+      tester.view.physicalSize = const Size(900, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final runner = _FakeTrainingSuggestionRunner();
       final provider = CaptureGameProvider(
         boardSize: 9,
         captureTarget: 5,
         difficulty: DifficultyLevel.beginner,
-        initialMode: CaptureInitialMode.setup,
+        gameMode: GameMode.territory,
+        initialMode: CaptureInitialMode.empty,
         minMoveDelay: Duration.zero,
+        trainingSuggestionRunner: runner,
       );
       final settings = SettingsProvider();
 
@@ -621,7 +736,131 @@ void main() {
               ChangeNotifierProvider.value(value: settings),
               ChangeNotifierProvider.value(value: provider),
             ],
-            child: const CaptureGamePlayScreen(
+            child: CaptureGamePlayScreen(
+              key: UniqueKey(),
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              gameMode: GameMode.territory,
+              initialMode: CaptureInitialMode.empty,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('進入陪練模式'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('離開陪練'), findsOneWidget);
+      expect(find.text('AI 陪練模式'), findsOneWidget);
+      expect(find.textContaining('/ 5 輪'), findsNothing);
+      expect(find.text('穩定'), findsOneWidget);
+      expect(find.text('已推薦 2 手'), findsOneWidget);
+      expect(find.text('詳情'), findsOneWidget);
+      expect(find.textContaining('57%'), findsNothing);
+      expect(runner.searchCount, 1);
+
+      await tester.tap(find.text('詳情'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('推薦詳情'), findsOneWidget);
+      expect(find.textContaining('57%'), findsWidgets);
+
+      await tester.tap(find.text('完成'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.pump(const Duration(seconds: 4));
+      expect(runner.searchCount, 1);
+
+      await tester.tap(find.text('穩定'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('策略視角'), findsOneWidget);
+      expect(find.text('短期樂觀'), findsOneWidget);
+
+      await tester.tap(find.text('短期樂觀'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('短期'), findsOneWidget);
+      expect(runner.searchCount, 2);
+
+      provider.dispose();
+    });
+
+    testWidgets('training mode entry explains capture-five unavailability',
+        (tester) async {
+      // Spec: docs/specs_map/main_game_flow.yaml#training_coach_katago
+      final runner = _FakeTrainingSuggestionRunner();
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        gameMode: GameMode.capture,
+        initialMode: CaptureInitialMode.empty,
+        minMoveDelay: Duration.zero,
+        trainingSuggestionRunner: runner,
+      );
+      final settings = SettingsProvider();
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: CaptureGamePlayScreen(
+              key: UniqueKey(),
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              gameMode: GameMode.capture,
+              initialMode: CaptureInitialMode.empty,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('進入陪練模式'), findsOneWidget);
+      expect(find.text('吃 5 子模式不可用'), findsOneWidget);
+
+      await tester.tap(find.text('進入陪練模式'));
+      await tester.pumpAndSettle();
+
+      expect(provider.trainingMode, isFalse);
+      expect(runner.searchCount, 0);
+
+      provider.dispose();
+    });
+
+    testWidgets('shows move coordinates above the board and highlights marks',
+        (tester) async {
+      final provider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        minMoveDelay: Duration.zero,
+      );
+      final settings = SettingsProvider();
+      await settings.setShowMoveLog(false);
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: CaptureGamePlayScreen(
+              key: UniqueKey(),
               aiRank: AiRankLevel.min,
               captureTarget: 5,
               gameMode: GameMode.capture,
@@ -633,7 +872,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('輪到你（黑棋）落子'), findsOneWidget);
-      expect(find.text('等待黑棋落子'), findsOneWidget);
+      expect(find.text('等待黑棋落子'), findsNothing);
       expect(find.text('落子紀錄：'), findsNothing);
       expect(find.text('操作'), findsOneWidget);
       expect(find.text('後退一手'), findsNothing);
@@ -644,21 +883,50 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('等待黑棋落子'), findsNothing);
-      expect(find.text('1九'), findsOneWidget);
-      expect(find.text('2八'), findsOneWidget);
+      expect(find.text('1一'), findsNothing);
+      expect(find.text('2二'), findsNothing);
       expect(find.text('紀錄'), findsNothing);
 
       await tester.tap(find.text('操作'));
       await tester.pumpAndSettle();
 
-      expect(find.text('隱藏棋譜'), findsOneWidget);
+      expect(find.text('顯示棋譜'), findsOneWidget);
+      expect(find.text('顯示手數'), findsOneWidget);
+      expect(find.text('1一'), findsNothing);
+      expect(find.text('2二'), findsNothing);
 
-      expect(find.text('1九'), findsOneWidget);
-      expect(find.text('2八'), findsOneWidget);
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+
+      await settings.setShowMoveLog(true);
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: CaptureGamePlayScreen(
+              key: UniqueKey(),
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              gameMode: GameMode.capture,
+              initialMode: CaptureInitialMode.setup,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('1一'), findsOneWidget);
+      expect(find.text('2二'), findsOneWidget);
       expect(
-        tester.widget<Text>(find.text('2八')).style?.fontWeight,
+        tester.widget<Text>(find.text('2二')).style?.fontWeight,
         FontWeight.w500,
       );
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('標記此手'));
       await tester.pumpAndSettle();
@@ -666,7 +934,7 @@ void main() {
       // 1.2.0: marking a move shows a ⭐ overlay instead of changing fontWeight.
       expect(find.text('⭐'), findsOneWidget);
       expect(
-        tester.widget<Text>(find.text('2八')).style?.fontWeight,
+        tester.widget<Text>(find.text('2二')).style?.fontWeight,
         FontWeight.w500,
       );
 
@@ -680,7 +948,7 @@ void main() {
       await tester.tapAt(const Offset(8, 8));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('1九'));
+      await tester.tap(find.text('1一'));
       await tester.pumpAndSettle();
 
       expect(find.text('最新'), findsOneWidget);
@@ -710,8 +978,81 @@ void main() {
       await tester.tap(find.text('後退一手'));
       await tester.pumpAndSettle();
 
-      expect(find.text('1九'), findsOneWidget);
-      expect(find.text('2八'), findsNothing);
+      expect(find.text('1一'), findsOneWidget);
+      expect(find.text('2二'), findsNothing);
+    });
+
+    testWidgets('operation menu 手數 toggle is current-game only',
+        (tester) async {
+      final settings = SettingsProvider();
+      settings.setShowMoveNumbers(true);
+
+      GoBoardPainter boardPainter() {
+        return tester
+            .widgetList<CustomPaint>(find.byType(CustomPaint))
+            .map((widget) => widget.painter)
+            .whereType<GoBoardPainter>()
+            .single;
+      }
+
+      Future<void> pumpGame({
+        required CaptureGameProvider provider,
+        required Key screenKey,
+      }) async {
+        await tester.pumpWidget(
+          CupertinoApp(
+            home: MultiProvider(
+              providers: [
+                ChangeNotifierProvider.value(value: settings),
+                ChangeNotifierProvider.value(value: provider),
+              ],
+              child: CaptureGamePlayScreen(
+                key: screenKey,
+                aiRank: AiRankLevel.min,
+                captureTarget: 5,
+                gameMode: GameMode.capture,
+                initialMode: CaptureInitialMode.setup,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      final firstProvider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        minMoveDelay: Duration.zero,
+      );
+      await pumpGame(provider: firstProvider, screenKey: UniqueKey());
+      await firstProvider.placeStone(8, 0);
+      await tester.pumpAndSettle();
+
+      expect(boardPainter().showMoveNumbers, isTrue);
+      expect(boardPainter().moveNumberMoves, [
+        [8, 0],
+      ]);
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      expect(find.text('隱藏手數'), findsOneWidget);
+
+      await tester.tap(find.text('隱藏手數'));
+      await tester.pumpAndSettle();
+      expect(boardPainter().showMoveNumbers, isFalse);
+      expect(settings.showMoveNumbers, isTrue);
+
+      final secondProvider = CaptureGameProvider(
+        boardSize: 9,
+        captureTarget: 5,
+        difficulty: DifficultyLevel.beginner,
+        initialMode: CaptureInitialMode.setup,
+        minMoveDelay: Duration.zero,
+      );
+      await pumpGame(provider: secondProvider, screenKey: UniqueKey());
+      expect(boardPainter().showMoveNumbers, isTrue);
     });
 
     testWidgets('copies move log as text and SGF from operation menu',
@@ -750,7 +1091,8 @@ void main() {
               ChangeNotifierProvider.value(value: settings),
               ChangeNotifierProvider.value(value: provider),
             ],
-            child: const CaptureGamePlayScreen(
+            child: CaptureGamePlayScreen(
+              key: UniqueKey(),
               aiRank: AiRankLevel.min,
               captureTarget: 5,
               gameMode: GameMode.capture,
@@ -856,7 +1198,7 @@ void main() {
 
       expect(
         clipboardWrites.last,
-        '(;FF[4]GM[1]SZ[9]AB[ed][ef]AW[de][fe])',
+        '(;FF[4]GM[1]SZ[9]AB[ef][ed]AW[de][fe])',
       );
 
       await provider.placeStone(4, 4);
@@ -925,6 +1267,14 @@ void main() {
         await tester.pump(const Duration(milliseconds: 1500));
       }
 
+      Future<void> copySgf() async {
+        await tester.tap(find.text('操作'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('複製棋譜為 SGF'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 1500));
+      }
+
       final twistProvider = CaptureGameProvider(
         boardSize: 9,
         captureTarget: 5,
@@ -940,7 +1290,12 @@ void main() {
       await copyText();
       expect(
         clipboardWrites.last,
-        '01 B[5五]\n02 W[6五]\n03 B[6四]\n04 W[5四]\n---\n',
+        '01 B[5五]\n02 W[6五]\n03 B[6六]\n04 W[5六]\n---\n',
+      );
+      await copySgf();
+      expect(
+        clipboardWrites.last,
+        '(;FF[4]GM[1]SZ[9]AB[ee][fd]AW[fe][ed])',
       );
 
       await twistProvider.placeStone(2, 2);
@@ -948,7 +1303,7 @@ void main() {
       await copyText();
       expect(
         clipboardWrites.last,
-        '01 B[5五]\n02 W[6五]\n03 B[6四]\n04 W[5四]\n---\n05 B[3三]\n',
+        '01 B[5五]\n02 W[6五]\n03 B[6六]\n04 W[5六]\n---\n05 B[3七]\n',
       );
 
       final customBoard = List.generate(
@@ -975,7 +1330,7 @@ void main() {
       await copyText();
       expect(
         clipboardWrites.last,
-        '01 B[1一]\n02 W[2一]\n03 B[2二]\n04 W[3二]\n---\n',
+        '01 B[1九]\n02 W[2九]\n03 B[2八]\n04 W[3八]\n---\n',
       );
 
       final emptyProvider = CaptureGameProvider(
@@ -1007,6 +1362,7 @@ void main() {
         minMoveDelay: Duration.zero,
       );
       final settings = SettingsProvider();
+      await settings.setShowMoveLog(false);
 
       final clipboardWrites = <String>[];
       final messenger =
@@ -1030,7 +1386,8 @@ void main() {
               ChangeNotifierProvider.value(value: settings),
               ChangeNotifierProvider.value(value: provider),
             ],
-            child: const CaptureGamePlayScreen(
+            child: CaptureGamePlayScreen(
+              key: UniqueKey(),
               aiRank: AiRankLevel.min,
               captureTarget: 5,
               gameMode: GameMode.capture,
@@ -1046,8 +1403,43 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('1九'), findsOneWidget);
-      expect(find.text('2八'), findsOneWidget);
+      expect(find.text('1一'), findsNothing);
+      expect(find.text('2二'), findsNothing);
+
+      await tester.tap(find.text('操作'));
+      await tester.pumpAndSettle();
+      expect(find.text('顯示棋譜'), findsOneWidget);
+
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+
+      await settings.setShowMoveLog(true);
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: settings),
+              ChangeNotifierProvider.value(value: provider),
+            ],
+            child: CaptureGamePlayScreen(
+              key: UniqueKey(),
+              aiRank: AiRankLevel.min,
+              captureTarget: 5,
+              gameMode: GameMode.capture,
+              initialMode: CaptureInitialMode.setup,
+              inheritedMoves: const [
+                [8, 0],
+                [7, 1],
+              ],
+              inheritedMarkedMoveNumbers: const {1},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('1一'), findsOneWidget);
+      expect(find.text('2二'), findsOneWidget);
       expect(find.text('⭐'), findsOneWidget);
 
       await tester.tap(find.text('操作'));
@@ -1056,7 +1448,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 1500));
 
-      expect(clipboardWrites.last, '01 B[1九]\n02 W[2八]\n---\n');
+      expect(clipboardWrites.last, '01 B[1一]\n02 W[2二]\n---\n');
 
       await provider.placeStone(6, 2);
       await provider.placeStone(5, 3);
@@ -1070,7 +1462,7 @@ void main() {
 
       expect(
         clipboardWrites.last,
-        '01 B[1九]\n02 W[2八]\n---\n03 B[3七]\n04 W[4六]\n',
+        '01 B[1一]\n02 W[2二]\n---\n03 B[3三]\n04 W[4四]\n',
       );
     });
 

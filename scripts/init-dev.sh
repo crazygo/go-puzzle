@@ -15,10 +15,7 @@ set -euo pipefail
 #   FLUTTER_DIST_URL=https://.../flutter_linux_3.41.7-stable.tar.xz
 #   FLUTTER_ARCHIVE_LOCAL=/path/to/flutter_linux_*.tar.xz
 #   INIT_DEV_SKIP_KATAGO_MODELS=1
-#   KATAGO_TERRITORY_SHARED_URL=https://.../katago.onnx
-#   KATAGO_TERRITORY_MODEL_9_URL=https://...
-#   KATAGO_TERRITORY_MODEL_13_URL=https://...
-#   KATAGO_TERRITORY_MODEL_19_URL=https://...
+#   KATAGO_ONNX_MODEL_URL=https://.../katago.onnx
 #   INIT_DEV_SKIP_RECOGNITION_MODELS=1
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -66,11 +63,17 @@ FLUTTER_ARCHIVE_LOCAL="${FLUTTER_ARCHIVE_LOCAL:-${CACHE_DIR}/${FLUTTER_ARCHIVE}}
 FLUTTER_DIR="${TOOLS_DIR}/flutter"
 FLUTTER_VERSION_STAMP="${FLUTTER_DIR}/.installed-version"
 MODEL_DIR="${ROOT_DIR}/assets/models"
-DEFAULT_KATAGO_TERRITORY_SHARED_URL="${DEFAULT_KATAGO_TERRITORY_SHARED_URL:-https://huggingface.co/kaya-go/kaya/resolve/main/katago_small_b18c384nbt-onnx-batched-fp16.onnx}"
-KATAGO_TERRITORY_SHARED_URL="${KATAGO_TERRITORY_SHARED_URL:-${DEFAULT_KATAGO_TERRITORY_SHARED_URL}}"
-KATAGO_TERRITORY_MODEL_9_URL="${KATAGO_TERRITORY_MODEL_9_URL:-${KATAGO_TERRITORY_SHARED_URL}}"
-KATAGO_TERRITORY_MODEL_13_URL="${KATAGO_TERRITORY_MODEL_13_URL:-${KATAGO_TERRITORY_SHARED_URL}}"
-KATAGO_TERRITORY_MODEL_19_URL="${KATAGO_TERRITORY_MODEL_19_URL:-${KATAGO_TERRITORY_SHARED_URL}}"
+KATAGO_ONNX_MODEL_FILENAME="katago-kata1-b18c384nbt-batched-fp16.onnx"
+DEFAULT_KATAGO_ONNX_MODEL_URL="${DEFAULT_KATAGO_ONNX_MODEL_URL:-https://huggingface.co/kaya-go/kaya/resolve/main/katago_small_b18c384nbt-onnx-batched-fp16.onnx}"
+KATAGO_ONNX_MODEL_URL="${KATAGO_ONNX_MODEL_URL:-${DEFAULT_KATAGO_ONNX_MODEL_URL}}"
+CAPTURE5_ONNX_MODEL_ID="capture5_13x13_11p_resnet_phase_h_hard010"
+CAPTURE5_ONNX_MODEL_FILENAME="${CAPTURE5_ONNX_MODEL_ID}.onnx"
+CAPTURE5_ONNX_METADATA_FILENAME="${CAPTURE5_ONNX_MODEL_ID}.metadata.json"
+CAPTURE5_ONNX_MODEL_SHA256="204f39d27b719a307be09bef96adfe61415e53bf26be4d2c87e4560bd0e629de"
+CAPTURE5_ONNX_MODEL_LOCAL="${CAPTURE5_ONNX_MODEL_LOCAL:-/Users/admin/Code/go-puzzle-ml/models/generated/${CAPTURE5_ONNX_MODEL_FILENAME}}"
+CAPTURE5_ONNX_METADATA_LOCAL="${CAPTURE5_ONNX_METADATA_LOCAL:-/Users/admin/Code/go-puzzle-ml/models/generated/${CAPTURE5_ONNX_METADATA_FILENAME}}"
+DEFAULT_CAPTURE5_ONNX_MODEL_URL="${DEFAULT_CAPTURE5_ONNX_MODEL_URL:-https://github.com/crazygo/go-puzzle/releases/download/capture5-models-v1/${CAPTURE5_ONNX_MODEL_FILENAME}}"
+CAPTURE5_ONNX_MODEL_URL="${CAPTURE5_ONNX_MODEL_URL:-${DEFAULT_CAPTURE5_ONNX_MODEL_URL}}"
 RUN_ANALYZE=0
 
 mkdir -p "${TOOLS_DIR}" "${BIN_DIR}" "${CACHE_DIR}" "${MODEL_DIR}"
@@ -278,42 +281,43 @@ download_katago_models() {
     return 0
   fi
 
-  local shared_cache="${CACHE_DIR}/katago_territory_shared.onnx"
-  local shared_download_attempted=0
-  local shared_download_ok=0
-  local failed=0
-  local specs=(
-    "9|katago_territory_9x9.onnx|${KATAGO_TERRITORY_MODEL_9_URL}"
-    "13|katago_territory_13x13.onnx|${KATAGO_TERRITORY_MODEL_13_URL}"
-    "19|katago_territory_19x19.onnx|${KATAGO_TERRITORY_MODEL_19_URL}"
-  )
+  local target="${MODEL_DIR}/${KATAGO_ONNX_MODEL_FILENAME}"
+  local cache_file="${CACHE_DIR}/${KATAGO_ONNX_MODEL_FILENAME}"
+  if ! download_file_if_needed "${KATAGO_ONNX_MODEL_URL}" "${target}" "${cache_file}"; then
+    log "Missing KataGo ONNX model. Re-run init-dev after restoring network access or set KATAGO_ONNX_MODEL_URL."
+    log "Continuing without the ONNX model; supported paths will surface model readiness or fallback according to product rules."
+  fi
 
-  for spec in "${specs[@]}"; do
-    IFS="|" read -r board_size filename url <<< "${spec}"
-    local target="${MODEL_DIR}/${filename}"
-    local cache_file="${CACHE_DIR}/${filename}"
-    if [[ "${url}" == "${KATAGO_TERRITORY_SHARED_URL}" ]]; then
-      cache_file="${shared_cache}"
-      if [[ "${shared_download_attempted}" == "0" ]]; then
-        shared_download_attempted=1
-        if download_file_if_needed "${url}" "${target}" "${cache_file}"; then
-          shared_download_ok=1
-          continue
-        fi
-      elif [[ "${shared_download_ok}" == "1" ]]; then
-        cp -f "${cache_file}" "${target}"
-        log "Copied shared model into ${target}"
-        continue
-      fi
-    elif download_file_if_needed "${url}" "${target}" "${cache_file}"; then
-      continue
+  local capture_target="${MODEL_DIR}/${CAPTURE5_ONNX_MODEL_FILENAME}"
+  local capture_cache_file="${CACHE_DIR}/${CAPTURE5_ONNX_MODEL_FILENAME}"
+  if [[ -s "${capture_target}" ]]; then
+    log "Using existing Capture5 ONNX model file: ${capture_target}"
+  elif [[ -s "${CAPTURE5_ONNX_MODEL_LOCAL}" ]]; then
+    cp -f "${CAPTURE5_ONNX_MODEL_LOCAL}" "${capture_target}"
+    log "Copied local Capture5 ONNX model file: ${capture_target}"
+  elif [[ -n "${CAPTURE5_ONNX_MODEL_URL}" ]]; then
+    if ! download_file_if_needed "${CAPTURE5_ONNX_MODEL_URL}" "${capture_target}" "${capture_cache_file}"; then
+      log "Missing Capture5 ONNX model. Re-run init-dev after restoring network access or set CAPTURE5_ONNX_MODEL_URL."
     fi
-    failed=1
-    log "Missing ${board_size}x${board_size} model. Re-run init-dev after restoring network access or set KATAGO_TERRITORY_MODEL_${board_size}_URL."
-  done
+  else
+    log "Skipping Capture5 ONNX model download; set CAPTURE5_ONNX_MODEL_URL or CAPTURE5_ONNX_MODEL_LOCAL to enable it."
+  fi
 
-  if [[ "${failed}" == "1" ]]; then
-    log "Continuing without some ONNX models; the app will fall back to Dart territory search."
+  local capture_metadata_target="${MODEL_DIR}/${CAPTURE5_ONNX_METADATA_FILENAME}"
+  if [[ -s "${capture_metadata_target}" ]]; then
+    log "Using existing Capture5 metadata file: ${capture_metadata_target}"
+  elif [[ -s "${CAPTURE5_ONNX_METADATA_LOCAL}" ]]; then
+    cp -f "${CAPTURE5_ONNX_METADATA_LOCAL}" "${capture_metadata_target}"
+    log "Copied local Capture5 metadata file: ${capture_metadata_target}"
+  fi
+
+  if [[ -s "${capture_target}" ]]; then
+    local actual_sha
+    actual_sha="$(shasum -a 256 "${capture_target}" | awk '{print $1}')"
+    if [[ "${actual_sha}" != "${CAPTURE5_ONNX_MODEL_SHA256}" ]]; then
+      log "Capture5 ONNX checksum mismatch: expected ${CAPTURE5_ONNX_MODEL_SHA256}, got ${actual_sha}"
+      return 1
+    fi
   fi
 }
 

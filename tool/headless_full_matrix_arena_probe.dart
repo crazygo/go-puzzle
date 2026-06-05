@@ -8,9 +8,8 @@ import 'dart:math' as math;
 import 'package:go_puzzle/game/ai_algorithm_framework.dart';
 import 'package:go_puzzle/game/ai_arena_executor.dart';
 import 'package:go_puzzle/game/ai_arena_ladder.dart';
-import 'package:go_puzzle/game/katago_model_adapter.dart';
-import 'package:go_puzzle/game/katago_onnx_features.dart';
-import 'package:go_puzzle/models/board_position.dart';
+
+import 'node_katago_onnx_model_adapter.dart';
 
 const _openings = [
   ('empty', 'empty_v1'),
@@ -35,6 +34,9 @@ Future<void> main(List<String> args) async {
   final endCellOpt = int.tryParse(opts['end-cell'] ?? '');
   final outPath = opts['out'] ??
       'docs/ai_eval/runs/2026-05-19-headless-full-matrix-arena-probe.json';
+  final progressIntervalSeconds =
+      int.tryParse(opts['progress-interval-seconds'] ?? '30') ?? 30;
+  final scheduling = opts['scheduling'] ?? 'dynamic';
   final policyPlane = int.tryParse(opts['policy-plane'] ?? '0') ?? 0;
   final configIds = (opts['configs'] ?? '')
       .split(',')
@@ -51,6 +53,11 @@ Future<void> main(List<String> args) async {
   }
   if (boardSizes.isEmpty) {
     stderr.writeln('ERROR: --board-size/--board-sizes must include a value.');
+    exitCode = 2;
+    return;
+  }
+  if (scheduling != 'dynamic' && scheduling != 'fixed') {
+    stderr.writeln('ERROR: --scheduling must be dynamic or fixed.');
     exitCode = 2;
     return;
   }
@@ -74,9 +81,55 @@ Future<void> main(List<String> args) async {
     return;
   }
 
+  final runStartedAt = DateTime.now();
+  final progressDir = Directory(
+    '.cache/ai_eval_progress/${_progressRunId(outPath)}',
+  );
+  if (progressDir.existsSync()) progressDir.deleteSync(recursive: true);
+  progressDir.createSync(recursive: true);
+  final queueCursorPath = '${progressDir.path}/queue-cursor.txt';
+  final queueLockPath = '${progressDir.path}/queue.lock';
+  if (scheduling == 'dynamic') {
+    File(queueCursorPath).writeAsStringSync('0');
+  }
+
   final buckets = List.generate(workers, (_) => <_CellPlan>[]);
-  for (var i = 0; i < selected.length; i++) {
-    buckets[i % workers].add(selected[i]);
+  if (scheduling == 'fixed') {
+    for (var i = 0; i < selected.length; i++) {
+      buckets[i % workers].add(selected[i]);
+    }
+  } else {
+    for (var workerIndex = 0; workerIndex < workers; workerIndex++) {
+      buckets[workerIndex] = selected;
+    }
+  }
+  for (var workerIndex = 0; workerIndex < buckets.length; workerIndex++) {
+    final assigned =
+        scheduling == 'dynamic' ? selected.length : buckets[workerIndex].length;
+    _writeWorkerProgress(
+      progressDir: progressDir.path,
+      workerIndex: workerIndex,
+      completed: 0,
+      assigned: assigned,
+      status: assigned == 0 ? 'idle' : 'queued',
+    );
+  }
+  Timer? progressTimer;
+  if (progressIntervalSeconds > 0) {
+    _printProgress(
+      progressDir: progressDir,
+      totalCells: selected.length,
+      startedAt: runStartedAt,
+      force: true,
+    );
+    progressTimer = Timer.periodic(
+      Duration(seconds: progressIntervalSeconds),
+      (_) => _printProgress(
+        progressDir: progressDir,
+        totalCells: selected.length,
+        startedAt: runStartedAt,
+      ),
+    );
   }
 
   final futures = <Future<List<Map<String, Object?>>>>[];
@@ -88,11 +141,28 @@ Future<void> main(List<String> args) async {
         workerIndex: workerIndex,
         policyPlane: policyPlane,
         cells: bucket,
+        progressDir: progressDir.path,
+        scheduling: scheduling,
+        queueCursorPath: scheduling == 'dynamic' ? queueCursorPath : null,
+        queueLockPath: scheduling == 'dynamic' ? queueLockPath : null,
+        assignedCells:
+            scheduling == 'dynamic' ? selected.length : bucket.length,
       )),
     ));
   }
 
-  final workerResults = await Future.wait(futures);
+  late final List<List<Map<String, Object?>>> workerResults;
+  try {
+    workerResults = await Future.wait(futures);
+  } finally {
+    progressTimer?.cancel();
+    _printProgress(
+      progressDir: progressDir,
+      totalCells: selected.length,
+      startedAt: runStartedAt,
+      force: true,
+    );
+  }
   final matrixCells = workerResults.expand((cells) => cells).toList()
     ..sort((a, b) => (a['index']! as int).compareTo(b['index']! as int));
   final output = _mergedOutput(
@@ -109,20 +179,51 @@ Future<void> main(List<String> args) async {
     totalCells: cells.length,
     selectedCells: matrixCells,
     workers: workers,
+    scheduling: scheduling,
     policyPlane: policyPlane,
   );
-  _validateMerged(output);
   final file = File(outPath);
   await file.parent.create(recursive: true);
   await file.writeAsString(const JsonEncoder.withIndent('  ').convert(output));
+  try {
+    _validateMerged(output);
+  } catch (_) {
+    print('WROTE FAILED ARTIFACT $outPath');
+    rethrow;
+  }
   print('WROTE $outPath');
 }
 
 Future<List<Map<String, Object?>>> _runWorker(_WorkerRequest request) async {
   final adapter = NodeKatagoOnnxModelAdapter(policyPlane: request.policyPlane);
+  var completed = 0;
   try {
     final cells = <Map<String, Object?>>[];
-    for (final cell in request.cells) {
+    _writeWorkerProgress(
+      progressDir: request.progressDir,
+      workerIndex: request.workerIndex,
+      completed: completed,
+      assigned: request.assignedCells,
+      status: 'running',
+    );
+    var fixedIndex = 0;
+    while (true) {
+      final cell = request.scheduling == 'dynamic'
+          ? _takeNextQueuedCell(request)
+          : fixedIndex < request.cells.length
+              ? request.cells[fixedIndex++]
+              : null;
+      if (cell == null) break;
+      final cellStartedAt = DateTime.now();
+      final cellStopwatch = Stopwatch()..start();
+      _writeWorkerProgress(
+        progressDir: request.progressDir,
+        workerIndex: request.workerIndex,
+        completed: completed,
+        assigned: request.assignedCells,
+        status: 'running',
+        currentCell: cell,
+      );
       final executor = AiArenaExecutor(
         boardSize: cell.boardSize,
         captureTarget: cell.captureTarget,
@@ -138,166 +239,160 @@ Future<List<Map<String, Object?>>> _runWorker(_WorkerRequest request) async {
         alternateColors: false,
         asyncKatagoModelAdapter: adapter,
       );
+      cellStopwatch.stop();
       cells.add(_cellJson(
         plan: cell,
         match: match,
         workerIndex: request.workerIndex,
+        startedAt: cellStartedAt,
+        elapsed: cellStopwatch.elapsed,
       ));
+      completed++;
+      _writeWorkerProgress(
+        progressDir: request.progressDir,
+        workerIndex: request.workerIndex,
+        completed: completed,
+        assigned: request.assignedCells,
+        status: 'running',
+        currentCell: cell,
+      );
     }
+    _writeWorkerProgress(
+      progressDir: request.progressDir,
+      workerIndex: request.workerIndex,
+      completed: completed,
+      assigned: request.assignedCells,
+      status: 'done',
+    );
     return cells;
+  } catch (error) {
+    _writeWorkerProgress(
+      progressDir: request.progressDir,
+      workerIndex: request.workerIndex,
+      completed: completed,
+      assigned: request.assignedCells,
+      status: 'error',
+      error: '$error',
+    );
+    rethrow;
   } finally {
     await adapter.close();
   }
 }
 
-class NodeKatagoOnnxModelAdapter implements AsyncKatagoModelAdapter {
-  NodeKatagoOnnxModelAdapter({
-    this.policyPlane = 0,
-    this.workerScript = 'tool/katago_onnx_worker.js',
-    this.encoder = const KatagoOnnxFeatureEncoder(),
-  });
-
-  final int policyPlane;
-  final String workerScript;
-  final KatagoOnnxFeatureEncoder encoder;
-  Process? _process;
-  StreamSubscription<String>? _stdoutSub;
-  StreamSubscription<String>? _stderrSub;
-  final _pending = <int, Completer<Map<String, dynamic>>>{};
-  final _stderr = StringBuffer();
-  var _nextId = 1;
-
-  @override
-  Future<void> preload(Iterable<KatagoModelRequest> requests) async {
-    final models = requests.map((request) => request.modelAsset).toSet();
-    for (final model in models) {
-      final response = await _send({'type': 'load', 'model': model});
-      if (response['ok'] != true) {
-        throw StateError(
-            'katago_node_onnx_load_failed:$model:${response['error']}');
-      }
-    }
-  }
-
-  @override
-  Future<KatagoModelEvaluation> chooseMove(KatagoModelRequest request) async {
+_CellPlan? _takeNextQueuedCell(_WorkerRequest request) {
+  final cursorPath = request.queueCursorPath;
+  final lockPath = request.queueLockPath;
+  if (cursorPath == null || lockPath == null) return null;
+  final lock = File(lockPath).openSync(mode: FileMode.write);
+  try {
+    lock.lockSync(FileLock.blockingExclusive);
+    final cursorFile = File(cursorPath);
+    final raw = cursorFile.existsSync() ? cursorFile.readAsStringSync() : '0';
+    final next = int.tryParse(raw.trim()) ?? 0;
+    if (next >= request.cells.length) return null;
+    cursorFile.writeAsStringSync('${next + 1}');
+    return request.cells[next];
+  } finally {
     try {
-      final legalMoves = request.board.getLegalMoves().where((moveIndex) {
-        return request.board
-            .analyzeMove(
-              moveIndex ~/ request.board.size,
-              moveIndex % request.board.size,
-            )
-            .isLegal;
-      }).toList(growable: false);
-      if (legalMoves.isEmpty) {
-        return const KatagoModelEvaluation(
-          status: KatagoBackendStatus.failed,
-          failureReason: 'katago_node_onnx_no_legal_moves',
-        );
-      }
-      final features = encoder.encode(request.board);
-      final response = await _send({
-        'type': 'eval',
-        'model': request.modelAsset,
-        'binInput': features.binInput.toList(growable: false),
-        'binShape': features.binShape,
-        'globalInput': features.globalInput.toList(growable: false),
-        'globalShape': features.globalShape,
-        'legalMoves': legalMoves,
-        'boardPointCount': request.board.size * request.board.size,
-        'policyPlane': policyPlane,
-        'policyTemperature': request.policyTemperature,
-        'candidateLimit': request.candidateLimit,
-      }).timeout(Duration(milliseconds: request.timeBudgetMillis));
-      if (response['ok'] != true) {
-        return KatagoModelEvaluation(
-          status: KatagoBackendStatus.failed,
-          failureReason: 'katago_node_onnx_error:${response['error']}',
-        );
-      }
-      final move = response['move'];
-      if (move is! int) {
-        return const KatagoModelEvaluation(
-          status: KatagoBackendStatus.failed,
-          failureReason: 'katago_node_onnx_bad_move_response',
-        );
-      }
-      return KatagoModelEvaluation(
-        status: KatagoBackendStatus.ready,
-        move: BoardPosition(
-            move ~/ request.board.size, move % request.board.size),
-      );
-    } catch (error) {
-      return KatagoModelEvaluation(
-        status: KatagoBackendStatus.failed,
-        failureReason: 'katago_node_onnx_error:$error',
-      );
+      lock.unlockSync();
+    } on FileSystemException {
+      // Closing the file releases the OS-level lock even if unlock fails.
     }
+    lock.closeSync();
   }
+}
 
-  Future<Map<String, dynamic>> _send(Map<String, Object?> request) async {
-    final process = await _ensureProcess();
-    final id = _nextId++;
-    final completer = Completer<Map<String, dynamic>>();
-    _pending[id] = completer;
-    process.stdin.writeln(jsonEncode({'id': id, ...request}));
-    return completer.future;
-  }
+String _progressRunId(String outPath) {
+  final basename = outPath.split(Platform.pathSeparator).last;
+  return basename.replaceAll(RegExp(r'[^A-Za-z0-9_.-]'), '_');
+}
 
-  Future<Process> _ensureProcess() async {
-    final existing = _process;
-    if (existing != null) return existing;
-    if (!File(workerScript).existsSync()) {
-      throw StateError('katago_node_worker_missing:$workerScript');
-    }
-    final process = await Process.start('node', [workerScript]);
-    _process = process;
-    _stdoutSub = process.stdout
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen(_handleLine);
-    _stderrSub = process.stderr
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen((line) => _stderr.writeln(line));
-    unawaited(process.exitCode.then((code) {
-      final error = StateError(
-        'katago_node_worker_exited:$code:${_stderr.toString().trim()}',
-      );
-      for (final completer in _pending.values) {
-        if (!completer.isCompleted) completer.completeError(error);
-      }
-      _pending.clear();
-      _process = null;
-    }));
-    return process;
-  }
+void _writeWorkerProgress({
+  required String progressDir,
+  required int workerIndex,
+  required int completed,
+  required int assigned,
+  required String status,
+  _CellPlan? currentCell,
+  String? error,
+}) {
+  final file = File('$progressDir/worker-$workerIndex.json');
+  file.writeAsStringSync(jsonEncode({
+    'workerIndex': workerIndex,
+    'completed': completed,
+    'assigned': assigned,
+    'status': status,
+    'updatedAt': DateTime.now().toIso8601String(),
+    if (currentCell != null) ...{
+      'currentCell': currentCell.index,
+      'boardSize': currentCell.boardSize,
+      'opening': currentCell.openingName,
+      'firstConfigId': currentCell.firstConfigId,
+      'secondConfigId': currentCell.secondConfigId,
+    },
+    if (error != null) 'error': error,
+  }));
+}
 
-  void _handleLine(String line) {
-    try {
-      final json = jsonDecode(line);
-      if (json is! Map<String, dynamic>) return;
-      final id = json['id'];
-      if (id is! int) return;
-      final completer = _pending.remove(id);
-      if (completer == null || completer.isCompleted) return;
-      completer.complete(json);
-    } catch (error) {
-      for (final completer in _pending.values) {
-        if (!completer.isCompleted) completer.completeError(error);
-      }
-      _pending.clear();
-    }
-  }
+void _printProgress({
+  required Directory progressDir,
+  required int totalCells,
+  required DateTime startedAt,
+  bool force = false,
+}) {
+  if (!progressDir.existsSync()) return;
+  final statuses = progressDir
+      .listSync()
+      .whereType<File>()
+      .where((file) => file.path.endsWith('.json'))
+      .map((file) {
+        try {
+          return jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+        } catch (_) {
+          return <String, dynamic>{};
+        }
+      })
+      .where((json) => json.isNotEmpty)
+      .toList()
+    ..sort(
+        (a, b) => (a['workerIndex'] as int).compareTo(b['workerIndex'] as int));
+  if (statuses.isEmpty) return;
 
-  Future<void> close() async {
-    await _stdoutSub?.cancel();
-    await _stderrSub?.cancel();
-    final process = _process;
-    _process = null;
-    process?.kill();
+  final completed = statuses.fold<int>(
+    0,
+    (sum, status) => sum + (status['completed'] as int? ?? 0),
+  );
+  final percent = totalCells == 0 ? 100.0 : completed * 100.0 / totalCells;
+  final elapsed = DateTime.now().difference(startedAt);
+  final workerText = statuses.map((status) {
+    final worker = status['workerIndex'];
+    final done = status['completed'];
+    final assigned = status['assigned'];
+    final state = status['status'];
+    final cell = status['currentCell'];
+    final opening = status['opening'];
+    final first = status['firstConfigId'];
+    final second = status['secondConfigId'];
+    final current = cell == null ? '' : ' cell=$cell $opening $first>$second';
+    return 'w$worker $done/$assigned $state$current';
+  }).join(' | ');
+
+  final label = completed >= totalCells ? 'PROGRESS done' : 'PROGRESS';
+  if (force || completed < totalCells) {
+    print(
+      '$label total=$completed/$totalCells '
+      '(${percent.toStringAsFixed(1)}%) '
+      'elapsed=${_formatElapsed(elapsed)} :: $workerText',
+    );
   }
+}
+
+String _formatElapsed(Duration duration) {
+  final hours = duration.inHours;
+  final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
 }
 
 List<_CellPlan> _buildCellPlans({
@@ -345,6 +440,8 @@ Map<String, Object?> _cellJson({
   required _CellPlan plan,
   required AiMatchResult match,
   required int workerIndex,
+  required DateTime startedAt,
+  required Duration elapsed,
 }) {
   final failureReasons = match.games
       .map((game) => game.failureReason)
@@ -355,6 +452,9 @@ Map<String, Object?> _cellJson({
   return {
     'index': plan.index,
     'workerIndex': workerIndex,
+    'startedAt': startedAt.toIso8601String(),
+    'finishedAt': startedAt.add(elapsed).toIso8601String(),
+    'elapsedMillis': elapsed.inMilliseconds,
     'boardSize': plan.boardSize,
     'pairId': _pairId(plan.firstConfigId, plan.secondConfigId),
     'opening': plan.openingName,
@@ -388,6 +488,7 @@ Map<String, Object?> _mergedOutput({
   required int totalCells,
   required List<Map<String, Object?>> selectedCells,
   required int workers,
+  required String scheduling,
   required int policyPlane,
 }) {
   final metadata = {
@@ -412,6 +513,7 @@ Map<String, Object?> _mergedOutput({
     'captureTarget': captureTarget,
     'maxMoves': maxMoves,
     'workers': workers,
+    'scheduling': scheduling,
     'katagoBackend': 'node_onnxruntime',
     'policyPlane': policyPlane,
   };
@@ -748,11 +850,21 @@ class _WorkerRequest {
     required this.workerIndex,
     required this.policyPlane,
     required this.cells,
+    required this.progressDir,
+    required this.scheduling,
+    required this.queueCursorPath,
+    required this.queueLockPath,
+    required this.assignedCells,
   });
 
   final int workerIndex;
   final int policyPlane;
   final List<_CellPlan> cells;
+  final String progressDir;
+  final String scheduling;
+  final String? queueCursorPath;
+  final String? queueLockPath;
+  final int assignedCells;
 }
 
 class _CellPlan {

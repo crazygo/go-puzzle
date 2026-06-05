@@ -70,8 +70,9 @@ ios/Flutter/ephemeral/
 # Node.js dependencies
 node_modules/
 
-# Web Worker compiled output (built from web/ai_search_worker.dart at build time)
-web/ai_search_worker.dart.js
+# Web Worker compiled output (built from web/*_worker.dart at build time)
+web/*_worker.dart.js
+web/*_worker.dart.js.deps
 
 # Runtime recognition models are downloaded from GitHub Releases during dev
 # bootstrap and must not be committed to git.

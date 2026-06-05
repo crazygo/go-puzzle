@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../models/board_position.dart';
 import 'capture_ai.dart';
+import 'capture5_onnx_features.dart';
 import 'difficulty_level.dart';
 import 'katago_model_adapter.dart';
 import 'mcts_engine.dart';
@@ -11,6 +12,8 @@ enum AiAlgorithmFrameworkId {
   mcts,
   hybridTactical,
   katago,
+  capture5,
+  mctsCapture5,
 }
 
 enum AiAlgorithmStrengthTier {
@@ -165,6 +168,17 @@ class AiAlgorithmRegistry {
       summary:
           'KataGo framework with ONNX adapter and explicit unavailable status.',
     ),
+    AiAlgorithmFramework(
+      id: AiAlgorithmFrameworkId.capture5,
+      displayName: 'Capture5',
+      summary:
+          '13x13 capture-five policy ONNX model with no outer MCTS fallback.',
+    ),
+    AiAlgorithmFramework(
+      id: AiAlgorithmFrameworkId.mctsCapture5,
+      displayName: 'MCTS+Capture5',
+      summary: 'MCTS search guided by Capture5 policy priors.',
+    ),
   ];
 
   static List<AiAlgorithmConfig> get configs => [
@@ -176,6 +190,9 @@ class AiAlgorithmRegistry {
         _hybridStandard,
         _katagoOnnxWeak,
         _katagoOnnxStandard,
+        _capture5,
+        _mctsCapture5Weak,
+        _mctsCapture5Standard,
       ];
 
   static List<AiAlgorithmConfig> configsFor(
@@ -200,8 +217,8 @@ class AiAlgorithmRegistry {
         ? config.robotConfig
         : config.robotConfig.copyWith(seed: seedOverride);
     CaptureAiAgent agent;
-    if (_katagoBackend(config) == 'onnx') {
-      agent = _KatagoOnnxAgent(
+    if (_isOnnxModelConfig(config)) {
+      return _KatagoOnnxAgent(
         config: config,
         style: robotConfig.style,
         modelAdapter: katagoModelAdapter,
@@ -239,15 +256,18 @@ class AiAlgorithmRegistry {
     final robotConfig = seedOverride == null
         ? config.robotConfig
         : config.robotConfig.copyWith(seed: seedOverride);
-    if (_katagoBackend(config) == 'onnx') {
-      return _AsyncTacticalAnalyzerAgent(
+    if (_isMctsCapture5Config(config)) {
+      return _AsyncMctsCapture5Agent(
         config: config,
-        inner: _AsyncKatagoOnnxAgent(
-          config: config,
-          style: robotConfig.style,
-          modelAdapter: katagoModelAdapter,
-        ),
-        tacticalAnalyzer: tacticalAnalyzer,
+        style: robotConfig.style,
+        modelAdapter: katagoModelAdapter,
+      );
+    }
+    if (_isOnnxModelConfig(config)) {
+      return _AsyncKatagoOnnxAgent(
+        config: config,
+        style: robotConfig.style,
+        modelAdapter: katagoModelAdapter,
       );
     }
     CaptureAiAgent agent = CaptureAiRegistry.createFromConfig(robotConfig);
@@ -372,13 +392,21 @@ class AiAlgorithmRegistry {
       'style': 'counter',
       'difficulty': 'intermediate',
       'heuristicPlayouts': 12,
-      'mctsPlayouts': 24,
-      'mctsRolloutDepth': 14,
+      'mctsPlayouts': 4,
+      'mctsRolloutDepth': 4,
+      'mctsCandidateLimit': 4,
+      'rolloutTemperature': 8.0,
       'randomLegalMoveRate': 0.20,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,
       difficulty: DifficultyLevel.intermediate,
+    ).copyWith(
+      heuristicPlayouts: 12,
+      mctsPlayouts: 4,
+      mctsRolloutDepth: 4,
+      mctsCandidateLimit: 4,
+      rolloutTemperature: 8.0,
     ),
   );
 
@@ -417,12 +445,10 @@ class AiAlgorithmRegistry {
     runtimeMode: AiAlgorithmRuntimeMode.native,
     parameters: const {
       'backend': 'onnx',
-      'modelAsset': 'assets/models/katago_capture_weak.onnx',
-      'visits': 4,
+      'modelAsset': kKatagoDefaultModelAsset,
       'timeBudgetMillis': 10000,
       'policyTemperature': 1.35,
       'candidateLimit': 12,
-      'captureSearchDepth': 0,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.adaptive,
@@ -438,16 +464,128 @@ class AiAlgorithmRegistry {
     runtimeMode: AiAlgorithmRuntimeMode.native,
     parameters: const {
       'backend': 'onnx',
-      'modelAsset': 'assets/models/katago_capture_standard.onnx',
-      'visits': 32,
+      'modelAsset': kKatagoDefaultModelAsset,
       'timeBudgetMillis': 10000,
       'policyTemperature': 0.0,
       'candidateLimit': 1,
-      'captureSearchDepth': 2,
     },
     robotConfig: CaptureAiRegistry.resolveConfig(
       style: CaptureAiStyle.counter,
       difficulty: DifficultyLevel.intermediate,
+    ),
+  );
+
+  static final AiAlgorithmConfig _capture5 = AiAlgorithmConfig(
+    id: kCapture5ModelId,
+    frameworkId: AiAlgorithmFrameworkId.capture5,
+    displayName: 'Capture5 Phase G',
+    strengthTier: AiAlgorithmStrengthTier.strong,
+    runtimeMode: AiAlgorithmRuntimeMode.native,
+    parameters: const {
+      'backend': 'onnx',
+      'modelId': kCapture5ModelId,
+      'modelAsset': kCapture5ModelAsset,
+      'metadataAsset': kCapture5ModelMetadataAsset,
+      'featureSchemaId': kCapture5FeatureSchemaId,
+      'architecture': 'capture5_resnet_phase1_v1',
+      'timeBudgetMillis': 3000,
+      'policyTemperature': 0.0,
+      'candidateLimit': 3,
+      'boardSize': 13,
+      'captureTarget': 5,
+      'inputPlanes': Capture5FeatureEncoder.featurePlanes,
+      'policySize': Capture5FeatureEncoder.policySize,
+      'passMoveIndex': Capture5FeatureEncoder.passMoveIndex,
+      'onnxSha256': kCapture5ModelSha256,
+    },
+    robotConfig: CaptureAiRegistry.resolveConfig(
+      style: CaptureAiStyle.counter,
+      difficulty: DifficultyLevel.advanced,
+    ),
+  );
+
+  static final AiAlgorithmConfig _mctsCapture5Weak = AiAlgorithmConfig(
+    id: 'mcts_capture5_weak_v1',
+    frameworkId: AiAlgorithmFrameworkId.mctsCapture5,
+    displayName: 'MCTS+Capture5 Weak',
+    strengthTier: AiAlgorithmStrengthTier.weak,
+    runtimeMode: AiAlgorithmRuntimeMode.native,
+    parameters: const {
+      'backend': 'onnx',
+      'modelId': kCapture5ModelId,
+      'modelAsset': kCapture5ModelAsset,
+      'metadataAsset': kCapture5ModelMetadataAsset,
+      'featureSchemaId': kCapture5FeatureSchemaId,
+      'architecture': 'capture5_resnet_phase1_v1',
+      'timeBudgetMillis': 3000,
+      'policyTemperature': 0.0,
+      'candidateLimit': 18,
+      'boardSize': 13,
+      'captureTarget': 5,
+      'inputPlanes': Capture5FeatureEncoder.featurePlanes,
+      'policySize': Capture5FeatureEncoder.policySize,
+      'passMoveIndex': Capture5FeatureEncoder.passMoveIndex,
+      'onnxSha256': kCapture5ModelSha256,
+      'mctsPlayouts': 4,
+      'mctsRolloutDepth': 4,
+      'mctsCandidateLimit': 5,
+      'mctsExploration': 1.25,
+      'rolloutTemperature': 8.0,
+      'policyPriorWeight': 90.0,
+    },
+    robotConfig: CaptureAiRegistry.resolveConfig(
+      style: CaptureAiStyle.counter,
+      difficulty: DifficultyLevel.intermediate,
+    ).copyWith(
+      engine: CaptureAiEngine.mcts,
+      mctsPlayouts: 4,
+      mctsRolloutDepth: 4,
+      mctsCandidateLimit: 5,
+      mctsExploration: 1.25,
+      rolloutTemperature: 8.0,
+    ),
+  );
+
+  static final AiAlgorithmConfig _mctsCapture5Standard = AiAlgorithmConfig(
+    id: 'mcts_capture5_standard_v1',
+    frameworkId: AiAlgorithmFrameworkId.mctsCapture5,
+    displayName: 'MCTS+Capture5 Standard',
+    strengthTier: AiAlgorithmStrengthTier.standard,
+    runtimeMode: AiAlgorithmRuntimeMode.native,
+    parameters: const {
+      'backend': 'onnx',
+      'modelId': kCapture5ModelId,
+      'modelAsset': kCapture5ModelAsset,
+      'metadataAsset': kCapture5ModelMetadataAsset,
+      'featureSchemaId': kCapture5FeatureSchemaId,
+      'architecture': 'capture5_resnet_phase1_v1',
+      'timeBudgetMillis': 3000,
+      'policyTemperature': 0.0,
+      'candidateLimit': 24,
+      'boardSize': 13,
+      'captureTarget': 5,
+      'inputPlanes': Capture5FeatureEncoder.featurePlanes,
+      'policySize': Capture5FeatureEncoder.policySize,
+      'passMoveIndex': Capture5FeatureEncoder.passMoveIndex,
+      'onnxSha256': kCapture5ModelSha256,
+      'mctsPlayouts': 4,
+      'mctsRolloutDepth': 4,
+      'mctsCandidateLimit': 6,
+      'mctsExploration': 1.15,
+      'rolloutTemperature': 3.0,
+      'captureSearchDepth': 2,
+      'policyPriorWeight': 45.0,
+    },
+    robotConfig: CaptureAiRegistry.resolveConfig(
+      style: CaptureAiStyle.counter,
+      difficulty: DifficultyLevel.intermediate,
+    ).copyWith(
+      engine: CaptureAiEngine.mcts,
+      mctsPlayouts: 4,
+      mctsRolloutDepth: 4,
+      mctsCandidateLimit: 6,
+      mctsExploration: 1.15,
+      rolloutTemperature: 3.0,
     ),
   );
 }
@@ -463,6 +601,17 @@ String _katagoBackend(AiAlgorithmConfig config) {
     final String value => value,
     _ => '',
   };
+}
+
+bool _isOnnxModelConfig(AiAlgorithmConfig config) {
+  return config.parameters['backend'] == 'onnx' &&
+      (config.frameworkId == AiAlgorithmFrameworkId.katago ||
+          config.frameworkId == AiAlgorithmFrameworkId.capture5);
+}
+
+bool _isMctsCapture5Config(AiAlgorithmConfig config) {
+  return config.frameworkId == AiAlgorithmFrameworkId.mctsCapture5 &&
+      config.parameters['backend'] == 'onnx';
 }
 
 class _TacticalAnalyzerAgent implements CaptureAiAgent {
@@ -641,22 +790,110 @@ class _KatagoOnnxAgent implements CaptureAiAgent {
       KatagoModelRequest(
         board: SimBoard.copy(board),
         modelAsset: _stringParameter(config, 'modelAsset'),
-        visits: _intParameter(config, 'visits'),
         timeBudgetMillis: _intParameter(config, 'timeBudgetMillis'),
         policyTemperature: _doubleParameter(config, 'policyTemperature'),
         candidateLimit: _intParameter(config, 'candidateLimit'),
+        policyPlane: _intParameter(config, 'policyPlane'),
       ),
     );
     final move = evaluation.move;
     if (move != null && board.analyzeMove(move.row, move.col).isLegal) {
-      final tacticalMove = _captureSearchMove(
-        board,
-        depth: _intParameter(config, 'captureSearchDepth'),
-        baseMove: move,
-      );
-      return CaptureAiMove(position: tacticalMove ?? move, score: 100000);
+      return CaptureAiMove(position: move, score: 100000);
     }
     return null;
+  }
+}
+
+class _AsyncMctsCapture5Agent implements AsyncCaptureAiAgent {
+  const _AsyncMctsCapture5Agent({
+    required this.config,
+    required CaptureAiStyle style,
+    required AsyncKatagoModelAdapter modelAdapter,
+  })  : _style = style,
+        _modelAdapter = modelAdapter;
+
+  final AiAlgorithmConfig config;
+  final CaptureAiStyle _style;
+  final AsyncKatagoModelAdapter _modelAdapter;
+
+  @override
+  CaptureAiStyle get style => _style;
+
+  @override
+  Future<CaptureAiMove?> chooseMove(SimBoard board) async {
+    final evaluation = await _modelAdapter.chooseMove(
+      KatagoModelRequest(
+        board: SimBoard.copy(board),
+        modelAsset: _stringParameter(config, 'modelAsset'),
+        timeBudgetMillis: _intParameter(config, 'timeBudgetMillis'),
+        policyTemperature: _doubleParameter(config, 'policyTemperature'),
+        candidateLimit: _intParameter(config, 'candidateLimit'),
+        policyPlane: _intParameter(config, 'policyPlane'),
+      ),
+    );
+    if (evaluation.status != KatagoBackendStatus.ready) {
+      throw KatagoModelException(
+        evaluation.failureReason ?? 'capture5_policy_unavailable',
+      );
+    }
+    final priors = _policyPriorByMove(board, evaluation.policyCandidates);
+    final modelMove = evaluation.move;
+    if (modelMove != null &&
+        board.analyzeMove(modelMove.row, modelMove.col).isLegal) {
+      priors.putIfAbsent(
+        board.idx(modelMove.row, modelMove.col),
+        () => const _PolicyPrior(probability: 1.0, rank: 1),
+      );
+    }
+    if (priors.isEmpty) {
+      throw const KatagoModelException('capture5_policy_returned_no_priors');
+    }
+
+    final robotConfig = config.robotConfig;
+    final policyPriorWeight = _doubleParameter(config, 'policyPriorWeight');
+    final rootFingerprint = _boardFingerprint(board);
+    final captureSearchDepth = _intParameter(config, 'captureSearchDepth');
+    final engine = MctsEngine(
+      maxPlayouts: robotConfig.mctsPlayouts,
+      rolloutDepth: robotConfig.mctsRolloutDepth,
+      exploration: robotConfig.mctsExploration,
+      candidateLimit: robotConfig.mctsCandidateLimit,
+      rolloutTemperature: robotConfig.rolloutTemperature,
+      seed: robotConfig.seed + _boardFingerprint(board),
+      moveScorer: (scoredBoard, moveIndex, analysis) {
+        return _captureSearchScore(
+              scoredBoard,
+              moveIndex,
+              depth: math.min(captureSearchDepth, 1),
+            ) +
+            (_boardFingerprint(scoredBoard) == rootFingerprint
+                ? _policyPriorScore(
+                    priors[moveIndex],
+                    weight: policyPriorWeight,
+                  )
+                : 0);
+      },
+    );
+    final mctsPosition = engine.getBestMove(board);
+    if (mctsPosition == null) return null;
+    final position = _captureSearchMove(
+          board,
+          depth: captureSearchDepth,
+          baseMove: mctsPosition,
+        ) ??
+        mctsPosition;
+    return CaptureAiMove(
+      position: position,
+      score: _captureSearchScore(
+            board,
+            board.idx(position.row, position.col),
+            depth: captureSearchDepth,
+          ) +
+          _policyPriorScore(
+            priors[board.idx(position.row, position.col)],
+            weight: policyPriorWeight,
+          ),
+    );
   }
 }
 
@@ -681,20 +918,15 @@ class _AsyncKatagoOnnxAgent implements AsyncCaptureAiAgent {
       KatagoModelRequest(
         board: SimBoard.copy(board),
         modelAsset: _stringParameter(config, 'modelAsset'),
-        visits: _intParameter(config, 'visits'),
         timeBudgetMillis: _intParameter(config, 'timeBudgetMillis'),
         policyTemperature: _doubleParameter(config, 'policyTemperature'),
         candidateLimit: _intParameter(config, 'candidateLimit'),
+        policyPlane: _intParameter(config, 'policyPlane'),
       ),
     );
     final move = evaluation.move;
     if (move != null && board.analyzeMove(move.row, move.col).isLegal) {
-      final tacticalMove = _captureSearchMove(
-        board,
-        depth: _intParameter(config, 'captureSearchDepth'),
-        baseMove: move,
-      );
-      return CaptureAiMove(position: tacticalMove ?? move, score: 100000);
+      return CaptureAiMove(position: move, score: 100000);
     }
     throw KatagoModelException(
       evaluation.failureReason ?? 'katago_onnx_returned_no_legal_move',
@@ -753,6 +985,9 @@ double _captureSearchScore(
   var score = ownCaptureDelta * 1200.0 +
       analysis.opponentAtariStones * 80.0 +
       analysis.ownRescuedStones * 35.0 +
+      scoreCriticalOwnGroupDefense(board, moveIndex, analysis) -
+      scoreDoomedAtariExtensionPenalty(board, moveIndex, analysis) -
+      scoreImmediateOpponentCapturePenalty(board, moveIndex, analysis) +
       analysis.adjacentOpponentStones * 12.0 +
       analysis.libertiesAfterMove * 4.0 +
       analysis.centerProximityScore.toDouble();
@@ -787,6 +1022,44 @@ double _captureSearchScore(
   score -= opponentBestCapture * 950.0;
   score -= opponentBestAtari * 45.0;
   return score;
+}
+
+Map<int, _PolicyPrior> _policyPriorByMove(
+  SimBoard board,
+  List<KatagoPolicyCandidate> candidates,
+) {
+  return {
+    for (final candidate in candidates)
+      if (board
+          .analyzeMove(
+            candidate.position.row,
+            candidate.position.col,
+          )
+          .isLegal)
+        board.idx(candidate.position.row, candidate.position.col): _PolicyPrior(
+          probability: candidate.probability,
+          rank: candidate.rank,
+        ),
+  };
+}
+
+double _policyPriorScore(_PolicyPrior? prior, {required double weight}) {
+  if (prior == null || weight <= 0) return 0;
+  final probabilityBonus = prior.probability.isFinite
+      ? math.log(1 + math.max(0, prior.probability) * 32)
+      : 0.0;
+  final rankBonus = 1.0 / math.max(1, prior.rank);
+  return weight * (probabilityBonus + rankBonus);
+}
+
+class _PolicyPrior {
+  const _PolicyPrior({
+    required this.probability,
+    required this.rank,
+  });
+
+  final double probability;
+  final int rank;
 }
 
 String _stringParameter(AiAlgorithmConfig config, String key) {
