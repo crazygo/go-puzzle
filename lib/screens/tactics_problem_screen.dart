@@ -1,123 +1,486 @@
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:provider/provider.dart';
 
+import '../game/ai_search_entry.dart';
 import '../game/capture_ai.dart';
 import '../game/capture_ai_tactics.dart';
 import '../game/difficulty_level.dart';
+import '../game/game_mode.dart';
 import '../game/mcts_engine.dart';
+import '../game/tactics_advice_runner.dart';
+import '../game/tactics_advice_snapshot.dart';
+import '../game/illegal_move_reason.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 import '../providers/settings_provider.dart';
 import '../theme/theme_context.dart';
+import '../ui/app_toast.dart';
 import '../ui/tactics_labels.dart';
 import '../widgets/go_board_widget.dart';
+import '../widgets/operation_context_menu.dart';
+import '../widgets/tactics_move_log_strip.dart';
 
 class TacticsProblemScreen extends StatefulWidget {
   const TacticsProblemScreen({
     super.key,
-    required this.problem,
+    required this.problems,
+    this.dailyChallengeMode = false,
+    this.onProblemPassed,
+    this.adviceRunner,
   });
 
-  final CaptureAiTacticsProblem problem;
+  final List<CaptureAiTacticsProblem> problems;
+  final bool dailyChallengeMode;
+  final void Function(CaptureAiTacticsProblem problem)? onProblemPassed;
+  final TacticsAdviceRunner? adviceRunner;
 
   @override
   State<TacticsProblemScreen> createState() => _TacticsProblemScreenState();
 }
 
 class _TacticsProblemScreenState extends State<TacticsProblemScreen> {
-  late final Future<_TacticsAdvice> _adviceFuture;
-  BoardPosition? _selectedMove;
-  BoardPosition? _aiHint;
+  late List<CaptureAiTacticsProblem> _queue;
+  late SimBoard _board;
+  late int _humanSimPlayer;
+
+  TacticsAdviceRunner? _adviceRunner;
+  TacticsAdviceSnapshot? _advice;
+  Object? _adviceError;
+
+  final List<List<int>> _moves = [];
+  bool _aiOpponentEnabled = true;
+  bool _moveLogVisible = true;
+  bool _showMoveNumbers = false;
+  BoardPosition? _hintPosition;
+  bool _passed = false;
+  bool _aiThinking = false;
+  bool _loadingAdvice = false;
+
+  CaptureAiTacticsProblem get _problem => _queue.first;
 
   @override
   void initState() {
     super.initState();
-    _adviceFuture = Future.microtask(() => _buildAdvice(widget.problem));
-    _adviceFuture.then((advice) {
-      if (!mounted) return;
-      setState(() => _aiHint = advice.primaryMove);
+    _queue = List<CaptureAiTacticsProblem>.from(widget.problems);
+    _adviceRunner = widget.adviceRunner ?? createTacticsAdviceRunner();
+    _resetBoardState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAdvice());
+  }
+
+  @override
+  void dispose() {
+    if (widget.adviceRunner == null) {
+      _adviceRunner?.dispose();
+    }
+    super.dispose();
+  }
+
+  void _resetBoardState() {
+    _board = _problem.toBoard();
+    _humanSimPlayer = _problem.currentPlayer;
+    _moves.clear();
+    _passed = false;
+    _aiThinking = false;
+    _hintPosition = null;
+  }
+
+  Future<void> _loadAdvice() async {
+    if (_loadingAdvice) return;
+    setState(() => _loadingAdvice = true);
+    final result = await _adviceRunner!.buildAdvice(_problem);
+    if (!mounted) return;
+    setState(() {
+      _loadingAdvice = false;
+      if (result.hasError || result.advice == null) {
+        _adviceError = result.error ?? StateError('Missing tactics advice');
+        _advice = null;
+      } else {
+        _adviceError = null;
+        _advice = result.advice;
+      }
     });
+  }
+
+  StoneColor get _currentStoneColor => _board.currentPlayer == SimBoard.black
+      ? StoneColor.black
+      : StoneColor.white;
+
+  bool get _canSkip =>
+      widget.dailyChallengeMode && !_passed && _queue.length > 1;
+
+  String get _primaryButtonLabel {
+    if (_passed) {
+      return _queue.length <= 1 ? '全部完成 🎉' : '下一題';
+    }
+    return '跳過';
+  }
+
+  Future<void> _playAiResponse() async {
+    if (!_aiOpponentEnabled || _board.winner != 0) return;
+    setState(() => _aiThinking = true);
+    try {
+      final params = <String, dynamic>{
+        'boardSize': _board.size,
+        'captureTarget': _board.captureTarget,
+        'cells': _board.cells.toList(),
+        'capturedByBlack': _board.capturedByBlack,
+        'capturedByWhite': _board.capturedByWhite,
+        'currentPlayer': _board.currentPlayer,
+        'aiStyle': CaptureAiStyle.hunter.name,
+        'difficulty': DifficultyLevel.advanced.name,
+        'gameMode': GameMode.capture.storageKey,
+        'consecutivePasses': _board.consecutivePasses,
+      };
+      final move = await compute(runChooseAiMove, params);
+      if (!mounted || move == null) return;
+      if (!_board.applyMove(move[0], move[1])) return;
+      setState(() {
+        _moves.add([move[0], move[1]]);
+      });
+    } finally {
+      if (mounted) setState(() => _aiThinking = false);
+    }
+  }
+
+  void _checkPassed(int row, int col) {
+    final primary = _advice?.primaryMove;
+    if (primary == null) return;
+    if (primary.row == row && primary.col == col) {
+      _passed = true;
+      widget.onProblemPassed?.call(_problem);
+    }
+  }
+
+  Future<void> _onBoardTap(int row, int col) async {
+    if (_passed || _aiThinking) return;
+    if (_aiOpponentEnabled && _board.currentPlayer != _humanSimPlayer) return;
+
+    final illegalReason = _board.illegalMoveReason(row, col);
+    if (illegalReason != null) {
+      showAppToast(context, illegalMoveToastMessage(illegalReason));
+      return;
+    }
+
+    if (!_board.applyMove(row, col)) return;
+    setState(() {
+      _moves.add([row, col]);
+      _hintPosition = null;
+      _checkPassed(row, col);
+    });
+
+    if (_aiOpponentEnabled && !_passed && _board.winner == 0) {
+      await _playAiResponse();
+    }
+  }
+
+  void _skipCurrentProblem() {
+    if (!_canSkip) return;
+    setState(() {
+      final current = _queue.removeAt(0);
+      _queue.add(current);
+      _resetBoardState();
+    });
+    _loadAdvice();
+  }
+
+  void _goToNextProblem() {
+    if (!_passed) return;
+    if (_queue.length <= 1) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {
+      _queue.removeAt(0);
+      _resetBoardState();
+    });
+    _loadAdvice();
+  }
+
+  void _onPrimaryButtonPressed() {
+    if (_passed) {
+      _goToNextProblem();
+    } else if (_canSkip) {
+      _skipCurrentProblem();
+    }
+  }
+
+  void _resetPosition() {
+    setState(_resetBoardState);
+  }
+
+  void _undoLastMove() {
+    if (_moves.isEmpty || _aiThinking) return;
+    setState(() {
+      _moves.removeLast();
+      _passed = false;
+      _hintPosition = null;
+      _board = _problem.toBoard();
+      for (final move in _moves) {
+        _board.applyMove(move[0], move[1]);
+      }
+    });
+  }
+
+  void _showHintOnBoard() {
+    final hint = _advice?.primaryMove;
+    if (hint == null || _passed) return;
+    setState(() => _hintPosition = hint);
+  }
+
+  void _showOperationsMenu(BuildContext buttonContext) {
+    const menuWidth = 178.0;
+    const menuItemHeight = 48.0;
+    const menuDividerHeight = 0.6;
+    const menuItemCount = 6;
+    const menuHeight = menuItemCount * menuItemHeight +
+        (menuItemCount - 1) * menuDividerHeight;
+    final canUndo = _moves.isNotEmpty && !_aiThinking && !_passed;
+    final canReset = _moves.isNotEmpty && !_aiThinking;
+    final canHint = !_passed &&
+        !_loadingAdvice &&
+        !_aiThinking &&
+        _advice?.primaryMove != null;
+
+    showAnchoredOperationMenu(
+      context: context,
+      buttonContext: buttonContext,
+      menuWidth: menuWidth,
+      menuHeight: menuHeight,
+      menu: _TacticsOperationContextMenu(
+        moveLogVisible: _moveLogVisible,
+        showMoveNumbers: _showMoveNumbers,
+        canHint: canHint,
+        canUndo: canUndo,
+        canReset: canReset,
+        onToggleMoveLog: () {
+          Navigator.of(context).pop();
+          setState(() => _moveLogVisible = !_moveLogVisible);
+        },
+        onToggleMoveNumbers: () {
+          Navigator.of(context).pop();
+          setState(() => _showMoveNumbers = !_showMoveNumbers);
+        },
+        onHint: () {
+          Navigator.of(context).pop();
+          _showHintOnBoard();
+        },
+        onUndo: () {
+          Navigator.of(context).pop();
+          _undoLastMove();
+        },
+        onReset: () {
+          Navigator.of(context).pop();
+          _resetPosition();
+        },
+        onShowAdvice: () {
+          Navigator.of(context).pop();
+          _showAdviceSheet();
+        },
+      ),
+    );
+  }
+
+  void _showAdviceSheet() {
+    final coordinateSystem =
+        context.read<SettingsProvider?>()?.boardCoordinateSystem ??
+            BoardCoordinateSystem.chinese;
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (context) => CupertinoPopupSurface(
+        child: SafeArea(
+          top: false,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: CupertinoColors.systemBackground.resolveFrom(context),
+            ),
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.55,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'AI 分析',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('关闭'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (_loadingAdvice)
+                    const Text('正在計算 AI 建議…')
+                  else if (_adviceError != null)
+                    Text(
+                      'AI 建議計算失敗：$_adviceError',
+                      style: const TextStyle(
+                        color: CupertinoColors.destructiveRed,
+                      ),
+                    )
+                  else if (_advice != null)
+                    _AdvicePanel(
+                      advice: _advice!,
+                      boardSize: _problem.boardSize,
+                      coordinateSystem: coordinateSystem,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
-    final displayState =
-        _gameStateFor(widget.problem, selectedMove: _selectedMove);
-    final selectedAnalysis = _selectedMove == null
-        ? null
-        : widget.problem.toBoard().analyzeMove(
-              _selectedMove!.row,
-              _selectedMove!.col,
-            );
     final coordinateSystem =
         context.select<SettingsProvider?, BoardCoordinateSystem>(
       (settings) =>
           settings?.boardCoordinateSystem ?? BoardCoordinateSystem.chinese,
     );
+    final gameState = _gameStateFromBoard(_board);
+    final navTitle =
+        _aiThinking ? 'AI 正在思考' : waitingMoveTitle(_currentStoneColor);
 
     return CupertinoPageScaffold(
       backgroundColor: palette.pageBackground,
       navigationBar: CupertinoNavigationBar(
-        middle: Text(widget.problem.id),
+        backgroundColor: palette.pageBackground,
+        border: null,
+        middle: Text(
+          navTitle,
+          style: TextStyle(
+            color: palette.setupTitleText,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: Builder(
+          builder: (buttonContext) => CupertinoButton(
+            padding: EdgeInsets.zero,
+            minimumSize: Size.zero,
+            onPressed: () => _showOperationsMenu(buttonContext),
+            child: Text(
+              '操作',
+              style: TextStyle(
+                color: palette.setupActionText,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
       ),
       child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _ProblemHeader(problem: widget.problem),
-            const SizedBox(height: 14),
-            _BoardPanel(
-              gameState: displayState,
-              hintPosition: _selectedMove ?? _aiHint,
-              coordinateSystem: coordinateSystem,
-              onTap: (row, col) {
-                final analysis = widget.problem.toBoard().analyzeMove(row, col);
-                setState(() {
-                  _selectedMove =
-                      analysis.isLegal ? BoardPosition(row, col) : null;
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            _SelectedMovePanel(
-              selectedMove: _selectedMove,
-              analysis: selectedAnalysis,
-              boardSize: widget.problem.boardSize,
-              coordinateSystem: coordinateSystem,
-              onReset: _selectedMove == null
-                  ? null
-                  : () => setState(() => _selectedMove = null),
-            ),
-            const SizedBox(height: 14),
-            FutureBuilder<_TacticsAdvice>(
-              future: _adviceFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: CupertinoActivityIndicator(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      tacticsProblemSubtitle(_problem),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color:
+                            CupertinoColors.secondaryLabel.resolveFrom(context),
+                      ),
                     ),
-                  );
-                }
-                if (snapshot.hasError) {
-                  return Text(
-                    'AI 建議計算失敗：${snapshot.error}',
-                    style: TextStyle(
-                      color:
-                          CupertinoColors.destructiveRed.resolveFrom(context),
+                  ),
+                  const SizedBox(width: 10),
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
                     ),
-                  );
-                }
-                return _AdvicePanel(
-                  advice: snapshot.data!,
-                  boardSize: widget.problem.boardSize,
+                    minimumSize: Size.zero,
+                    onPressed: () => setState(
+                        () => _aiOpponentEnabled = !_aiOpponentEnabled),
+                    child: Text(
+                      '自動應手 ${_aiOpponentEnabled ? '開' : '關'}',
+                      style: TextStyle(
+                        color: palette.setupActionText,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_moveLogVisible) ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: TacticsMoveLogStrip(
+                  moves: _moves,
+                  boardSize: _problem.boardSize,
                   coordinateSystem: coordinateSystem,
-                );
-              },
+                  currentPlayer: _currentStoneColor,
+                  palette: palette,
+                  onHide: () => setState(() => _moveLogVisible = false),
+                ),
+              ),
+            ] else
+              const SizedBox(height: 45),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final boardSize =
+                        math.min(constraints.maxWidth, constraints.maxHeight);
+                    return Center(
+                      child: GoBoardWidget(
+                        gameState: gameState,
+                        hintPosition: _passed ? null : _hintPosition,
+                        showMoveNumbers: _showMoveNumbers,
+                        moveNumberMoves: _moves,
+                        showCaptureWarning: false,
+                        coordinateSystem: coordinateSystem,
+                        onTap: _onBoardTap,
+                        size: boardSize,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                children: [
+                  const Spacer(),
+                  CupertinoButton.filled(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    onPressed:
+                        (_passed || _canSkip) ? _onPrimaryButtonPressed : null,
+                    child: Text(_primaryButtonLabel),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -126,135 +489,73 @@ class _TacticsProblemScreenState extends State<TacticsProblemScreen> {
   }
 }
 
-class _ProblemHeader extends StatelessWidget {
-  const _ProblemHeader({required this.problem});
-
-  final CaptureAiTacticsProblem problem;
-
-  @override
-  Widget build(BuildContext context) {
-    final tactic = problem.metadata['tactic']?.toString();
-    final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 7,
-          runSpacing: 7,
-          children: [
-            _Badge(label: categoryName(problem.category)),
-            if (tactic != null && tactic.isNotEmpty)
-              _Badge(label: tacticName(tactic)),
-            _Badge(label: '${problem.boardSize}路'),
-            _Badge(label: '目標 ${problem.captureTarget} 子'),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Text(
-          '先手：${playerName(problem.currentPlayer)}   提子：黑 ${problem.capturedByBlack} / 白 ${problem.capturedByWhite}',
-          style: TextStyle(fontSize: 14, color: secondary),
-        ),
-        if (problem.notes.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(
-            problem.notes,
-            style: TextStyle(fontSize: 14, height: 1.4, color: secondary),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _BoardPanel extends StatelessWidget {
-  const _BoardPanel({
-    required this.gameState,
-    required this.hintPosition,
-    required this.coordinateSystem,
-    required this.onTap,
-  });
-
-  final GameState gameState;
-  final BoardPosition? hintPosition;
-  final BoardCoordinateSystem coordinateSystem;
-  final void Function(int row, int col) onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final boardSize = math.min(constraints.maxWidth, 430.0);
-        return Center(
-          child: GoBoardWidget(
-            gameState: gameState,
-            hintPosition: hintPosition,
-            showCaptureWarning: false,
-            coordinateSystem: coordinateSystem,
-            onTap: onTap,
-            size: boardSize,
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _SelectedMovePanel extends StatelessWidget {
-  const _SelectedMovePanel({
-    required this.selectedMove,
-    required this.analysis,
-    required this.boardSize,
-    required this.coordinateSystem,
+class _TacticsOperationContextMenu extends StatelessWidget {
+  const _TacticsOperationContextMenu({
+    required this.moveLogVisible,
+    required this.showMoveNumbers,
+    required this.canHint,
+    required this.canUndo,
+    required this.canReset,
+    required this.onToggleMoveLog,
+    required this.onToggleMoveNumbers,
+    required this.onHint,
+    required this.onUndo,
     required this.onReset,
+    required this.onShowAdvice,
   });
 
-  final BoardPosition? selectedMove;
-  final SimMoveAnalysis? analysis;
-  final int boardSize;
-  final BoardCoordinateSystem coordinateSystem;
-  final VoidCallback? onReset;
+  final bool moveLogVisible;
+  final bool showMoveNumbers;
+  final bool canHint;
+  final bool canUndo;
+  final bool canReset;
+  final VoidCallback onToggleMoveLog;
+  final VoidCallback onToggleMoveNumbers;
+  final VoidCallback onHint;
+  final VoidCallback onUndo;
+  final VoidCallback onReset;
+  final VoidCallback onShowAdvice;
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.appPalette;
-    final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
-    final move = selectedMove;
-    final currentAnalysis = analysis;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: palette.setupPanelBackground,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: palette.setupPanelBorder,
-          width: 0.5,
+    return OperationContextMenuShell(
+      children: [
+        OperationMenuItem(
+          text: moveLogVisible ? '隱藏棋譜' : '顯示棋譜',
+          enabled: true,
+          onPressed: onToggleMoveLog,
         ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(
-              move == null || currentAnalysis == null
-                  ? '點棋盤上的空點，可以暫時試下一手。綠色標記預設顯示 AI 首選。'
-                  : '試下 ${formatPosition(move.row, move.col, boardSize, coordinateSystem: coordinateSystem)}：${currentAnalysis.isLegal ? '合法' : '非法'}，'
-                      '黑提 +${currentAnalysis.blackCaptureDelta}，'
-                      '白提 +${currentAnalysis.whiteCaptureDelta}，'
-                      '己方被叫吃 ${currentAnalysis.ownAtariStones} 子。',
-              style: TextStyle(fontSize: 13, height: 1.35, color: secondary),
-            ),
-          ),
-          if (onReset != null) ...[
-            const SizedBox(width: 8),
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(28, 28),
-              onPressed: onReset,
-              child: const Text('重設'),
-            ),
-          ],
-        ],
-      ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: showMoveNumbers ? '隱藏手數' : '顯示手數',
+          enabled: true,
+          onPressed: onToggleMoveNumbers,
+        ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: '提示一手',
+          enabled: canHint,
+          onPressed: onHint,
+        ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: '後退一手',
+          enabled: canUndo,
+          onPressed: onUndo,
+        ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: '復位',
+          enabled: canReset,
+          onPressed: onReset,
+        ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: 'AI 分析',
+          enabled: true,
+          onPressed: onShowAdvice,
+        ),
+      ],
     );
   }
 }
@@ -266,7 +567,7 @@ class _AdvicePanel extends StatelessWidget {
     required this.coordinateSystem,
   });
 
-  final _TacticsAdvice advice;
+  final TacticsAdviceSnapshot advice;
   final int boardSize;
   final BoardCoordinateSystem coordinateSystem;
 
@@ -290,18 +591,18 @@ class _AdvicePanel extends StatelessWidget {
         const SizedBox(height: 16),
         _SectionTitle(
           title: 'Oracle 參考',
-          subtitle: advice.oracle.authoritative
+          subtitle: advice.oracleAuthoritative
               ? 'authoritative'
               : 'non-authoritative',
         ),
         const SizedBox(height: 8),
-        for (var i = 0; i < math.min(3, advice.oracle.rankedMoves.length); i++)
+        for (var i = 0; i < advice.oracleRankedMoves.length; i++)
           _SuggestionRow(
             title: '#${i + 1}',
             detail:
-                '${formatPosition(advice.oracle.rankedMoves[i].position.row, advice.oracle.rankedMoves[i].position.col, boardSize, coordinateSystem: coordinateSystem)}  score ${advice.oracle.rankedMoves[i].score.toStringAsFixed(1)}',
+                '${formatPosition(advice.oracleRankedMoves[i].position.row, advice.oracleRankedMoves[i].position.col, boardSize, coordinateSystem: coordinateSystem)}  score ${advice.oracleRankedMoves[i].score.toStringAsFixed(1)}',
           ),
-        if (advice.oracle.rankedMoves.isEmpty)
+        if (advice.oracleRankedMoves.isEmpty)
           const _SuggestionRow(title: 'Oracle', detail: '無可用排序'),
       ],
     );
@@ -391,111 +692,7 @@ class _SuggestionRow extends StatelessWidget {
   }
 }
 
-class _Badge extends StatelessWidget {
-  const _Badge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemGrey5.resolveFrom(context),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: CupertinoColors.secondaryLabel.resolveFrom(context),
-        ),
-      ),
-    );
-  }
-}
-
-class _TacticsAdvice {
-  const _TacticsAdvice({
-    required this.aiSuggestions,
-    required this.oracle,
-  });
-
-  final List<_AiSuggestion> aiSuggestions;
-  final CaptureAiOracleResult oracle;
-
-  BoardPosition? get primaryMove {
-    for (final suggestion in aiSuggestions) {
-      if (suggestion.style == CaptureAiStyle.hunter &&
-          suggestion.move != null) {
-        return suggestion.move;
-      }
-    }
-    return aiSuggestions.isEmpty ? null : aiSuggestions.first.move;
-  }
-}
-
-class _AiSuggestion {
-  const _AiSuggestion({
-    required this.style,
-    required this.move,
-    required this.score,
-  });
-
-  final CaptureAiStyle style;
-  final BoardPosition? move;
-  final double? score;
-}
-
-_TacticsAdvice _buildAdvice(CaptureAiTacticsProblem problem) {
-  final baseBoard = problem.toBoard();
-  final aiSuggestions = <_AiSuggestion>[];
-  for (final style in CaptureAiStyle.values) {
-    final agent = CaptureAiRegistry.create(
-      style: style,
-      difficulty: DifficultyLevel.advanced,
-    );
-    final move = agent.chooseMove(SimBoard.copy(baseBoard));
-    aiSuggestions.add(
-      _AiSuggestion(
-        style: style,
-        move: move?.position,
-        score: move?.score,
-      ),
-    );
-  }
-
-  final oracle = const CaptureAiTacticalOracle(
-    config: CaptureAiTacticalOracleConfig(
-      depth: 2,
-      candidateHorizon: 6,
-      maxNodes: 3000,
-      acceptScoreDelta: 80,
-      topNAccepted: 3,
-      maxAcceptedMoveRatio: 0.25,
-      minConfidenceGap: 80,
-    ),
-  ).rankMoves(problem);
-
-  return _TacticsAdvice(aiSuggestions: aiSuggestions, oracle: oracle);
-}
-
-GameState _gameStateFor(
-  CaptureAiTacticsProblem problem, {
-  BoardPosition? selectedMove,
-}) {
-  final board = problem.toBoard();
-  BoardPosition? lastMove;
-  if (selectedMove != null &&
-      board.applyMove(selectedMove.row, selectedMove.col)) {
-    lastMove = selectedMove;
-  }
-
-  return _gameStateFromBoard(board, lastMove: lastMove);
-}
-
-GameState _gameStateFromBoard(SimBoard board, {BoardPosition? lastMove}) {
+GameState _gameStateFromBoard(SimBoard board) {
   final stones = List.generate(
     board.size,
     (_) => List.filled(board.size, StoneColor.empty),
@@ -524,6 +721,6 @@ GameState _gameStateFromBoard(SimBoard board, {BoardPosition? lastMove}) {
       board.capturedByWhite,
       const BoardPosition(-1, -1),
     ),
-    lastMove: lastMove,
+    lastMove: null,
   );
 }

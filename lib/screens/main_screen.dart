@@ -133,7 +133,7 @@ class _MainTabScaffoldState extends State<_MainTabScaffold> {
                   icon: _TabGlyph(kind: _TabGlyphKind.match),
                   activeIcon:
                       _TabGlyph(kind: _TabGlyphKind.match, active: true),
-                  label: '謎題',
+                  label: '歷史',
                 ),
                 BottomNavigationBarItem(
                   icon: _TabGlyph(kind: _TabGlyphKind.settings),
@@ -208,8 +208,8 @@ class _SharedHeroBoardBackground extends StatelessWidget {
                       boardTopBrightness: 1.0,
                       boardWoodColor: 0xd0b39c,
                       toneMappingExposure: 0.44,
-                      keyLightPosition: Offset3(5.5, 5.5, 5.5),
-                      fillLightPosition: Offset3(-4.8, 2.2, 3.2),
+                      keyLightPosition: const Offset3(5.5, 5.5, 5.5),
+                      fillLightPosition: const Offset3(-4.8, 2.2, 3.2),
                       keyLightIntensity: 1.44,
                       fillLightIntensity: 0.09,
                       ambientLightIntensity: 0.15,

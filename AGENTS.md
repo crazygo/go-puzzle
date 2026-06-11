@@ -34,13 +34,57 @@
 - Keep the main agent available for coordination, code review, artifact inspection, and next-step decisions while subagents run the heavy commands.
 - The main agent may run short focused checks directly, but should avoid occupying itself with long full-suite or full-matrix commands when a subagent can execute them independently.
 
+## Tasks workflow
+
+`docs/tasks/` is the single place for all feature ideas, plans, and implementation records.
+
+### Folder meanings
+
+| Folder | When to use |
+|---|---|
+| `docs/tasks/backlog/` | Ideas and drafts not yet started. Includes rough feature concepts and plans selected for future work. |
+| `docs/tasks/doing/` | Tasks actively in progress. Move a file here when implementation has started. |
+| `docs/tasks/done/` | Completed work. Move a file here once all implementation phases are shipped and merged. |
+| `docs/tasks/trash/` | Abandoned or superseded items. Move here instead of deleting. |
+
+### File lifecycle
+
+```
+backlog → doing → done
+    ↑       ↓
+    ←───────┘ (on hold)
+    any → trash (if abandoned)
+```
+
+### Naming convention
+
+Name plan files with a `YYYY-MM-DD-HH-mm` prefix using 24-hour time, optionally with a timezone suffix:
+
+```
+docs/tasks/backlog/2026-06-09-16-35-+08-my-feature.md
+```
+
+### Task state transitions — use the `change-implementation-plan` skill
+
+Whenever a task changes state (started, completed, put on hold, abandoned), use the **`change-implementation-plan`** skill at `.agents/skills/change-implementation-plan/`.
+
+| User says | Transition | Action |
+|---|---|---|
+| "I'm starting this task" | `backlog → doing` | Move plan file to `doing/` |
+| "This task is done" | `doing → done` | Move to `done/` |
+| "Putting this on hold" | `doing → backlog` | Move plan file back to `backlog/` |
+| "Abandoning / no longer relevant" | `any → trash` | Move plan file to `trash/` |
+
+- When starting a new task, create the plan file in `docs/tasks/backlog/` first, then move to `doing/` when implementation begins.
+- Do not create plan files directly in `done/`.
+
 ## Planning
 - When an implementation plan is requested, write it in English and include these sections in order:
     1. **Background**: Substructured into **Context** (current state), **Problem** (limitations/pain points), and **Motivation** (why this change is valuable).
     2. **Goals**: Clear, high-level objectives.
     3. **Implementation Plan**: Phased approach to delivery.
     4. **Acceptance Criteria**: Testable and user-observable criteria, including validation commands (e.g., `flutter analyze`, `flutter test`).
-- If a plan should be persisted, save it under `docs/plans/` with a `YYYY-MM-DD-HH-mm` prefix using 24-hour time.
+- Save plans under `docs/tasks/backlog/` (or `doing/` if work has started) with a `YYYY-MM-DD-HH-mm` prefix using 24-hour time.
 
 ## Specs map
 - Product behavior specs and cross-cutting technical contracts live under `docs/specs_map/`.

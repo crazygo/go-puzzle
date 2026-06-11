@@ -1,5 +1,6 @@
 import '../models/board_position.dart';
 import '../models/game_state.dart';
+import 'illegal_move_reason.dart';
 
 class TerritoryScore {
   const TerritoryScore({
@@ -218,6 +219,48 @@ class GoEngine {
       atariStones: atariStones,
       consecutivePasses: 0,
     );
+  }
+
+  /// Returns why [placeStone] would reject a move, or null when legal.
+  static IllegalMoveReason? invalidMoveReason(
+    GameState state,
+    int row,
+    int col,
+  ) {
+    final board = state.board;
+    final boardSize = state.boardSize;
+
+    if (state.status != GameStatus.playing) return null;
+    if (!_isWithinBoard(row, col, boardSize)) return null;
+    if (board[row][col] != StoneColor.empty) {
+      return IllegalMoveReason.occupied;
+    }
+
+    final color = state.currentPlayer;
+    if (isSuicide(board, row, col, color, boardSize)) {
+      return IllegalMoveReason.suicide;
+    }
+
+    final newBoard = _copyBoard(board, boardSize);
+    newBoard[row][col] = color;
+    final opponent = color.opponent;
+    for (final adj in adjacentPositions(row, col, boardSize)) {
+      if (newBoard[adj.row][adj.col] == opponent) {
+        final group = findGroup(newBoard, adj.row, adj.col, boardSize);
+        if (countLiberties(newBoard, group, boardSize) == 0) {
+          for (final p in group) {
+            newBoard[p.row][p.col] = StoneColor.empty;
+          }
+        }
+      }
+    }
+
+    if (state.koState != null &&
+        _boardsEqual(newBoard, state.koState!, boardSize)) {
+      return IllegalMoveReason.ko;
+    }
+
+    return null;
   }
 
   /// Passes the turn without changing the board.

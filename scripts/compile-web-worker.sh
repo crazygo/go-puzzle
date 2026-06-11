@@ -30,4 +30,10 @@ echo "[compile-web-worker] Compiling ${TRAINING_SUGGESTION_WORKER_SRC} → ${TRA
 dart compile js "${TRAINING_SUGGESTION_WORKER_SRC}" \
     -o "${TRAINING_SUGGESTION_WORKER_OUT}" \
     --no-source-maps
+TACTICS_ADVICE_WORKER_SRC="${ROOT_DIR}/web/tactics_advice_worker.dart"
+TACTICS_ADVICE_WORKER_OUT="${ROOT_DIR}/web/tactics_advice_worker.dart.js"
+echo "[compile-web-worker] Compiling ${TACTICS_ADVICE_WORKER_SRC} → ${TACTICS_ADVICE_WORKER_OUT} …"
+dart compile js "${TACTICS_ADVICE_WORKER_SRC}" \
+    -o "${TACTICS_ADVICE_WORKER_OUT}" \
+    --no-source-maps
 echo "[compile-web-worker] Done."

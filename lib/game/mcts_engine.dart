@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'game_mode.dart';
+import 'illegal_move_reason.dart';
 import '../models/board_position.dart';
 import '../models/game_state.dart';
 
@@ -616,6 +617,94 @@ class SimBoard {
     _koIndex = captured.length == 1 ? captured[0] : -1;
     currentPlayer = opponent;
     return true;
+  }
+
+  IllegalMoveReason? illegalMoveReason(int r, int c) {
+    if (r < 0 || r >= size || c < 0 || c >= size) return null;
+
+    final i = idx(r, c);
+    if (cells[i] != empty) return IllegalMoveReason.occupied;
+
+    final copy = SimBoard.copy(this);
+    if (copy.applyMove(r, c)) return null;
+
+    final color = currentPlayer;
+    final opponent = color == black ? white : black;
+    final testCells = List<int>.from(cells);
+    testCells[i] = color;
+
+    final captured = <int>[];
+    final checked = <int>{};
+    for (final adj in _adjacentFor(testCells, size, i)) {
+      if (testCells[adj] == opponent && !checked.contains(adj)) {
+        final group = _findGroupFor(testCells, size, adj);
+        checked.addAll(group);
+        if (_libertiesForGroupFor(testCells, size, group).isEmpty) {
+          captured.addAll(group);
+        }
+      }
+    }
+
+    if (i == _koIndex && captured.length == 1) {
+      return IllegalMoveReason.ko;
+    }
+
+    for (final p in captured) {
+      testCells[p] = empty;
+    }
+
+    if (captured.isEmpty &&
+        _libertiesForGroupFor(
+          testCells,
+          size,
+          _findGroupFor(testCells, size, i),
+        ).isEmpty) {
+      return IllegalMoveReason.suicide;
+    }
+
+    return null;
+  }
+
+  static List<int> _adjacentFor(List<int> cells, int boardSize, int i) {
+    final r = i ~/ boardSize;
+    final c = i % boardSize;
+    final result = <int>[];
+    if (r > 0) result.add(i - boardSize);
+    if (r < boardSize - 1) result.add(i + boardSize);
+    if (c > 0) result.add(i - 1);
+    if (c < boardSize - 1) result.add(i + 1);
+    return result;
+  }
+
+  static Set<int> _findGroupFor(List<int> cells, int boardSize, int i) {
+    final color = cells[i];
+    if (color == empty) return {};
+    final group = <int>{i};
+    final queue = [i];
+    while (queue.isNotEmpty) {
+      final cur = queue.removeLast();
+      for (final adj in _adjacentFor(cells, boardSize, cur)) {
+        if (!group.contains(adj) && cells[adj] == color) {
+          group.add(adj);
+          queue.add(adj);
+        }
+      }
+    }
+    return group;
+  }
+
+  static Set<int> _libertiesForGroupFor(
+    List<int> cells,
+    int boardSize,
+    Set<int> group,
+  ) {
+    final libs = <int>{};
+    for (final pos in group) {
+      for (final adj in _adjacentFor(cells, boardSize, pos)) {
+        if (cells[adj] == empty) libs.add(adj);
+      }
+    }
+    return libs;
   }
 
   void applyPass() {

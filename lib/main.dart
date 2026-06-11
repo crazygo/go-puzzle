@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/settings_provider.dart';
+import 'providers/tactics_challenge_provider.dart';
 import 'screens/capture_game_screen.dart';
 import 'screens/main_screen.dart';
 import 'services/app_log_store.dart';
@@ -37,6 +38,7 @@ class GoPuzzleApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => TacticsChallengeProvider()),
         ChangeNotifierProvider.value(value: AppLogStore.instance),
       ],
       child: Selector<SettingsProvider, AppVisualTheme>(

@@ -4,18 +4,16 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../game/board_image_recognizer.dart';
-import '../game/model_board_image_recognizer.dart';
 import '../game/ai_algorithm_framework.dart';
 import '../game/capture_ai.dart';
 import '../game/capture5_flutter_onnx_model_adapter.dart';
 import '../game/ai_rank_level.dart';
 import '../game/game_mode.dart';
 import '../game/go_engine.dart';
+import '../game/illegal_move_reason.dart';
 import '../game/katago_flutter_onnx_model_adapter.dart';
 import '../game/katago_model_adapter.dart';
 import '../game/mcts_engine.dart';
@@ -29,10 +27,15 @@ import '../services/game_history_repository.dart';
 import '../services/player_rank_repository.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_context.dart';
+import '../ui/app_toast.dart';
 import '../ui/board_coordinates.dart';
+import '../widgets/daily_challenge_card.dart';
+import 'screenshot_import_screen.dart';
 import '../widgets/go_board_widget.dart';
+import '../widgets/operation_context_menu.dart';
 import '../widgets/go_three_board_background.dart';
 import '../widgets/page_hero_banner.dart';
+import '../widgets/page_section_card.dart';
 
 class CaptureGameScreen extends StatefulWidget {
   const CaptureGameScreen({
@@ -421,22 +424,6 @@ class _ThreeBoardDebugScreenState extends State<ThreeBoardDebugScreen> {
   }
 }
 
-Map<String, dynamic> _recognizeBoardInIsolate(Uint8List bytes) {
-  final result = BoardImageRecognizer.recognize(bytes);
-  return {
-    'boardSize': result.boardSize,
-    'confidence': result.confidence,
-    'board': result.board
-        .map((row) => row.map((stone) => stone.index).toList())
-        .toList(),
-  };
-}
-
-enum _ModelLoadDecision {
-  ready,
-  useRules,
-}
-
 /// Returned from [CaptureGamePlayScreen] when the user forks from review mode.
 /// The home screen receives this via `Navigator.pop` and immediately starts a
 /// new game with the forked board — ensuring `_loadHistory` is called when
@@ -556,7 +543,6 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
   String _playMode = _modeCapture;
   CaptureInitialMode _initialMode = CaptureInitialMode.cross;
   bool _isAdjusting = false;
-  bool _isRecognizingScreenshot = false;
   bool _isPreparingKatago = false;
   bool _homeTuningSheetVisible = false;
   final _homeScrollController = ScrollController();
@@ -727,7 +713,9 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                   isVisible: false,
                                 ),
                                 const SizedBox(height: 8),
-                                _SectionCard(
+                                const DailyChallengeCard(),
+                                const SizedBox(height: 14),
+                                PageSectionCard(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
@@ -884,7 +872,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                               humanColor: StoneColor.black),
                                         ),
                                       ] else ...[
-                                        _PrimaryActionButton(
+                                        _SecondaryActionButton(
                                           title: _startButtonTitle(
                                             _CaptureCopy.startAsBlackButton,
                                           ),
@@ -892,7 +880,7 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                               humanColor: StoneColor.black),
                                         ),
                                         const SizedBox(height: 10),
-                                        _SecondaryActionButton(
+                                        _OutlinedActionButton(
                                           title: _startButtonTitle(
                                             _CaptureCopy.startAsWhiteButton,
                                           ),
@@ -903,52 +891,43 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
                                     ],
                                   ),
                                 ),
-                                const SizedBox(height: 10),
-                                _ImportScreenshotCard(
-                                  isLoading: _isRecognizingScreenshot,
-                                  onTap: _isRecognizingScreenshot
-                                      ? null
-                                      : _importBoardFromScreenshot,
+                                const SizedBox(height: 14),
+                                ImportScreenshotCard(
+                                  onBoardReady: _launchGameFromBoard,
                                 ),
                                 const SizedBox(height: 14),
-                                if (_history.isNotEmpty) ...[
-                                  _HistorySectionCard(
-                                    history: _history,
-                                  ),
-                                  const SizedBox(height: 14),
                                 ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_heroTapProxyEnabled)
-                  Positioned(
-                    top: heroTitleTop,
-                    left: 24,
-                    right: 16,
-                    height: _MotivationHeroTitle.height,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: () => _motivationHeroKey.currentState?.handleTap(),
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                if (kIsWeb && developerMode)
-                  SafeArea(
-                    child: Align(
-                      alignment: Alignment.bottomRight,
-                      child: _HomeBoardTuningLauncher(
-                        onTap: () =>
-                            setState(() => _homeTuningSheetVisible = true),
-                      ),
-                    ),
-                  ),
-                if (kIsWeb && developerMode && _homeTuningSheetVisible)
-                  _HomeBoardTuningSheet(
+                                ),
+                                ),
+                                ),
+                                ],
+                                ),
+                                ),
+                                ),
+                                if (_heroTapProxyEnabled)
+                                Positioned(
+                                top: heroTitleTop,
+                                left: 24,
+                                right: 16,
+                                height: _MotivationHeroTitle.height,
+                                child: GestureDetector(
+                                behavior: HitTestBehavior.translucent,
+                                onTap: () => _motivationHeroKey.currentState?.handleTap(),
+                                child: const SizedBox.expand(),
+                                ),
+                                ),
+                                if (kIsWeb && developerMode)
+                                SafeArea(
+                                child: Align(
+                                alignment: Alignment.bottomRight,
+                                child: _HomeBoardTuningLauncher(
+                                onTap: () =>
+                                setState(() => _homeTuningSheetVisible = true),
+                                ),
+                                ),
+                                ),
+                                if (kIsWeb && developerMode && _homeTuningSheetVisible)
+                                  _HomeBoardTuningSheet(
                     leafShadowEnabled:
                         widget.leafShadowEnabled ?? _leafShadowEnabled,
                     shadowOpacity:
@@ -1333,141 +1312,20 @@ class _CaptureGameScreenState extends State<CaptureGameScreen> {
     setState(() => _history = records);
   }
 
-  Future<void> _importBoardFromScreenshot() async {
-    var algorithm =
-        context.read<SettingsProvider?>()?.screenshotRecognitionAlgorithm ??
-            ScreenshotRecognitionAlgorithm.rules;
-    if (algorithm == ScreenshotRecognitionAlgorithm.model) {
-      final decision = await _showModelLoadingDialog();
-      if (!mounted || decision == null) return;
-      if (decision == _ModelLoadDecision.useRules) {
-        algorithm = ScreenshotRecognitionAlgorithm.rules;
-      }
-    }
-
-    try {
-      final picker = ImagePicker();
-      final file = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 2048,
-        maxHeight: 2048,
-        imageQuality: 88,
-      );
-      if (file == null || !mounted) return;
-
-      final bytes = await file.readAsBytes();
-      if (!mounted) return;
-
-      AppLogStore.instance.add(
-        category: AppLogCategory.screenshotRecognition,
-        level: AppLogLevel.info,
-        message: '開始截圖識別',
-        details: 'algorithm: ${algorithm.storageValue}\n'
-            'file: ${file.name}\n'
-            'bytes: ${bytes.length}',
-      );
-
-      setState(() {
-        _isRecognizingScreenshot = true;
-      });
-      final result = await _recognizeBoard(bytes, algorithm: algorithm);
-      if (!mounted) return;
-
-      AppLogStore.instance.add(
-        category: AppLogCategory.screenshotRecognition,
-        level: AppLogLevel.info,
-        message: '截圖識別完成',
-        details: 'algorithm: ${algorithm.storageValue}\n'
-            'boardSize: ${result.boardSize}\n'
-            'confidence: ${result.confidence.toStringAsFixed(4)}',
-      );
-
-      final edited = await Navigator.of(context).push<_ImportBoardDraft>(
-        CupertinoPageRoute(
-          builder: (_) => _ImportPreviewScreen(
-            initialBoardSize: result.boardSize,
-            initialBoard: result.board,
-            confidence: result.confidence,
-          ),
-        ),
-      );
-      if (edited == null || !mounted) return;
-
-      setState(() {
-        _boardSize = edited.boardSize;
-        _initialMode = CaptureInitialMode.setup;
-      });
-      await _saveSelection();
-      if (!mounted) return;
-
-      _startGame(
-        humanColor: StoneColor.black,
-        forceSetup: true,
-        initialBoard: edited.board,
-      );
-    } catch (error, stackTrace) {
-      AppLogStore.instance.add(
-        category: AppLogCategory.screenshotRecognition,
-        level: AppLogLevel.error,
-        message: '截圖匯入失敗',
-        details: 'algorithm: ${algorithm.storageValue}',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!mounted) return;
-      await showCupertinoDialog<void>(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: const Text('匯入失敗'),
-          content: const Text('未能從截圖中辨識棋盤，請確認圖片清晰且包含完整棋盤。'),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('知道了'),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isRecognizingScreenshot = false;
-        });
-      }
-    }
-  }
-
-  Future<_ModelLoadDecision?> _showModelLoadingDialog() {
-    return showCupertinoDialog<_ModelLoadDecision>(
-      context: context,
-      barrierDismissible: true,
-      builder: (_) => _ModelRecognitionLoadingDialog(
-        loadModel: ModelBoardImageRecognizer.instance.ensureLoaded,
-        reloadModel: ModelBoardImageRecognizer.instance.reload,
-      ),
+  Future<void> _launchGameFromBoard(
+    int boardSize,
+    List<List<StoneColor>> board,
+  ) async {
+    final oldSize = _boardSize;
+    setState(() => _boardSize = boardSize);
+    await _startGame(
+      humanColor: StoneColor.black,
+      forceSetup: true,
+      initialBoard: board,
     );
-  }
-
-  Future<BoardRecognitionResult> _recognizeBoard(
-    Uint8List bytes, {
-    required ScreenshotRecognitionAlgorithm algorithm,
-  }) async {
-    if (algorithm == ScreenshotRecognitionAlgorithm.model) {
-      return ModelBoardImageRecognizer.instance.recognize(bytes);
+    if (mounted) {
+      setState(() => _boardSize = oldSize);
     }
-    final raw = await compute(_recognizeBoardInIsolate, bytes);
-    final board = (raw['board'] as List)
-        .map<List<StoneColor>>(
-          (row) => (row as List)
-              .map<StoneColor>((index) => StoneColor.values[index as int])
-              .toList(),
-        )
-        .toList();
-    return BoardRecognitionResult(
-      boardSize: raw['boardSize'] as int,
-      board: board,
-      confidence: (raw['confidence'] as num).toDouble(),
-    );
   }
 
   Future<void> _startGame({
@@ -3229,35 +3087,45 @@ class _SecondaryActionButton extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.child});
+class _OutlinedActionButton extends StatelessWidget {
+  const _OutlinedActionButton({required this.title, required this.onPressed});
 
-  final Widget child;
+  final String title;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.appPalette;
     final isClassic = context.isClassicAppTheme;
-    final cardBackground =
-        isClassic ? palette.setupPanelBackground : const Color(0xF7FFFDF9);
+    final textColor = isClassic
+        ? palette.setupActionText
+        : Color.lerp(palette.primary, CupertinoColors.black, 0.18)!;
+    final borderColor = isClassic
+        ? palette.setupPanelBorder
+        : palette.primary.withValues(alpha: 0.35);
 
-    return Container(
-      padding: kPageSectionCardPadding,
-      decoration: BoxDecoration(
-        color: cardBackground,
-        borderRadius: BorderRadius.circular(kPageSectionCardRadius),
-        border: isClassic ? null : Border.all(color: const Color(0x26D8C1A4)),
-        boxShadow: isClassic
-            ? null
-            : const [
-                BoxShadow(
-                  color: Color(0x0A000000),
-                  blurRadius: 24,
-                  offset: Offset(0, 10),
-                ),
-              ],
+    return SizedBox(
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: CupertinoColors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor),
+        ),
+        child: CupertinoButton(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          borderRadius: BorderRadius.circular(14),
+          onPressed: onPressed,
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
+        ),
       ),
-      child: child,
     );
   }
 }
@@ -3811,103 +3679,6 @@ class _AiOpponentTile extends StatelessWidget {
   }
 }
 
-class _ImportScreenshotCard extends StatelessWidget {
-  const _ImportScreenshotCard({
-    required this.onTap,
-    required this.isLoading,
-  });
-
-  final VoidCallback? onTap;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.appPalette;
-    final isClassic = context.isClassicAppTheme;
-    final iconContainerColor = isClassic
-        ? palette.setupPanelBackground
-        : palette.primary.withValues(alpha: 0.16);
-    final iconColor = isClassic ? palette.setupActionText : palette.primary;
-    final iconBorderColor =
-        isClassic ? palette.setupActionText : CupertinoColors.transparent;
-    final titleColor = isClassic
-        ? CupertinoColors.label.resolveFrom(context)
-        : const Color(0xFF36271E);
-    final subtitleColor = isClassic
-        ? CupertinoColors.secondaryLabel.resolveFrom(context)
-        : const Color(0xFF897564);
-    final chevronColor = isClassic
-        ? CupertinoColors.tertiaryLabel.resolveFrom(context)
-        : const Color(0xFFC09468);
-
-    return _SectionCard(
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        onPressed: onTap,
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: iconContainerColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: iconBorderColor),
-              ),
-              alignment: Alignment.center,
-              child: isLoading
-                  ? const CupertinoActivityIndicator(radius: 10)
-                  : Icon(
-                      CupertinoIcons.photo_on_rectangle,
-                      color: iconColor,
-                    ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isLoading ? '辨識中...' : '匯入截圖擺棋',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: titleColor,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '自動辨識棋盤和棋子，預覽後微調進入擺棋',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: subtitleColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              CupertinoIcons.chevron_right,
-              color: chevronColor,
-              size: 18,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ImportBoardDraft {
-  const _ImportBoardDraft({
-    required this.boardSize,
-    required this.board,
-  });
-
-  final int boardSize;
-  final List<List<StoneColor>> board;
-}
-
 class _KatagoPreparationDialog extends StatelessWidget {
   const _KatagoPreparationDialog({
     required this.modelLabel,
@@ -3986,322 +3757,6 @@ class _KatagoPreparationDialog extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _ModelRecognitionLoadingDialog extends StatefulWidget {
-  const _ModelRecognitionLoadingDialog({
-    required this.loadModel,
-    required this.reloadModel,
-  });
-
-  final Future<void> Function() loadModel;
-  final Future<void> Function() reloadModel;
-
-  @override
-  State<_ModelRecognitionLoadingDialog> createState() =>
-      _ModelRecognitionLoadingDialogState();
-}
-
-class _ModelRecognitionLoadingDialogState
-    extends State<_ModelRecognitionLoadingDialog> {
-  bool _isLoading = true;
-  Object? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load(firstAttempt: true);
-  }
-
-  Future<void> _load({required bool firstAttempt}) async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-    try {
-      if (firstAttempt) {
-        await widget.loadModel();
-      } else {
-        await widget.reloadModel();
-      }
-      AppLogStore.instance.add(
-        category: AppLogCategory.screenshotRecognition,
-        level: AppLogLevel.info,
-        message: '模型載入完成',
-      );
-      if (!mounted) return;
-      Navigator.of(context).pop(_ModelLoadDecision.ready);
-    } catch (error, stackTrace) {
-      AppLogStore.instance.add(
-        category: AppLogCategory.screenshotRecognition,
-        level: AppLogLevel.error,
-        message: '模型載入失敗',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _error = error;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.appPalette;
-    final titleColor = CupertinoColors.label.resolveFrom(context);
-    final subtitleColor = CupertinoColors.secondaryLabel.resolveFrom(context);
-    return Center(
-      child: CupertinoPopupSurface(
-        isSurfacePainted: true,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 320),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: CupertinoButton(
-                    minimumSize: const Size.square(28),
-                    padding: EdgeInsets.zero,
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Icon(
-                      CupertinoIcons.xmark_circle_fill,
-                      color: CupertinoColors.tertiaryLabel.resolveFrom(context),
-                      size: 24,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Center(
-                  child: _isLoading
-                      ? const CupertinoActivityIndicator(radius: 13)
-                      : Icon(
-                          CupertinoIcons.exclamationmark_triangle,
-                          color: palette.primary,
-                          size: 28,
-                        ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  _isLoading ? '正在載入模型' : '模型載入失敗',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: titleColor,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _isLoading
-                      ? (kIsWeb
-                          ? '正在從 GitHub Release 下載識別模型，速度取決於網路。'
-                          : '正在從 App 內置資源載入識別模型。')
-                      : '可以重試載入模型，或先使用原本的算法方式匯入。',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: subtitleColor,
-                    fontSize: 13,
-                    height: 1.3,
-                  ),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _error.toString(),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: CupertinoColors.tertiaryLabel.resolveFrom(context),
-                      fontSize: 11,
-                      height: 1.2,
-                    ),
-                  ),
-                ],
-                if (!_isLoading) ...[
-                  const SizedBox(height: 16),
-                  CupertinoButton.filled(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    onPressed: () => _load(firstAttempt: false),
-                    child: const Text('重試'),
-                  ),
-                  const SizedBox(height: 8),
-                  CupertinoButton(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    onPressed: () =>
-                        Navigator.of(context).pop(_ModelLoadDecision.useRules),
-                    child: const Text('使用算法方式'),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ImportPreviewScreen extends StatefulWidget {
-  const _ImportPreviewScreen({
-    required this.initialBoardSize,
-    required this.initialBoard,
-    required this.confidence,
-  });
-
-  final int initialBoardSize;
-  final List<List<StoneColor>> initialBoard;
-  final double confidence;
-
-  @override
-  State<_ImportPreviewScreen> createState() => _ImportPreviewScreenState();
-}
-
-class _ImportPreviewScreenState extends State<_ImportPreviewScreen> {
-  late int _boardSize;
-  late List<List<StoneColor>> _board;
-
-  @override
-  void initState() {
-    super.initState();
-    _boardSize = widget.initialBoardSize;
-    _board = _cloneBoard(widget.initialBoard);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final coordinateSystem =
-        context.select<SettingsProvider, BoardCoordinateSystem>(
-            (settings) => settings.boardCoordinateSystem);
-    final gameState = GameState(
-      boardSize: _boardSize,
-      board: _board,
-      currentPlayer: StoneColor.black,
-    );
-    final confidencePct = (widget.confidence * 100).toStringAsFixed(0);
-
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text('截圖辨識預覽'),
-        previousPageTitle: _CaptureCopy.pageTitle,
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: _startSetup,
-          child: const Text('開始擺棋'),
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: _SectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '辨識可信度 $confidencePct%',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF7A63C8),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '點擊棋盤交叉點可循環切換：空 -> 黑 -> 白。確認後進入擺棋模式。',
-                      style: TextStyle(fontSize: 13, color: Color(0xFF6B5C50)),
-                    ),
-                    const SizedBox(height: 12),
-                    _PillSegmentControl<int>(
-                      selectedValue: _boardSize,
-                      options: const [
-                        _SegmentOption(value: 9, label: '9 路'),
-                        _SegmentOption(value: 13, label: '13 路'),
-                        _SegmentOption(value: 19, label: '19 路'),
-                      ],
-                      onChanged: _changeBoardSize,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0DFC9),
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: GoBoardWidget(
-                      gameState: gameState,
-                      coordinateSystem: coordinateSystem,
-                      onTap: (row, col) => _toggleStone(row, col),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-              child: SizedBox(
-                width: double.infinity,
-                child: CupertinoButton.filled(
-                  onPressed: _startSetup,
-                  child: const Text('進入擺棋模式'),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _changeBoardSize(int newSize) {
-    if (newSize == _boardSize) return;
-    setState(() {
-      _boardSize = newSize;
-      _board = List.generate(
-        _boardSize,
-        (_) => List<StoneColor>.filled(_boardSize, StoneColor.empty),
-      );
-    });
-  }
-
-  void _toggleStone(int row, int col) {
-    setState(() {
-      final current = _board[row][col];
-      _board[row][col] = switch (current) {
-        StoneColor.empty => StoneColor.black,
-        StoneColor.black => StoneColor.white,
-        StoneColor.white => StoneColor.empty,
-      };
-    });
-  }
-
-  void _startSetup() {
-    Navigator.of(context).pop(
-      _ImportBoardDraft(
-        boardSize: _boardSize,
-        board: _cloneBoard(_board),
-      ),
-    );
-  }
-
-  List<List<StoneColor>> _cloneBoard(List<List<StoneColor>> source) {
-    return source.map((row) => List<StoneColor>.from(row)).toList();
   }
 }
 
@@ -4735,15 +4190,8 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     final trainingModeUnavailableReason =
         provider.isTerritoryMode ? null : '吃 5 子模式不可用';
     final buttonBox = buttonContext.findRenderObject() as RenderBox?;
-    final overlayBox =
-        Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
-    if (buttonBox == null || overlayBox == null) return;
+    if (buttonBox == null) return;
 
-    final buttonTopLeft = buttonBox.localToGlobal(
-      Offset.zero,
-      ancestor: overlayBox,
-    );
-    final buttonRect = buttonTopLeft & buttonBox.size;
     const menuWidth = 178.0;
     // 11 items plus dividers. The training item is taller when it needs a
     // disabled-state reason.
@@ -4756,123 +4204,81 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
         (trainingModeUnavailableReason == null
             ? 0
             : disabledTrainingItemHeight - menuItemHeight);
-    const edgePadding = 12.0;
-    final media = MediaQuery.of(context);
-    final preferredTop = buttonRect.top - menuHeight - 8;
-    final menuOpensBelow = preferredTop < media.padding.top + edgePadding;
-    final menuAlignment =
-        menuOpensBelow ? Alignment.topRight : Alignment.bottomRight;
 
-    showGeneralDialog<void>(
+    showAnchoredOperationMenu(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: '關閉操作選單',
-      barrierColor: CupertinoColors.black.withValues(alpha: 0.02),
-      transitionDuration: const Duration(milliseconds: 160),
-      pageBuilder: (menuContext, _, __) {
-        final menuMedia = MediaQuery.of(menuContext);
-        final maxLeft = menuMedia.size.width - menuWidth - edgePadding;
-        final left = (buttonRect.right - menuWidth).clamp(edgePadding, maxLeft);
-        var top = preferredTop;
-        final minTop = menuMedia.padding.top + edgePadding;
-        if (top < minTop) {
-          top = buttonRect.bottom + 8;
-        }
-
-        return Stack(
-          children: [
-            Positioned(
-              left: left,
-              top: top,
-              width: menuWidth,
-              child: _OperationContextMenu(
-                aiConfigLabel: _aiOpponentOption(
-                  provider.activeAlgorithmConfig?.id ??
-                      _aiAlgorithmConfigForRank(widget.aiRank).id,
-                ).subtitle,
-                captureWarningEnabled: showCaptureWarning,
-                moveLogVisible: _moveLogVisible,
-                showMoveNumbers: _showMoveNumbers,
-                currentMoveMarked: currentMoveMarked,
-                canUndo: canUndo,
-                canHint: canHint,
-                canMarkMove: canMarkMove,
-                canCopyMoveLog: canCopyMoveLog,
-                canPass: canPass,
-                canToggleCaptureWarning: settings != null,
-                canEnterTrainingMode: canEnterTrainingMode,
-                trainingModeUnavailableReason: trainingModeUnavailableReason,
-                onToggleCaptureWarning: () {
-                  Navigator.of(menuContext).pop();
-                  settings?.setShowCaptureWarning(!showCaptureWarning);
-                },
-                onToggleMoveLog: () {
-                  setState(() {
-                    _moveLogVisible = !_moveLogVisible;
-                    // Hiding the log also exits review mode so the user is
-                    // not stuck in a mode they can no longer see.
-                    if (!_moveLogVisible) {
-                      _reviewMoveIndex = null;
-                      _reviewStates = null;
-                    }
-                  });
-                  Navigator.of(menuContext).pop();
-                },
-                onToggleMoveNumbers: () {
-                  setState(() {
-                    _showMoveNumbers = !_showMoveNumbers;
-                  });
-                  Navigator.of(menuContext).pop();
-                },
-                onToggleMarkMove: () {
-                  Navigator.of(menuContext).pop();
-                  if (!canMarkMove) return;
-                  _toggleMarkedMove(provider);
-                },
-                onUndo: () {
-                  Navigator.of(menuContext).pop();
-                  provider.undoMove();
-                },
-                onHint: () {
-                  Navigator.of(menuContext).pop();
-                  _showHintsOnBoard(provider);
-                },
-                onPass: () async {
-                  Navigator.of(menuContext).pop();
-                  await provider.passTurn();
-                },
-                onEnterTrainingMode: () {
-                  Navigator.of(menuContext).pop();
-                  _enterTrainingMode(provider);
-                },
-                onCopyText: () {
-                  Navigator.of(menuContext).pop();
-                  _copyMovesAsText(provider, coordinateSystem);
-                },
-                onCopySgf: () {
-                  Navigator.of(menuContext).pop();
-                  _copyMovesAsSgf(provider);
-                },
-              ),
-            ),
-          ],
-        );
-      },
-      transitionBuilder: (_, animation, __, child) {
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-          reverseCurve: Curves.easeInCubic,
-        );
-        return FadeTransition(
-          opacity: curved,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.98, end: 1).animate(curved),
-            alignment: menuAlignment,
-            child: child,
-          ),
-        );
-      },
+      buttonContext: buttonContext,
+      menuWidth: menuWidth,
+      menuHeight: menuHeight,
+      menu: _OperationContextMenu(
+        aiConfigLabel: _aiOpponentOption(
+          provider.activeAlgorithmConfig?.id ??
+              _aiAlgorithmConfigForRank(widget.aiRank).id,
+        ).subtitle,
+        captureWarningEnabled: showCaptureWarning,
+        moveLogVisible: _moveLogVisible,
+        showMoveNumbers: _showMoveNumbers,
+        currentMoveMarked: currentMoveMarked,
+        canUndo: canUndo,
+        canHint: canHint,
+        canMarkMove: canMarkMove,
+        canCopyMoveLog: canCopyMoveLog,
+        canPass: canPass,
+        canToggleCaptureWarning: settings != null,
+        canEnterTrainingMode: canEnterTrainingMode,
+        trainingModeUnavailableReason: trainingModeUnavailableReason,
+        onToggleCaptureWarning: () {
+          Navigator.of(context).pop();
+          settings?.setShowCaptureWarning(!showCaptureWarning);
+        },
+        onToggleMoveLog: () {
+          setState(() {
+            _moveLogVisible = !_moveLogVisible;
+            // Hiding the log also exits review mode so the user is
+            // not stuck in a mode they can no longer see.
+            if (!_moveLogVisible) {
+              _reviewMoveIndex = null;
+              _reviewStates = null;
+            }
+          });
+          Navigator.of(context).pop();
+        },
+        onToggleMoveNumbers: () {
+          setState(() {
+            _showMoveNumbers = !_showMoveNumbers;
+          });
+          Navigator.of(context).pop();
+        },
+        onToggleMarkMove: () {
+          Navigator.of(context).pop();
+          if (!canMarkMove) return;
+          _toggleMarkedMove(provider);
+        },
+        onUndo: () {
+          Navigator.of(context).pop();
+          provider.undoMove();
+        },
+        onHint: () {
+          Navigator.of(context).pop();
+          _showHintsOnBoard(provider);
+        },
+        onPass: () async {
+          Navigator.of(context).pop();
+          await provider.passTurn();
+        },
+        onEnterTrainingMode: () {
+          Navigator.of(context).pop();
+          _enterTrainingMode(provider);
+        },
+        onCopyText: () {
+          Navigator.of(context).pop();
+          _copyMovesAsText(provider, coordinateSystem);
+        },
+        onCopySgf: () {
+          Navigator.of(context).pop();
+          _copyMovesAsSgf(provider);
+        },
+      ),
     );
   }
 
@@ -4896,6 +4302,22 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
     required int row,
     required int col,
   }) async {
+    if (!provider.isPlacementMode &&
+        !provider.trainingMode &&
+        provider.gameState.currentPlayer != widget.humanColor) {
+      return false;
+    }
+    if (provider.isAiThinking || provider.result != CaptureGameResult.none) {
+      return false;
+    }
+
+    final illegalReason =
+        GoEngine.invalidMoveReason(provider.gameState, row, col);
+    if (illegalReason != null) {
+      showAppToast(context, illegalMoveToastMessage(illegalReason));
+      return false;
+    }
+
     final placed = await provider.placeStone(row, col);
     if (placed && mounted) {
       setState(() {
@@ -5420,15 +4842,7 @@ class _CaptureGamePlayScreenState extends State<CaptureGamePlayScreen>
   }
 
   void _showCopyBanner(String message) {
-    final overlay = Overlay.of(context, rootOverlay: true);
-    late OverlayEntry entry;
-    entry = OverlayEntry(
-      builder: (_) => _CopyBannerOverlay(
-        message: message,
-        onDone: () => entry.remove(),
-      ),
-    );
-    overlay.insert(entry);
+    showAppToast(context, message);
   }
 
   Future<void> _copyMovesAsText(
@@ -5904,81 +5318,6 @@ String _toSgfCoord(int col, int row) {
       '${String.fromCharCode('a'.codeUnitAt(0) + row)}';
 }
 
-class _CopyBannerOverlay extends StatefulWidget {
-  const _CopyBannerOverlay({
-    required this.message,
-    required this.onDone,
-  });
-
-  final String message;
-  final VoidCallback onDone;
-
-  @override
-  State<_CopyBannerOverlay> createState() => _CopyBannerOverlayState();
-}
-
-class _CopyBannerOverlayState extends State<_CopyBannerOverlay>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _opacity;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 220),
-    );
-    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-    _controller.forward();
-    Future<void>.delayed(const Duration(milliseconds: 1400), _dismiss);
-  }
-
-  void _dismiss() async {
-    if (!mounted) return;
-    await _controller.reverse();
-    widget.onDone();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      bottom: MediaQuery.of(context).padding.bottom + 48,
-      left: 0,
-      right: 0,
-      child: IgnorePointer(
-        child: FadeTransition(
-          opacity: _opacity,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xE6333333),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                widget.message,
-                style: const TextStyle(
-                  color: CupertinoColors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  decoration: TextDecoration.none,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _MoveLogStrip extends StatefulWidget {
   const _MoveLogStrip({
     required this.moves,
@@ -6356,174 +5695,75 @@ class _OperationContextMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground
-            .resolveFrom(context)
-            .withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: CupertinoColors.separator
-              .resolveFrom(context)
-              .withValues(alpha: 0.24),
-          width: 0.6,
+    return OperationContextMenuShell(
+      children: [
+        OperationMenuItem(
+          text: 'AI 棋力：$aiConfigLabel',
+          enabled: false,
+          onPressed: () {},
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x33000000),
-            blurRadius: 22,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _OperationMenuItem(
-              text: 'AI 棋力：$aiConfigLabel',
-              enabled: false,
-              onPressed: () {},
-            ),
-            _OperationMenuDivider(),
-            _OperationMenuItem(
-              text: captureWarningEnabled ? '吃子預警：開' : '吃子預警：關',
-              enabled: canToggleCaptureWarning,
-              onPressed: onToggleCaptureWarning,
-            ),
-            _OperationMenuDivider(),
-            _OperationMenuItem(
-              text: moveLogVisible ? '隱藏棋譜' : '顯示棋譜',
-              enabled: true,
-              onPressed: onToggleMoveLog,
-            ),
-            _OperationMenuDivider(),
-            _OperationMenuItem(
-              text: showMoveNumbers ? '隱藏手數' : '顯示手數',
-              enabled: true,
-              onPressed: onToggleMoveNumbers,
-            ),
-            _OperationMenuDivider(),
-            _OperationMenuItem(
-              text: currentMoveMarked ? '取消標記此手' : '標記此手',
-              enabled: canMarkMove,
-              onPressed: onToggleMarkMove,
-            ),
-            _OperationMenuDivider(),
-            _OperationMenuItem(
-              text: '後退一手',
-              enabled: canUndo,
-              onPressed: onUndo,
-            ),
-            _OperationMenuDivider(),
-            _OperationMenuItem(
-              text: '停一手',
-              enabled: canPass,
-              onPressed: onPass,
-            ),
-            _OperationMenuDivider(),
-            _OperationMenuItem(
-              text: '提示一手',
-              enabled: canHint,
-              onPressed: onHint,
-            ),
-            _OperationMenuDivider(),
-            _OperationMenuItem(
-              text: '進入陪練模式',
-              subtitle: trainingModeUnavailableReason,
-              enabled: canEnterTrainingMode,
-              onPressed: onEnterTrainingMode,
-            ),
-            _OperationMenuDivider(),
-            _OperationMenuItem(
-              text: '複製棋譜為文字',
-              enabled: canCopyMoveLog,
-              onPressed: onCopyText,
-            ),
-            _OperationMenuDivider(),
-            _OperationMenuItem(
-              text: '複製棋譜為 SGF',
-              enabled: canCopyMoveLog,
-              onPressed: onCopySgf,
-            ),
-          ],
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: captureWarningEnabled ? '吃子預警：開' : '吃子預警：關',
+          enabled: canToggleCaptureWarning,
+          onPressed: onToggleCaptureWarning,
         ),
-      ),
-    );
-  }
-}
-
-class _OperationMenuDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 0.6,
-      margin: const EdgeInsets.only(left: 14),
-      color: CupertinoColors.separator
-          .resolveFrom(context)
-          .withValues(alpha: 0.30),
-    );
-  }
-}
-
-class _OperationMenuItem extends StatelessWidget {
-  const _OperationMenuItem({
-    required this.text,
-    this.subtitle,
-    required this.enabled,
-    required this.onPressed,
-  });
-
-  final String text;
-  final String? subtitle;
-  final bool enabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final titleColor = enabled
-        ? CupertinoColors.label.resolveFrom(context)
-        : CupertinoColors.inactiveGray.resolveFrom(context);
-    final subtitle = this.subtitle;
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      minimumSize: Size.zero,
-      onPressed: enabled ? onPressed : null,
-      child: SizedBox(
-        height: subtitle == null ? 48 : 58,
-        width: double.infinity,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: subtitle == null ? 16 : 15,
-                  fontWeight: FontWeight.w500,
-                  color: titleColor,
-                ),
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400,
-                    color: CupertinoColors.inactiveGray.resolveFrom(context),
-                  ),
-                ),
-              ],
-            ],
-          ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: moveLogVisible ? '隱藏棋譜' : '顯示棋譜',
+          enabled: true,
+          onPressed: onToggleMoveLog,
         ),
-      ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: showMoveNumbers ? '隱藏手數' : '顯示手數',
+          enabled: true,
+          onPressed: onToggleMoveNumbers,
+        ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: currentMoveMarked ? '取消標記此手' : '標記此手',
+          enabled: canMarkMove,
+          onPressed: onToggleMarkMove,
+        ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: '後退一手',
+          enabled: canUndo,
+          onPressed: onUndo,
+        ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: '停一手',
+          enabled: canPass,
+          onPressed: onPass,
+        ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: '提示一手',
+          enabled: canHint,
+          onPressed: onHint,
+        ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: '進入陪練模式',
+          subtitle: trainingModeUnavailableReason,
+          enabled: canEnterTrainingMode,
+          onPressed: onEnterTrainingMode,
+        ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: '複製棋譜為文字',
+          enabled: canCopyMoveLog,
+          onPressed: onCopyText,
+        ),
+        const OperationMenuDivider(),
+        OperationMenuItem(
+          text: '複製棋譜為 SGF',
+          enabled: canCopyMoveLog,
+          onPressed: onCopySgf,
+        ),
+      ],
     );
   }
 }
@@ -7147,763 +6387,6 @@ class _StoneRipplePainter extends CustomPainter {
       old.row != row ||
       old.col != col ||
       old.boardSize != boardSize;
-}
-
-// ---------------------------------------------------------------------------
-// History section
-// ---------------------------------------------------------------------------
-
-/// Section card shown on the home screen listing recent games.
-class _HistorySectionCard extends StatelessWidget {
-  const _HistorySectionCard({
-    required this.history,
-  });
-
-  final List<GameRecord> history;
-
-  static const _maxVisible = 5;
-
-  @override
-  Widget build(BuildContext context) {
-    final visible = history.take(_maxVisible).toList();
-    final palette = context.appPalette;
-    return _SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '歷史對局',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: palette.setupTitleText,
-                  ),
-                ),
-              ),
-              if (history.length > _maxVisible)
-                CupertinoButton(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  minimumSize: Size.zero,
-                  onPressed: () => _showAllHistory(context),
-                  child: Text(
-                    '全部 ›',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: palette.setupActionText,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...visible.map(
-            (r) => _HistoryRow(
-              record: r,
-              onTap: () => _showDetailSheet(context, r),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDetailSheet(BuildContext context, GameRecord record) {
-    showCupertinoModalPopup<void>(
-      context: context,
-      builder: (ctx) => _HistoryDetailSheet(record: record),
-    );
-  }
-
-  void _showAllHistory(BuildContext context) {
-    Navigator.of(context).push(
-      CupertinoPageRoute(
-        builder: (_) => _FullHistoryScreen(history: history),
-      ),
-    );
-  }
-}
-
-class _HistoryRow extends StatelessWidget {
-  const _HistoryRow({
-    required this.record,
-    required this.onTap,
-  });
-
-  final GameRecord record;
-  final VoidCallback onTap;
-
-  static const _outcomeColors = {
-    GameOutcome.humanWins: Color(0xFF4A7C59),
-    GameOutcome.aiWins: Color(0xFF8B3A3A),
-    GameOutcome.draw: Color(0xFF8C7966),
-    GameOutcome.abandoned: Color(0xFF8C7966),
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.appPalette;
-    final isClassic = context.isClassicAppTheme;
-    final date = _formatDate(record.playedAt);
-    final boardLabel = '${record.boardSize} 路';
-    final diffLabel = record.difficultyLevel.displayName;
-    final modeLabel = record.gameMode.historyLabel;
-    final outcomeLabel = record.outcome.displayName;
-    final outcomeColor = isClassic
-        ? switch (record.outcome) {
-            GameOutcome.humanWins =>
-              CupertinoColors.systemGreen.resolveFrom(context),
-            GameOutcome.aiWins =>
-              CupertinoColors.systemRed.resolveFrom(context),
-            GameOutcome.draw => CupertinoColors.systemGrey.resolveFrom(context),
-            GameOutcome.abandoned =>
-              CupertinoColors.systemGrey.resolveFrom(context),
-          }
-        : _outcomeColors[record.outcome] ?? const Color(0xFF8C7966);
-
-    return CupertinoButton(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      minimumSize: Size.zero,
-      onPressed: onTap,
-      child: Row(
-        children: [
-          _StoneCircle(
-              isBlack: record.humanColorIndex == StoneColor.black.index),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$boardLabel · $modeLabel · $diffLabel · ${record.totalMoves} 手',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: palette.setupValueText,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  date,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: palette.setupLabelText,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: outcomeColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              outcomeLabel,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: outcomeColor,
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Icon(
-            CupertinoIcons.chevron_right,
-            color: isClassic
-                ? CupertinoColors.tertiaryLabel.resolveFrom(context)
-                : const Color(0xFFCBAF8C),
-            size: 14,
-          ),
-        ],
-      ),
-    );
-  }
-
-  static String _formatDate(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inDays == 0) return '今天 ${_pad(dt.hour)}:${_pad(dt.minute)}';
-    if (diff.inDays == 1) return '昨天 ${_pad(dt.hour)}:${_pad(dt.minute)}';
-    return '${dt.month}/${dt.day} ${_pad(dt.hour)}:${_pad(dt.minute)}';
-  }
-
-  static String _pad(int n) => n.toString().padLeft(2, '0');
-}
-
-class _StoneCircle extends StatelessWidget {
-  const _StoneCircle({required this.isBlack});
-
-  final bool isBlack;
-
-  @override
-  Widget build(BuildContext context) {
-    final isClassic = context.isClassicAppTheme;
-    return Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: isBlack
-            ? CupertinoColors.label.resolveFrom(context)
-            : (isClassic
-                ? CupertinoColors.systemBackground.resolveFrom(context)
-                : const Color(0xFFF5F0E8)),
-        border: Border.all(
-          color: isBlack
-              ? CupertinoColors.secondaryLabel.resolveFrom(context)
-              : (isClassic
-                  ? CupertinoColors.separator.resolveFrom(context)
-                  : const Color(0xFFBCA88A)),
-          width: 1.2,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 3,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// History detail sheet
-// ---------------------------------------------------------------------------
-
-class _HistoryDetailSheet extends StatelessWidget {
-  const _HistoryDetailSheet({required this.record});
-
-  final GameRecord record;
-
-  @override
-  Widget build(BuildContext context) {
-    final boardState = _buildFinalBoardState(record);
-    final palette = context.appPalette;
-    final isClassic = context.isClassicAppTheme;
-    final coordinateSystem =
-        context.select<SettingsProvider, BoardCoordinateSystem>(
-            (settings) => settings.boardCoordinateSystem);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: palette.pageBackground,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: palette.setupDivider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  _OutcomeBadge(outcome: record.outcome),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          record.gameMode == GameMode.territory
-                              ? '${record.boardSize} 路 · 圍空 · ${record.difficultyLevel.displayName}'
-                              : '${record.boardSize} 路 · 吃${record.captureTarget}子 · ${record.difficultyLevel.displayName}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: palette.setupValueText,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _formatFullDate(record.playedAt),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: palette.setupLabelText,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(24, 24),
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(
-                      '關閉',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: palette.setupActionText,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (boardState != null) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: isClassic
-                          ? palette.setupPanelBackground
-                          : const Color(0xFFF0DFC9),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: GoBoardWidget(
-                        gameState: boardState,
-                        coordinateSystem: coordinateSystem,
-                        onTap: null,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '共 ${record.totalMoves} 手',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: palette.setupLabelText,
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            if (record.moves.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: _PrimaryActionButton(
-                  title: '瀏覽棋局',
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).push(
-                      CupertinoPageRoute<void>(
-                        builder: (_) => _GameBrowseScreen(record: record),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            const SizedBox(height: 4),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static String _formatFullDate(DateTime dt) {
-    return '${dt.year}/${dt.month.toString().padLeft(2, '0')}/${dt.day.toString().padLeft(2, '0')} '
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
-
-  static GameState? _buildFinalBoardState(GameRecord record) {
-    final fb = record.finalBoard;
-    if (fb == null) return null;
-    try {
-      final board = fb
-          .map((row) => row
-              .map((i) =>
-                  StoneColor.values[i.clamp(0, StoneColor.values.length - 1)])
-              .toList())
-          .toList();
-      return GameState(
-        boardSize: record.boardSize,
-        board: board,
-        currentPlayer: StoneColor.black,
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-}
-
-class _OutcomeBadge extends StatelessWidget {
-  const _OutcomeBadge({required this.outcome});
-
-  final GameOutcome outcome;
-
-  static const _bgColors = {
-    GameOutcome.humanWins: Color(0xFFE6F4EC),
-    GameOutcome.aiWins: Color(0xFFF9E6E6),
-    GameOutcome.abandoned: Color(0xFFF0EAE2),
-  };
-
-  static const _fgColors = {
-    GameOutcome.humanWins: Color(0xFF3D7A56),
-    GameOutcome.aiWins: Color(0xFF8B3A3A),
-    GameOutcome.abandoned: Color(0xFF7A6A5A),
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      decoration: BoxDecoration(
-        color: _bgColors[outcome],
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        outcome.displayName,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: _fgColors[outcome],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Full history screen
-// ---------------------------------------------------------------------------
-
-class _FullHistoryScreen extends StatelessWidget {
-  const _FullHistoryScreen({required this.history});
-
-  final List<GameRecord> history;
-
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: kPageBackgroundColor,
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('歷史對局'),
-        previousPageTitle: '围棋谜题',
-      ),
-      child: SafeArea(
-        child: ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          itemCount: history.length,
-          separatorBuilder: (_, __) => Container(
-            height: 0.5,
-            color: const Color(0x26D8C1A4),
-          ),
-          itemBuilder: (ctx, i) {
-            final r = history[i];
-            return _HistoryRow(
-              record: r,
-              onTap: () => showCupertinoModalPopup<void>(
-                context: ctx,
-                builder: (_) => _HistoryDetailSheet(record: r),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Game browse screen – move-by-move viewer for a recorded game
-// ---------------------------------------------------------------------------
-
-class _GameBrowseScreen extends StatefulWidget {
-  const _GameBrowseScreen({required this.record});
-
-  final GameRecord record;
-
-  @override
-  State<_GameBrowseScreen> createState() => _GameBrowseScreenState();
-}
-
-class _GameBrowseScreenState extends State<_GameBrowseScreen> {
-  late final List<GameState> _states;
-  int _index = 0;
-  bool _onlyMarked = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _states = _buildStates(widget.record);
-  }
-
-  /// Replays every move in [record] and returns the ordered list of
-  /// board states: index 0 = initial board, index N = after move N.
-  static List<GameState> _buildStates(GameRecord record) {
-    // Build initial board.
-    final emptyBoard = List.generate(
-      record.boardSize,
-      (_) => List<StoneColor>.filled(record.boardSize, StoneColor.empty),
-    );
-
-    if (record.initialBoardCells != null) {
-      final cells = record.initialBoardCells!;
-      for (int r = 0; r < record.boardSize; r++) {
-        for (int c = 0; c < record.boardSize; c++) {
-          if (r < cells.length && c < cells[r].length) {
-            emptyBoard[r][c] = StoneColor
-                .values[cells[r][c].clamp(0, StoneColor.values.length - 1)];
-          }
-        }
-      }
-    } else {
-      final initialMode = captureInitialModeFromStorageKey(
-        record.initialMode,
-        fallback: CaptureInitialMode.empty,
-      );
-      applyCaptureInitialLayout(emptyBoard, initialMode);
-    }
-
-    var state = GameState(
-      boardSize: record.boardSize,
-      board: emptyBoard,
-      currentPlayer: record.initialFirstPlayer,
-    );
-
-    final states = <GameState>[state];
-    for (final move in record.moves) {
-      if (move.length < 2) break;
-      final next = GoEngine.placeStone(state, move[0], move[1]);
-      if (next == null) break;
-      state = next;
-      states.add(state);
-    }
-    return states;
-  }
-
-  int get _totalMoves => _states.length - 1;
-  Set<int> get _markedMoves => widget.record.markedMoveNumbers.toSet();
-  List<int> get _sortedMarkedMoves => _markedMoves.toList()..sort();
-
-  String _moveCoordinate(int moveNo, BoardCoordinateSystem coordinateSystem) {
-    if (moveNo <= 0 || moveNo > widget.record.moves.length) return '-';
-    return _formatBoardCoordinate(
-      widget.record.moves[moveNo - 1],
-      widget.record.boardSize,
-      coordinateSystem,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final coordinateSystem =
-        context.select<SettingsProvider, BoardCoordinateSystem>(
-            (settings) => settings.boardCoordinateSystem);
-    final markedMoves = _sortedMarkedMoves;
-    final hasMarkedMoves = markedMoves.isNotEmpty;
-    final markedStart = hasMarkedMoves ? markedMoves.first : 0;
-    final markedEnd = hasMarkedMoves ? markedMoves.last : _totalMoves;
-    final isAtStart =
-        _onlyMarked && hasMarkedMoves ? _index <= markedStart : _index == 0;
-    final isAtEnd = _onlyMarked && hasMarkedMoves
-        ? _index >= markedEnd
-        : _index == _totalMoves;
-    final current = _states[_index];
-
-    return CupertinoPageScaffold(
-      backgroundColor: kPageBackgroundColor,
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('棋局瀏覽'),
-        previousPageTitle: '歷史對局',
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0DFC9),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: GoBoardWidget(
-                          gameState: current,
-                          coordinateSystem: coordinateSystem,
-                          onTap: null,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Column(
-                children: [
-                  Text(
-                    _index == 0
-                        ? '初始局面'
-                        : '第 $_index 手 / 共 $_totalMoves 手 · 座標 ${_moveCoordinate(_index, coordinateSystem)}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF8C7966),
-                    ),
-                  ),
-                  if (_index > 0 && _markedMoves.contains(_index))
-                    const Text(
-                      '⭐ 已標記手',
-                      style: TextStyle(fontSize: 12, color: Color(0xFFB68454)),
-                    ),
-                ],
-              ),
-            ),
-            if (hasMarkedMoves)
-              SizedBox(
-                height: 40,
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    CupertinoButton(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      onPressed: () =>
-                          setState(() => _onlyMarked = !_onlyMarked),
-                      child: Text(_onlyMarked ? '只看標記：開' : '只看標記：關'),
-                    ),
-                    for (final move in markedMoves)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: CupertinoButton(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          color: _index == move
-                              ? const Color(0xFFB68454)
-                              : const Color(0x1AB68454),
-                          onPressed: () => setState(
-                              () => _index = move.clamp(0, _totalMoves)),
-                          child: Text(
-                            '第$move手 ${_moveCoordinate(move, coordinateSystem)}',
-                            style: TextStyle(
-                              color: _index == move
-                                  ? const Color(0xFFFFFFFF)
-                                  : const Color(0xFF7A5A3A),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-              child: Row(
-                children: [
-                  _NavIconButton(
-                    icon: CupertinoIcons.backward_end_fill,
-                    enabled: !isAtStart,
-                    onPressed: () => setState(() => _index =
-                        (_onlyMarked && hasMarkedMoves) ? markedStart : 0),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _DecoratedActionButton(
-                      text: '上一手',
-                      filled: false,
-                      onPressed: isAtStart
-                          ? null
-                          : () => setState(() {
-                                if (_onlyMarked) {
-                                  final prev = markedMoves
-                                      .where((m) => m < _index)
-                                      .toList();
-                                  if (prev.isNotEmpty) {
-                                    _index = prev.last;
-                                  }
-                                } else {
-                                  _index--;
-                                }
-                              }),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _DecoratedActionButton(
-                      text: '下一手',
-                      filled: true,
-                      onPressed: isAtEnd
-                          ? null
-                          : () => setState(() {
-                                if (_onlyMarked) {
-                                  final next = markedMoves
-                                      .where((m) => m > _index)
-                                      .toList();
-                                  if (next.isNotEmpty) {
-                                    _index = next.first;
-                                  }
-                                } else {
-                                  _index++;
-                                }
-                              }),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _NavIconButton(
-                    icon: CupertinoIcons.forward_end_fill,
-                    enabled: !isAtEnd,
-                    onPressed: () => setState(() => _index =
-                        (_onlyMarked && hasMarkedMoves)
-                            ? markedEnd
-                            : _totalMoves),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavIconButton extends StatelessWidget {
-  const _NavIconButton({
-    required this.icon,
-    required this.enabled,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final bool enabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      minimumSize: Size.zero,
-      onPressed: enabled ? onPressed : null,
-      child: Icon(
-        icon,
-        size: 22,
-        color: enabled
-            ? const Color(0xFFB68454)
-            : const Color(0xFFB68454).withValues(alpha: 0.35),
-      ),
-    );
-  }
 }
 
 enum _ResultDialogState { victory, draw, notWin }

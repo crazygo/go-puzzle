@@ -1,6 +1,8 @@
 /// Shared display-label helpers for tactics categories, tactic types, and
 /// player colours. Used by both [SkillsScreen] and [TacticsProblemScreen].
 
+import '../game/capture_ai_tactics.dart';
+import '../models/board_position.dart';
 import '../providers/settings_provider.dart';
 import 'board_coordinates.dart';
 
@@ -37,6 +39,32 @@ String playerName(int player) {
     2 => '白',
     _ => '-',
   };
+}
+
+/// Short type + purpose line for the tactics problem screen subtitle.
+String tacticsProblemSubtitle(CaptureAiTacticsProblem problem) {
+  final tactic = problem.metadata['tactic']?.toString() ?? '';
+  final typeLabel = switch (problem.category) {
+    'group_fate' => '死活',
+    'capture_race' => '對殺',
+    'trap' || 'exchange' || 'multi_threat' => '手筋',
+    _ => categoryName(problem.category),
+  };
+  final purposeLabel = tactic.isNotEmpty
+      ? tacticName(tactic)
+      : switch (problem.category) {
+          'group_fate' => '做活',
+          'capture_race' => '對殺',
+          'trap' => '吃子',
+          'exchange' => '轉換',
+          'multi_threat' => '多重威脅',
+          _ => categoryName(problem.category),
+        };
+  return '$typeLabel · $purposeLabel';
+}
+
+String waitingMoveTitle(StoneColor currentPlayer) {
+  return currentPlayer == StoneColor.black ? '等待黑棋落子' : '等待白棋落子';
 }
 
 /// Formats a board position as a human-readable coordinate string
